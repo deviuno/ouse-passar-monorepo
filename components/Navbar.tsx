@@ -32,8 +32,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onChangeView }) => 
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-20 items-center">
-          {/* Logo */}
+        <div className="flex justify-between h-24 items-center">
+          {/* Logo - Tamanho aumentado */}
           <div 
             className="flex-shrink-0 flex items-center cursor-pointer group" 
             onClick={() => onChangeView(ViewState.HOME)}
@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onChangeView }) => 
             <img 
               src="https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp" 
               alt="Ouse Passar" 
-              className="h-10 md:h-12 w-auto object-contain transition-transform group-hover:scale-105"
+              className="h-12 md:h-16 w-auto object-contain transition-transform group-hover:scale-105"
             />
           </div>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Plus } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 export const WhyChoose: React.FC = () => {
   return (
@@ -54,13 +54,6 @@ export const WhyChoose: React.FC = () => {
           {/* Image Content */}
           <div className="relative order-1 lg:order-2 flex justify-end z-10 pointer-events-none">
              
-             {/* Decorative Crosses (Plus) - Top Right */}
-             <div className="absolute top-10 right-0 grid grid-cols-3 gap-4 z-0 opacity-30">
-                {[...Array(9)].map((_, i) => (
-                    <Plus key={i} className="w-6 h-6 text-white" />
-                ))}
-             </div>
-
              {/* Main Image */}
              {/* SCALE UP: lg:w-[190%] to fill vertically. translate-x adjusted to center in empty space. */}
              <div className="relative z-10 w-full lg:w-[190%] lg:max-w-none lg:-translate-x-32 origin-bottom">
