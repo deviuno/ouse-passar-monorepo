@@ -1,5 +1,5 @@
 import React from 'react';
-import { Instagram, Youtube, Twitter, MapPin, Mail, Phone } from 'lucide-react';
+import { Instagram, Youtube, MapPin, Mail, MessageCircle } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -20,9 +20,9 @@ export const Footer: React.FC = () => {
               A plataforma que trata concurso público como guerra, e o candidato como soldado. Sua farda começa aqui.
             </p>
             <div className="flex space-x-4">
-                <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-yellow hover:text-brand-darker transition-all"><Instagram className="w-5 h-5"/></a>
-                <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all"><Youtube className="w-5 h-5"/></a>
-                <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all"><Twitter className="w-5 h-5"/></a>
+                <a href="https://www.instagram.com/ousepassar/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-yellow hover:text-brand-darker transition-all"><Instagram className="w-5 h-5"/></a>
+                <a href="https://www.youtube.com/@OUSEPASSAR" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all"><Youtube className="w-5 h-5"/></a>
+                <a href="https://api.whatsapp.com/send?phone=558388979236&text=Ola%20Silvana%20da%20Equipe%20Ouse%20Passar,%20tudo%20bem%20com%20voc%C3%AAs?%20Eu%20vim%20pelo%20link%20do%20*Site%20do%20OP*%20,%20poderiam%20me%20auxiliar?" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all"><MessageCircle className="w-5 h-5"/></a>
             </div>
           </div>
           
@@ -63,8 +63,15 @@ export const Footer: React.FC = () => {
                     <span>contato@ousepassar.com.br</span>
                 </li>
                 <li className="flex items-center">
-                    <Phone className="w-5 h-5 text-brand-yellow mr-3" />
-                    <span>(11) 99999-9999</span>
+                    <MessageCircle className="w-5 h-5 text-brand-yellow mr-3" />
+                    <a 
+                      href="https://api.whatsapp.com/send?phone=558388979236&text=Ola%20Silvana%20da%20Equipe%20Ouse%20Passar,%20tudo%20bem%20com%20voc%C3%AAs?%20Eu%20vim%20pelo%20link%20do%20*Site%20do%20OP*%20,%20poderiam%20me%20auxiliar?" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="hover:text-green-400 transition-colors"
+                    >
+                      (83) 98897-9236
+                    </a>
                 </li>
              </ul>
           </div>

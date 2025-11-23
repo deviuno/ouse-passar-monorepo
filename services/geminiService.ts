@@ -1,12 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 
 const getClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.error("API_KEY is missing from environment variables.");
-    return null;
-  }
-  return new GoogleGenAI({ apiKey });
+  // Always use process.env.API_KEY as per guidelines.
+  // We assume this variable is pre-configured and valid in the execution context.
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 export const sendMessageToMentor = async (
@@ -14,9 +11,6 @@ export const sendMessageToMentor = async (
   message: string
 ): Promise<string> => {
   const client = getClient();
-  if (!client) {
-    return "Erro: Chave de API não configurada.";
-  }
 
   const systemInstruction = `
     Você é o Consultor de Atendimento Oficial do 'Ouse Passar'.

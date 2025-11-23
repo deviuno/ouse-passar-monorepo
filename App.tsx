@@ -4,6 +4,7 @@ import { Hero } from './components/Hero';
 import { Methodology } from './components/Methodology';
 import { WhyChoose } from './components/WhyChoose';
 import { VideoTestimonials } from './components/VideoTestimonials';
+import { PowerFoco } from './components/PowerFoco';
 import { BlogList, BlogPostView } from './components/Blog';
 import { AIChat } from './components/AIChat';
 import { Footer } from './components/Footer';
@@ -38,6 +39,7 @@ const App: React.FC = () => {
             <Methodology />
             <WhyChoose />
             <VideoTestimonials />
+            <PowerFoco />
             
             {/* CTA Section for Blog on Homepage */}
             <div className="py-20 bg-brand-darker border-t border-white/5 relative overflow-hidden">
