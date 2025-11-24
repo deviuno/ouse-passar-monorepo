@@ -204,9 +204,8 @@ export async function getCategories(): Promise<{ categories: string[]; error?: s
         if (error) throw error;
 
         // Get unique categories
-        const uniqueCategories = Array.from(
-            new Set(data?.map((item) => item.categoria).filter(Boolean) as string[])
-        ).sort();
+        const categoriesList = data?.map((item: { categoria: string | null }) => item.categoria).filter(Boolean) as string[];
+        const uniqueCategories = Array.from(new Set(categoriesList)).sort();
 
         return {
             categories: uniqueCategories,
