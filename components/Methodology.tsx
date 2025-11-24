@@ -1,7 +1,9 @@
 import React from 'react';
 import { Shield, Scale, FileText, Crosshair, ArrowRight } from 'lucide-react';
+import { useScrollAnimation } from '../lib/useScrollAnimation';
 
 export const Methodology: React.FC = () => {
+  const { ref: sectionRef, isVisible } = useScrollAnimation({ threshold: 0.15 });
   const tracks = [
     {
       icon: <Shield className="w-10 h-10 text-brand-darker" />,
@@ -34,16 +36,16 @@ export const Methodology: React.FC = () => {
   ];
 
   return (
-    <section className="py-24 bg-brand-dark">
+    <section ref={sectionRef} className="py-24 bg-brand-dark">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 border-b border-white/10 pb-8">
-            <div className="max-w-2xl">
+            <div className={`max-w-2xl scroll-animate ${isVisible ? 'visible animate-fade-in-left' : ''}`}>
                 <h2 className="text-brand-yellow font-bold tracking-[0.2em] uppercase text-sm mb-2">Segmentação Estratégica</h2>
                 <h3 className="text-4xl md:text-5xl font-black text-white font-display tracking-tight">
                     ESCOLHA O SEU <br/> CAMPO DE BATALHA
                 </h3>
             </div>
-            <div className="mt-6 md:mt-0">
+            <div className={`mt-6 md:mt-0 scroll-animate ${isVisible ? 'visible animate-fade-in-right' : ''}`}>
                 <p className="text-gray-400 max-w-md text-right md:text-left">
                     Não existe "estudar para concurso" de forma genérica. Aqui você treina especificamente para o inimigo que vai enfrentar.
                 </p>
@@ -52,7 +54,7 @@ export const Methodology: React.FC = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {tracks.map((track, idx) => (
-            <div key={idx} className="group relative bg-brand-card border border-white/5 p-8 hover:-translate-y-2 transition-all duration-300">
+            <div key={idx} className={`group relative bg-brand-card border border-white/5 p-8 hover:-translate-y-2 transition-all duration-300 hover:shadow-xl hover:shadow-${track.color.split('-')[1]}-500/20 scroll-animate ${isVisible ? `visible animate-scale-in stagger-${idx + 1}` : ''}`}>
               <div className={`absolute top-0 right-0 w-24 h-24 ${track.color} opacity-10 rounded-bl-full transition-all group-hover:scale-150 duration-500`}></div>
               
               <div className={`w-16 h-16 ${track.color} flex items-center justify-center mb-6 shadow-lg`}>

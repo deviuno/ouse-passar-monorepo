@@ -1,13 +1,17 @@
 export interface BlogPost {
   id: string;
   title: string;
+  slug: string;
   excerpt: string;
   content: string;
   author: string;
+  authorAvatar?: string;
   date: string;
   category: string;
   imageUrl: string;
   readTime: string;
+  tags?: string[];
+  keywords?: string[];
 }
 
 export interface Testimonial {

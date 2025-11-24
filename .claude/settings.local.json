@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(npx:*)",
+      "Bash(npm run setup:storage:*)",
+      "Bash(env)",
+      "Bash(node scripts/apply-storage-policies.js:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

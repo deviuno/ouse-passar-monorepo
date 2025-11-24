@@ -1,7 +1,9 @@
 import React from 'react';
 import { Zap, Brain, Battery, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { useScrollAnimation } from '../lib/useScrollAnimation';
 
 export const PowerFoco: React.FC = () => {
+  const { ref: sectionRef, isVisible } = useScrollAnimation({ threshold: 0.2 });
   const benefits = [
     {
       icon: <CrosshairIcon className="w-6 h-6 text-cyan-400" />,
@@ -22,7 +24,7 @@ export const PowerFoco: React.FC = () => {
   ];
 
   return (
-    <section className="relative py-24 bg-[#0F1115] overflow-hidden border-t border-white/5">
+    <section ref={sectionRef} className="relative py-24 bg-[#0F1115] overflow-hidden border-t border-white/5">
       {/* Background Ambience */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-brand-yellow/5 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
@@ -35,24 +37,24 @@ export const PowerFoco: React.FC = () => {
           
           {/* Content Column */}
           <div className="order-2 lg:order-1">
-            <div className="inline-flex items-center px-3 py-1 rounded-full bg-cyan-900/30 border border-cyan-500/30 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-6 animate-pulse">
+            <div className={`inline-flex items-center px-3 py-1 rounded-full bg-cyan-900/30 border border-cyan-500/30 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-6 animate-pulse scroll-animate ${isVisible ? 'visible animate-fade-in-left' : ''}`}>
               <Brain className="w-3 h-3 mr-2" />
               Nootrópico de Alta Performance
             </div>
             
-            <h2 className="text-4xl md:text-5xl font-black text-white font-display leading-tight mb-6">
+            <h2 className={`text-4xl md:text-5xl font-black text-white font-display leading-tight mb-6 scroll-animate ${isVisible ? 'visible animate-fade-in-up stagger-1' : ''}`}>
               Aumente Seu Foco e <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">
                 Potencial Cognitivo!
               </span> 🧠🔥
             </h2>
             
-            <p className="text-gray-400 text-lg leading-relaxed mb-8 border-l-4 border-cyan-500 pl-6">
+            <p className={`text-gray-400 text-lg leading-relaxed mb-8 border-l-4 border-cyan-500 pl-6 scroll-animate ${isVisible ? 'visible animate-fade-in-up stagger-2' : ''}`}>
               Você sabia que seu cérebro pode trabalhar a todo vapor com os nutrientes certos? O <strong className="text-white">Power Foco</strong> é um suplemento desenvolvido especialmente para concurseiros que precisam de máximo desempenho mental.
             </p>
 
             {/* Benefits List */}
-            <div className="space-y-4 mb-10">
+            <div className={`space-y-4 mb-10 scroll-animate ${isVisible ? 'visible animate-fade-in-up stagger-3' : ''}`}>
               {benefits.map((benefit, index) => (
                 <div key={index} className="flex items-center bg-white/5 border border-white/5 p-4 rounded-lg hover:border-cyan-500/50 transition-colors group">
                   <div className="bg-cyan-500/10 p-2 rounded-full mr-4 group-hover:bg-cyan-500/20 transition-colors">
@@ -64,7 +66,7 @@ export const PowerFoco: React.FC = () => {
             </div>
 
             {/* CTA Area */}
-            <div className="flex flex-col sm:items-start gap-4">
+            <div className={`flex flex-col sm:items-start gap-4 scroll-animate ${isVisible ? 'visible animate-fade-in-up stagger-4' : ''}`}>
               <p className="text-sm text-gray-400 uppercase tracking-wider font-bold mb-2 flex items-center">
                 <ArrowRight className="w-4 h-4 text-brand-yellow mr-2 animate-bounce-x" />
                 Descubra como turbinar seus estudos
@@ -77,7 +79,7 @@ export const PowerFoco: React.FC = () => {
           </div>
 
           {/* Product Image Column */}
-          <div className="order-1 lg:order-2 flex justify-center relative group">
+          <div className={`order-1 lg:order-2 flex justify-center relative group scroll-animate ${isVisible ? 'visible animate-scale-in stagger-2' : ''}`}>
             {/* Glow behind product */}
             <div className="absolute inset-0 bg-cyan-500/20 blur-3xl rounded-full transform scale-75 group-hover:scale-90 transition-transform duration-700"></div>
             

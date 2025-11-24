@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, PlayCircle, ShieldCheck } from 'lucide-react';
+import { useScrollAnimation } from '../lib/useScrollAnimation';
 
 interface HeroSlide {
   id: number;
@@ -39,6 +40,7 @@ const HERO_SLIDES: HeroSlide[] = [
 
 export const Hero: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { ref: sectionRef, isVisible } = useScrollAnimation({ threshold: 0.2 });
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -49,7 +51,7 @@ export const Hero: React.FC = () => {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-brand-darker">
+    <section ref={sectionRef} className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-brand-darker">
       {/* Background Gradients */}
       <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-radial from-brand-yellow/10 to-transparent opacity-50 blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-0 left-0 w-1/3 h-1/2 bg-blue-900/20 blur-3xl pointer-events-none"></div>
@@ -59,21 +61,21 @@ export const Hero: React.FC = () => {
           
           {/* Copy Content */}
           <div className="lg:col-span-7 text-center lg:text-left">
-            <div className="inline-flex items-center px-4 py-2 rounded-sm bg-brand-yellow/10 border border-brand-yellow/20 text-brand-yellow font-bold text-xs uppercase tracking-widest mb-8 animate-fade-in">
+            <div className={`inline-flex items-center px-4 py-2 rounded-sm bg-brand-yellow/10 border border-brand-yellow/20 text-brand-yellow font-bold text-xs uppercase tracking-widest mb-8 scroll-animate ${isVisible ? 'visible animate-fade-in' : ''}`}>
               <span className="w-2 h-2 rounded-full bg-brand-yellow mr-2 animate-pulse"></span>
               Inscrições Abertas: PF & PRF 2025
             </div>
             
-            <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-black text-white tracking-tighter leading-[1.1] mb-8">
+            <h1 className={`font-display text-5xl sm:text-6xl md:text-7xl font-black text-white tracking-tighter leading-[1.1] mb-8 scroll-animate ${isVisible ? 'visible animate-fade-in-up stagger-1' : ''}`}>
               SUA NOMEAÇÃO <br/>
               É NOSSA <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-yellow to-brand-yellowHover text-glow">OBSESSÃO.</span>
             </h1>
             
-            <p className="text-lg md:text-xl text-gray-400 mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-light border-l-4 border-brand-yellow pl-6">
+            <p className={`text-lg md:text-xl text-gray-400 mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-light border-l-4 border-brand-yellow pl-6 scroll-animate ${isVisible ? 'visible animate-fade-in-up stagger-2' : ''}`}>
               Esqueça métodos arcaicos. O <strong className="text-white">Ouse Passar</strong> entrega a estratégia exata, validada por centenas de aprovados nas carreiras policiais e tribunais mais difíceis do país.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-5 justify-center lg:justify-start mb-12">
+            <div className={`flex flex-col sm:flex-row gap-5 justify-center lg:justify-start mb-12 scroll-animate ${isVisible ? 'visible animate-fade-in-up stagger-3' : ''}`}>
               <button className="group relative px-8 py-4 bg-brand-yellow text-brand-darker font-black text-lg uppercase tracking-wider skew-x-[-10deg] hover:bg-white transition-all duration-300 shadow-[0_0_30px_rgba(255,184,0,0.4)] hover:shadow-[0_0_50px_rgba(255,184,0,0.6)]">
                 <span className="flex items-center justify-center skew-x-[10deg]">
                   Quero ser Aprovado
@@ -90,7 +92,7 @@ export const Hero: React.FC = () => {
             </div>
 
             {/* Social Proof Stats */}
-            <div className="grid grid-cols-3 gap-8 border-t border-white/10 pt-8">
+            <div className={`grid grid-cols-3 gap-8 border-t border-white/10 pt-8 scroll-animate ${isVisible ? 'visible animate-fade-in-up stagger-4' : ''}`}>
               <div>
                 <div className="flex items-center justify-center lg:justify-start text-3xl font-black text-white mb-1">
                   1.2k<span className="text-brand-yellow">+</span>
@@ -113,7 +115,7 @@ export const Hero: React.FC = () => {
           </div>
 
           {/* Image/Visual Content (Slideshow) */}
-          <div className="lg:col-span-5 relative hidden lg:block h-[600px] w-full">
+          <div className={`lg:col-span-5 relative hidden lg:block h-[600px] w-full scroll-animate ${isVisible ? 'visible animate-fade-in-right stagger-2' : ''}`}>
             <div className="relative z-10 w-full h-full">
                 {/* Fixed Background Glow */}
                 <div className="absolute inset-0 bg-brand-yellow transform rotate-3 rounded-2xl opacity-20 blur-md z-0"></div>

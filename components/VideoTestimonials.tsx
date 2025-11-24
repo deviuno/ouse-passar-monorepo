@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Play, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useScrollAnimation } from '../lib/useScrollAnimation';
 
 interface Video {
   id: string;
@@ -36,6 +37,7 @@ const VIDEOS: Video[] = [
 ];
 
 export const VideoTestimonials: React.FC = () => {
+  const { ref: sectionRef, isVisible } = useScrollAnimation({ threshold: 0.2 });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
@@ -100,16 +102,16 @@ export const VideoTestimonials: React.FC = () => {
   };
 
   return (
-    <section className="py-24 bg-brand-dark overflow-hidden relative">
+    <section ref={sectionRef} className="py-24 bg-brand-dark overflow-hidden relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        
-        <h2 className="text-4xl md:text-5xl font-black text-white font-display uppercase tracking-tight mb-16 relative inline-block">
+
+        <h2 className={`text-4xl md:text-5xl font-black text-white font-display uppercase tracking-tight mb-16 relative inline-block scroll-animate ${isVisible ? 'visible animate-fade-in-up' : ''}`}>
           Aprovações
           <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-brand-yellow"></div>
         </h2>
 
         {/* 3D Carousel Container */}
-        <div className="relative h-[300px] md:h-[400px] flex items-center justify-center perspective-[1000px] mx-auto max-w-5xl mb-12">
+        <div className={`relative h-[300px] md:h-[400px] flex items-center justify-center perspective-[1000px] mx-auto max-w-5xl mb-12 scroll-animate ${isVisible ? 'visible animate-scale-in stagger-1' : ''}`}>
             
             {/* Navigation Buttons (Absolute) */}
             <button 
