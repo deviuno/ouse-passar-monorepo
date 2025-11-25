@@ -7,6 +7,7 @@ import { formatDate, getAvatarUrl } from '../lib/utils';
 import { SEOHead } from './SEOHead';
 import { PageHero } from './PageHero';
 import { useScrollAnimation } from '../lib/useScrollAnimation';
+import '../styles/blog-content.css';
 
 export const BlogList: React.FC = () => {
   const { ref: gridRef, isVisible } = useScrollAnimation({ threshold: 0.1 });
@@ -293,14 +294,7 @@ export const BlogPostView: React.FC = () => {
         {/* Conteúdo em container de leitura */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 md:mt-12">
           <div className="bg-brand-card/60 border border-white/10 px-6 sm:px-10 md:px-12 py-10 md:py-12">
-            <div className="prose prose-lg prose-invert max-w-none 
-              prose-headings:font-display prose-headings:font-black prose-headings:text-white prose-headings:uppercase
-              prose-p:text-gray-300 prose-p:font-light prose-p:leading-8
-              prose-a:text-brand-yellow prose-a:no-underline hover:prose-a:underline
-              prose-strong:text-white prose-strong:font-bold
-              prose-ul:marker:text-brand-yellow
-              prose-li:text-gray-300
-            ">
+            <div className="blog-content">
               <div dangerouslySetInnerHTML={{ __html: post.content }} />
             </div>
 

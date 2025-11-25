@@ -114,23 +114,31 @@ export async function getPublishedPosts(
         // Get posts with relations
         const { data, error } = await supabase
             .from('artigos')
-            .select('*, autores_artigos(nome, imagem_perfil), categories(name, slug)')
+            .select('*, autores_artigos!left(nome, imagem_perfil, ativo), categories!left(name, slug)')
             .eq('status_publicacao', 'publicado')
             .order('data_publicacao', { ascending: false })
             .range(offset, offset + limit - 1);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase error:', error);
+            throw error;
+        }
+
+        console.log(`Found ${data?.length || 0} published articles`);
+        if (data && data.length > 0) {
+            console.log('First article:', data[0]);
+        }
 
         return {
             posts: (data || []).map(artigoToBlogPost),
             total: count || 0,
         };
-    } catch (error) {
+    } catch (error: any) {
         console.error('Erro ao carregar artigos publicados:', error);
         return {
             posts: [],
             total: 0,
-            error: 'Erro ao carregar artigos',
+            error: error.message || 'Erro ao carregar artigos',
         };
     }
 }
@@ -142,12 +150,15 @@ export async function getPostBySlug(slug: string): Promise<{ post: BlogPost | nu
     try {
         const { data, error } = await supabase
             .from('artigos')
-            .select('*, autores_artigos(nome, imagem_perfil), categories(name, slug)')
+            .select('*, autores_artigos!left(nome, imagem_perfil, ativo), categories!left(name, slug)')
             .eq('slug', slug)
             .eq('status_publicacao', 'publicado')
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error loading post by slug:', error);
+            throw error;
+        }
 
         return {
             post: data ? artigoToBlogPost(data) : null,
@@ -167,12 +178,15 @@ export async function getFeaturedPosts(limit: number = 3): Promise<{ posts: Blog
     try {
         const { data, error } = await supabase
             .from('artigos')
-            .select('*, autores_artigos(nome, imagem_perfil), categories(name, slug)')
+            .select('*, autores_artigos!left(nome, imagem_perfil, ativo), categories!left(name, slug)')
             .eq('status_publicacao', 'publicado')
             .order('data_publicacao', { ascending: false })
             .limit(limit);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error loading featured posts:', error);
+            throw error;
+        }
 
         return {
             posts: (data || []).map(artigoToBlogPost),
@@ -215,13 +229,16 @@ export async function getPostsByCategory(
         // Get posts
         const { data, error } = await supabase
             .from('artigos')
-            .select('*, autores_artigos(nome, imagem_perfil), categories(name, slug)')
+            .select('*, autores_artigos!left(nome, imagem_perfil, ativo), categories!left(name, slug)')
             .eq('status_publicacao', 'publicado')
             .eq('categoria_id', catData.id)
             .order('data_publicacao', { ascending: false })
             .range(offset, offset + limit - 1);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error loading posts by category:', error);
+            throw error;
+        }
 
         return {
             posts: (data || []).map(artigoToBlogPost),
