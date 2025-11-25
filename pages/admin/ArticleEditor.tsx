@@ -5,16 +5,21 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { createPost, updatePost, getPostBySlugAdmin, BlogPostStatus } from '../../services/blogService';
 import { ImageUpload } from '../../components/admin/ImageUpload';
+import { supabase } from '../../lib/supabase';
 
 export const ArticleEditor: React.FC = () => {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug?: string }>();
   const isEditMode = !!slug;
 
-  const [loading, setLoading] = useState(isEditMode);
+  const [loading, setLoading] = useState(true); // Start loading to fetch lists
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Lists for dropdowns
+  const [authorsList, setAuthorsList] = useState<any[]>([]);
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
 
   // Form fields
   const [title, setTitle] = useState('');
@@ -22,22 +27,38 @@ export const ArticleEditor: React.FC = () => {
   const [excerpt, setExcerpt] = useState('');
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
-  const [category, setCategory] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
-  const [author, setAuthor] = useState('');
+  const [authorId, setAuthorId] = useState('');
   const [readTime, setReadTime] = useState('');
   const [status, setStatus] = useState<BlogPostStatus>('draft');
 
-  // Load existing article if editing
+  // Load lists and existing article
   useEffect(() => {
-    if (isEditMode && slug) {
-      loadArticle(slug);
-    }
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([loadAuthors(), loadCategories()]);
+
+      if (isEditMode && slug) {
+        await loadArticle(slug);
+      }
+      setLoading(false);
+    };
+    init();
   }, [isEditMode, slug]);
 
+  const loadAuthors = async () => {
+    const { data } = await supabase.from('autores_artigos').select('autor_id, nome').order('nome');
+    if (data) setAuthorsList(data);
+  };
+
+  const loadCategories = async () => {
+    const { data } = await supabase.from('categories').select('id, name').order('name');
+    if (data) setCategoriesList(data);
+  };
+
   const loadArticle = async (articleSlug: string) => {
-    setLoading(true);
     setError('');
     try {
       const result = await getPostBySlugAdmin(articleSlug);
@@ -51,9 +72,9 @@ export const ArticleEditor: React.FC = () => {
         setExcerpt(post.excerpt);
         setContent(post.content);
         setImageUrl(post.imageUrl);
-        setCategory(post.category);
+        setCategoryId(post.categoryId || ''); // Use ID
         setTags(post.tags || []);
-        setAuthor(post.author);
+        setAuthorId(post.authorId || ''); // Use ID
         setReadTime(post.readTime);
         setStatus(post.status);
       } else {
@@ -62,8 +83,6 @@ export const ArticleEditor: React.FC = () => {
     } catch (err) {
       console.error('Erro ao carregar artigo:', err);
       setError('Erro ao carregar artigo: ' + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -95,7 +114,7 @@ export const ArticleEditor: React.FC = () => {
   };
 
   const handleSave = async (newStatus: BlogPostStatus) => {
-    if (!title.trim() || !content.trim() || !author.trim()) {
+    if (!title.trim() || !content.trim() || !authorId) {
       setError('Título, conteúdo e autor são obrigatórios');
       return;
     }
@@ -111,9 +130,9 @@ export const ArticleEditor: React.FC = () => {
         excerpt: excerpt.trim(),
         content: content.trim(),
         imageUrl: imageUrl.trim(),
-        category: category.trim(),
+        categoryId: categoryId,
         tags,
-        author: author.trim(),
+        authorId: authorId,
         readTime: readTime.trim() || '5 min',
         status: newStatus,
         date: new Date().toISOString().split('T')[0]
@@ -265,13 +284,16 @@ export const ArticleEditor: React.FC = () => {
             <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
               Autor *
             </label>
-            <input
-              type="text"
-              value={author}
-              onChange={(e) => setAuthor(e.target.value)}
-              placeholder="Nome do autor"
+            <select
+              value={authorId}
+              onChange={(e) => setAuthorId(e.target.value)}
               className="w-full bg-brand-card border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-brand-yellow transition-colors"
-            />
+            >
+              <option value="">Selecione um autor</option>
+              {authorsList.map(author => (
+                <option key={author.autor_id} value={author.autor_id}>{author.nome}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -296,13 +318,16 @@ export const ArticleEditor: React.FC = () => {
             <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
               Categoria
             </label>
-            <input
-              type="text"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Ex: Estratégia"
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
               className="w-full bg-brand-card border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-brand-yellow transition-colors"
-            />
+            >
+              <option value="">Selecione...</option>
+              {categoriesList.map(category => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Read Time - 2 cols */}
