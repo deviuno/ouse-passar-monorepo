@@ -199,7 +199,7 @@ export async function getPostsByCategory(
             .from('categories')
             .select('id')
             .eq('slug', categorySlug)
-            .single();
+            .single() as any;
 
         if (catError || !catData) throw new Error('Categoria não encontrada');
 

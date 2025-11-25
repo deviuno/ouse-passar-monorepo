@@ -11,8 +11,6 @@ interface Article extends ArticleRow {
     categories?: {
         name: string;
     } | null;
-    // Fallback for old data if needed
-    categoria?: string;
 }
 
 export const Articles: React.FC = () => {
