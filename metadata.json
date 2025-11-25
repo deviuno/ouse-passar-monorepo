@@ -1,0 +1,7 @@
+{
+  "name": "Ouse Passar",
+  "description": "O Instagram dos Concurseiros - App de questões gamificado com IA.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
