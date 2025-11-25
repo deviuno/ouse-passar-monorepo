@@ -357,7 +357,7 @@ export const Authors: React.FC = () => {
                                 <div>
                                     <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Horário</label>
                                     <input
-                                        type="text"
+                                        type="time"
                                         value={formData.horario}
                                         onChange={(e) => setFormData({ ...formData, horario: e.target.value })}
                                         className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
