@@ -14,6 +14,7 @@ interface Author {
     horario: string | null;
     imagem_perfil: string | null; // Supabase returns bytea as hex string
     Assunto: string | null;
+    ativo: boolean;
     data_criacao?: string;
 }
 
@@ -123,6 +124,20 @@ export const Authors: React.FC = () => {
         if (error) {
             console.error('Error deleting author:', error);
             alert('Erro ao excluir autor');
+        } else {
+            loadAuthors();
+        }
+    };
+
+    const handleToggleActive = async (id: string, currentStatus: boolean) => {
+        const { error } = await supabaseClient
+            .from('autores_artigos')
+            .update({ ativo: !currentStatus })
+            .eq('autor_id', id);
+
+        if (error) {
+            console.error('Error toggling author status:', error);
+            alert('Erro ao alterar status do autor');
         } else {
             loadAuthors();
         }
@@ -244,6 +259,18 @@ export const Authors: React.FC = () => {
                                 <div className="space-y-2 mb-6 flex-1">
                                     <p className="text-gray-400 text-xs"><span className="text-brand-yellow">Especialidades:</span> {author.especialidades}</p>
                                     <p className="text-gray-400 text-xs line-clamp-2"><span className="text-brand-yellow">Missão:</span> {author.missao}</p>
+                                    <div className="flex items-center mt-3">
+                                        <span className="text-gray-400 text-xs mr-2">Status:</span>
+                                        <button
+                                            onClick={() => handleToggleActive(author.autor_id, author.ativo)}
+                                            className={`px-3 py-1 rounded text-xs font-bold uppercase transition-colors ${author.ativo
+                                                    ? 'bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30'
+                                                    : 'bg-gray-500/20 text-gray-400 border border-gray-500/30 hover:bg-gray-500/30'
+                                                }`}
+                                        >
+                                            {author.ativo ? 'Ativo' : 'Inativo'}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="flex justify-end space-x-2 pt-4 border-t border-white/5">
