@@ -4,9 +4,16 @@ import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
 import { Plus, Edit2, Trash2, Search, Eye } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
-import { SupabaseClient } from '@supabase/supabase-js';
 
-type Article = Database['public']['Tables']['artigos']['Row'];
+// Extended type to include relations
+type ArticleRow = Database['public']['Tables']['artigos']['Row'];
+interface Article extends ArticleRow {
+    categories?: {
+        name: string;
+    } | null;
+    // Fallback for old data if needed
+    categoria?: string;
+}
 
 export const Articles: React.FC = () => {
     const navigate = useNavigate();
@@ -25,7 +32,7 @@ export const Articles: React.FC = () => {
         setLoading(true);
         const { data, error } = await supabaseClient
             .from('artigos')
-            .select('*')
+            .select('*, categories(name)')
             .order('data_criacao', { ascending: false });
 
         if (error) {
@@ -54,6 +61,7 @@ export const Articles: React.FC = () => {
 
     const filteredArticles = articles.filter(article =>
         article.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        article.categories?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         article.categoria?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -106,7 +114,7 @@ export const Articles: React.FC = () => {
                                     </td>
                                     <td className="p-4">
                                         <span className="px-2 py-1 bg-white/5 rounded text-xs text-gray-300 border border-white/10">
-                                            {article.categoria || 'Sem categoria'}
+                                            {article.categories?.name || article.categoria || 'Sem categoria'}
                                         </span>
                                     </td>
                                     <td className="p-4">
