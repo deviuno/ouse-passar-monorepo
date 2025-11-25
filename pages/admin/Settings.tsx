@@ -31,7 +31,7 @@ export const Settings: React.FC = () => {
         const { data, error } = await supabaseClient
             .from('admin_settings')
             .select('*')
-            .single();
+            .maybeSingle();
 
         if (error) {
             console.error('Error loading settings:', error);

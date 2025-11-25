@@ -25,6 +25,8 @@ import { Articles } from './pages/admin/Articles';
 import { ArticleEditor } from './pages/admin/ArticleEditor';
 import { Settings } from './pages/admin/Settings';
 import { Login } from './pages/admin/Login';
+import { Preparatorios } from './pages/admin/Preparatorios';
+import { NewPreparatorio } from './pages/admin/NewPreparatorio';
 
 // Wrapper for Home Page components
 const Home = () => {
@@ -117,6 +119,8 @@ const App: React.FC = () => {
             <Route path="articles/new" element={<ArticleEditor />} />
             <Route path="articles/edit/:slug" element={<ArticleEditor />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="preparatorios" element={<Preparatorios />} />
+            <Route path="preparatorios/new" element={<NewPreparatorio />} />
           </Route>
 
           {/* Fallback */}

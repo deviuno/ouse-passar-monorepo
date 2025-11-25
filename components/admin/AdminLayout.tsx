@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 export const AdminLayout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
+    const [blogOpen, setBlogOpen] = useState(false);
 
     const isActive = (path: string) => {
         return location.pathname === path ? 'bg-brand-yellow text-brand-darker' : 'text-gray-400 hover:text-white hover:bg-white/5';
@@ -33,7 +34,7 @@ export const AdminLayout: React.FC = () => {
                     </div>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-2">
+                <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                     <Link
                         to="/admin"
                         className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin')}`}
@@ -42,36 +43,63 @@ export const AdminLayout: React.FC = () => {
                         Dashboard
                     </Link>
 
-                    <Link
-                        to="/admin/articles"
-                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/articles')}`}
-                    >
-                        <FileText className="w-5 h-5 mr-3" />
-                        Artigos
-                    </Link>
+                    {/* Blog Accordion */}
+                    <div className="space-y-1">
+                        <button
+                            onClick={() => setBlogOpen(!blogOpen)}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/articles') || location.pathname.includes('/admin/categories') || location.pathname.includes('/admin/authors') || location.pathname.includes('/admin/settings') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <div className="flex items-center">
+                                <BookOpen className="w-5 h-5 mr-3" />
+                                Blog
+                            </div>
+                            <ChevronDown className={`w-4 h-4 transition-transform ${blogOpen ? 'rotate-180' : ''}`} />
+                        </button>
 
-                    <Link
-                        to="/admin/categories"
-                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/categories')}`}
-                    >
-                        <BookOpen className="w-5 h-5 mr-3" />
-                        Categorias
-                    </Link>
+                        {blogOpen && (
+                            <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
+                                <Link
+                                    to="/admin/articles"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/articles')}`}
+                                >
+                                    <FileText className="w-4 h-4 mr-3" />
+                                    Artigos
+                                </Link>
 
-                    <Link
-                        to="/admin/authors"
-                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/authors')}`}
-                    >
-                        <Users className="w-5 h-5 mr-3" />
-                        Autores
-                    </Link>
+                                <Link
+                                    to="/admin/categories"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/categories')}`}
+                                >
+                                    <BookOpen className="w-4 h-4 mr-3" />
+                                    Categorias
+                                </Link>
 
+                                <Link
+                                    to="/admin/authors"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/authors')}`}
+                                >
+                                    <Users className="w-4 h-4 mr-3" />
+                                    Autores
+                                </Link>
+
+                                <Link
+                                    to="/admin/settings"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/settings')}`}
+                                >
+                                    <Settings className="w-4 h-4 mr-3" />
+                                    Configurações
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Preparatórios */}
                     <Link
-                        to="/admin/settings"
-                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/settings')}`}
+                        to="/admin/preparatorios"
+                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/preparatorios')}`}
                     >
-                        <Settings className="w-5 h-5 mr-3" />
-                        Configurações
+                        <GraduationCap className="w-5 h-5 mr-3" />
+                        Preparatórios
                     </Link>
                 </nav>
 
