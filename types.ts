@@ -1,5 +1,4 @@
 
-
 export interface Alternative {
   letter: string;
   text: string;
@@ -56,6 +55,7 @@ export interface Course {
   title: string;
   subtitle: string;
   icon: string;
+  image?: string; // New field for Vertical Cards
   isOwned: boolean;
   price?: string;
 }
@@ -96,7 +96,7 @@ export interface Friend {
     online: boolean;
 }
 
-export type StudyMode = 'zen' | 'hard' | 'reta_final';
+export type StudyMode = 'zen' | 'hard' | 'reta_final' | 'review';
 
 export type StoreItemType = 'avatar' | 'theme' | 'powerup';
 
@@ -118,6 +118,13 @@ export interface Flashcard {
   masteryLevel: 'new' | 'learning' | 'mastered';
 }
 
+export interface ReviewItem {
+  questionId: number;
+  nextReviewDate: number; // Timestamp
+  lastDifficulty: 'error' | 'hard' | 'medium' | 'easy';
+  interval: number; // Days until next review
+}
+
 export interface EssayFeedback {
     score: number;
     maxScore: number;
@@ -137,3 +144,7 @@ export interface ToastMessage {
   type: ToastType;
   message: string;
 }
+
+export type GamificationModalType = 'coins' | 'streak' | 'ranking' | 'level' | 'league' | 'daily_goal' | null;
+
+export type LeagueTier = 'ferro' | 'bronze' | 'prata' | 'ouro' | 'diamante';

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ParsedQuestion, Comment, CommunityStats, StudyMode } from '../types';
 import { COLORS, MOCK_COMMENTS, MOCK_STATS } from '../constants';
-import { MessageCircle, AlertTriangle, BarChart2, ThumbsUp, ThumbsDown, MessageSquare, X, Timer, Coffee, Zap } from 'lucide-react';
+import { MessageCircle, AlertTriangle, BarChart2, ThumbsUp, ThumbsDown, MessageSquare, X, Timer, Coffee, Zap, BrainCircuit } from 'lucide-react';
 import { generateExplanation } from '../services/geminiService';
 
 interface QuestionCardProps {
@@ -11,6 +11,7 @@ interface QuestionCardProps {
   onNext: () => void;
   onOpenTutor: () => void;
   onAnswer: (letter: string) => void;
+  onRateDifficulty?: (difficulty: 'easy' | 'medium' | 'hard') => void;
   onTimeout?: () => void;
   studyMode?: StudyMode;
   initialTime?: number; // Duration in minutes for Simulado mode
@@ -79,7 +80,7 @@ const CommentItem: React.FC<{ comment: Comment; isReply?: boolean }> = ({ commen
 };
 
 
-const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onOpenTutor, onAnswer, onTimeout, studyMode = 'zen', initialTime = 120 }) => {
+const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onOpenTutor, onAnswer, onRateDifficulty, onTimeout, studyMode = 'zen', initialTime = 120 }) => {
   const [selectedAlt, setSelectedAlt] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
@@ -159,6 +160,13 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
     }
   };
 
+  const handleRate = (diff: 'easy' | 'medium' | 'hard') => {
+      setDifficultyRating(diff);
+      if (onRateDifficulty) {
+          onRateDifficulty(diff);
+      }
+  };
+
   const getOptionStyle = (letter: string) => {
     // Basic Selection Style
     if (!isSubmitted) {
@@ -183,7 +191,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
   const currentStats = MOCK_STATS['default'];
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-24">
+    <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-24 px-4">
       {/* Header Info */}
       <div className="mb-4">
         <div className="flex justify-between items-start mb-2">
@@ -206,6 +214,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                     {studyMode === 'reta_final' && (
                         <div className="flex items-center text-purple-500 text-[10px] bg-purple-900/20 px-2 py-0.5 rounded-full border border-purple-900/50">
                              <Zap size={10} className="mr-1"/> RETA FINAL
+                        </div>
+                    )}
+                    {studyMode === 'review' && (
+                        <div className="flex items-center text-blue-400 text-[10px] bg-blue-900/20 px-2 py-0.5 rounded-full border border-blue-900/50">
+                             <BrainCircuit size={10} className="mr-1"/> REVISÃO
                         </div>
                     )}
                 </div>
@@ -307,19 +320,19 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             {/* Post-Answer Action Buttons */}
             <div className="grid grid-cols-4 gap-2 mb-6">
                 <button 
-                    onClick={() => setDifficultyRating('easy')}
+                    onClick={() => handleRate('easy')}
                     className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'easy' ? 'bg-green-500/20 border-green-500 text-green-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
                 >
                     Fácil
                 </button>
                 <button 
-                    onClick={() => setDifficultyRating('medium')}
+                    onClick={() => handleRate('medium')}
                     className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'medium' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
                 >
                     Médio
                 </button>
                 <button 
-                    onClick={() => setDifficultyRating('hard')}
+                    onClick={() => handleRate('hard')}
                     className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'hard' ? 'bg-red-500/20 border-red-500 text-red-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
                 >
                     Difícil

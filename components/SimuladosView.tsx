@@ -1,8 +1,9 @@
 
+
 import React from 'react';
 import { Course } from '../types';
 import { COURSES } from '../constants';
-import { BookOpen, ChevronRight, ArrowLeft } from 'lucide-react';
+import { BookOpen, ArrowLeft } from 'lucide-react';
 
 interface SimuladosViewProps {
   onSelectCourse: (course: Course) => void;
@@ -30,28 +31,38 @@ const SimuladosView: React.FC<SimuladosViewProps> = ({ onSelectCourse, onBack })
               Selecione o preparatório para iniciar seus estudos.
           </p>
 
-          {/* Meus Preparatórios */}
-          <div className="mb-8">
-            <div className="space-y-3">
-                {myCourses.map(course => (
-                    <button 
-                        key={course.id}
-                        onClick={() => onSelectCourse(course)}
-                        className="w-full bg-[#252525] hover:bg-[#2A2A2A] border border-gray-800 p-4 rounded-2xl flex items-center justify-between transition-all group"
-                    >
-                        <div className="flex items-center">
-                            <div className="w-12 h-12 bg-[#1A1A1A] rounded-xl flex items-center justify-center text-2xl mr-4 border border-gray-800 group-hover:border-[#FFB800]/50">
-                                {course.icon}
-                            </div>
-                            <div className="text-left">
-                                <h3 className="font-bold text-white group-hover:text-[#FFB800] transition-colors">{course.title}</h3>
-                                <p className="text-xs text-gray-500">{course.subtitle}</p>
-                            </div>
+          {/* Grid Layout of Vertical Cards */}
+          <div className="grid grid-cols-2 gap-4">
+              {myCourses.map(course => (
+                  <button 
+                      key={course.id}
+                      onClick={() => onSelectCourse(course)}
+                      className="w-full aspect-[3/4] rounded-xl overflow-hidden relative group shadow-lg border border-gray-800 hover:border-[#FFB800] transition-all text-left"
+                  >
+                        {/* Background Image */}
+                        {course.image ? (
+                             <img src={course.image} alt={course.title} className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105" />
+                        ) : (
+                             <div className="absolute inset-0 bg-[#252525] flex items-center justify-center">
+                                 <div className="text-4xl opacity-20">{course.icon}</div>
+                             </div>
+                        )}
+                         
+                        {/* Gradient Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
+
+                        {/* Content Overlay */}
+                        <div className="absolute bottom-0 left-0 w-full p-3">
+                              <div className="flex items-center space-x-1 mb-1">
+                                   <div className="bg-[#FFB800] rounded-sm p-0.5">
+                                       <span className="text-[8px] font-bold text-black uppercase block leading-none">PRO</span>
+                                   </div>
+                              </div>
+                              <h3 className="font-bold text-white text-sm leading-tight mb-0.5 line-clamp-2">{course.title}</h3>
+                              <p className="text-[10px] text-gray-300 truncate">{course.subtitle}</p>
                         </div>
-                        <ChevronRight className="text-gray-600 group-hover:text-[#FFB800]" size={20} />
-                    </button>
-                ))}
-            </div>
+                  </button>
+              ))}
           </div>
       </div>
     </div>

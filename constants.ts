@@ -1,6 +1,6 @@
 
 
-import { RawQuestion, UserStats, Course, Comment, CommunityStats, Achievement, LeagueUser, StoreItem, Friend } from './types';
+import { RawQuestion, UserStats, Course, Comment, CommunityStats, Achievement, LeagueUser, StoreItem, Friend, LeagueTier } from './types';
 
 export const COLORS = {
   BRAND: '#FFB800',
@@ -26,10 +26,68 @@ export const INITIAL_USER_STATS: UserStats = {
 };
 
 export const COURSES: Course[] = [
-  { id: 'prf', title: 'PRF - Policial', subtitle: 'Edital 2024 - Focado', icon: '🚔', isOwned: true },
-  { id: 'pf', title: 'Polícia Federal', subtitle: 'Agente e Escrivão', icon: '🕵️', isOwned: true },
-  { id: 'tj', title: 'TJ-SP', subtitle: 'Escrevente Técnico', icon: '⚖️', isOwned: false, price: 'R$ 49,90' },
-  { id: 'inss', title: 'INSS', subtitle: 'Técnico do Seguro Social', icon: '👴', isOwned: false, price: 'R$ 39,90' },
+  // MEUS PREPARATÓRIOS (4 Items)
+  { 
+    id: 'pf', 
+    title: 'Polícia Federal', 
+    subtitle: 'Agente', 
+    icon: '🕵️', 
+    image: 'https://i.ibb.co/vxyfpjFS/Gemini-Generated-Image-f8rt2kf8rt2kf8rt.png',
+    isOwned: true 
+  },
+  { 
+    id: 'prf', 
+    title: 'Polícia Rodoviária', 
+    subtitle: 'PRF - Policial', 
+    icon: '🚔', 
+    image: 'https://i.ibb.co/hxVQbCDs/Gemini-Generated-Image-9oquq19oquq19oqu.png',
+    isOwned: true 
+  },
+  { 
+    id: 'pc', 
+    title: 'Polícia Civil', 
+    subtitle: 'Investigador', 
+    icon: '🔍', 
+    image: 'https://i.ibb.co/0ybJHY41/Gemini-Generated-Image-x4an14x4an14x4an.png',
+    isOwned: true 
+  },
+  { 
+    id: 'perito', 
+    title: 'Perito Criminal', 
+    subtitle: 'Geral', 
+    icon: '🔬', 
+    image: 'https://i.ibb.co/DDHwtgzN/Gemini-Generated-Image-mu3a3omu3a3omu3a.png',
+    isOwned: true 
+  },
+  
+  // DISPONÍVEIS PARA COMPRA (3 Items)
+  { 
+    id: 'tjsp', 
+    title: 'TJ-SP', 
+    subtitle: 'Escrevente Técnico', 
+    icon: '⚖️', 
+    image: 'https://i.ibb.co/vxyfpjFS/Gemini-Generated-Image-f8rt2kf8rt2kf8rt.png', // Reusing PF image
+    isOwned: false, 
+    price: 'R$ 49,90' 
+  },
+  { 
+    id: 'inss', 
+    title: 'INSS', 
+    subtitle: 'Técnico do Seguro Social', 
+    icon: '👴', 
+    image: 'https://i.ibb.co/0ybJHY41/Gemini-Generated-Image-x4an14x4an14x4an.png', // Reusing PC image
+    isOwned: false, 
+    price: 'R$ 39,90' 
+  },
+  { 
+    id: 'receita', 
+    title: 'Receita Federal', 
+    subtitle: 'Auditor Fiscal', 
+    icon: '🦁', 
+    image: 'https://i.ibb.co/DDHwtgzN/Gemini-Generated-Image-mu3a3omu3a3omu3a.png', // Reusing Perito image
+    isOwned: false, 
+    price: 'R$ 89,90' 
+  },
 ];
 
 export const MOCK_STATS: Record<string, CommunityStats[]> = {
@@ -85,6 +143,30 @@ export const MOCK_LEAGUE: LeagueUser[] = [
     { rank: 3, name: 'Você', xp: '1250 XP', avatar: USER_AVATAR_URL, isCurrentUser: true, trend: 'down' },
     { rank: 4, name: 'Marcos P.', xp: '1100 XP', avatar: 'https://i.pravatar.cc/150?u=4', isCurrentUser: false, trend: 'same' },
 ];
+
+export const MOCK_RANKING_DATA: Record<LeagueTier, LeagueUser[]> = {
+    ferro: [
+        { rank: 1, name: 'Novato 01', xp: '500 XP', avatar: 'https://i.pravatar.cc/150?u=10', isCurrentUser: false, trend: 'same' },
+        { rank: 2, name: 'Iniciante B', xp: '450 XP', avatar: 'https://i.pravatar.cc/150?u=11', isCurrentUser: false, trend: 'up' },
+        { rank: 3, name: 'Estudante C', xp: '300 XP', avatar: 'https://i.pravatar.cc/150?u=12', isCurrentUser: false, trend: 'down' },
+    ],
+    bronze: [
+        { rank: 1, name: 'Carlos D.', xp: '800 XP', avatar: 'https://i.pravatar.cc/150?u=13', isCurrentUser: false, trend: 'up' },
+        { rank: 2, name: 'Fernanda L.', xp: '750 XP', avatar: 'https://i.pravatar.cc/150?u=14', isCurrentUser: false, trend: 'same' },
+        { rank: 3, name: 'Bruno M.', xp: '700 XP', avatar: 'https://i.pravatar.cc/150?u=15', isCurrentUser: false, trend: 'down' },
+    ],
+    prata: [
+        { rank: 1, name: 'Rafael S.', xp: '1200 XP', avatar: 'https://i.pravatar.cc/150?u=16', isCurrentUser: false, trend: 'up' },
+        { rank: 2, name: 'Julia T.', xp: '1150 XP', avatar: 'https://i.pravatar.cc/150?u=17', isCurrentUser: false, trend: 'same' },
+        { rank: 3, name: 'Lucas P.', xp: '1100 XP', avatar: 'https://i.pravatar.cc/150?u=18', isCurrentUser: false, trend: 'same' },
+    ],
+    ouro: MOCK_LEAGUE, // Current User is here
+    diamante: [
+        { rank: 1, name: 'Mestre Yoda', xp: '5000 XP', avatar: 'https://i.pravatar.cc/150?u=20', isCurrentUser: false, trend: 'same' },
+        { rank: 2, name: 'Darth Vader', xp: '4800 XP', avatar: 'https://i.pravatar.cc/150?u=21', isCurrentUser: false, trend: 'up' },
+        { rank: 3, name: 'Obi Wan', xp: '4500 XP', avatar: 'https://i.pravatar.cc/150?u=22', isCurrentUser: false, trend: 'down' },
+    ]
+};
 
 export const MOCK_FRIENDS: Friend[] = [
     { id: 'f1', name: 'Juliana Paiva', avatar: 'https://i.pravatar.cc/150?u=juliana', courses: ['PRF', 'PF'], online: true },

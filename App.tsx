@@ -1,8 +1,10 @@
 
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Home, BookOpen, User, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { COLORS, INITIAL_USER_STATS, MOCK_QUESTIONS, LOGO_URL, COURSES } from './constants';
-import { UserStats, Course, ParsedQuestion, Alternative, StudyMode, UserAnswer, StoreItem, Flashcard, ToastMessage, ToastType } from './types';
+import { UserStats, Course, ParsedQuestion, Alternative, StudyMode, UserAnswer, StoreItem, Flashcard, ToastMessage, ToastType, ReviewItem } from './types';
 import Dashboard from './components/Dashboard';
 import QuestionCard from './components/QuestionCard';
 import TutorChat from './components/TutorChat';
@@ -17,6 +19,8 @@ import FlashcardsView from './components/FlashcardsView';
 import PvPGameView from './components/PvPGameView';
 import RedacaoView from './components/RedacaoView';
 import PaymentModal from './components/PaymentModal';
+import ReviewIntroModal from './components/ReviewIntroModal';
+import RankingView from './components/RankingView';
 import { ToastContainer } from './components/Toast';
 import { generateFlashcards } from './services/geminiService';
 
@@ -39,7 +43,7 @@ const parseQuestions = (rawQuestions: typeof MOCK_QUESTIONS): ParsedQuestion[] =
 };
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'simulados' | 'study' | 'pegadinhas' | 'profile' | 'summary' | 'caderno_erros' | 'store' | 'flashcards' | 'pvp' | 'redacao'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'simulados' | 'study' | 'pegadinhas' | 'profile' | 'summary' | 'caderno_erros' | 'store' | 'flashcards' | 'pvp' | 'redacao' | 'ranking'>('home');
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   
   // Persistent State: User Stats
@@ -48,7 +52,7 @@ const App: React.FC = () => {
       return saved ? JSON.parse(saved) : INITIAL_USER_STATS;
   });
 
-  // Persistent State: Global Answer History (for Caderno de Erros)
+  // Persistent State: Global Answer History
   const [globalAnswers, setGlobalAnswers] = useState<UserAnswer[]>(() => {
       const saved = localStorage.getItem('ousepassar_history');
       return saved ? JSON.parse(saved) : [];
@@ -64,7 +68,6 @@ const App: React.FC = () => {
   const [ownedCourseIds, setOwnedCourseIds] = useState<string[]>(() => {
       const saved = localStorage.getItem('ousepassar_owned_courses');
       if (saved) return JSON.parse(saved);
-      // Initialize with default owned courses from constants
       return COURSES.filter(c => c.isOwned).map(c => c.id);
   });
 
@@ -74,31 +77,24 @@ const App: React.FC = () => {
       return saved ? JSON.parse(saved) : [];
   });
 
-  // UI State: Toasts
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  // Persistent State: Reviews (SRS)
+  const [reviews, setReviews] = useState<ReviewItem[]>(() => {
+      const saved = localStorage.getItem('ousepassar_reviews');
+      return saved ? JSON.parse(saved) : [];
+  });
 
+  // UI State: Toasts & Modals
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
+  const [isReviewIntroOpen, setIsReviewIntroOpen] = useState(false);
 
   // Effects for Persistence
-  useEffect(() => {
-      localStorage.setItem('ousepassar_stats', JSON.stringify(stats));
-  }, [stats]);
-
-  useEffect(() => {
-      localStorage.setItem('ousepassar_history', JSON.stringify(globalAnswers));
-  }, [globalAnswers]);
-
-  useEffect(() => {
-      localStorage.setItem('ousepassar_inventory', JSON.stringify(inventory));
-  }, [inventory]);
-
-  useEffect(() => {
-      localStorage.setItem('ousepassar_owned_courses', JSON.stringify(ownedCourseIds));
-  }, [ownedCourseIds]);
-
-  useEffect(() => {
-      localStorage.setItem('ousepassar_flashcards', JSON.stringify(flashcards));
-  }, [flashcards]);
+  useEffect(() => { localStorage.setItem('ousepassar_stats', JSON.stringify(stats)); }, [stats]);
+  useEffect(() => { localStorage.setItem('ousepassar_history', JSON.stringify(globalAnswers)); }, [globalAnswers]);
+  useEffect(() => { localStorage.setItem('ousepassar_inventory', JSON.stringify(inventory)); }, [inventory]);
+  useEffect(() => { localStorage.setItem('ousepassar_owned_courses', JSON.stringify(ownedCourseIds)); }, [ownedCourseIds]);
+  useEffect(() => { localStorage.setItem('ousepassar_flashcards', JSON.stringify(flashcards)); }, [flashcards]);
+  useEffect(() => { localStorage.setItem('ousepassar_reviews', JSON.stringify(reviews)); }, [reviews]);
 
   const [questionIndex, setQuestionIndex] = useState(0);
   const [isTutorOpen, setIsTutorOpen] = useState(false);
@@ -107,7 +103,7 @@ const App: React.FC = () => {
   const [isModeModalOpen, setIsModeModalOpen] = useState(false);
   const [tempSelectedCourse, setTempSelectedCourse] = useState<Course | null>(null);
   const [studyMode, setStudyMode] = useState<StudyMode>('zen');
-  const [simulatedTime, setSimulatedTime] = useState<number>(120); // Default 120 minutes
+  const [simulatedTime, setSimulatedTime] = useState<number>(120);
 
   // Pegadinha Filtering State
   const [isPegadinhaSession, setIsPegadinhaSession] = useState(false);
@@ -120,22 +116,33 @@ const App: React.FC = () => {
   // Answers State for CURRENT Simulado Session
   const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
 
-  // Memoize parsed questions to avoid re-parsing on render
+  // Memoize parsed questions
   const allQuestions = useMemo(() => parseQuestions(MOCK_QUESTIONS), []);
 
-  // Filter questions based on session type (Pegadinha vs Normal)
-  // In a real app, this would also filter by course ID
+  // Filter questions based on session type (Pegadinha vs Normal vs Review)
   const activeQuestions = useMemo(() => {
     let q = allQuestions;
-    if (isPegadinhaSession) {
+    
+    if (studyMode === 'review') {
+        const today = Date.now();
+        const dueReviewIds = reviews.filter(r => r.nextReviewDate <= today).map(r => r.questionId);
+        // Ensure we only review questions that actually exist in our mock list
+        q = q.filter(item => dueReviewIds.includes(item.id));
+    } else if (isPegadinhaSession) {
         q = q.filter(item => item.isPegadinha);
     }
-    // In a real DB scenario, we would also filter: item.courseId === activeCourse.id
+    
     return q;
-  }, [allQuestions, isPegadinhaSession, activeCourse]);
+  }, [allQuestions, isPegadinhaSession, studyMode, reviews]);
 
   const currentQuestion = activeQuestions[questionIndex] || allQuestions[0];
   const isLastQuestion = questionIndex === activeQuestions.length - 1;
+
+  // Calculate pending reviews for Dashboard
+  const pendingReviewCount = useMemo(() => {
+      const today = Date.now();
+      return reviews.filter(r => r.nextReviewDate <= today).length;
+  }, [reviews]);
 
   // --- Toast Helpers ---
   const showToast = (message: string, type: ToastType = 'info') => {
@@ -147,14 +154,12 @@ const App: React.FC = () => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  // Logic: When user clicks a course (Simulado or Pegadinha view)
   const handleSelectCourse = (course: Course, isPegadinhaMode: boolean = false) => {
     setTempSelectedCourse(course);
     setTempIsPegadinha(isPegadinhaMode);
     setIsModeModalOpen(true);
   };
 
-  // Logic: When user clicks a locked store course
   const handleSelectStoreCourse = (course: Course) => {
     setSelectedStoreCourse(course);
     setIsPaymentModalOpen(true);
@@ -169,19 +174,41 @@ const App: React.FC = () => {
       setSelectedStoreCourse(null);
   };
 
-  // Logic: User confirmed mode, start the session
   const handleStartStudy = (mode: StudyMode, time: number = 120) => {
     if (tempSelectedCourse) {
         setStudyMode(mode);
         setSimulatedTime(time);
         setActiveCourse(tempSelectedCourse);
-        setIsPegadinhaSession(tempIsPegadinha); // Commit the filter
-        setQuestionIndex(0); // Reset progress
-        setUserAnswers([]); // Reset answers for this session
+        setIsPegadinhaSession(tempIsPegadinha);
+        setQuestionIndex(0);
+        setUserAnswers([]);
         setCurrentView('study');
         setIsModeModalOpen(false);
         setTempSelectedCourse(null);
     }
+  };
+
+  const handleStartReview = () => {
+      setIsReviewIntroOpen(true);
+  };
+
+  const confirmStartReview = () => {
+      setIsReviewIntroOpen(false);
+      setStudyMode('review');
+      setIsPegadinhaSession(false);
+      setQuestionIndex(0);
+      setUserAnswers([]);
+      
+      // Just a mock object for context, title will be used in header
+      setActiveCourse({ 
+          id: 'review', 
+          title: 'Revisão Inteligente', 
+          subtitle: 'Foco nos Erros', 
+          icon: '🧠', 
+          isOwned: true 
+      });
+      
+      setCurrentView('study');
   };
 
   const handleNextQuestion = () => {
@@ -201,40 +228,76 @@ const App: React.FC = () => {
         isCorrect: isCorrect
     };
 
-    // Update current session
     setUserAnswers(prev => [...prev, answer]);
-    
-    // Update global history
     setGlobalAnswers(prev => [...prev, answer]);
 
-    // In Zen/Reta Final, we update stats immediately
+    // SRS Logic: If incorrect, schedule for TODAY (DEMO MODE)
+    // Originally: 1 day interval. Now: 0 days (immediate)
+    if (!isCorrect) {
+        // DEMO MODE: Set to Date.now() instead of +1 day to appear immediately in dashboard
+        const nextDate = Date.now();
+        setReviews(prev => {
+            // Remove existing review for this question if any
+            const filtered = prev.filter(r => r.questionId !== currentQuestion.id);
+            return [...filtered, { 
+                questionId: currentQuestion.id, 
+                nextReviewDate: nextDate, 
+                lastDifficulty: 'error', 
+                interval: 0 
+            }];
+        });
+    }
+
+    // Stats Updates for Zen/Reta/Review
     if (studyMode !== 'hard') {
        if (isCorrect) {
           setStats(prev => ({
               ...prev,
               xp: prev.xp + 50,
-              coins: prev.coins + 10, // Earn coins per question in Zen
+              coins: prev.coins + 10,
               correctAnswers: prev.correctAnswers + 1,
               totalAnswered: prev.totalAnswered + 1
           }));
        } else {
-          setStats(prev => ({
-              ...prev,
-              totalAnswered: prev.totalAnswered + 1
-          }));
+          setStats(prev => ({ ...prev, totalAnswered: prev.totalAnswered + 1 }));
        }
     }
   };
 
+  const handleRateDifficulty = (difficulty: 'easy' | 'medium' | 'hard') => {
+      // Simplified Spaced Repetition Algorithm
+      // Easy: +7 days
+      // Medium: +3 days
+      // Hard: +1 day (original) -> NOW: 0 days (immediate for demo)
+      
+      let daysToAdd = 3;
+      if (difficulty === 'easy') daysToAdd = 7;
+      if (difficulty === 'hard') daysToAdd = 0; // DEMO: Immediate review for hard questions
+
+      const nextDate = Date.now() + (daysToAdd * 24 * 60 * 60 * 1000);
+
+      setReviews(prev => {
+          // Keep only the latest review schedule for this question
+          const filtered = prev.filter(r => r.questionId !== currentQuestion.id);
+          return [...filtered, {
+              questionId: currentQuestion.id,
+              nextReviewDate: nextDate,
+              lastDifficulty: difficulty,
+              interval: daysToAdd
+          }];
+      });
+      
+      showToast("Agendado para revisão!", "success");
+  };
+
   const handleFinishSimulado = () => {
-      // In Simulado mode, stats are updated in bulk
       if (studyMode === 'hard') {
           const correctCount = userAnswers.filter(a => a.isCorrect).length;
-          const coinsEarned = correctCount * 20; // 20 coins per correct in Simulado (harder)
+          const coinsEarned = correctCount * 20;
           
           setStats(prev => ({
               ...prev,
-              xp: prev.xp + (correctCount * 100), // Double XP for Simulado
+              xp: prev.xp + (correctCount * 100),
               coins: prev.coins + coinsEarned,
               correctAnswers: prev.correctAnswers + correctCount,
               totalAnswered: prev.totalAnswered + userAnswers.length
@@ -245,10 +308,7 @@ const App: React.FC = () => {
 
   const handleBuyItem = (item: StoreItem) => {
       if (stats.coins >= item.price && !inventory.includes(item.id)) {
-          setStats(prev => ({
-              ...prev,
-              coins: prev.coins - item.price
-          }));
+          setStats(prev => ({ ...prev, coins: prev.coins - item.price }));
           setInventory(prev => [...prev, item.id]);
           showToast(`Você comprou: ${item.name}!`, 'success');
       } else {
@@ -258,13 +318,9 @@ const App: React.FC = () => {
 
   const handleEquipItem = (item: StoreItem) => {
       if (item.type === 'avatar') {
-          setStats(prev => ({
-              ...prev,
-              avatarId: item.id
-          }));
+          setStats(prev => ({ ...prev, avatarId: item.id }));
           showToast('Avatar equipado!', 'success');
       }
-      // Future expansion: Theme or Powerups logic
   };
 
   const handleGenerateFlashcards = async (targetQuestions: ParsedQuestion[]) => {
@@ -272,7 +328,6 @@ const App: React.FC = () => {
       const newCards = await generateFlashcards(targetQuestions);
       
       if (newCards && newCards.length > 0) {
-          // Prevent duplicates by ID check (simple implementation)
           setFlashcards(prev => {
               const ids = new Set(prev.map(c => c.questionId));
               const uniqueNew = newCards.filter(c => !ids.has(c.questionId));
@@ -288,21 +343,10 @@ const App: React.FC = () => {
 
   const handlePvPFinish = (winner: boolean) => {
       if (winner) {
-          setStats(prev => ({
-              ...prev,
-              xp: prev.xp + 200,
-              coins: prev.coins + 50
-          }));
+          setStats(prev => ({ ...prev, xp: prev.xp + 200, coins: prev.coins + 50 }));
       } else {
-          setStats(prev => ({
-              ...prev,
-              xp: prev.xp + 20,
-              coins: prev.coins + 5
-          }));
+          setStats(prev => ({ ...prev, xp: prev.xp + 20, coins: prev.coins + 5 }));
       }
-      // REMOVED: setCurrentView('home'); 
-      // Allows PvPGameView to show the Result screen and "Rematch" options.
-      // User must explicitly click "Voltar" in PvPGameView to go home.
   };
 
   const renderContent = () => {
@@ -311,33 +355,20 @@ const App: React.FC = () => {
           <Dashboard 
             stats={stats} 
             ownedCourseIds={ownedCourseIds}
+            pendingReviewCount={pendingReviewCount}
             onSelectCourse={handleSelectCourse} 
             onBuyCourse={handleSelectStoreCourse}
             onStartPvP={() => setCurrentView('pvp')}
             onStartRedacao={() => setCurrentView('redacao')}
+            onStartReview={handleStartReview}
+            onNavigateToProfile={() => setCurrentView('profile')}
+            onViewRanking={() => setCurrentView('ranking')}
           />
       );
     }
-
-    if (currentView === 'simulados') {
-        return (
-            <SimuladosView 
-                onSelectCourse={handleSelectCourse} 
-                onBack={() => setCurrentView('home')} 
-            />
-        );
-    }
-
-    if (currentView === 'pegadinhas') {
-      return (
-          <PegadinhasView 
-            onSelectCourse={handleSelectCourse} 
-            onBuyCourse={handleSelectStoreCourse}
-            ownedCourseIds={ownedCourseIds}
-            onBack={() => setCurrentView('home')} 
-          />
-      );
-    }
+    // ... existing routing logic ...
+    if (currentView === 'simulados') return <SimuladosView onSelectCourse={handleSelectCourse} onBack={() => setCurrentView('home')} />;
+    if (currentView === 'pegadinhas') return <PegadinhasView onSelectCourse={handleSelectCourse} onBuyCourse={handleSelectStoreCourse} ownedCourseIds={ownedCourseIds} onBack={() => setCurrentView('home')} />;
     
     if (currentView === 'study' && activeCourse) {
       return (
@@ -347,6 +378,7 @@ const App: React.FC = () => {
             onNext={handleNextQuestion}
             onOpenTutor={() => setIsTutorOpen(true)}
             onAnswer={handleAnswer}
+            onRateDifficulty={handleRateDifficulty}
             onTimeout={handleFinishSimulado}
             studyMode={studyMode}
             initialTime={simulatedTime}
@@ -354,104 +386,32 @@ const App: React.FC = () => {
       );
     }
 
-    if (currentView === 'summary') {
-        return (
-            <SimuladoSummary 
-                answers={userAnswers}
-                questions={activeQuestions}
-                onExit={() => setCurrentView('home')}
-                onRestart={() => handleStartStudy(studyMode, simulatedTime)}
-            />
-        );
-    }
-
-    if (currentView === 'profile') {
-        return (
-            <ProfileView 
-                stats={stats} 
-                onOpenCadernoErros={() => setCurrentView('caderno_erros')} 
-                onOpenStore={() => setCurrentView('store')}
-                onOpenFlashcards={() => setCurrentView('flashcards')}
-                onBack={() => setCurrentView('home')} 
-            />
-        );
-    }
-
-    if (currentView === 'caderno_erros') {
-        return (
-            <CadernoErrosView 
-                answers={globalAnswers} 
-                questions={allQuestions} 
-                onBack={() => setCurrentView('profile')} 
-                onGenerateFlashcards={handleGenerateFlashcards}
-                isGenerating={isGeneratingFlashcards}
-            />
-        );
-    }
-
-    if (currentView === 'store') {
-        return (
-            <StoreView 
-                stats={stats}
-                inventory={inventory}
-                onBack={() => setCurrentView('profile')}
-                onBuy={handleBuyItem}
-                onEquip={handleEquipItem}
-            />
-        );
-    }
-
-    if (currentView === 'flashcards') {
-        return (
-            <FlashcardsView 
-                cards={flashcards}
-                onBack={() => setCurrentView('profile')}
-            />
-        );
-    }
-
-    if (currentView === 'pvp') {
-        return (
-            <PvPGameView 
-                questions={allQuestions}
-                userStats={stats}
-                onFinish={handlePvPFinish}
-                onExit={() => setCurrentView('home')}
-            />
-        );
-    }
-
-    if (currentView === 'redacao') {
-        return (
-            <RedacaoView 
-                onBack={() => setCurrentView('home')}
-                onShowToast={showToast}
-            />
-        );
-    }
-
+    if (currentView === 'summary') return <SimuladoSummary answers={userAnswers} questions={activeQuestions} onExit={() => setCurrentView('home')} onRestart={() => handleStartStudy(studyMode, simulatedTime)} />;
+    if (currentView === 'profile') return <ProfileView stats={stats} onOpenCadernoErros={() => setCurrentView('caderno_erros')} onOpenStore={() => setCurrentView('store')} onOpenFlashcards={() => setCurrentView('flashcards')} onBack={() => setCurrentView('home')} />;
+    if (currentView === 'caderno_erros') return <CadernoErrosView answers={globalAnswers} questions={allQuestions} onBack={() => setCurrentView('profile')} onGenerateFlashcards={handleGenerateFlashcards} isGenerating={isGeneratingFlashcards} />;
+    if (currentView === 'store') return <StoreView stats={stats} inventory={inventory} onBack={() => setCurrentView('profile')} onBuy={handleBuyItem} onEquip={handleEquipItem} />;
+    if (currentView === 'flashcards') return <FlashcardsView cards={flashcards} onBack={() => setCurrentView('profile')} />;
+    if (currentView === 'pvp') return <PvPGameView questions={allQuestions} userStats={stats} onFinish={handlePvPFinish} onExit={() => setCurrentView('home')} />;
+    if (currentView === 'redacao') return <RedacaoView onBack={() => setCurrentView('home')} onShowToast={showToast} />;
+    if (currentView === 'ranking') return <RankingView onBack={() => setCurrentView('home')} />;
+    
     return null;
   };
 
-  // Views that should NOT show the global top header
-  const noHeaderViews = ['home', 'summary', 'caderno_erros', 'store', 'flashcards', 'pvp', 'redacao', 'simulados', 'pegadinhas', 'profile'];
-
-  // Views that SHOULD show the bottom navigation
+  const noHeaderViews = ['home', 'summary', 'caderno_erros', 'store', 'flashcards', 'pvp', 'redacao', 'simulados', 'pegadinhas', 'profile', 'ranking'];
   const bottomNavViews = ['home', 'simulados', 'pegadinhas', 'profile'];
 
   return (
     <div className="min-h-screen bg-[#1A1A1A] text-white font-sans flex justify-center">
-      <div className="w-full max-w-md bg-[#1A1A1A] h-screen flex flex-col relative shadow-2xl">
-        
-        {/* Toast Container - Global Overlay */}
+      <div className="w-full max-w-md bg-[#1A1A1A] h-[100dvh] flex flex-col relative shadow-2xl">
         <ToastContainer toasts={toasts} onClose={removeToast} />
 
-        {/* Header (Dynamic) */}
+        {/* Dynamic Header */}
         {!noHeaderViews.includes(currentView) && (
             <header className="px-4 py-4 flex items-center justify-between border-b border-gray-800 bg-[#1A1A1A] z-10">
             {currentView === 'study' ? (
                 <div className="flex items-center w-full">
-                    <button onClick={() => setCurrentView('simulados')} className="mr-3 p-2 -ml-2 hover:bg-gray-800 rounded-full">
+                    <button onClick={() => setCurrentView('home')} className="mr-3 p-2 -ml-2 hover:bg-gray-800 rounded-full">
                         <ArrowLeft size={20} />
                     </button>
                     <div className="flex-1">
@@ -481,43 +441,28 @@ const App: React.FC = () => {
             </header>
         )}
 
-        {/* Main Content Area */}
+        {/* Main Content */}
         <main className="flex-1 overflow-hidden relative p-0">
            {renderContent()}
         </main>
 
-        {/* Bottom Navigation */}
+        {/* Bottom Nav */}
         {bottomNavViews.includes(currentView) && (
-            <nav className="border-t border-gray-800 bg-[#1A1A1A] px-6 py-4 absolute bottom-0 w-full z-20">
+            <nav className="border-t border-gray-800 bg-[#1A1A1A] px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] absolute bottom-0 w-full z-20">
             <div className="flex justify-between items-center">
-                <button 
-                    onClick={() => setCurrentView('home')}
-                    className={`flex flex-col items-center space-y-1 ${currentView === 'home' ? 'text-[#FFB800]' : 'text-gray-600'}`}
-                >
+                <button onClick={() => setCurrentView('home')} className={`flex flex-col items-center space-y-1 ${currentView === 'home' ? 'text-[#FFB800]' : 'text-gray-600'}`}>
                 <Home size={24} strokeWidth={currentView === 'home' ? 3 : 2} />
                 <span className="text-[10px] font-medium">Início</span>
                 </button>
-                
-                <button 
-                    onClick={() => setCurrentView('simulados')}
-                    className={`flex flex-col items-center space-y-1 ${currentView === 'simulados' || (currentView === 'study' && !isPegadinhaSession) ? 'text-[#FFB800]' : 'text-gray-600'}`}
-                >
+                <button onClick={() => setCurrentView('simulados')} className={`flex flex-col items-center space-y-1 ${currentView === 'simulados' || (currentView === 'study' && !isPegadinhaSession) ? 'text-[#FFB800]' : 'text-gray-600'}`}>
                 <BookOpen size={24} strokeWidth={currentView === 'simulados' || (currentView === 'study' && !isPegadinhaSession) ? 3 : 2} />
                 <span className="text-[10px] font-medium">Simulados</span>
                 </button>
-
-                <button 
-                    onClick={() => setCurrentView('pegadinhas')}
-                    className={`flex flex-col items-center space-y-1 ${currentView === 'pegadinhas' || (currentView === 'study' && isPegadinhaSession) ? 'text-[#FFB800]' : 'text-gray-600'}`}
-                >
+                <button onClick={() => setCurrentView('pegadinhas')} className={`flex flex-col items-center space-y-1 ${currentView === 'pegadinhas' || (currentView === 'study' && isPegadinhaSession) ? 'text-[#FFB800]' : 'text-gray-600'}`}>
                 <AlertTriangle size={24} strokeWidth={currentView === 'pegadinhas' || (currentView === 'study' && isPegadinhaSession) ? 3 : 2} />
                 <span className="text-[10px] font-medium">Pegadinhas</span>
                 </button>
-
-                <button 
-                    onClick={() => setCurrentView('profile')}
-                    className={`flex flex-col items-center space-y-1 ${currentView === 'profile' ? 'text-[#FFB800]' : 'text-gray-600'}`}
-                >
+                <button onClick={() => setCurrentView('profile')} className={`flex flex-col items-center space-y-1 ${currentView === 'profile' ? 'text-[#FFB800]' : 'text-gray-600'}`}>
                 <User size={24} strokeWidth={currentView === 'profile' ? 3 : 2} />
                 <span className="text-[10px] font-medium">Perfil</span>
                 </button>
@@ -525,27 +470,17 @@ const App: React.FC = () => {
             </nav>
         )}
 
-        {/* AI Tutor Modal */}
-        <TutorChat 
-            isOpen={isTutorOpen} 
-            onClose={() => setIsTutorOpen(false)} 
-            question={currentQuestion} 
-        />
-
-        {/* Mode Selection Modal */}
-        <ModeSelectionModal 
-            isOpen={isModeModalOpen}
-            onClose={() => setIsModeModalOpen(false)}
-            course={tempSelectedCourse}
-            onSelectMode={handleStartStudy}
-        />
-
-        {/* Payment Modal */}
-        <PaymentModal
-            isOpen={isPaymentModalOpen}
-            onClose={() => setIsPaymentModalOpen(false)}
-            course={selectedStoreCourse}
-            onConfirm={handleConfirmPurchase}
+        <TutorChat isOpen={isTutorOpen} onClose={() => setIsTutorOpen(false)} question={currentQuestion} />
+        <ModeSelectionModal isOpen={isModeModalOpen} onClose={() => setIsModeModalOpen(false)} course={tempSelectedCourse} onSelectMode={handleStartStudy} />
+        <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} course={selectedStoreCourse} onConfirm={handleConfirmPurchase} />
+        
+        {/* New Review Intro Modal */}
+        <ReviewIntroModal 
+            isOpen={isReviewIntroOpen} 
+            onClose={() => setIsReviewIntroOpen(false)}
+            onStart={confirmStartReview}
+            count={pendingReviewCount}
+            userName="Dhyêgo" // Could be dynamic from stats/profile
         />
       </div>
     </div>
