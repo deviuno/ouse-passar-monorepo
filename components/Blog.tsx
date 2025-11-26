@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, Clock, ChevronRight, Hash, Eye, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, ChevronRight, Hash, Eye, Loader2, Search, X } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { BlogPost } from '../types';
-import { getPublishedPosts, getPostBySlug, getCategories, getPostsByCategory } from '../services/blogService';
+import { getPublishedPosts, getPostBySlug, getCategories, getPostsByCategory, searchPosts } from '../services/blogService';
 import { formatDate, getAvatarUrl } from '../lib/utils';
 import { SEOHead } from './SEOHead';
 import { PageHero } from './PageHero';
@@ -13,6 +13,7 @@ export const BlogList: React.FC = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,6 +21,14 @@ export const BlogList: React.FC = () => {
     loadPosts();
     loadCategories();
   }, [selectedCategory]);
+
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      handleSearch();
+    } else {
+      loadPosts();
+    }
+  }, [searchQuery]);
 
   const loadPosts = async () => {
     setLoading(true);
@@ -36,6 +45,31 @@ export const BlogList: React.FC = () => {
     }
 
     setLoading(false);
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      loadPosts();
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const result = await searchPosts(searchQuery);
+
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setPosts(result.posts);
+    }
+
+    setLoading(false);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSelectedCategory('Todos');
   };
 
   const loadCategories = async () => {
@@ -76,6 +110,36 @@ export const BlogList: React.FC = () => {
 
       <div className="bg-brand-dark min-h-screen py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+          {/* Search Bar */}
+          <div className="mb-12">
+            <div className="max-w-2xl mx-auto relative">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar artigos por título ou descrição..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-brand-card border border-white/10 text-white pl-12 pr-12 py-4 focus:outline-none focus:border-brand-yellow transition-colors placeholder:text-gray-500 font-light"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-brand-yellow transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+              {searchQuery && (
+                <p className="mt-3 text-sm text-gray-400 font-mono">
+                  Buscando por: <span className="text-brand-yellow font-bold">"{searchQuery}"</span>
+                  {!loading && ` · ${posts.length} resultado${posts.length !== 1 ? 's' : ''} encontrado${posts.length !== 1 ? 's' : ''}`}
+                </p>
+              )}
+            </div>
+          </div>
 
           {/* Loading State */}
           {loading && (
