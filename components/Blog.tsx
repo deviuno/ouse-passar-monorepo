@@ -9,17 +9,17 @@ import { PageHero } from './PageHero';
 import { useScrollAnimation } from '../lib/useScrollAnimation';
 
 export const BlogList: React.FC = () => {
-  const { ref: gridRef, isVisible } = useScrollAnimation({ threshold: 0.1 });
   const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [allPosts, setAllPosts] = useState<BlogPost[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'recent' | 'oldest' | 'relevant'>('recent');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadPosts();
-    loadCategories();
   }, [selectedCategory]);
 
   useEffect(() => {
@@ -30,18 +30,32 @@ export const BlogList: React.FC = () => {
     }
   }, [searchQuery]);
 
+  useEffect(() => {
+    applySorting();
+  }, [sortOrder, allPosts]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    await loadPosts();
+    await loadCategories();
+  };
+
   const loadPosts = async () => {
     setLoading(true);
     setError(null);
 
     const result = selectedCategory === 'Todos'
-      ? await getPublishedPosts(50)
-      : await getPostsByCategory(selectedCategory, 50);
+      ? await getPublishedPosts(100)
+      : await getPostsByCategory(selectedCategory, 100);
 
     if (result.error) {
       setError(result.error);
     } else {
-      setPosts(result.posts);
+      setAllPosts(result.posts);
+      applySortingToList(result.posts);
     }
 
     setLoading(false);
@@ -61,10 +75,30 @@ export const BlogList: React.FC = () => {
     if (result.error) {
       setError(result.error);
     } else {
-      setPosts(result.posts);
+      setAllPosts(result.posts);
+      applySortingToList(result.posts);
     }
 
     setLoading(false);
+  };
+
+  const applySortingToList = (postList: BlogPost[]) => {
+    let sorted = [...postList];
+
+    if (sortOrder === 'recent') {
+      sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (sortOrder === 'oldest') {
+      sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    } else if (sortOrder === 'relevant') {
+      // Relevant: sort by title length as proxy for quality (can be improved)
+      sorted.sort((a, b) => b.title.length - a.title.length);
+    }
+
+    setPosts(sorted);
+  };
+
+  const applySorting = () => {
+    applySortingToList(allPosts);
   };
 
   const clearSearch = () => {
@@ -73,9 +107,22 @@ export const BlogList: React.FC = () => {
   };
 
   const loadCategories = async () => {
-    const result = await getCategories();
-    if (!result.error) {
-      setCategories(['Todos', ...result.categories]);
+    // Load all posts to get categories that have articles
+    const result = await getPublishedPosts(200);
+
+    if (!result.error && result.posts.length > 0) {
+      // Extract unique categories from posts
+      const uniqueCategories = Array.from(
+        new Set(result.posts.map(post => post.category).filter(Boolean))
+      ).sort();
+
+      setCategories(['Todos', ...uniqueCategories]);
+    } else {
+      // Fallback to API call
+      const catResult = await getCategories();
+      if (!catResult.error) {
+        setCategories(['Todos', ...catResult.categories]);
+      }
     }
   };
 
@@ -141,6 +188,25 @@ export const BlogList: React.FC = () => {
             </div>
           </div>
 
+          {/* Sort Filter */}
+          <div className="mb-8 flex justify-between items-center">
+            <p className="text-gray-400 text-sm font-mono">
+              {!loading && `${posts.length} artigo${posts.length !== 1 ? 's' : ''}`}
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">Ordenar:</span>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as 'recent' | 'oldest' | 'relevant')}
+                className="bg-brand-card border border-white/10 text-white px-4 py-2 text-xs font-bold uppercase focus:outline-none focus:border-brand-yellow transition-colors cursor-pointer hover:border-brand-yellow"
+              >
+                <option value="recent">Mais Recentes</option>
+                <option value="oldest">Mais Antigos</option>
+                <option value="relevant">Mais Relevantes</option>
+              </select>
+            </div>
+          </div>
+
           {/* Loading State */}
           {loading && (
             <div className="flex items-center justify-center py-20">
@@ -177,11 +243,11 @@ export const BlogList: React.FC = () => {
 
           {/* Posts Grid */}
           {!loading && !error && posts.length > 0 && (
-            <div ref={gridRef} className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {posts.map((post, index) => (
                 <article
                   key={post.id}
-                  className={`group bg-brand-card border border-white/5 overflow-hidden hover:border-brand-yellow/50 transition-all duration-500 flex flex-col h-full hover:shadow-[0_0_20px_rgba(255,184,0,0.1)] hover:-translate-y-2 scroll-animate ${isVisible ? `visible animate-fade-in-up stagger-${Math.min(index % 6 + 1, 6)}` : ''}`}
+                  className="group bg-brand-card border border-white/5 overflow-hidden hover:border-brand-yellow/50 transition-all duration-500 flex flex-col h-full hover:shadow-[0_0_20px_rgba(255,184,0,0.1)] hover:-translate-y-2"
                 >
                   <Link to={`/blog/${post.slug}`} className="block h-full flex flex-col">
                     <div className="relative overflow-hidden h-52">
