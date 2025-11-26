@@ -404,6 +404,27 @@
       font-style: italic;
     }
 
+    /* Responsive: Ajustar altura de imagens em dispositivos menores */
+    @media (max-width: 768px) {
+      .blog-content img {
+        max-height: 350px;
+      }
+
+      .blog-content figure img {
+        max-height: 350px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .blog-content img {
+        max-height: 280px;
+      }
+
+      .blog-content figure img {
+        max-height: 280px;
+      }
+    }
+
     /* Tabelas */
     .blog-content table {
       border-collapse: collapse;
