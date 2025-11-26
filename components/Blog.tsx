@@ -247,42 +247,42 @@ export const BlogList: React.FC = () => {
 
           {/* Posts Grid */}
           {!loading && !error && posts.length > 0 && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
               {posts.map((post, index) => (
                 <article
                   key={post.id}
                   className="group bg-brand-card border border-white/5 overflow-hidden hover:border-brand-yellow/50 transition-all duration-500 flex flex-col h-full hover:shadow-[0_0_20px_rgba(255,184,0,0.1)] hover:-translate-y-2"
                 >
                   <Link to={`/blog/${post.slug}`} className="block h-full flex flex-col">
-                    <div className="relative overflow-hidden h-52">
+                    <div className="relative overflow-hidden h-48 sm:h-52">
                       <div className="absolute inset-0 bg-brand-dark/20 group-hover:bg-transparent transition-colors z-10"></div>
                       <img
                         src={post.imageUrl}
                         alt={post.title}
                         className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
                       />
-                      <div className="absolute top-4 left-4 z-20 bg-brand-yellow text-brand-darker px-3 py-1 text-xs font-black uppercase tracking-wide">
+                      <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 bg-brand-yellow text-brand-darker px-2.5 py-1 sm:px-3 text-[0.65rem] sm:text-xs font-black uppercase tracking-wide">
                         {post.category}
                       </div>
                     </div>
 
-                    <div className="p-8 flex-1 flex flex-col">
-                      <div className="flex items-center text-gray-500 text-xs mb-4 space-x-4 font-mono uppercase">
+                    <div className="p-5 sm:p-6 md:p-8 flex-1 flex flex-col">
+                      <div className="flex items-center text-gray-500 text-[0.65rem] sm:text-xs mb-3 sm:mb-4 space-x-3 sm:space-x-4 font-mono uppercase">
                         <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {formatDate(post.date)}</span>
                         <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {post.readTime}</span>
                       </div>
 
-                      <h2 className="text-xl font-bold text-white mb-4 group-hover:text-brand-yellow transition-colors leading-tight">
+                      <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4 group-hover:text-brand-yellow transition-colors leading-tight">
                         {post.title}
                       </h2>
 
-                      <p className="text-gray-400 text-sm mb-6 line-clamp-3 flex-1 leading-relaxed border-l-2 border-white/10 pl-4">
+                      <p className="text-gray-400 text-sm mb-4 sm:mb-6 line-clamp-3 flex-1 leading-relaxed border-l-2 border-white/10 pl-3 sm:pl-4">
                         {post.excerpt}
                       </p>
 
-                      <div className="mt-auto flex items-center justify-between pt-6 border-t border-white/5">
-                        <span className="text-xs font-bold text-gray-500 uppercase">Por {post.author}</span>
-                        <span className="flex items-center text-brand-yellow text-xs font-black uppercase tracking-widest group-hover:translate-x-1 transition-transform">
+                      <div className="mt-auto flex items-center justify-between pt-4 sm:pt-6 border-t border-white/5">
+                        <span className="text-[0.65rem] sm:text-xs font-bold text-gray-500 uppercase">Por {post.author}</span>
+                        <span className="flex items-center text-brand-yellow text-[0.65rem] sm:text-xs font-black uppercase tracking-widest group-hover:translate-x-1 transition-transform">
                           Ler Artigo <ChevronRight className="ml-1 w-3 h-3" />
                         </span>
                       </div>
@@ -332,56 +332,17 @@ const processHtmlContent = (html: string): string => {
     .join('\n');
 };
 
-/**
- * Extract table of contents from HTML content
- */
-const extractTableOfContents = (html: string): { id: string; text: string; level: number }[] => {
-  if (!html) return [];
-
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-
-  const headings = tempDiv.querySelectorAll('h1, h2, h3');
-  const toc: { id: string; text: string; level: number }[] = [];
-
-  headings.forEach((heading, index) => {
-    const text = heading.textContent || '';
-    const level = parseInt(heading.tagName.substring(1));
-
-    // Skip the first H1 (usually the article title)
-    if (level === 1 && index === 0) return;
-
-    // Only include H2 and H3
-    if (level === 2 || level === 3) {
-      const id = `section-${index}`;
-      heading.id = id;
-      toc.push({ id, text, level });
-    }
-  });
-
-  return toc;
-};
-
 export const BlogPostView: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tableOfContents, setTableOfContents] = useState<{ id: string; text: string; level: number }[]>([]);
-  const [isTocOpen, setIsTocOpen] = useState(false);
 
   useEffect(() => {
     if (slug) {
       loadPost(slug);
     }
   }, [slug]);
-
-  useEffect(() => {
-    if (post?.content) {
-      const toc = extractTableOfContents(post.content);
-      setTableOfContents(toc);
-    }
-  }, [post]);
 
   const loadPost = async (slug: string) => {
     setLoading(true);
@@ -453,120 +414,75 @@ export const BlogPostView: React.FC = () => {
           {/* Overlay escuro para legibilidade */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/75 to-black/90"></div>
 
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 relative z-10">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 lg:py-20 relative z-10">
             <Link
               to="/blog"
-              className="inline-flex items-center text-brand-yellow hover:text-white mb-8 transition-colors font-bold uppercase text-xs tracking-widest"
+              className="inline-flex items-center text-brand-yellow hover:text-white mb-6 sm:mb-8 transition-colors font-bold uppercase text-[0.65rem] sm:text-xs tracking-widest"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
               Voltar para o Blog
             </Link>
 
-            <div className="flex flex-wrap gap-2 mb-6">
-              <span className="bg-brand-yellow text-brand-darker px-3 py-1 text-[0.65rem] font-black uppercase tracking-[0.2em]">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+              <span className="bg-brand-yellow text-brand-darker px-2.5 py-1 sm:px-3 text-[0.6rem] sm:text-[0.65rem] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em]">
                 {post.category}
               </span>
-              {post.tags && post.tags.map((tag) => (
+              {post.tags && post.tags.slice(0, 3).map((tag) => (
                 <span
                   key={tag}
-                  className="bg-white/5 text-gray-300 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.2em] backdrop-blur-sm"
+                  className="bg-white/5 text-gray-300 px-2.5 py-1 sm:px-3 text-[0.6rem] sm:text-[0.65rem] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] backdrop-blur-sm"
                 >
                   #{tag}
                 </span>
               ))}
             </div>
 
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-white font-display leading-tight mb-6 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white font-display leading-tight mb-4 sm:mb-6 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
               {post.title}
             </h1>
 
-            <div className="flex flex-wrap items-center gap-4 text-gray-200 text-xs md:text-sm font-medium mt-6">
-              <div className="flex items-center mr-4 bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-gray-200 text-[0.65rem] sm:text-xs font-medium mt-4 sm:mt-6">
+              <div className="flex items-center bg-black/40 backdrop-blur-sm px-2.5 py-1.5 sm:px-3 sm:py-2 rounded">
                 <img
                   src={post.authorAvatar || getAvatarUrl(post.author)}
                   alt={post.author}
-                  className="w-9 h-9 rounded-full border-2 border-brand-yellow mr-3"
+                  className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border-2 border-brand-yellow mr-2 sm:mr-3"
                 />
-                <span className="uppercase tracking-[0.2em]">{post.author}</span>
+                <span className="uppercase tracking-[0.15em] sm:tracking-[0.2em]">{post.author}</span>
               </div>
-              <div className="flex items-center bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
-                <Calendar className="w-4 h-4 mr-2 text-brand-yellow" />
-                <span className="uppercase tracking-[0.2em] text-xs">{formatDate(post.date)}</span>
+              <div className="flex items-center bg-black/40 backdrop-blur-sm px-2.5 py-1.5 sm:px-3 sm:py-2 rounded">
+                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 text-brand-yellow" />
+                <span className="uppercase tracking-[0.15em] sm:tracking-[0.2em]">{formatDate(post.date)}</span>
               </div>
-              <div className="flex items-center bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
-                <Clock className="w-4 h-4 mr-2 text-brand-yellow" />
-                <span className="uppercase tracking-[0.2em] text-xs">{post.readTime}</span>
+              <div className="flex items-center bg-black/40 backdrop-blur-sm px-2.5 py-1.5 sm:px-3 sm:py-2 rounded">
+                <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 text-brand-yellow" />
+                <span className="uppercase tracking-[0.15em] sm:tracking-[0.2em]">{post.readTime}</span>
               </div>
             </div>
           </div>
         </header>
 
         {/* Conteúdo em container de leitura */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 md:mt-12">
-
-          {/* Mapa de Batalha (Índice) - Colapsável */}
-          {tableOfContents.length > 0 && (
-            <div className="bg-brand-darker border border-white/10 mb-10">
-              <button
-                onClick={() => setIsTocOpen(!isTocOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <Hash className="w-4 h-4 text-brand-yellow" />
-                  <span className="text-sm font-bold text-gray-300 uppercase tracking-wider">
-                    Mapa de Batalha ({tableOfContents.length} seções)
-                  </span>
-                </div>
-                <ChevronRight className={`w-4 h-4 text-brand-yellow transition-transform ${isTocOpen ? 'rotate-90' : ''}`} />
-              </button>
-              {isTocOpen && (
-                <nav className="px-4 pb-4 pt-2 space-y-1 border-t border-white/10">
-                  {tableOfContents.map((item, index) => (
-                    <a
-                      key={index}
-                      href={`#${item.id}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const element = document.getElementById(item.id);
-                        if (element) {
-                          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          window.history.pushState(null, '', `#${item.id}`);
-                        }
-                      }}
-                      className={`block text-gray-400 hover:text-brand-yellow transition-colors ${
-                        item.level === 2 ? 'pl-2 text-xs font-semibold' : 'pl-6 text-xs'
-                      }`}
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        <span className="text-brand-yellow">›</span>
-                        {item.text}
-                      </span>
-                    </a>
-                  ))}
-                </nav>
-              )}
-            </div>
-          )}
-
-          <div className="bg-brand-card/60 border border-white/10 px-6 sm:px-10 md:px-12 py-10 md:py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 md:mt-12">
+          <div className="bg-brand-card/60 border border-white/10 px-4 sm:px-6 md:px-10 lg:px-12 py-8 sm:py-10 md:py-12">
             <div className="blog-content">
               <div dangerouslySetInnerHTML={{ __html: processHtmlContent(post.content) }} />
             </div>
 
             {/* Tags Estruturadas */}
             {(post.tags && post.tags.length > 0) || (post.keywords && post.keywords.length > 0) ? (
-              <div className="mt-12 pt-8 border-t-2 border-brand-yellow/30">
-                <div className="flex items-center gap-2 mb-4">
-                  <Hash className="w-5 h-5 text-brand-yellow" />
-                  <h3 className="text-sm font-black text-brand-yellow uppercase tracking-widest">
+              <div className="mt-8 sm:mt-10 md:mt-12 pt-6 sm:pt-8 border-t-2 border-brand-yellow/30">
+                <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                  <Hash className="w-4 h-4 sm:w-5 sm:h-5 text-brand-yellow" />
+                  <h3 className="text-xs sm:text-sm font-black text-brand-yellow uppercase tracking-widest">
                     Tópicos Estratégicos
                   </h3>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   {(post.keywords || post.tags)?.map((tag, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center gap-1 px-4 py-2 bg-brand-darker/80 border border-brand-yellow/20 text-gray-300 text-xs font-bold hover:border-brand-yellow hover:text-brand-yellow transition-all cursor-default"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-brand-darker/80 border border-brand-yellow/20 text-gray-300 text-[0.65rem] sm:text-xs font-bold hover:border-brand-yellow hover:text-brand-yellow transition-all cursor-default"
                     >
                       <span className="text-brand-yellow">#</span>
                       {tag}
@@ -577,18 +493,20 @@ export const BlogPostView: React.FC = () => {
             ) : null}
 
             {/* CTA Box */}
-            <div className="mt-20 bg-brand-yellow relative overflow-hidden rounded-sm p-10 md:p-14 text-center">
+            <div className="mt-12 sm:mt-16 md:mt-20 bg-brand-yellow relative overflow-hidden rounded-sm p-8 sm:p-10 md:p-14 text-center">
               <div className="relative z-10">
-                <h3 className="text-3xl font-black text-brand-darker mb-4 font-display uppercase">Não estude errado.</h3>
-                <p className="text-brand-darker/80 mb-8 max-w-xl mx-auto font-medium">
+                <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-brand-darker mb-3 sm:mb-4 font-display uppercase leading-tight">
+                  Não estude errado.
+                </h3>
+                <p className="text-brand-darker/80 mb-6 sm:mb-8 max-w-xl mx-auto font-medium text-sm sm:text-base">
                   Esse conteúdo é apenas a ponta do iceberg. Nossa plataforma completa tem o cronograma exato para sua aprovação.
                 </p>
-                <button className="bg-brand-darker text-white px-8 py-4 font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-2xl">
+                <button className="bg-brand-darker text-white px-6 py-3 sm:px-8 sm:py-4 font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-2xl text-xs sm:text-sm">
                   Destravar Minha Aprovação
                 </button>
               </div>
               {/* Background pattern */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full mix-blend-overlay blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+              <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 bg-white/20 rounded-full mix-blend-overlay blur-3xl -translate-y-1/2 translate-x-1/2"></div>
             </div>
           </div>
         </div>
