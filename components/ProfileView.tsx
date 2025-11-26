@@ -2,17 +2,16 @@
 import React from 'react';
 import { UserStats } from '../types';
 import { MOCK_ACHIEVEMENTS, MOCK_LEAGUE, USER_AVATAR_URL, STORE_ITEMS } from '../constants';
-import { Flame, Trophy, Target, Clock, Settings, Edit2, Share2, Award, ChevronUp, ChevronDown, Minus, BookX, ShoppingBag, Layers, ArrowLeft } from 'lucide-react';
+import { Flame, Trophy, Target, Clock, Settings, Edit2, Share2, Award, ChevronUp, ChevronDown, Minus, BookX, Layers, ArrowLeft } from 'lucide-react';
 
 interface ProfileViewProps {
   stats: UserStats;
   onOpenCadernoErros: () => void;
-  onOpenStore: () => void;
   onOpenFlashcards: () => void;
   onBack: () => void;
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, onOpenStore, onOpenFlashcards, onBack }) => {
+const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, onOpenFlashcards, onBack }) => {
   // Calculate level progress (mock calculation)
   const nextLevelXp = 2000;
   const progressPercent = Math.min((stats.xp / nextLevelXp) * 100, 100);
@@ -164,29 +163,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, on
         </div>
       </div>
 
-      {/* Settings / Actions */}
+      {/* Actions */}
       <div className="px-4 space-y-3">
-        <button 
-            onClick={onOpenStore}
-            className="w-full bg-[#252525] p-4 rounded-xl flex items-center justify-between text-yellow-300 hover:text-white hover:bg-[#2A2A2A] transition-colors border border-yellow-900/30 hover:border-yellow-500/50"
-        >
-            <div className="flex items-center">
-                <ShoppingBag size={18} className="mr-3 text-[#FFB800]" />
-                <span className="font-medium text-sm">Loja de Itens</span>
-            </div>
-            <span className="text-[10px] bg-[#FFB800] text-black px-2 py-0.5 rounded-full font-bold">Novo</span>
-        </button>
-
-        <button 
-            onClick={onOpenFlashcards}
-            className="w-full bg-[#252525] p-4 rounded-xl flex items-center justify-between text-purple-300 hover:text-white hover:bg-[#2A2A2A] transition-colors border border-purple-900/30 hover:border-purple-500/50"
-        >
-            <div className="flex items-center">
-                <Layers size={18} className="mr-3 text-purple-400" />
-                <span className="font-medium text-sm">Meus Flashcards</span>
-            </div>
-        </button>
-
+        
+        {/* Meu Caderno de Erros (First) */}
         <button 
             onClick={onOpenCadernoErros}
             className="w-full bg-[#252525] p-4 rounded-xl flex items-center justify-between text-gray-300 hover:text-white hover:bg-[#2A2A2A] transition-colors border border-red-900/20 hover:border-red-500/50"
@@ -194,6 +174,17 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, on
             <div className="flex items-center">
                 <BookX size={18} className="mr-3 text-red-500" />
                 <span className="font-medium text-sm">Meu Caderno de Erros</span>
+            </div>
+        </button>
+
+        {/* Meus Flashcards (Second) */}
+        <button 
+            onClick={onOpenFlashcards}
+            className="w-full bg-[#252525] p-4 rounded-xl flex items-center justify-between text-purple-300 hover:text-white hover:bg-[#2A2A2A] transition-colors border border-purple-900/30 hover:border-purple-500/50"
+        >
+            <div className="flex items-center">
+                <Layers size={18} className="mr-3 text-purple-400" />
+                <span className="font-medium text-sm">Meus Flashcards</span>
             </div>
         </button>
 
@@ -221,7 +212,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, on
           <button className="text-xs text-red-500 font-bold hover:text-red-400 p-2">
               Sair da Conta
           </button>
-          <p className="text-[10px] text-gray-700 mt-2">Versão 1.0.5 Beta</p>
+          <p className="text-[10px] text-gray-700 mt-2">Versão 1.0.6 Beta</p>
       </div>
     </div>
   );

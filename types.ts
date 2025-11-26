@@ -116,6 +116,8 @@ export interface Flashcard {
   front: string; // The concept/question
   back: string;  // The answer/explanation
   masteryLevel: 'new' | 'learning' | 'mastered';
+  materia?: string;
+  assunto?: string;
 }
 
 export interface ReviewItem {

@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Home, BookOpen, User, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { COLORS, INITIAL_USER_STATS, MOCK_QUESTIONS, LOGO_URL, COURSES } from './constants';
@@ -14,7 +12,6 @@ import ProfileView from './components/ProfileView';
 import ModeSelectionModal from './components/ModeSelectionModal';
 import SimuladoSummary from './components/SimuladoSummary';
 import CadernoErrosView from './components/CadernoErrosView';
-import StoreView from './components/StoreView';
 import FlashcardsView from './components/FlashcardsView';
 import PvPGameView from './components/PvPGameView';
 import RedacaoView from './components/RedacaoView';
@@ -43,7 +40,7 @@ const parseQuestions = (rawQuestions: typeof MOCK_QUESTIONS): ParsedQuestion[] =
 };
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'simulados' | 'study' | 'pegadinhas' | 'profile' | 'summary' | 'caderno_erros' | 'store' | 'flashcards' | 'pvp' | 'redacao' | 'ranking'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'simulados' | 'study' | 'pegadinhas' | 'profile' | 'summary' | 'caderno_erros' | 'flashcards' | 'pvp' | 'redacao' | 'ranking'>('home');
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   
   // Persistent State: User Stats
@@ -306,22 +303,9 @@ const App: React.FC = () => {
       setCurrentView('summary');
   };
 
-  const handleBuyItem = (item: StoreItem) => {
-      if (stats.coins >= item.price && !inventory.includes(item.id)) {
-          setStats(prev => ({ ...prev, coins: prev.coins - item.price }));
-          setInventory(prev => [...prev, item.id]);
-          showToast(`Você comprou: ${item.name}!`, 'success');
-      } else {
-          showToast('Saldo insuficiente!', 'error');
-      }
-  };
+  // const handleBuyItem = ... REMOVED as Store is removed
 
-  const handleEquipItem = (item: StoreItem) => {
-      if (item.type === 'avatar') {
-          setStats(prev => ({ ...prev, avatarId: item.id }));
-          showToast('Avatar equipado!', 'success');
-      }
-  };
+  // const handleEquipItem = ... REMOVED as Store is removed (or kept if inventory persists, but view is gone)
 
   const handleGenerateFlashcards = async (targetQuestions: ParsedQuestion[]) => {
       setIsGeneratingFlashcards(true);
@@ -387,10 +371,9 @@ const App: React.FC = () => {
     }
 
     if (currentView === 'summary') return <SimuladoSummary answers={userAnswers} questions={activeQuestions} onExit={() => setCurrentView('home')} onRestart={() => handleStartStudy(studyMode, simulatedTime)} />;
-    if (currentView === 'profile') return <ProfileView stats={stats} onOpenCadernoErros={() => setCurrentView('caderno_erros')} onOpenStore={() => setCurrentView('store')} onOpenFlashcards={() => setCurrentView('flashcards')} onBack={() => setCurrentView('home')} />;
+    if (currentView === 'profile') return <ProfileView stats={stats} onOpenCadernoErros={() => setCurrentView('caderno_erros')} onOpenFlashcards={() => setCurrentView('flashcards')} onBack={() => setCurrentView('home')} />;
     if (currentView === 'caderno_erros') return <CadernoErrosView answers={globalAnswers} questions={allQuestions} onBack={() => setCurrentView('profile')} onGenerateFlashcards={handleGenerateFlashcards} isGenerating={isGeneratingFlashcards} />;
-    if (currentView === 'store') return <StoreView stats={stats} inventory={inventory} onBack={() => setCurrentView('profile')} onBuy={handleBuyItem} onEquip={handleEquipItem} />;
-    if (currentView === 'flashcards') return <FlashcardsView cards={flashcards} onBack={() => setCurrentView('profile')} />;
+    if (currentView === 'flashcards') return <FlashcardsView cards={flashcards} onBack={() => setCurrentView('profile')} onGoToCadernoErros={() => setCurrentView('caderno_erros')} />;
     if (currentView === 'pvp') return <PvPGameView questions={allQuestions} userStats={stats} onFinish={handlePvPFinish} onExit={() => setCurrentView('home')} />;
     if (currentView === 'redacao') return <RedacaoView onBack={() => setCurrentView('home')} onShowToast={showToast} />;
     if (currentView === 'ranking') return <RankingView onBack={() => setCurrentView('home')} />;
@@ -450,19 +433,19 @@ const App: React.FC = () => {
         {bottomNavViews.includes(currentView) && (
             <nav className="border-t border-gray-800 bg-[#1A1A1A] px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] absolute bottom-0 w-full z-20">
             <div className="flex justify-between items-center">
-                <button onClick={() => setCurrentView('home')} className={`flex flex-col items-center space-y-1 ${currentView === 'home' ? 'text-[#FFB800]' : 'text-gray-600'}`}>
+                <button onClick={() => setCurrentView('home')} className={`flex flex-col items-center space-y-1 ${currentView === 'home' ? 'text-[#FFB800]' : 'text-gray-400'}`}>
                 <Home size={24} strokeWidth={currentView === 'home' ? 3 : 2} />
                 <span className="text-[10px] font-medium">Início</span>
                 </button>
-                <button onClick={() => setCurrentView('simulados')} className={`flex flex-col items-center space-y-1 ${currentView === 'simulados' || (currentView === 'study' && !isPegadinhaSession) ? 'text-[#FFB800]' : 'text-gray-600'}`}>
+                <button onClick={() => setCurrentView('simulados')} className={`flex flex-col items-center space-y-1 ${currentView === 'simulados' || (currentView === 'study' && !isPegadinhaSession) ? 'text-[#FFB800]' : 'text-gray-400'}`}>
                 <BookOpen size={24} strokeWidth={currentView === 'simulados' || (currentView === 'study' && !isPegadinhaSession) ? 3 : 2} />
                 <span className="text-[10px] font-medium">Simulados</span>
                 </button>
-                <button onClick={() => setCurrentView('pegadinhas')} className={`flex flex-col items-center space-y-1 ${currentView === 'pegadinhas' || (currentView === 'study' && isPegadinhaSession) ? 'text-[#FFB800]' : 'text-gray-600'}`}>
+                <button onClick={() => setCurrentView('pegadinhas')} className={`flex flex-col items-center space-y-1 ${currentView === 'pegadinhas' || (currentView === 'study' && isPegadinhaSession) ? 'text-[#FFB800]' : 'text-gray-400'}`}>
                 <AlertTriangle size={24} strokeWidth={currentView === 'pegadinhas' || (currentView === 'study' && isPegadinhaSession) ? 3 : 2} />
                 <span className="text-[10px] font-medium">Pegadinhas</span>
                 </button>
-                <button onClick={() => setCurrentView('profile')} className={`flex flex-col items-center space-y-1 ${currentView === 'profile' ? 'text-[#FFB800]' : 'text-gray-600'}`}>
+                <button onClick={() => setCurrentView('profile')} className={`flex flex-col items-center space-y-1 ${currentView === 'profile' ? 'text-[#FFB800]' : 'text-gray-400'}`}>
                 <User size={24} strokeWidth={currentView === 'profile' ? 3 : 2} />
                 <span className="text-[10px] font-medium">Perfil</span>
                 </button>

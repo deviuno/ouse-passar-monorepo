@@ -119,13 +119,18 @@ export const generateFlashcards = async (questions: ParsedQuestion[]): Promise<F
         const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const rawCards = JSON.parse(jsonStr);
 
-        return rawCards.map((c: any) => ({
-            id: `fc_${c.id}_${Date.now()}`,
-            questionId: c.id,
-            front: c.front,
-            back: c.back,
-            masteryLevel: 'new'
-        }));
+        return rawCards.map((c: any) => {
+            const originalQ = questions.find(q => q.id === c.id);
+            return {
+                id: `fc_${c.id}_${Date.now()}`,
+                questionId: c.id,
+                front: c.front,
+                back: c.back,
+                masteryLevel: 'new',
+                materia: originalQ?.materia || 'Geral',
+                assunto: originalQ?.assunto || 'Revisão'
+            };
+        });
 
     } catch (error) {
         console.error("Erro ao gerar flashcards:", error);
