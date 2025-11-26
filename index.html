@@ -380,14 +380,20 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
       margin: 2rem 0;
       width: 100%;
-      height: auto;
+      max-height: 500px;
       object-fit: cover;
       box-shadow: 0 0 30px rgba(255, 184, 0, 0.1);
+      display: block;
     }
 
     /* Figures e Figcaption */
     .blog-content figure {
       margin: 2rem 0;
+    }
+
+    .blog-content figure img {
+      max-height: 500px;
+      object-fit: cover;
     }
 
     .blog-content figcaption {
