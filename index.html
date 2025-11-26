@@ -205,6 +205,243 @@
     .scroll-animate.visible {
       opacity: 1;
     }
+
+    /* Blog Content Styles - Formatação para HTML do banco de dados */
+    .blog-content {
+      max-width: none;
+    }
+
+    /* Títulos - Hierarquia H1-H6 */
+    .blog-content h1 {
+      font-size: 2.25rem;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 1.5rem;
+      margin-top: 3rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(255, 184, 0, 0.3);
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .blog-content h2 {
+      font-size: 1.875rem;
+      font-weight: 900;
+      color: #FFB800;
+      margin-bottom: 1.25rem;
+      margin-top: 2.5rem;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .blog-content h3 {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 1rem;
+      margin-top: 2rem;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .blog-content h4 {
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: #e5e5e5;
+      margin-bottom: 0.75rem;
+      margin-top: 1.5rem;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .blog-content h5 {
+      font-size: 1.125rem;
+      font-weight: 900;
+      color: #d4d4d4;
+      margin-bottom: 0.75rem;
+      margin-top: 1.5rem;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .blog-content h6 {
+      font-size: 1rem;
+      font-weight: 900;
+      color: #a3a3a3;
+      margin-bottom: 0.5rem;
+      margin-top: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    /* Parágrafos */
+    .blog-content p {
+      color: #d4d4d4;
+      font-weight: 300;
+      line-height: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Links */
+    .blog-content a {
+      color: #FFB800;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .blog-content a:hover {
+      text-decoration: underline;
+      color: #ffffff;
+    }
+
+    /* Ênfase e Strong */
+    .blog-content strong {
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .blog-content em {
+      color: #e5e5e5;
+      font-style: italic;
+    }
+
+    /* Código inline */
+    .blog-content code {
+      color: #FFB800;
+      background-color: #111111;
+      padding: 0.125rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+      font-family: monospace;
+    }
+
+    /* Blocos de código */
+    .blog-content pre {
+      background-color: #111111;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.125rem;
+      padding: 1rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+    }
+
+    .blog-content pre code {
+      background-color: transparent;
+      padding: 0;
+    }
+
+    /* Blockquotes */
+    .blog-content blockquote {
+      border-left: 4px solid #FFB800;
+      background-color: rgba(17, 17, 17, 0.5);
+      padding-left: 1.5rem;
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+      font-style: italic;
+      color: #d4d4d4;
+      margin: 2rem 0;
+    }
+
+    /* Listas */
+    .blog-content ul {
+      list-style-type: disc;
+      padding-left: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .blog-content ul li {
+      margin-bottom: 0.5rem;
+    }
+
+    .blog-content ol {
+      list-style-type: decimal;
+      padding-left: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .blog-content ol li {
+      margin-bottom: 0.5rem;
+    }
+
+    .blog-content li {
+      color: #d4d4d4;
+      line-height: 1.75rem;
+    }
+
+    .blog-content ul > li::marker {
+      color: #FFB800;
+    }
+
+    .blog-content ol > li::marker {
+      color: #FFB800;
+      font-weight: 700;
+    }
+
+    /* Imagens */
+    .blog-content img {
+      border-radius: 0.125rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin: 2rem 0;
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      box-shadow: 0 0 30px rgba(255, 184, 0, 0.1);
+    }
+
+    /* Figures e Figcaption */
+    .blog-content figure {
+      margin: 2rem 0;
+    }
+
+    .blog-content figcaption {
+      text-align: center;
+      color: #737373;
+      font-size: 0.875rem;
+      margin-top: 0.75rem;
+      font-style: italic;
+    }
+
+    /* Tabelas */
+    .blog-content table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 2rem 0;
+    }
+
+    .blog-content thead {
+      border-bottom: 2px solid #FFB800;
+    }
+
+    .blog-content th {
+      text-align: left;
+      padding: 0.75rem;
+      color: #ffffff;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+      letter-spacing: 0.05em;
+    }
+
+    .blog-content td {
+      padding: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      color: #d4d4d4;
+    }
+
+    .blog-content tr:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      transition: background-color 0.3s;
+    }
+
+    /* Linha horizontal */
+    .blog-content hr {
+      border-color: rgba(255, 255, 255, 0.1);
+      margin: 2.5rem 0;
+    }
+
+    /* Primeiro parágrafo após título */
+    .blog-content h1 + p,
+    .blog-content h2 + p,
+    .blog-content h3 + p {
+      margin-top: 1rem;
+    }
   </style>
   <script type="importmap">
 {

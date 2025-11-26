@@ -7,7 +7,6 @@ import { formatDate, getAvatarUrl } from '../lib/utils';
 import { SEOHead } from './SEOHead';
 import { PageHero } from './PageHero';
 import { useScrollAnimation } from '../lib/useScrollAnimation';
-import '../styles/blog-content.css';
 
 export const BlogList: React.FC = () => {
   const { ref: gridRef, isVisible } = useScrollAnimation({ threshold: 0.1 });
