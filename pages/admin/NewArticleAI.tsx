@@ -72,7 +72,7 @@ export const NewArticleAI: React.FC = () => {
       }
 
       // Enviar ao webhook
-      const response = await fetch('http://72.61.217.225:5678/webhook-test/criar_artigo', {
+      const response = await fetch('https://72.61.217.225:5678/webhook-test/criar_artigo', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
