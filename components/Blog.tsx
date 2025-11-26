@@ -47,15 +47,19 @@ export const BlogList: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    const result = selectedCategory === 'Todos'
-      ? await getPublishedPosts(100)
-      : await getPostsByCategory(selectedCategory, 100);
+    // Load all posts and filter locally for better performance
+    const result = await getPublishedPosts(200);
 
     if (result.error) {
       setError(result.error);
     } else {
-      setAllPosts(result.posts);
-      applySortingToList(result.posts);
+      // Filter by category if not "Todos"
+      const filteredPosts = selectedCategory === 'Todos'
+        ? result.posts
+        : result.posts.filter(post => post.category === selectedCategory);
+
+      setAllPosts(filteredPosts);
+      applySortingToList(filteredPosts);
     }
 
     setLoading(false);
