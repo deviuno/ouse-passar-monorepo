@@ -391,9 +391,19 @@ export const BlogPostView: React.FC = () => {
         {/* Progress Bar placeholder */}
         <div className="fixed top-0 left-0 h-1 bg-brand-yellow w-full z-50 origin-left transform scale-x-0 animate-[progress_1s_ease-out_forwards]"></div>
 
-        {/* Header com background brand-darker destacado */}
-        <header className="w-full border-b border-white/10 bg-brand-darker">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+        {/* Header com imagem de fundo */}
+        <header
+          className="w-full border-b border-white/10 relative overflow-hidden"
+          style={{
+            backgroundImage: `url(${post.imageUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          {/* Overlay escuro para legibilidade */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/75 to-black/90"></div>
+
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 relative z-10">
             <Link
               to="/blog"
               className="inline-flex items-center text-brand-yellow hover:text-white mb-8 transition-colors font-bold uppercase text-xs tracking-widest"
@@ -409,19 +419,19 @@ export const BlogPostView: React.FC = () => {
               {post.tags && post.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="bg-white/5 text-gray-300 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.2em]"
+                  className="bg-white/5 text-gray-300 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.2em] backdrop-blur-sm"
                 >
                   #{tag}
                 </span>
               ))}
             </div>
 
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-white font-display leading-tight mb-8">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-white font-display leading-tight mb-8 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
               {post.title}
             </h1>
 
-            <div className="flex flex-wrap items-center gap-4 text-gray-300 text-xs md:text-sm font-medium">
-              <div className="flex items-center mr-4">
+            <div className="flex flex-wrap items-center gap-4 text-gray-200 text-xs md:text-sm font-medium">
+              <div className="flex items-center mr-4 bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
                 <img
                   src={post.authorAvatar || getAvatarUrl(post.author)}
                   alt={post.author}
@@ -429,30 +439,17 @@ export const BlogPostView: React.FC = () => {
                 />
                 <span className="uppercase tracking-[0.2em]">{post.author}</span>
               </div>
-              <div className="flex items-center mr-4">
+              <div className="flex items-center mr-4 bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
                 <Calendar className="w-4 h-4 mr-2 text-brand-yellow" />
                 <span className="uppercase tracking-[0.2em] text-xs">{post.date}</span>
               </div>
-              <div className="flex items-center">
+              <div className="flex items-center bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
                 <Clock className="w-4 h-4 mr-2 text-brand-yellow" />
                 <span className="uppercase tracking-[0.25em] text-xs">{post.readTime}</span>
               </div>
             </div>
           </div>
         </header>
-
-        {/* Imagem principal após o header */}
-        <div className="w-full bg-black">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mt-6 md:mt-10 overflow-hidden border border-white/10 bg-brand-darker/60">
-              <img
-                src={post.imageUrl}
-                alt={post.title}
-                className="w-full h-auto object-cover max-h-[480px] mx-auto"
-              />
-            </div>
-          </div>
-        </div>
 
         {/* Conteúdo em container de leitura */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 md:mt-12">
