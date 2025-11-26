@@ -62,6 +62,20 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
 
         // Canonical URL
         updateLinkTag('canonical', url);
+
+        // Additional SEO meta tags
+        updateMetaTag('robots', 'index, follow');
+        updateMetaTag('language', 'pt-BR');
+        updateMetaTag('revisit-after', '7 days');
+
+        // Open Graph locale
+        updateMetaTag('og:locale', 'pt_BR', 'property');
+        updateMetaTag('og:site_name', 'Ouse Passar', 'property');
+
+        // Keywords (if tags available)
+        if (tags && tags.length > 0) {
+            updateMetaTag('keywords', tags.join(', '));
+        }
     }, [title, description, image, url, type, author, publishedTime, tags]);
 
     return null; // This component doesn't render anything

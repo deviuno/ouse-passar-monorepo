@@ -328,17 +328,55 @@ const processHtmlContent = (html: string): string => {
     .join('\n');
 };
 
+/**
+ * Extract table of contents from HTML content
+ */
+const extractTableOfContents = (html: string): { id: string; text: string; level: number }[] => {
+  if (!html) return [];
+
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+
+  const headings = tempDiv.querySelectorAll('h1, h2, h3');
+  const toc: { id: string; text: string; level: number }[] = [];
+
+  headings.forEach((heading, index) => {
+    const text = heading.textContent || '';
+    const level = parseInt(heading.tagName.substring(1));
+
+    // Skip the first H1 (usually the article title)
+    if (level === 1 && index === 0) return;
+
+    // Only include H2 and H3
+    if (level === 2 || level === 3) {
+      const id = `section-${index}`;
+      heading.id = id;
+      toc.push({ id, text, level });
+    }
+  });
+
+  return toc;
+};
+
 export const BlogPostView: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tableOfContents, setTableOfContents] = useState<{ id: string; text: string; level: number }[]>([]);
 
   useEffect(() => {
     if (slug) {
       loadPost(slug);
     }
   }, [slug]);
+
+  useEffect(() => {
+    if (post?.content) {
+      const toc = extractTableOfContents(post.content);
+      setTableOfContents(toc);
+    }
+  }, [post]);
 
   const loadPost = async (slug: string) => {
     setLoading(true);
@@ -376,16 +414,23 @@ export const BlogPostView: React.FC = () => {
     );
   }
 
+  // Generate canonical URL
+  const canonicalUrl = `https://ousepassar.com.br/blog/${post.slug}`;
+
+  // Create meta description optimized for SEO
+  const metaDescription = post.excerpt || `${post.title} - Preparação estratégica para concursos públicos. ${post.category}. Leitura de ${post.readTime}.`;
+
   return (
     <>
       <SEOHead
-        title={`${post.title} - Ouse Passar`}
-        description={post.excerpt}
+        title={`${post.title} | Ouse Passar - Preparação para Concursos`}
+        description={metaDescription}
         image={post.imageUrl}
+        url={canonicalUrl}
         type="article"
         author={post.author}
         publishedTime={post.date}
-        tags={post.tags}
+        tags={post.keywords || post.tags}
       />
       <article className="bg-brand-dark min-h-screen pb-24">
         {/* Progress Bar placeholder */}
@@ -426,11 +471,19 @@ export const BlogPostView: React.FC = () => {
               ))}
             </div>
 
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-white font-display leading-tight mb-8 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-white font-display leading-tight mb-6 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
               {post.title}
             </h1>
 
-            <div className="flex flex-wrap items-center gap-4 text-gray-200 text-xs md:text-sm font-medium">
+            {/* Reading Time Badge */}
+            <div className="inline-flex items-center gap-2 bg-brand-yellow/20 backdrop-blur-sm border border-brand-yellow/40 px-4 py-2 rounded mb-6">
+              <Clock className="w-4 h-4 text-brand-yellow" />
+              <span className="text-brand-yellow font-bold text-sm uppercase tracking-wider">
+                {post.readTime} de leitura
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 text-gray-200 text-xs md:text-sm font-medium mt-6">
               <div className="flex items-center mr-4 bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
                 <img
                   src={post.authorAvatar || getAvatarUrl(post.author)}
@@ -439,13 +492,9 @@ export const BlogPostView: React.FC = () => {
                 />
                 <span className="uppercase tracking-[0.2em]">{post.author}</span>
               </div>
-              <div className="flex items-center mr-4 bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
+              <div className="flex items-center bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
                 <Calendar className="w-4 h-4 mr-2 text-brand-yellow" />
                 <span className="uppercase tracking-[0.2em] text-xs">{formatDate(post.date)}</span>
-              </div>
-              <div className="flex items-center bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
-                <Clock className="w-4 h-4 mr-2 text-brand-yellow" />
-                <span className="uppercase tracking-[0.25em] text-xs">{post.readTime}</span>
               </div>
             </div>
           </div>
@@ -453,26 +502,64 @@ export const BlogPostView: React.FC = () => {
 
         {/* Conteúdo em container de leitura */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 md:mt-12">
+
+          {/* Mapa de Batalha (Índice) */}
+          {tableOfContents.length > 0 && (
+            <div className="bg-brand-darker border-l-4 border-brand-yellow px-6 py-6 mb-10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-brand-yellow flex items-center justify-center">
+                  <Hash className="w-5 h-5 text-brand-darker" />
+                </div>
+                <h2 className="text-xl font-black text-brand-yellow font-display uppercase tracking-wider">
+                  Mapa de Batalha
+                </h2>
+              </div>
+              <nav className="space-y-2">
+                {tableOfContents.map((item, index) => (
+                  <a
+                    key={index}
+                    href={`#${item.id}`}
+                    className={`block text-gray-300 hover:text-brand-yellow transition-colors font-medium ${
+                      item.level === 2 ? 'pl-0 text-sm font-bold' : 'pl-6 text-xs'
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <ChevronRight className="w-3 h-3 text-brand-yellow" />
+                      {item.text}
+                    </span>
+                  </a>
+                ))}
+              </nav>
+            </div>
+          )}
+
           <div className="bg-brand-card/60 border border-white/10 px-6 sm:px-10 md:px-12 py-10 md:py-12">
             <div className="blog-content">
               <div dangerouslySetInnerHTML={{ __html: processHtmlContent(post.content) }} />
             </div>
 
-            {/* Tags */}
-            {post.tags && post.tags.length > 0 && (
-              <div className="mt-12 pt-8 border-t border-white/10">
+            {/* Tags Estruturadas */}
+            {(post.tags && post.tags.length > 0) || (post.keywords && post.keywords.length > 0) ? (
+              <div className="mt-12 pt-8 border-t-2 border-brand-yellow/30">
+                <div className="flex items-center gap-2 mb-4">
+                  <Hash className="w-5 h-5 text-brand-yellow" />
+                  <h3 className="text-sm font-black text-brand-yellow uppercase tracking-widest">
+                    Tópicos Estratégicos
+                  </h3>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {post.tags.map((tag, index) => (
+                  {(post.keywords || post.tags)?.map((tag, index) => (
                     <span
                       key={index}
-                      className="px-3 py-1 bg-brand-card border border-white/10 text-gray-400 text-xs font-mono"
+                      className="inline-flex items-center gap-1 px-4 py-2 bg-brand-darker/80 border border-brand-yellow/20 text-gray-300 text-xs font-bold hover:border-brand-yellow hover:text-brand-yellow transition-all cursor-default"
                     >
-                      #{tag}
+                      <span className="text-brand-yellow">#</span>
+                      {tag}
                     </span>
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* CTA Box */}
             <div className="mt-20 bg-brand-yellow relative overflow-hidden rounded-sm p-10 md:p-14 text-center">
