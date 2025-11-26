@@ -294,6 +294,40 @@ export const BlogList: React.FC = () => {
   );
 };
 
+/**
+ * Process HTML content to handle line breaks (\n and \n\n)
+ * Converts text line breaks to HTML where needed
+ */
+const processHtmlContent = (html: string): string => {
+  if (!html) return '';
+
+  // Only process if the content has literal \n characters (not already processed)
+  // Check if content already has proper HTML tags
+  const hasHtmlTags = /<(p|br|div|h[1-6]|ul|ol|li|blockquote|pre)[\s>]/i.test(html);
+
+  // If already has HTML structure, just handle any remaining \n in text nodes
+  if (hasHtmlTags) {
+    // Replace \n\n with <br><br> for paragraph breaks in text
+    // Replace single \n with <br> for line breaks in text
+    return html
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+  }
+
+  // If content is plain text with \n, convert to HTML
+  // Split by double line breaks to create paragraphs
+  const paragraphs = html.split(/\n\n+/);
+
+  return paragraphs
+    .map(para => {
+      // Replace single line breaks within paragraph with <br>
+      const content = para.trim().replace(/\n/g, '<br>');
+      return content ? `<p>${content}</p>` : '';
+    })
+    .filter(Boolean)
+    .join('\n');
+};
+
 export const BlogPostView: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [post, setPost] = useState<BlogPost | null>(null);
@@ -424,7 +458,7 @@ export const BlogPostView: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 md:mt-12">
           <div className="bg-brand-card/60 border border-white/10 px-6 sm:px-10 md:px-12 py-10 md:py-12">
             <div className="blog-content">
-              <div dangerouslySetInnerHTML={{ __html: post.content }} />
+              <div dangerouslySetInnerHTML={{ __html: processHtmlContent(post.content) }} />
             </div>
 
             {/* Tags */}

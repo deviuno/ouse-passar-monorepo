@@ -380,14 +380,20 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
       margin: 2rem 0;
       width: 100%;
-      height: auto;
+      max-height: 500px;
       object-fit: cover;
       box-shadow: 0 0 30px rgba(255, 184, 0, 0.1);
+      display: block;
     }
 
     /* Figures e Figcaption */
     .blog-content figure {
       margin: 2rem 0;
+    }
+
+    .blog-content figure img {
+      max-height: 500px;
+      object-fit: cover;
     }
 
     .blog-content figcaption {
@@ -396,6 +402,27 @@
       font-size: 0.875rem;
       margin-top: 0.75rem;
       font-style: italic;
+    }
+
+    /* Responsive: Ajustar altura de imagens em dispositivos menores */
+    @media (max-width: 768px) {
+      .blog-content img {
+        max-height: 350px;
+      }
+
+      .blog-content figure img {
+        max-height: 350px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .blog-content img {
+        max-height: 280px;
+      }
+
+      .blog-content figure img {
+        max-height: 280px;
+      }
     }
 
     /* Tabelas */
@@ -441,6 +468,18 @@
     .blog-content h2 + p,
     .blog-content h3 + p {
       margin-top: 1rem;
+    }
+
+    /* Quebras de linha */
+    .blog-content br {
+      display: block;
+      content: "";
+      margin-top: 0.5rem;
+    }
+
+    /* Evitar múltiplas quebras muito espaçadas */
+    .blog-content br + br {
+      margin-top: 0.75rem;
     }
   </style>
   <script type="importmap">
