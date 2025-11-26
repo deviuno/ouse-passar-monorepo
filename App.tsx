@@ -23,6 +23,7 @@ import { Authors } from './pages/admin/Authors';
 import { Categories } from './pages/admin/Categories';
 import { Articles } from './pages/admin/Articles';
 import { ArticleEditor } from './pages/admin/ArticleEditor';
+import { NewArticleAI } from './pages/admin/NewArticleAI';
 import { Settings } from './pages/admin/Settings';
 import { Login } from './pages/admin/Login';
 import { Preparatorios } from './pages/admin/Preparatorios';
@@ -117,6 +118,7 @@ const App: React.FC = () => {
             <Route path="categories" element={<Categories />} />
             <Route path="articles" element={<Articles />} />
             <Route path="articles/new" element={<ArticleEditor />} />
+            <Route path="articles/new-ai" element={<NewArticleAI />} />
             <Route path="articles/edit/:slug" element={<ArticleEditor />} />
             <Route path="settings" element={<Settings />} />
             <Route path="preparatorios" element={<Preparatorios />} />

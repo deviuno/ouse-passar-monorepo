@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Database } from '../../lib/database.types';
-import { Plus, Edit2, Trash2, Search, Eye } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Eye, Sparkles } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
 
 // Extended type to include relations
@@ -79,6 +79,13 @@ export const Articles: React.FC = () => {
                             className="w-full bg-brand-card border border-white/10 pl-10 pr-4 py-2 text-white text-sm rounded-sm focus:border-brand-yellow outline-none"
                         />
                     </div>
+                    <button
+                        onClick={() => navigate('/admin/articles/new-ai')}
+                        className="border-2 border-brand-yellow text-brand-yellow px-4 py-2 font-bold uppercase text-sm flex items-center hover:bg-brand-yellow hover:text-brand-darker transition-colors whitespace-nowrap"
+                    >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Criar com IA
+                    </button>
                     <button
                         onClick={() => navigate('/admin/articles/new')}
                         className="bg-brand-yellow text-brand-darker px-4 py-2 font-bold uppercase text-sm flex items-center hover:bg-brand-yellow/90 transition-colors whitespace-nowrap"
