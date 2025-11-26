@@ -442,6 +442,18 @@
     .blog-content h3 + p {
       margin-top: 1rem;
     }
+
+    /* Quebras de linha */
+    .blog-content br {
+      display: block;
+      content: "";
+      margin-top: 0.5rem;
+    }
+
+    /* Evitar múltiplas quebras muito espaçadas */
+    .blog-content br + br {
+      margin-top: 0.75rem;
+    }
   </style>
   <script type="importmap">
 {
