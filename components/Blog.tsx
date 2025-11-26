@@ -368,6 +368,7 @@ export const BlogPostView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tableOfContents, setTableOfContents] = useState<{ id: string; text: string; level: number }[]>([]);
+  const [isTocOpen, setIsTocOpen] = useState(false);
 
   useEffect(() => {
     if (slug) {
@@ -479,14 +480,6 @@ export const BlogPostView: React.FC = () => {
               {post.title}
             </h1>
 
-            {/* Reading Time Badge */}
-            <div className="inline-flex items-center gap-2 bg-brand-yellow/20 backdrop-blur-sm border border-brand-yellow/40 px-4 py-2 rounded mb-6">
-              <Clock className="w-4 h-4 text-brand-yellow" />
-              <span className="text-brand-yellow font-bold text-sm uppercase tracking-wider">
-                {post.readTime} de leitura
-              </span>
-            </div>
-
             <div className="flex flex-wrap items-center gap-4 text-gray-200 text-xs md:text-sm font-medium mt-6">
               <div className="flex items-center mr-4 bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
                 <img
@@ -500,6 +493,10 @@ export const BlogPostView: React.FC = () => {
                 <Calendar className="w-4 h-4 mr-2 text-brand-yellow" />
                 <span className="uppercase tracking-[0.2em] text-xs">{formatDate(post.date)}</span>
               </div>
+              <div className="flex items-center bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
+                <Clock className="w-4 h-4 mr-2 text-brand-yellow" />
+                <span className="uppercase tracking-[0.2em] text-xs">{post.readTime}</span>
+              </div>
             </div>
           </div>
         </header>
@@ -507,33 +504,47 @@ export const BlogPostView: React.FC = () => {
         {/* Conteúdo em container de leitura */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 md:mt-12">
 
-          {/* Mapa de Batalha (Índice) */}
+          {/* Mapa de Batalha (Índice) - Colapsável */}
           {tableOfContents.length > 0 && (
-            <div className="bg-brand-darker border-l-4 border-brand-yellow px-6 py-6 mb-10">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 bg-brand-yellow flex items-center justify-center">
-                  <Hash className="w-5 h-5 text-brand-darker" />
+            <div className="bg-brand-darker border border-white/10 mb-10">
+              <button
+                onClick={() => setIsTocOpen(!isTocOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Hash className="w-4 h-4 text-brand-yellow" />
+                  <span className="text-sm font-bold text-gray-300 uppercase tracking-wider">
+                    Mapa de Batalha ({tableOfContents.length} seções)
+                  </span>
                 </div>
-                <h2 className="text-xl font-black text-brand-yellow font-display uppercase tracking-wider">
-                  Mapa de Batalha
-                </h2>
-              </div>
-              <nav className="space-y-2">
-                {tableOfContents.map((item, index) => (
-                  <a
-                    key={index}
-                    href={`#${item.id}`}
-                    className={`block text-gray-300 hover:text-brand-yellow transition-colors font-medium ${
-                      item.level === 2 ? 'pl-0 text-sm font-bold' : 'pl-6 text-xs'
-                    }`}
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <ChevronRight className="w-3 h-3 text-brand-yellow" />
-                      {item.text}
-                    </span>
-                  </a>
-                ))}
-              </nav>
+                <ChevronRight className={`w-4 h-4 text-brand-yellow transition-transform ${isTocOpen ? 'rotate-90' : ''}`} />
+              </button>
+              {isTocOpen && (
+                <nav className="px-4 pb-4 pt-2 space-y-1 border-t border-white/10">
+                  {tableOfContents.map((item, index) => (
+                    <a
+                      key={index}
+                      href={`#${item.id}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const element = document.getElementById(item.id);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          window.history.pushState(null, '', `#${item.id}`);
+                        }
+                      }}
+                      className={`block text-gray-400 hover:text-brand-yellow transition-colors ${
+                        item.level === 2 ? 'pl-2 text-xs font-semibold' : 'pl-6 text-xs'
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-brand-yellow">›</span>
+                        {item.text}
+                      </span>
+                    </a>
+                  ))}
+                </nav>
+              )}
             </div>
           )}
 
