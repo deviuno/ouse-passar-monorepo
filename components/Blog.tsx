@@ -441,7 +441,7 @@ export const BlogPostView: React.FC = () => {
               </div>
               <div className="flex items-center mr-4 bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
                 <Calendar className="w-4 h-4 mr-2 text-brand-yellow" />
-                <span className="uppercase tracking-[0.2em] text-xs">{post.date}</span>
+                <span className="uppercase tracking-[0.2em] text-xs">{formatDate(post.date)}</span>
               </div>
               <div className="flex items-center bg-black/40 backdrop-blur-sm px-3 py-2 rounded">
                 <Clock className="w-4 h-4 mr-2 text-brand-yellow" />
