@@ -38,14 +38,7 @@ export const fetchQuestionComments = async (
     // Buscar todos os comentários da questão
     const { data: comments, error } = await supabase
       .from('question_comments')
-      .select(`
-        *,
-        user:user_profiles!user_id (
-          id,
-          name,
-          avatar_url
-        )
-      `)
+      .select('*')
       .eq('question_id', questionId)
       .eq('is_deleted', false)
       .order('created_at', { ascending: true });
@@ -58,6 +51,15 @@ export const fetchQuestionComments = async (
     if (!comments || comments.length === 0) {
       return [];
     }
+
+    // Buscar dados dos usuários separadamente
+    const userIds = [...new Set(comments.map(c => c.user_id))];
+    const { data: users } = await supabase
+      .from('user_profiles')
+      .select('id, name, avatar_url')
+      .in('id', userIds);
+
+    const usersMap = new Map(users?.map(u => [u.id, u]) || []);
 
     // Buscar votos do usuário atual (se autenticado)
     let userVotes: Record<string, 'like' | 'dislike'> = {};
@@ -83,8 +85,10 @@ export const fetchQuestionComments = async (
 
     // Primeiro, criar o mapa de todos os comentários
     comments.forEach(comment => {
+      const user = usersMap.get(comment.user_id);
       commentsMap.set(comment.id, {
         ...comment,
+        user: user ? { id: user.id, name: user.name, avatar_url: user.avatar_url } : undefined,
         user_vote: userVotes[comment.id] || null,
         replies: [],
       });
@@ -126,14 +130,7 @@ export const createComment = async (
         content: content.trim(),
         parent_id: parentId || null,
       })
-      .select(`
-        *,
-        user:user_profiles!user_id (
-          id,
-          name,
-          avatar_url
-        )
-      `)
+      .select('*')
       .single();
 
     if (error) {
@@ -141,8 +138,16 @@ export const createComment = async (
       return null;
     }
 
+    // Buscar dados do usuário
+    const { data: user } = await supabase
+      .from('user_profiles')
+      .select('id, name, avatar_url')
+      .eq('id', userId)
+      .single();
+
     return {
       ...data,
+      user: user ? { id: user.id, name: user.name, avatar_url: user.avatar_url } : undefined,
       user_vote: null,
       replies: [],
     };
