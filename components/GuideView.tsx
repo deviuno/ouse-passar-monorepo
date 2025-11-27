@@ -10,7 +10,6 @@ import {
   BookOpen,
   Layers,
   BookX,
-  ShoppingBag,
   Award,
   Clock,
   TrendingUp,
@@ -442,41 +441,6 @@ const GuideView: React.FC<GuideViewProps> = ({ onBack }) => {
             <p className="text-xs text-blue-300 flex items-start">
               <MessageCircle size={14} className="mr-2 mt-0.5 shrink-0" />
               <span><strong>Tutor IA:</strong> Além da redação, você pode conversar com nosso tutor IA para tirar dúvidas sobre qualquer questão!</span>
-            </p>
-          </div>
-        </AccordionItem>
-
-        {/* Loja */}
-        <AccordionItem
-          title="Loja de Itens"
-          icon={<ShoppingBag size={20} />}
-        >
-          <p className="text-gray-400 text-sm mb-4">
-            Use suas moedas conquistadas para personalizar sua experiência!
-          </p>
-
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div className="text-center p-3 bg-[#252525] rounded-xl border border-gray-800">
-              <div className="text-3xl mb-2">🦁</div>
-              <p className="text-xs text-white font-bold">Avatares</p>
-              <p className="text-[10px] text-gray-500">500-1200</p>
-            </div>
-            <div className="text-center p-3 bg-[#252525] rounded-xl border border-gray-800">
-              <div className="text-3xl mb-2">🌃</div>
-              <p className="text-xs text-white font-bold">Temas</p>
-              <p className="text-[10px] text-gray-500">500-1000</p>
-            </div>
-            <div className="text-center p-3 bg-[#252525] rounded-xl border border-gray-800">
-              <div className="text-3xl mb-2">❄️</div>
-              <p className="text-xs text-white font-bold">Power-ups</p>
-              <p className="text-[10px] text-gray-500">300+</p>
-            </div>
-          </div>
-
-          <div className="p-3 bg-[#FFB800]/10 border border-[#FFB800]/20 rounded-xl">
-            <p className="text-xs text-[#FFB800] flex items-start">
-              <Sparkles size={14} className="mr-2 mt-0.5 shrink-0" />
-              <span><strong>Power-up Especial:</strong> "Congelar Ofensiva" protege seu streak por 24h se você não puder estudar um dia!</span>
             </p>
           </div>
         </AccordionItem>
