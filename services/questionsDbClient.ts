@@ -1,22 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
 
 /**
- * Cliente Supabase para o Banco de Questões (Projeto Scrapping)
- * Este é um banco separado que contém ~79.000 questões de concursos
- * alimentado automaticamente via n8n
+ * Cliente Supabase para o Banco de Questões
+ * Usa o banco principal do Supabase (tabela questoes_concurso)
  */
 
-const questionsDbUrl = import.meta.env.VITE_QUESTIONS_DB_URL;
-const questionsDbAnonKey = import.meta.env.VITE_QUESTIONS_DB_ANON_KEY;
-
-if (!questionsDbUrl || !questionsDbAnonKey) {
-  console.warn('Questions DB environment variables missing. External questions will not be available.');
-}
-
-export const questionsDb = createClient(
-  questionsDbUrl || '',
-  questionsDbAnonKey || ''
-);
+// Usa o banco principal diretamente
+export const questionsDb = supabase;
 
 // Tipos para as questões do banco externo
 export interface ExternalQuestion {

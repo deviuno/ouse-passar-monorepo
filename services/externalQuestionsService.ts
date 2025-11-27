@@ -346,10 +346,31 @@ export const fetchRandomQuestions = async (
   count: number = 10
 ): Promise<ParsedQuestion[]> => {
   try {
+    console.log('[fetchRandomQuestions] Filters received:', JSON.stringify(filters, null, 2));
+
     // Primeiro, conta o total de questões disponíveis
     const total = await countExternalQuestions(filters);
+    console.log('[fetchRandomQuestions] Total questions matching filters:', total);
 
-    if (total === 0) return [];
+    if (total === 0) {
+      console.log('[fetchRandomQuestions] No questions found, trying without filters...');
+      // Se não encontrou com filtros, tenta buscar todas as questões
+      const { data: allData, error: allError } = await questionsDb
+        .from('questoes_concurso')
+        .select('*')
+        .limit(count);
+
+      if (allError) {
+        console.error('[fetchRandomQuestions] Error fetching all questions:', allError);
+        return [];
+      }
+
+      console.log('[fetchRandomQuestions] Found questions without filters:', allData?.length || 0);
+      if (allData && allData.length > 0) {
+        return allData.map(transformExternalQuestion);
+      }
+      return [];
+    }
 
     // Gera um offset aleatório
     const maxOffset = Math.max(0, total - count);
@@ -375,7 +396,12 @@ export const fetchRandomQuestions = async (
     const { data, error } = await query
       .range(randomOffset, randomOffset + count - 1);
 
-    if (error) throw error;
+    if (error) {
+      console.error('[fetchRandomQuestions] Query error:', error);
+      throw error;
+    }
+
+    console.log('[fetchRandomQuestions] Questions fetched:', data?.length || 0);
 
     // Embaralha o resultado para mais aleatoriedade
     const shuffled = (data || []).sort(() => Math.random() - 0.5);
