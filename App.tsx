@@ -158,10 +158,8 @@ const App: React.FC = () => {
                 setFlashcards(userFlashcards);
             }
 
-            // Combine default free courses with purchased courses
-            const freeCourses = ['pf', 'prf', 'pc', 'perito'];
-            const allOwnedCourses = [...new Set([...freeCourses, ...userCourses])];
-            setOwnedCourseIds(allOwnedCourses);
+            // Set owned courses from database (no more hardcoded free courses)
+            setOwnedCourseIds(userCourses);
 
         } catch (error) {
             console.error('Error loading user data:', error);
@@ -337,6 +335,20 @@ const App: React.FC = () => {
         }
         setIsPaymentModalOpen(false);
         setSelectedStoreCourse(null);
+    };
+
+    const handleEnrollFreeCourse = async (course: Course) => {
+        if (!ownedCourseIds.includes(course.id)) {
+            setOwnedCourseIds(prev => [...prev, course.id]);
+
+            // Save enrollment to Supabase if authenticated
+            if (userId) {
+                purchaseUserCourse(userId, course.id)
+                    .catch(err => console.error('Error saving free course enrollment:', err));
+            }
+
+            showToast(`Inscrição realizada! Acesse: ${course.title}`, 'success');
+        }
     };
 
     const handleStartStudy = async (mode: StudyMode, time: number = 120) => {
@@ -622,6 +634,7 @@ const App: React.FC = () => {
                     pendingReviewCount={pendingReviewCount}
                     onSelectCourse={handleSelectCourse}
                     onBuyCourse={handleSelectStoreCourse}
+                    onEnrollFreeCourse={handleEnrollFreeCourse}
                     onStartPvP={() => setCurrentView('pvp')}
                     onStartRedacao={() => setCurrentView('redacao')}
                     onStartReview={handleStartReview}

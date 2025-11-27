@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { UserStats, Course, GamificationModalType } from '../types';
 import { MOCK_LEAGUE } from '../constants';
-import { Flame, Trophy, Target, ChevronRight, Lock, ShoppingBag, ChevronUp, ChevronDown, Minus, Coins, Swords, PenTool, BrainCircuit, Loader2 } from 'lucide-react';
+import { Flame, Trophy, Target, ChevronRight, Lock, ShoppingBag, ChevronUp, ChevronDown, Minus, Coins, Swords, PenTool, BrainCircuit, Loader2, Gift } from 'lucide-react';
 import GamificationModal from './GamificationModal';
 
 interface DashboardProps {
@@ -13,6 +13,7 @@ interface DashboardProps {
   pendingReviewCount?: number;
   onSelectCourse: (course: Course) => void;
   onBuyCourse: (course: Course) => void;
+  onEnrollFreeCourse: (course: Course) => void;
   onStartPvP?: () => void;
   onStartRedacao?: () => void;
   onStartReview?: () => void;
@@ -21,10 +22,13 @@ interface DashboardProps {
   isLoading?: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, pendingReviewCount = 0, onSelectCourse, onBuyCourse, onStartPvP, onStartRedacao, onStartReview, onNavigateToProfile, onViewRanking, isLoading = false }) => {
+const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, pendingReviewCount = 0, onSelectCourse, onBuyCourse, onEnrollFreeCourse, onStartPvP, onStartRedacao, onStartReview, onNavigateToProfile, onViewRanking, isLoading = false }) => {
   // Filter courses based on the owned IDs passed from App (source of truth)
   const myCourses = courses.filter(c => ownedCourseIds.includes(c.id) || c.isOwned);
-  const storeCourses = courses.filter(c => !ownedCourseIds.includes(c.id) && !c.isOwned);
+  // Free courses that user hasn't enrolled in yet
+  const freeCourses = courses.filter(c => !ownedCourseIds.includes(c.id) && !c.isOwned && !c.price);
+  // Paid courses that user hasn't purchased
+  const storeCourses = courses.filter(c => !ownedCourseIds.includes(c.id) && !c.isOwned && c.price);
 
   // Modal State
   const [modalType, setModalType] = useState<GamificationModalType>(null);
@@ -221,64 +225,107 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, p
         </div>
       </div>
 
-      {/* 4. Disponíveis para Compra (Horizontal Scroll - Vertical Cards) */}
-      <div className="mb-6">
-        <div className="px-4 mb-3 flex justify-between items-center">
-            <h2 className="text-lg font-bold flex items-center">
-              <ShoppingBag size={18} className="mr-2 text-[#FFB800]"/> 
-              Disponíveis para Compra
-            </h2>
+      {/* 4. Preparatórios Gratuitos (Horizontal Scroll - Vertical Cards) */}
+      {freeCourses.length > 0 && (
+        <div className="mb-6">
+          <div className="px-4 mb-3 flex justify-between items-center">
+              <h2 className="text-lg font-bold flex items-center">
+                <Gift size={18} className="mr-2 text-green-500"/>
+                Preparatórios Gratuitos
+              </h2>
+          </div>
+
+          <div className="flex overflow-x-auto px-4 pb-4 space-x-3 no-scrollbar snap-x">
+              {freeCourses.map(course => (
+                  <button
+                      key={course.id}
+                      onClick={() => onEnrollFreeCourse(course)}
+                      className="flex-none w-[40vw] sm:w-40 aspect-[3/4] rounded-xl overflow-hidden relative group snap-center shadow-lg border border-green-900/30 hover:border-green-500 transition-all"
+                  >
+                      {/* Background Image */}
+                       {course.image ? (
+                           <img src={course.image} alt={course.title} className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105" />
+                       ) : (
+                           <div className="absolute inset-0 bg-[#252525] flex items-center justify-center">
+                                <div className="text-4xl opacity-20">{course.icon}</div>
+                           </div>
+                       )}
+
+                       {/* Gradient Overlay */}
+                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
+
+                       {/* Free Badge - Top Left */}
+                       <div className="absolute top-2 left-2 bg-green-500 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold text-white uppercase">Grátis</span>
+                       </div>
+
+                       {/* Content Overlay */}
+                       <div className="absolute bottom-0 left-0 w-full p-3 text-left">
+                            <h3 className="font-bold text-white text-sm leading-tight mb-0.5 line-clamp-2">{course.title}</h3>
+                            <p className="text-[10px] text-gray-300 truncate">{course.subtitle}</p>
+                            <div className="mt-2 bg-green-500/20 border border-green-500/40 rounded-lg py-1 text-center">
+                              <span className="text-[10px] font-bold text-green-400">Inscrever-se</span>
+                            </div>
+                       </div>
+                  </button>
+              ))}
+          </div>
         </div>
+      )}
 
-        <div className="flex overflow-x-auto px-4 pb-4 space-x-3 no-scrollbar snap-x">
-            {storeCourses.map(course => (
-                <button 
-                    key={course.id}
-                    onClick={() => onBuyCourse(course)}
-                    className="flex-none w-[40vw] sm:w-40 aspect-[3/4] rounded-xl overflow-hidden relative group snap-center shadow-lg border border-gray-700 hover:border-[#FFB800] transition-all opacity-90 hover:opacity-100"
-                >
-                    {/* Background Image */}
-                     {course.image ? (
-                         <img src={course.image} alt={course.title} className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105 filter grayscale-[0.3] group-hover:grayscale-0" />
-                     ) : (
-                         <div className="absolute inset-0 bg-[#252525] flex items-center justify-center">
-                              <div className="text-4xl opacity-20">{course.icon}</div>
-                         </div>
-                     )}
+      {/* 5. Disponíveis para Compra (Horizontal Scroll - Vertical Cards) */}
+      {storeCourses.length > 0 && (
+        <div className="mb-6">
+          <div className="px-4 mb-3 flex justify-between items-center">
+              <h2 className="text-lg font-bold flex items-center">
+                <ShoppingBag size={18} className="mr-2 text-[#FFB800]"/>
+                Disponíveis para Compra
+              </h2>
+          </div>
 
-                     {/* Gradient Overlay */}
-                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent"></div>
+          <div className="flex overflow-x-auto px-4 pb-4 space-x-3 no-scrollbar snap-x">
+              {storeCourses.map(course => (
+                  <button
+                      key={course.id}
+                      onClick={() => onBuyCourse(course)}
+                      className="flex-none w-[40vw] sm:w-40 aspect-[3/4] rounded-xl overflow-hidden relative group snap-center shadow-lg border border-gray-700 hover:border-[#FFB800] transition-all opacity-90 hover:opacity-100"
+                  >
+                      {/* Background Image */}
+                       {course.image ? (
+                           <img src={course.image} alt={course.title} className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105 filter grayscale-[0.3] group-hover:grayscale-0" />
+                       ) : (
+                           <div className="absolute inset-0 bg-[#252525] flex items-center justify-center">
+                                <div className="text-4xl opacity-20">{course.icon}</div>
+                           </div>
+                       )}
 
-                     {/* Lock Icon */}
-                     <div className="absolute top-2 right-2 bg-black/50 p-1.5 rounded-full backdrop-blur-sm">
-                         <Lock size={12} className="text-[#FFB800]" />
-                     </div>
-                     
-                     {/* Price - Top Left */}
-                     <div className="absolute top-2 left-2 bg-black/50 px-1.5 py-0.5 rounded backdrop-blur-sm border border-yellow-900/30">
-                        <span className="text-xs font-bold text-[#FFB800]">{course.price}</span>
-                     </div>
+                       {/* Gradient Overlay */}
+                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent"></div>
 
-                     {/* Content Overlay */}
-                     <div className="absolute bottom-0 left-0 w-full p-3 text-left">
-                          <h3 className="font-bold text-white text-sm leading-tight mb-0.5 line-clamp-2">{course.title}</h3>
-                          <div className="flex justify-between items-end mt-1">
-                               <p className="text-[10px] text-gray-300 truncate w-full">{course.subtitle}</p>
-                          </div>
-                     </div>
-                </button>
-            ))}
-            {storeCourses.length === 0 && (
-                <div className="px-4 w-full">
-                    <div className="p-6 text-center text-gray-500 text-sm border border-dashed border-gray-800 rounded-xl">
-                        Você já possui todos os cursos disponíveis! 🚀
-                    </div>
-                </div>
-            )}
+                       {/* Lock Icon */}
+                       <div className="absolute top-2 right-2 bg-black/50 p-1.5 rounded-full backdrop-blur-sm">
+                           <Lock size={12} className="text-[#FFB800]" />
+                       </div>
+
+                       {/* Price - Top Left */}
+                       <div className="absolute top-2 left-2 bg-black/50 px-1.5 py-0.5 rounded backdrop-blur-sm border border-yellow-900/30">
+                          <span className="text-xs font-bold text-[#FFB800]">{course.price}</span>
+                       </div>
+
+                       {/* Content Overlay */}
+                       <div className="absolute bottom-0 left-0 w-full p-3 text-left">
+                            <h3 className="font-bold text-white text-sm leading-tight mb-0.5 line-clamp-2">{course.title}</h3>
+                            <div className="flex justify-between items-end mt-1">
+                                 <p className="text-[10px] text-gray-300 truncate w-full">{course.subtitle}</p>
+                            </div>
+                       </div>
+                  </button>
+              ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* 5. Ranking List Section */}
+      {/* 6. Ranking List Section */}
       <div className="px-4 mb-6">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold flex items-center">

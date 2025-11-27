@@ -59,14 +59,14 @@ export const fetchCoursesWithOwnership = async (userId: string | null): Promise<
   const courses = await fetchCourses();
 
   if (!userId) {
-    // If no user, mark only free courses as owned
+    // If no user, no courses are owned - user must enroll even in free courses
     return courses.map(c => ({
       ...c,
-      isOwned: c.price === undefined,
+      isOwned: false,
     }));
   }
 
-  // Fetch user's owned courses
+  // Fetch user's owned courses (includes both purchased and enrolled free courses)
   const { data: userCourses, error } = await supabase
     .from('user_courses')
     .select('course_id')
@@ -79,12 +79,10 @@ export const fetchCoursesWithOwnership = async (userId: string | null): Promise<
 
   const ownedCourseIds = new Set((userCourses || []).map(uc => uc.course_id));
 
-  // Mark free courses as owned
-  const freeCourseIds = new Set(courses.filter(c => !c.price).map(c => c.id));
-
+  // Only mark as owned if user has explicitly enrolled/purchased
   return courses.map(c => ({
     ...c,
-    isOwned: ownedCourseIds.has(c.id) || freeCourseIds.has(c.id),
+    isOwned: ownedCourseIds.has(c.id),
   }));
 };
 
