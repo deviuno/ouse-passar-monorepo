@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { Json } from '../lib/database.types';
 
 // ============================================================================
 // TYPES
@@ -115,10 +116,9 @@ export async function getCourses(options?: {
   includeEdital?: boolean;
 }): Promise<{ courses: Course[]; error?: string }> {
   try {
-    // Use editais!course_id to specify the relationship (editais.course_id -> courses.id)
     let query = supabase
       .from('courses')
-      .select(options?.includeEdital ? '*, editais!course_id(*)' : '*')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (options?.type) {
@@ -133,9 +133,22 @@ export async function getCourses(options?: {
 
     if (error) throw error;
 
-    const courses = (data || []).map((item: any) => ({
-      ...item,
-      edital: item.editais || null,
+    const courses: Course[] = (data || []).map((item) => ({
+      id: item.id,
+      title: item.title,
+      subtitle: item.subtitle,
+      description: item.description,
+      icon: item.icon,
+      image_url: item.image_url,
+      price: item.price,
+      is_active: item.is_active,
+      course_type: item.course_type,
+      question_filters: item.question_filters as QuestionFilters,
+      questions_count: item.questions_count,
+      edital_id: item.edital_id,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      edital: null,
     }));
 
     return { courses };
@@ -150,18 +163,37 @@ export async function getCourses(options?: {
  */
 export async function getCourseById(id: string): Promise<{ course: Course | null; error?: string }> {
   try {
-    // Use editais!course_id to specify the relationship (editais.course_id -> courses.id)
     const { data, error } = await supabase
       .from('courses')
-      .select('*, editais!course_id(*)')
+      .select('*')
       .eq('id', id)
       .single();
 
     if (error) throw error;
 
-    return {
-      course: data ? { ...data, edital: data.editais || null } : null,
+    if (!data) {
+      return { course: null };
+    }
+
+    const course: Course = {
+      id: data.id,
+      title: data.title,
+      subtitle: data.subtitle,
+      description: data.description,
+      icon: data.icon,
+      image_url: data.image_url,
+      price: data.price,
+      is_active: data.is_active,
+      course_type: data.course_type,
+      question_filters: data.question_filters as QuestionFilters,
+      questions_count: data.questions_count,
+      edital_id: data.edital_id,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      edital: null,
     };
+
+    return { course };
   } catch (error: any) {
     console.error('Error fetching course:', error);
     return { course: null, error: error.message };
@@ -187,7 +219,7 @@ export async function createCourse(input: CreateCourseInput): Promise<{ course: 
         price: input.price || null,
         course_type: input.course_type,
         is_active: input.is_active ?? false,
-        question_filters: input.question_filters || {},
+        question_filters: (input.question_filters || {}) as unknown as Json,
         questions_count: questionsCount,
       })
       .select()
@@ -195,7 +227,29 @@ export async function createCourse(input: CreateCourseInput): Promise<{ course: 
 
     if (error) throw error;
 
-    return { course: data };
+    if (!data) {
+      return { course: null };
+    }
+
+    const course: Course = {
+      id: data.id,
+      title: data.title,
+      subtitle: data.subtitle,
+      description: data.description,
+      icon: data.icon,
+      image_url: data.image_url,
+      price: data.price,
+      is_active: data.is_active,
+      course_type: data.course_type,
+      question_filters: data.question_filters as QuestionFilters,
+      questions_count: data.questions_count,
+      edital_id: data.edital_id,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      edital: null,
+    };
+
+    return { course };
   } catch (error: any) {
     console.error('Error creating course:', error);
     return { course: null, error: error.message };
@@ -232,7 +286,29 @@ export async function updateCourse(id: string, input: UpdateCourseInput): Promis
 
     if (error) throw error;
 
-    return { course: data };
+    if (!data) {
+      return { course: null };
+    }
+
+    const course: Course = {
+      id: data.id,
+      title: data.title,
+      subtitle: data.subtitle,
+      description: data.description,
+      icon: data.icon,
+      image_url: data.image_url,
+      price: data.price,
+      is_active: data.is_active,
+      course_type: data.course_type,
+      question_filters: data.question_filters as QuestionFilters,
+      questions_count: data.questions_count,
+      edital_id: data.edital_id,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      edital: null,
+    };
+
+    return { course };
   } catch (error: any) {
     console.error('Error updating course:', error);
     return { course: null, error: error.message };
@@ -261,6 +337,37 @@ export async function deleteCourse(id: string): Promise<{ success: boolean; erro
 // ============================================================================
 // EDITAIS CRUD
 // ============================================================================
+
+/**
+ * Helper function to convert database edital row to Edital type
+ */
+function mapEditalRow(row: any): Edital {
+  return {
+    id: row.id,
+    course_id: row.course_id,
+    file_url: row.file_url,
+    file_name: row.file_name,
+    file_size: row.file_size,
+    file_type: row.file_type,
+    status: row.status,
+    ai_analysis: row.ai_analysis as AIAnalysis | null,
+    suggested_filters: row.suggested_filters as QuestionFilters | null,
+    matched_questions_count: row.matched_questions_count,
+    concurso_nome: row.concurso_nome,
+    orgao: row.orgao,
+    banca: row.banca,
+    ano: row.ano,
+    cargos: row.cargos,
+    processing_log: row.processing_log,
+    error_message: row.error_message,
+    uploaded_at: row.uploaded_at,
+    processed_at: row.processed_at,
+    approved_at: row.approved_at,
+    approved_by: row.approved_by,
+    n8n_execution_id: row.n8n_execution_id,
+    webhook_response: row.webhook_response,
+  };
+}
 
 /**
  * Upload edital PDF to storage and create record
@@ -319,7 +426,7 @@ export async function uploadEdital(
       .update({ edital_id: data.id })
       .eq('id', courseId);
 
-    return { edital: data };
+    return { edital: mapEditalRow(data) };
   } catch (error: any) {
     console.error('Error uploading edital:', error);
     return { edital: null, error: error.message };
@@ -354,7 +461,7 @@ export async function createEditalFromUrl(
       .update({ edital_id: data.id })
       .eq('id', courseId);
 
-    return { edital: data };
+    return { edital: mapEditalRow(data) };
   } catch (error: any) {
     console.error('Error creating edital from URL:', error);
     return { edital: null, error: error.message };
@@ -374,7 +481,7 @@ export async function getEditalById(id: string): Promise<{ edital: Edital | null
 
     if (error) throw error;
 
-    return { edital: data };
+    return { edital: data ? mapEditalRow(data) : null };
   } catch (error: any) {
     console.error('Error fetching edital:', error);
     return { edital: null, error: error.message };
@@ -396,7 +503,7 @@ export async function getEditalByCourseId(courseId: string): Promise<{ edital: E
 
     if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
 
-    return { edital: data || null };
+    return { edital: data ? mapEditalRow(data) : null };
   } catch (error: any) {
     console.error('Error fetching edital by course:', error);
     return { edital: null, error: error.message };
@@ -457,7 +564,7 @@ export async function updateEditalStatus(
 
     if (error) throw error;
 
-    return { edital: result };
+    return { edital: result ? mapEditalRow(result) : null };
   } catch (error: any) {
     console.error('Error updating edital status:', error);
     return { edital: null, error: error.message };
@@ -586,7 +693,7 @@ export async function approveFilters(
         .from('editais')
         .update({
           approved_at: new Date().toISOString(),
-          suggested_filters: filters,
+          suggested_filters: filters as unknown as Json,
           matched_questions_count: questionsCount,
         })
         .eq('id', edital.id);

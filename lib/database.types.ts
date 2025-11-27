@@ -64,6 +64,7 @@ export interface Database {
           data_criacao?: string
           data_atualizacao?: string
         }
+        Relationships: []
       }
       writers_profiles: {
         Row: {
@@ -102,6 +103,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       admin_settings: {
         Row: {
@@ -149,6 +151,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       categories: {
         Row: {
@@ -175,6 +178,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       courses: {
         Row: {
@@ -225,6 +229,59 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "courses_edital_id_fkey"
+            columns: ["edital_id"]
+            referencedRelation: "editais"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      autores_artigos: {
+        Row: {
+          autor_id: string
+          nome: string
+          profissao: string
+          especialidades: string
+          missao: string
+          tom_de_voz: string
+          objetivo_final: string
+          horario: string | null
+          imagem_perfil: string | null
+          Assunto: string | null
+          ativo: boolean
+          data_criacao: string
+        }
+        Insert: {
+          autor_id?: string
+          nome: string
+          profissao: string
+          especialidades: string
+          missao: string
+          tom_de_voz: string
+          objetivo_final: string
+          horario?: string | null
+          imagem_perfil?: string | null
+          Assunto?: string | null
+          ativo?: boolean
+          data_criacao?: string
+        }
+        Update: {
+          autor_id?: string
+          nome?: string
+          profissao?: string
+          especialidades?: string
+          missao?: string
+          tom_de_voz?: string
+          objetivo_final?: string
+          horario?: string | null
+          imagem_perfil?: string | null
+          Assunto?: string | null
+          ativo?: boolean
+          data_criacao?: string
+        }
+        Relationships: []
       }
       editais: {
         Row: {
@@ -234,7 +291,7 @@ export interface Database {
           file_name: string | null
           file_size: number | null
           file_type: string | null
-          status: 'pending' | 'processing' | 'completed' | 'error'
+          status: 'pending' | 'processing' | 'analyzed' | 'completed' | 'error'
           ai_analysis: Json | null
           suggested_filters: Json | null
           matched_questions_count: number | null
@@ -259,7 +316,7 @@ export interface Database {
           file_name?: string | null
           file_size?: number | null
           file_type?: string | null
-          status?: 'pending' | 'processing' | 'completed' | 'error'
+          status?: 'pending' | 'processing' | 'analyzed' | 'completed' | 'error'
           ai_analysis?: Json | null
           suggested_filters?: Json | null
           matched_questions_count?: number | null
@@ -284,7 +341,7 @@ export interface Database {
           file_name?: string | null
           file_size?: number | null
           file_type?: string | null
-          status?: 'pending' | 'processing' | 'completed' | 'error'
+          status?: 'pending' | 'processing' | 'analyzed' | 'completed' | 'error'
           ai_analysis?: Json | null
           suggested_filters?: Json | null
           matched_questions_count?: number | null
@@ -302,6 +359,14 @@ export interface Database {
           n8n_execution_id?: string | null
           webhook_response?: Json | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "editais_course_id_fkey"
+            columns: ["course_id"]
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
@@ -312,7 +377,10 @@ export interface Database {
     }
     Enums: {
       course_type: 'simulado' | 'preparatorio'
-      edital_status: 'pending' | 'processing' | 'completed' | 'error'
+      edital_status: 'pending' | 'processing' | 'analyzed' | 'completed' | 'error'
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
