@@ -73,6 +73,7 @@ const App: React.FC = () => {
 
     // Auth State
     const [userId, setUserId] = useState<string | null>(null);
+    const [userName, setUserName] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
 
     // Persistent State: User Stats
@@ -167,6 +168,10 @@ const App: React.FC = () => {
                 // Set league tier from profile
                 if (profile.league_tier) {
                     setUserLeagueTier(profile.league_tier);
+                }
+                // Set user name from profile
+                if (profile.name) {
+                    setUserName(profile.name);
                 }
             }
 
@@ -277,6 +282,7 @@ const App: React.FC = () => {
 
                 if (event === 'SIGNED_OUT') {
                     setUserId(null);
+                    setUserName('');
                     setStats(INITIAL_USER_STATS);
                     setGlobalAnswers([]);
                     setReviews([]);
@@ -824,6 +830,7 @@ const App: React.FC = () => {
                     weeklyRanking={weeklyRanking}
                     userRankPosition={userRankPosition}
                     userLeagueTier={userLeagueTier}
+                    userName={userName}
                     onSelectCourse={handleSelectCourse}
                     onBuyCourse={handleSelectStoreCourse}
                     onEnrollFreeCourse={handleSelectFreeCourse}
@@ -961,7 +968,7 @@ const App: React.FC = () => {
                     onClose={() => setIsReviewIntroOpen(false)}
                     onStart={confirmStartReview}
                     count={pendingReviewCount}
-                    userName="Dhyêgo" // Could be dynamic from stats/profile
+                    userName={userName || 'Estudante'}
                 />
 
                 {/* Review Completion Modal */}

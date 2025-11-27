@@ -14,6 +14,7 @@ interface DashboardProps {
   weeklyRanking: WeeklyRankingUser[];
   userRankPosition?: number;
   userLeagueTier?: string;
+  userName?: string;
   onSelectCourse: (course: Course) => void;
   onBuyCourse: (course: Course) => void;
   onEnrollFreeCourse: (course: Course) => void;
@@ -25,7 +26,7 @@ interface DashboardProps {
   isLoading?: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, pendingReviewCount = 0, weeklyRanking, userRankPosition, userLeagueTier = 'ferro', onSelectCourse, onBuyCourse, onEnrollFreeCourse, onStartPvP, onStartRedacao, onStartReview, onNavigateToProfile, onViewRanking, isLoading = false }) => {
+const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, pendingReviewCount = 0, weeklyRanking, userRankPosition, userLeagueTier = 'ferro', userName = '', onSelectCourse, onBuyCourse, onEnrollFreeCourse, onStartPvP, onStartRedacao, onStartReview, onNavigateToProfile, onViewRanking, isLoading = false }) => {
   // Filter courses based on the owned IDs passed from App (source of truth)
   const myCourses = courses.filter(c => ownedCourseIds.includes(c.id) || c.isOwned);
   // Free courses that user hasn't enrolled in yet
@@ -47,7 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, p
       {/* 1. Header Stats Section */}
       <div className="px-4 pt-12 mb-6">
         <div className="flex justify-between items-center mb-8">
-             <h1 className="text-2xl font-bold">Fala, Dhyêgo! 👋</h1>
+             <h1 className="text-2xl font-bold">Fala, {userName ? userName.split(' ')[0] : 'Estudante'}!</h1>
              <button 
                 onClick={() => handleOpenModal('coins')}
                 className="flex items-center bg-[#252525] px-3 py-1.5 rounded-full border border-yellow-900/30 hover:bg-[#333] transition-colors"
