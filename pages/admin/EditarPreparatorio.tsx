@@ -10,6 +10,15 @@ import {
   RefreshCw,
   ExternalLink,
   Trash2,
+  Edit3,
+  Image,
+  DollarSign,
+  Hash,
+  Filter,
+  Calendar,
+  Building2,
+  BookOpen,
+  Users,
 } from 'lucide-react';
 import { FilterReview } from '../../components/admin/FilterReview';
 import { useToast } from '../../components/ui/Toast';
@@ -38,6 +47,7 @@ export const EditarPreparatorio: React.FC = () => {
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Form state
   const [title, setTitle] = useState('');
@@ -123,12 +133,31 @@ export const EditarPreparatorio: React.FC = () => {
       if (updatedCourse) setCourse(updatedCourse);
 
       toast.success('Alterações salvas com sucesso!');
+      setIsEditing(false);
     } catch (err: any) {
       setError(err.message);
       toast.error('Erro ao salvar alterações');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    // Reset form to original values
+    if (course) {
+      setTitle(course.title);
+      setDescription(course.description || '');
+      setPrice(course.price?.toString() || '');
+      setBlockSize(course.block_size?.toString() || '20');
+    }
+    setIsEditing(false);
+  };
+
+  // Helper to format filters for display
+  const formatFilterValue = (values: string[] | number[] | undefined): string => {
+    if (!values || values.length === 0) return 'Não definido';
+    if (values.length <= 3) return values.join(', ');
+    return `${values.slice(0, 3).join(', ')} +${values.length - 3} mais`;
   };
 
   const handleApproveFilters = async (filters: QuestionFilters) => {
@@ -264,7 +293,7 @@ export const EditarPreparatorio: React.FC = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-black text-white uppercase tracking-tight font-display">
-              Editar Preparatório
+              {course?.title}
             </h1>
             <div className="flex items-center gap-3 mt-2">
               {course?.is_active ? (
@@ -281,13 +310,22 @@ export const EditarPreparatorio: React.FC = () => {
               </span>
             </div>
           </div>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="px-4 py-2 text-red-500 hover:bg-red-500/10 rounded-sm transition-colors flex items-center gap-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            Excluir
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsEditing(true)}
+              className="px-4 py-2 text-brand-yellow hover:bg-brand-yellow/10 rounded-sm transition-colors flex items-center gap-2"
+            >
+              <Edit3 className="w-4 h-4" />
+              Editar
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="px-4 py-2 text-red-500 hover:bg-red-500/10 rounded-sm transition-colors flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Excluir
+            </button>
+          </div>
         </div>
       </div>
 
@@ -306,82 +344,253 @@ export const EditarPreparatorio: React.FC = () => {
         </div>
       )}
 
-      {/* Basic Info */}
-      <div className="bg-brand-card border border-white/5 rounded-sm p-6 mb-6">
-        <h2 className="text-lg font-bold text-white uppercase tracking-wide mb-4">
-          Informações Básicas
-        </h2>
+      {/* Course Details View (when not editing) */}
+      {!isEditing && (
+        <>
+          {/* Course Image and Basic Info */}
+          <div className="bg-brand-card border border-white/5 rounded-sm overflow-hidden mb-6">
+            {/* Image Header */}
+            {course?.image_url ? (
+              <div className="h-48 bg-brand-dark">
+                <img
+                  src={course.image_url}
+                  alt={course.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="h-32 bg-brand-dark flex items-center justify-center">
+                <Image className="w-12 h-12 text-gray-600" />
+              </div>
+            )}
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-              Nome do Preparatório
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow"
-            />
+            <div className="p-6">
+              {/* Description */}
+              {course?.description && (
+                <p className="text-gray-400 mb-6">{course.description}</p>
+              )}
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-brand-dark/50 p-4 rounded-sm">
+                  <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wider mb-1">
+                    <DollarSign className="w-4 h-4" />
+                    Preço
+                  </div>
+                  <p className="text-white font-bold text-lg">
+                    {course?.price ? `R$ ${course.price.toFixed(2)}` : 'Gratuito'}
+                  </p>
+                </div>
+
+                <div className="bg-brand-dark/50 p-4 rounded-sm">
+                  <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wider mb-1">
+                    <Hash className="w-4 h-4" />
+                    Total de Questões
+                  </div>
+                  <p className="text-white font-bold text-lg">
+                    {course?.questions_count?.toLocaleString('pt-BR') || 0}
+                  </p>
+                </div>
+
+                <div className="bg-brand-dark/50 p-4 rounded-sm">
+                  <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wider mb-1">
+                    <Filter className="w-4 h-4" />
+                    Questões por Bloco
+                  </div>
+                  <p className="text-white font-bold text-lg">
+                    {course?.block_size || 20}
+                  </p>
+                </div>
+
+                <div className="bg-brand-dark/50 p-4 rounded-sm">
+                  <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wider mb-1">
+                    <Calendar className="w-4 h-4" />
+                    Criado em
+                  </div>
+                  <p className="text-white font-bold text-lg">
+                    {course?.created_at ? new Date(course.created_at).toLocaleDateString('pt-BR') : '-'}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-              Descrição
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow resize-none"
-            />
-          </div>
+          {/* Applied Filters */}
+          {course?.question_filters && Object.keys(course.question_filters).length > 0 && (
+            <div className="bg-brand-card border border-white/5 rounded-sm p-6 mb-6">
+              <h2 className="text-lg font-bold text-white uppercase tracking-wide mb-4 flex items-center gap-2">
+                <Filter className="w-5 h-5 text-brand-yellow" />
+                Filtros Aplicados
+              </h2>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-              Preço (R$)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="0,00"
-              className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow"
-            />
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {course.question_filters.materias && course.question_filters.materias.length > 0 && (
+                  <div className="bg-brand-dark/50 p-4 rounded-sm">
+                    <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wider mb-2">
+                      <BookOpen className="w-4 h-4" />
+                      Matérias
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {course.question_filters.materias.map((materia, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded"
+                        >
+                          {materia}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-          <div>
-            <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-              Questões por Bloco
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="100"
-              value={blockSize}
-              onChange={(e) => setBlockSize(e.target.value)}
-              placeholder="20"
-              className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              Quantidade de questões que aparecem por vez no simulado do aluno.
-            </p>
-          </div>
+                {course.question_filters.bancas && course.question_filters.bancas.length > 0 && (
+                  <div className="bg-brand-dark/50 p-4 rounded-sm">
+                    <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wider mb-2">
+                      <Users className="w-4 h-4" />
+                      Bancas
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {course.question_filters.bancas.map((banca, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded"
+                        >
+                          {banca}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-          <button
-            onClick={handleSaveBasicInfo}
-            disabled={isSaving}
-            className={`
-              px-6 py-2 rounded-sm font-bold uppercase tracking-wide transition-all flex items-center gap-2
-              ${isSaving ? 'bg-gray-700 text-gray-400' : 'bg-brand-yellow text-brand-darker hover:bg-white'}
-            `}
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-          </button>
+                {course.question_filters.orgaos && course.question_filters.orgaos.length > 0 && (
+                  <div className="bg-brand-dark/50 p-4 rounded-sm">
+                    <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wider mb-2">
+                      <Building2 className="w-4 h-4" />
+                      Órgãos
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {course.question_filters.orgaos.map((orgao, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded"
+                        >
+                          {orgao}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {course.question_filters.anos && course.question_filters.anos.length > 0 && (
+                  <div className="bg-brand-dark/50 p-4 rounded-sm">
+                    <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wider mb-2">
+                      <Calendar className="w-4 h-4" />
+                      Anos
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {course.question_filters.anos.map((ano, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded"
+                        >
+                          {ano}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Edit Form (when editing) */}
+      {isEditing && (
+        <div className="bg-brand-card border border-white/5 rounded-sm p-6 mb-6">
+          <h2 className="text-lg font-bold text-white uppercase tracking-wide mb-4">
+            Editar Informações
+          </h2>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+                Nome do Preparatório
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+                Descrição
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow resize-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Preço (R$)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Questões por Bloco
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={blockSize}
+                  onChange={(e) => setBlockSize(e.target.value)}
+                  placeholder="20"
+                  className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-4 pt-4">
+              <button
+                onClick={handleCancelEdit}
+                disabled={isSaving}
+                className="px-6 py-2 border border-white/10 text-gray-400 rounded-sm font-bold uppercase tracking-wide hover:text-white hover:border-white/20 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveBasicInfo}
+                disabled={isSaving}
+                className={`
+                  flex-1 px-6 py-2 rounded-sm font-bold uppercase tracking-wide transition-all flex items-center justify-center gap-2
+                  ${isSaving ? 'bg-gray-700 text-gray-400' : 'bg-brand-yellow text-brand-darker hover:bg-white'}
+                `}
+              >
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Edital Status */}
       {edital && (

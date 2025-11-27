@@ -293,19 +293,39 @@ export const NewPreparatorio: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-              Preço (R$)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="0,00 (deixe vazio para gratuito)"
-              className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+                Preço (R$)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="0,00 (deixe vazio para gratuito)"
+                className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+                Questões por Bloco
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={blockSize}
+                onChange={(e) => setBlockSize(e.target.value)}
+                placeholder="20"
+                className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
+              />
+            </div>
           </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Questões por bloco: quantidade que aparece por vez no simulado do aluno.
+          </p>
 
           <div>
             <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
@@ -315,24 +335,6 @@ export const NewPreparatorio: React.FC = () => {
               value={imageUrl}
               onChange={setImageUrl}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-              Questões por Bloco
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="100"
-              value={blockSize}
-              onChange={(e) => setBlockSize(e.target.value)}
-              placeholder="20"
-              className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              Quantidade de questões que aparecem por vez no simulado do aluno. Após responder todas, novas questões serão carregadas.
-            </p>
           </div>
         </div>
 
