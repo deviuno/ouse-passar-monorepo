@@ -12,7 +12,7 @@ export const Toast: React.FC<ToastProps> = ({ toast, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose(toast.id);
-    }, 3000);
+    }, 500); // 0.5 seconds - quick feedback
     return () => clearTimeout(timer);
   }, [toast.id, onClose]);
 

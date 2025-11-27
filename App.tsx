@@ -251,10 +251,9 @@ const App: React.FC = () => {
                 const stats = await getExternalQuestionsStats();
                 setQuestionsStats(stats);
 
+                // Silently log stats without showing toast to user
                 if (stats.total > 0) {
-                    showToast(`Banco conectado: ${stats.total.toLocaleString()} questões disponíveis!`, 'success');
-                } else {
-                    showToast('Usando questões de exemplo.', 'info');
+                    console.log(`Banco conectado: ${stats.total.toLocaleString()} questões disponíveis`);
                 }
             } catch (error) {
                 console.error('Initialization error:', error);

@@ -94,22 +94,48 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, p
         </div>
 
         {/* XP Progress - Clickable */}
-        <button 
-            onClick={() => handleOpenModal('level')}
-            className="w-full text-left bg-gradient-to-r from-[#FFB800]/10 to-[#FFB800]/5 p-4 rounded-xl border border-[#FFB800]/20 relative overflow-hidden group hover:border-[#FFB800]/40 transition-all"
-        >
-            <div className="flex justify-between items-end mb-2 relative z-10">
-                <div>
-                    <span className="text-xs font-bold text-[#FFB800] uppercase tracking-wider">Nível {stats.level}</span>
-                    <h3 className="font-bold text-white">Guardião da Lei</h3>
-                </div>
-                <span className="text-sm font-bold text-white">{stats.xp} <span className="text-gray-400 text-xs">/ 2000 XP</span></span>
-            </div>
-            <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden relative z-10">
-                <div className="h-full bg-[#FFB800] w-[62%] rounded-full shadow-[0_0_10px_rgba(255,184,0,0.5)]"></div>
-            </div>
-            <Trophy className="absolute right-0 bottom-0 text-[#FFB800]/10 w-24 h-24 -mr-4 -mb-4 group-hover:scale-110 transition-transform" />
-        </button>
+        {(() => {
+            // Calculate XP needed for next level (each level requires level * 1000 XP)
+            const xpForCurrentLevel = (stats.level - 1) * 1000;
+            const xpForNextLevel = stats.level * 1000;
+            const xpInCurrentLevel = stats.xp - xpForCurrentLevel;
+            const xpNeededForLevel = xpForNextLevel - xpForCurrentLevel;
+            const progressPercent = Math.max(2, Math.min(100, (xpInCurrentLevel / xpNeededForLevel) * 100));
+
+            // Level titles based on level
+            const levelTitles: Record<number, string> = {
+                1: 'Iniciante',
+                2: 'Estudante',
+                3: 'Dedicado',
+                4: 'Guardião da Lei',
+                5: 'Especialista',
+                6: 'Mestre',
+                7: 'Lenda',
+            };
+            const levelTitle = levelTitles[stats.level] || 'Mestre Supremo';
+
+            return (
+                <button
+                    onClick={() => handleOpenModal('level')}
+                    className="w-full text-left bg-gradient-to-r from-[#FFB800]/10 to-[#FFB800]/5 p-4 rounded-xl border border-[#FFB800]/20 relative overflow-hidden group hover:border-[#FFB800]/40 transition-all"
+                >
+                    <div className="flex justify-between items-end mb-2 relative z-10">
+                        <div>
+                            <span className="text-xs font-bold text-[#FFB800] uppercase tracking-wider">Nível {stats.level}</span>
+                            <h3 className="font-bold text-white">{levelTitle}</h3>
+                        </div>
+                        <span className="text-sm font-bold text-white">{stats.xp} <span className="text-gray-400 text-xs">/ {xpForNextLevel} XP</span></span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden relative z-10">
+                        <div
+                            className="h-full bg-[#FFB800] rounded-full shadow-[0_0_10px_rgba(255,184,0,0.5)] transition-all duration-500"
+                            style={{ width: `${progressPercent}%` }}
+                        ></div>
+                    </div>
+                    <Trophy className="absolute right-0 bottom-0 text-[#FFB800]/10 w-24 h-24 -mr-4 -mb-4 group-hover:scale-110 transition-transform" />
+                </button>
+            );
+        })()}
       </div>
 
       {/* Smart Review Card (Conditional) */}
