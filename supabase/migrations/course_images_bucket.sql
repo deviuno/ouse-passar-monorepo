@@ -20,6 +20,9 @@ DROP POLICY IF EXISTS "Public read access for course images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can upload course images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can update course images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can delete course images" ON storage.objects;
+DROP POLICY IF EXISTS "Public upload for course images" ON storage.objects;
+DROP POLICY IF EXISTS "Public update for course images" ON storage.objects;
+DROP POLICY IF EXISTS "Public delete for course images" ON storage.objects;
 
 -- Enable public access policy for course-images bucket
 -- Allow anyone to read images
@@ -27,26 +30,17 @@ CREATE POLICY "Public read access for course images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'course-images');
 
--- Allow authenticated users to upload images
-CREATE POLICY "Authenticated users can upload course images"
+-- Allow anyone to upload images (using anon key)
+CREATE POLICY "Public upload for course images"
 ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'course-images'
-  AND auth.role() = 'authenticated'
-);
+WITH CHECK (bucket_id = 'course-images');
 
--- Allow authenticated users to update their uploads
-CREATE POLICY "Authenticated users can update course images"
+-- Allow anyone to update images
+CREATE POLICY "Public update for course images"
 ON storage.objects FOR UPDATE
-USING (
-  bucket_id = 'course-images'
-  AND auth.role() = 'authenticated'
-);
+USING (bucket_id = 'course-images');
 
--- Allow authenticated users to delete images
-CREATE POLICY "Authenticated users can delete course images"
+-- Allow anyone to delete images
+CREATE POLICY "Public delete for course images"
 ON storage.objects FOR DELETE
-USING (
-  bucket_id = 'course-images'
-  AND auth.role() = 'authenticated'
-);
+USING (bucket_id = 'course-images');

@@ -35,7 +35,7 @@ export const CourseImageUpload: React.FC<CourseImageUploadProps> = ({
       // Generate unique filename
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      const filePath = `course-images/${fileName}`;
+      const filePath = fileName; // Só o nome do arquivo, bucket já é 'course-images'
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -48,7 +48,7 @@ export const CourseImageUpload: React.FC<CourseImageUploadProps> = ({
       if (uploadError) {
         // If bucket doesn't exist, try using blog-images as fallback
         if (uploadError.message.includes('not found') || uploadError.message.includes('does not exist')) {
-          const fallbackPath = `course-images/${fileName}`;
+          const fallbackPath = `courses/${fileName}`;
           const { error: fallbackError } = await supabase.storage
             .from('blog-images')
             .upload(fallbackPath, file, {
