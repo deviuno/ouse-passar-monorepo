@@ -752,6 +752,8 @@ const App: React.FC = () => {
                     onTimeout={handleFinishSimulado}
                     studyMode={studyMode}
                     initialTime={simulatedTime}
+                    userId={userId}
+                    onShowToast={showToast}
                 />
             );
         }

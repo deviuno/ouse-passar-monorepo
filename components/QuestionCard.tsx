@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { ParsedQuestion, Comment, CommunityStats, StudyMode } from '../types';
-import { COLORS, MOCK_COMMENTS, MOCK_STATS } from '../constants';
-import { MessageCircle, AlertTriangle, BarChart2, ThumbsUp, ThumbsDown, MessageSquare, X, Timer, Coffee, Zap, BrainCircuit } from 'lucide-react';
+import { ParsedQuestion, CommunityStats, StudyMode } from '../types';
+import { COLORS, MOCK_STATS } from '../constants';
+import { MessageCircle, AlertTriangle, BarChart2, X, Timer, Coffee, Zap, BrainCircuit } from 'lucide-react';
 import { generateExplanation } from '../services/geminiService';
+import CommentsSection from './CommentsSection';
 
 interface QuestionCardProps {
   question: ParsedQuestion;
@@ -15,72 +16,11 @@ interface QuestionCardProps {
   onTimeout?: () => void;
   studyMode?: StudyMode;
   initialTime?: number; // Duration in minutes for Simulado mode
+  userId?: string | null; // Para o sistema de comentários
+  onShowToast?: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-// --- Sub-components for Comments ---
-const CommentItem: React.FC<{ comment: Comment; isReply?: boolean }> = ({ comment, isReply = false }) => {
-  const [likes, setLikes] = useState(comment.likes);
-  const [dislikes, setDislikes] = useState(comment.dislikes);
-  const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
-
-  const handleLike = () => {
-    if (userVote === 'like') {
-      setUserVote(null);
-      setLikes(l => l - 1);
-    } else {
-      if (userVote === 'dislike') setDislikes(d => d - 1);
-      setUserVote('like');
-      setLikes(l => l + 1);
-    }
-  };
-
-  const handleDislike = () => {
-    if (userVote === 'dislike') {
-      setUserVote(null);
-      setDislikes(d => d - 1);
-    } else {
-      if (userVote === 'like') setLikes(l => l - 1);
-      setUserVote('dislike');
-      setDislikes(d => d + 1);
-    }
-  };
-
-  return (
-    <div className={`flex flex-col mb-4 ${isReply ? 'ml-8 pl-4 border-l-2 border-gray-700' : ''}`}>
-      <div className="flex items-center justify-between mb-1">
-        <span className="font-bold text-sm text-gray-300">{comment.author}</span>
-        <span className="text-xs text-gray-600">{comment.timeAgo}</span>
-      </div>
-      <p className="text-sm text-gray-400 mb-2 leading-relaxed">{comment.text}</p>
-      
-      <div className="flex items-center space-x-4">
-        <button onClick={handleLike} className={`flex items-center space-x-1 text-xs transition-colors ${userVote === 'like' ? 'text-[#FFB800]' : 'text-gray-600 hover:text-gray-400'}`}>
-          <ThumbsUp size={14} className={userVote === 'like' ? 'fill-[#FFB800]' : ''} />
-          <span>{likes}</span>
-        </button>
-        <button onClick={handleDislike} className={`flex items-center space-x-1 text-xs transition-colors ${userVote === 'dislike' ? 'text-[#E74C3C]' : 'text-gray-600 hover:text-gray-400'}`}>
-          <ThumbsDown size={14} className={userVote === 'dislike' ? 'fill-[#E74C3C]' : ''} />
-          <span>{dislikes}</span>
-        </button>
-        {!isReply && (
-            <button className="text-xs text-gray-600 hover:text-white font-medium">Responder</button>
-        )}
-      </div>
-
-      {/* Recursive Render for Replies */}
-      {comment.replies && comment.replies.length > 0 && (
-        <div className="mt-3">
-          {comment.replies.map(reply => (
-            <CommentItem key={reply.id} comment={reply} isReply={true} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-
-const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onOpenTutor, onAnswer, onRateDifficulty, onTimeout, studyMode = 'zen', initialTime = 120 }) => {
+const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onOpenTutor, onAnswer, onRateDifficulty, onTimeout, studyMode = 'zen', initialTime = 120, userId, onShowToast }) => {
   const [selectedAlt, setSelectedAlt] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
@@ -390,14 +330,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             </div>
 
             {/* Community Comments Section */}
-            <div>
-                <h4 className="text-sm font-bold text-gray-300 mb-4 flex items-center">
-                    <MessageSquare size={16} className="mr-2" /> Comentários da Comunidade
-                </h4>
-                {MOCK_COMMENTS.map(comment => (
-                    <CommentItem key={comment.id} comment={comment} />
-                ))}
-            </div>
+            <CommentsSection
+              questionId={question.id}
+              userId={userId || null}
+              onShowToast={onShowToast}
+            />
 
           </div>
         )}
