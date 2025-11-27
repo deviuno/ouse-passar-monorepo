@@ -17,6 +17,7 @@ import FlashcardsView from './components/FlashcardsView';
 import PvPGameView from './components/PvPGameView';
 import RedacaoView from './components/RedacaoView';
 import PaymentModal from './components/PaymentModal';
+import FreeEnrollModal from './components/FreeEnrollModal';
 import ReviewIntroModal from './components/ReviewIntroModal';
 import RankingView from './components/RankingView';
 import GuideView from './components/GuideView';
@@ -264,6 +265,10 @@ const App: React.FC = () => {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [selectedStoreCourse, setSelectedStoreCourse] = useState<Course | null>(null);
 
+    // Free Enroll Modal State
+    const [isFreeEnrollModalOpen, setIsFreeEnrollModalOpen] = useState(false);
+    const [selectedFreeCourse, setSelectedFreeCourse] = useState<Course | null>(null);
+
     // Answers State for CURRENT Simulado Session
     const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
 
@@ -337,7 +342,12 @@ const App: React.FC = () => {
         setSelectedStoreCourse(null);
     };
 
-    const handleEnrollFreeCourse = async (course: Course) => {
+    const handleSelectFreeCourse = (course: Course) => {
+        setSelectedFreeCourse(course);
+        setIsFreeEnrollModalOpen(true);
+    };
+
+    const handleConfirmFreeEnroll = async (course: Course) => {
         if (!ownedCourseIds.includes(course.id)) {
             setOwnedCourseIds(prev => [...prev, course.id]);
 
@@ -349,6 +359,8 @@ const App: React.FC = () => {
 
             showToast(`Inscrição realizada! Acesse: ${course.title}`, 'success');
         }
+        setIsFreeEnrollModalOpen(false);
+        setSelectedFreeCourse(null);
     };
 
     const handleStartStudy = async (mode: StudyMode, time: number = 120) => {
@@ -634,7 +646,7 @@ const App: React.FC = () => {
                     pendingReviewCount={pendingReviewCount}
                     onSelectCourse={handleSelectCourse}
                     onBuyCourse={handleSelectStoreCourse}
-                    onEnrollFreeCourse={handleEnrollFreeCourse}
+                    onEnrollFreeCourse={handleSelectFreeCourse}
                     onStartPvP={() => setCurrentView('pvp')}
                     onStartRedacao={() => setCurrentView('redacao')}
                     onStartReview={handleStartReview}
@@ -751,6 +763,7 @@ const App: React.FC = () => {
                 <TutorChat isOpen={isTutorOpen} onClose={() => setIsTutorOpen(false)} question={currentQuestion} />
                 <ModeSelectionModal isOpen={isModeModalOpen} onClose={() => setIsModeModalOpen(false)} course={tempSelectedCourse} onSelectMode={handleStartStudy} />
                 <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} course={selectedStoreCourse} onConfirm={handleConfirmPurchase} />
+                <FreeEnrollModal isOpen={isFreeEnrollModalOpen} onClose={() => setIsFreeEnrollModalOpen(false)} course={selectedFreeCourse} onConfirm={handleConfirmFreeEnroll} />
 
                 {/* New Review Intro Modal */}
                 <ReviewIntroModal
