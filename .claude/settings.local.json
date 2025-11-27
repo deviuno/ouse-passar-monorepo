@@ -10,7 +10,11 @@
       "Bash(env)",
       "Bash(node scripts/apply-storage-policies.js:*)",
       "Bash(cd:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Add complete simulados/preparatórios management system\n\n- Add manual filter selection for creating simulados without edital\n- Add edital upload mode (structure ready for n8n integration)\n- Add real-time question preview with count\n- Add course image upload component with drag-and-drop\n- Add external questions database integration\n- Add dashboard statistics for preparatórios\n- Update documentation page with integration guide for Ouse Questões app\n- Add SQL migrations for course-images bucket\n\nNew components:\n- ManualFilterSelector: Select materias, bancas, anos, orgãos\n- QuestionPreview: Preview matching questions in real-time\n- FilterReview: Review and edit AI-suggested filters\n- EditalUploader: Upload PDF or provide URL\n- CourseImageUpload: Upload cover images\n\nNew services:\n- simuladoService: CRUD for courses and editais\n- externalQuestionsService: Query external questions database\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

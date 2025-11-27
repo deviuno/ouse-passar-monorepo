@@ -17,14 +17,14 @@ export const DocsIntegracao: React.FC = () => {
             <span className="bg-brand-yellow/20 text-brand-yellow text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
               Documentação Técnica
             </span>
-            <span className="text-gray-500 text-sm">v1.0 - 27/11/2025</span>
+            <span className="text-gray-500 text-sm">v2.0 - 27/11/2025</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-white font-display uppercase tracking-tight mb-4">
             Integração de <span className="text-brand-yellow">Questões</span>
           </h1>
           <p className="text-gray-400 text-lg max-w-3xl">
-            Sistema automatizado para criação de simulados via upload de editais,
-            com análise por IA e integração com banco de 78.908 questões.
+            Sistema completo para criação de simulados via upload de editais (IA) ou configuração manual,
+            com integração entre painel admin e app de questões usando banco de 78.908 questões.
           </p>
         </div>
       </div>
@@ -36,19 +36,19 @@ export const DocsIntegracao: React.FC = () => {
           {/* Índice */}
           <nav className="bg-brand-card border border-white/10 rounded-sm p-6 mb-12">
             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <span className="text-brand-yellow">01</span> Índice
+              <span className="text-brand-yellow">00</span> Índice
             </h2>
             <ol className="space-y-2 text-gray-300">
               <li><a href="#visao-geral" className="hover:text-brand-yellow transition-colors">1. Visão Geral</a></li>
               <li><a href="#arquitetura" className="hover:text-brand-yellow transition-colors">2. Arquitetura dos Projetos</a></li>
               <li><a href="#supabase" className="hover:text-brand-yellow transition-colors">3. Projetos Supabase</a></li>
               <li><a href="#estrutura-dados" className="hover:text-brand-yellow transition-colors">4. Estrutura de Dados</a></li>
-              <li><a href="#fluxo" className="hover:text-brand-yellow transition-colors">5. Fluxo de Criação de Simulado</a></li>
-              <li><a href="#implementacao" className="hover:text-brand-yellow transition-colors">6. Implementação Detalhada</a></li>
-              <li><a href="#ambiente" className="hover:text-brand-yellow transition-colors">7. Configurações de Ambiente</a></li>
-              <li><a href="#migrations" className="hover:text-brand-yellow transition-colors">8. Migrations SQL</a></li>
-              <li><a href="#checklist" className="hover:text-brand-yellow transition-colors">9. Checklist de Implementação</a></li>
-              <li><a href="#consideracoes" className="hover:text-brand-yellow transition-colors">10. Considerações Técnicas</a></li>
+              <li><a href="#implementado" className="hover:text-brand-yellow transition-colors">5. O Que Já Foi Implementado</a></li>
+              <li><a href="#fluxo" className="hover:text-brand-yellow transition-colors">6. Fluxos de Criação de Simulado</a></li>
+              <li><a href="#app-integracao" className="hover:text-brand-yellow transition-colors">7. Integração no App Ouse Questões</a></li>
+              <li><a href="#ambiente" className="hover:text-brand-yellow transition-colors">8. Configurações de Ambiente</a></li>
+              <li><a href="#migrations" className="hover:text-brand-yellow transition-colors">9. Migrations SQL</a></li>
+              <li><a href="#checklist" className="hover:text-brand-yellow transition-colors">10. Checklist de Implementação</a></li>
             </ol>
           </nav>
 
@@ -60,17 +60,22 @@ export const DocsIntegracao: React.FC = () => {
 
             <h3>Objetivo</h3>
             <p>
-              Criar um sistema automatizado onde o administrador pode criar simulados/preparatórios
-              fazendo upload de um edital de concurso. Um agente de IA (via n8n) interpretará o edital
-              e selecionará automaticamente as questões relevantes do banco de dados externo
-              (<strong>78.908 questões</strong>), disponibilizando-as no aplicativo de questões para os usuários.
+              Sistema que permite criar simulados de duas formas:
+            </p>
+            <ul>
+              <li><strong>Via Edital (IA):</strong> Upload de PDF do edital, análise automática por IA via n8n</li>
+              <li><strong>Manual:</strong> Seleção direta de filtros (matérias, bancas, anos, órgãos) com preview em tempo real</li>
+            </ul>
+            <p>
+              Os simulados criados no painel admin ficam disponíveis no app Ouse Questões,
+              que busca questões do banco externo (<strong>78.908 questões</strong>) baseado nos filtros configurados.
             </p>
 
             <h3>Projetos Envolvidos</h3>
             <ul>
-              <li><strong>site-ouse</strong> - Painel administrativo (este projeto)</li>
-              <li><strong>Ouse-Questoes</strong> - App do usuário final</li>
-              <li><strong>n8n</strong> - Automação e processamento via IA</li>
+              <li><strong>site-ouse</strong> - Painel administrativo (este projeto) - <span className="text-green-400">IMPLEMENTADO</span></li>
+              <li><strong>Ouse-Questoes</strong> - App do usuário final - <span className="text-yellow-400">PRECISA INTEGRAÇÃO</span></li>
+              <li><strong>n8n</strong> - Automação e processamento via IA - <span className="text-gray-400">FUTURO</span></li>
             </ul>
           </section>
 
@@ -90,11 +95,11 @@ export const DocsIntegracao: React.FC = () => {
 │  │     site-ouse        │     │    Ouse-Questoes     │                     │
 │  │   (Painel Admin)     │     │   (App do Usuário)   │                     │
 │  │                      │     │                      │                     │
-│  │  - Blog              │     │  - Simulados         │                     │
-│  │  - Artigos           │     │  - Questões          │                     │
-│  │  - Autores           │     │  - Flashcards        │                     │
-│  │  - Simulados/Prep    │     │  - Revisão           │                     │
-│  │  - Upload Editais    │     │  - Gamificação       │                     │
+│  │  ✅ Blog/Artigos     │     │  ⚠️ Simulados        │                     │
+│  │  ✅ Simulados Admin  │     │  ⚠️ Questões         │                     │
+│  │  ✅ Upload Editais   │     │  - Flashcards        │                     │
+│  │  ✅ Filtros Manuais  │     │  - Revisão           │                     │
+│  │  ✅ Preview Questões │     │  - Gamificação       │                     │
 │  └──────────┬───────────┘     └──────────┬───────────┘                     │
 │             │                            │                                  │
 │             │         ┌──────────────────┤                                  │
@@ -104,8 +109,8 @@ export const DocsIntegracao: React.FC = () => {
 │  │                     SUPABASE - ousepassar                           │   │
 │  │                   (avlttxzppcywybiaxxzd)                            │   │
 │  │                                                                     │   │
-│  │  Tabelas: user_profiles, courses, user_answers, user_reviews,      │   │
-│  │           user_flashcards, study_sessions, artigos, categories...  │   │
+│  │  Tabelas: courses, editais, user_profiles, user_answers...         │   │
+│  │  Storage: editais (PDFs), course-images (capas)                    │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 │             │                            │                                  │
@@ -115,19 +120,19 @@ export const DocsIntegracao: React.FC = () => {
 │             │         │       (swzosaapqtyhmwdiwdje)                │      │
 │             │         │                                             │      │
 │             │         │  Tabela: questoes_concurso (78.908 questões)│      │
-│             │         │  Alimentado via n8n (scrapping automático)  │      │
 │             │         └─────────────────────────────────────────────┘      │
 │             │                                                               │
 │             ▼                                                               │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                            N8N                                      │   │
+│  │                         N8N (Futuro)                               │   │
 │  │                                                                     │   │
-│  │  - Scrapping de questões (alimenta banco externo)                  │   │
 │  │  - Agente IA para interpretação de editais                         │   │
 │  │  - Geração automática de filtros                                   │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘`}
+└─────────────────────────────────────────────────────────────────────────────┘
+
+✅ = Implementado    ⚠️ = Precisa Integração    - = Existente`}
               </pre>
             </div>
           </section>
@@ -159,22 +164,16 @@ export const DocsIntegracao: React.FC = () => {
                   <td><strong>Região</strong></td>
                   <td><code>sa-east-1</code> (São Paulo)</td>
                 </tr>
-                <tr>
-                  <td><strong>Status</strong></td>
-                  <td><span className="text-green-400">ACTIVE_HEALTHY</span></td>
-                </tr>
               </tbody>
             </table>
 
             <p><strong>Responsável por:</strong></p>
             <ul>
-              <li>Dados de usuários (perfis, XP, moedas, streaks)</li>
-              <li>Cursos/Simulados (definição e filtros)</li>
+              <li>Cursos/Simulados (tabela <code>courses</code>)</li>
+              <li>Editais enviados (tabela <code>editais</code>)</li>
+              <li>Dados de usuários</li>
               <li>Respostas dos usuários</li>
-              <li>Sistema de revisão espaçada</li>
-              <li>Flashcards</li>
-              <li>Sessões de estudo</li>
-              <li>Blog e artigos (site-ouse)</li>
+              <li>Blog e artigos</li>
             </ul>
 
             <h3>Banco de Questões - Scrapping</h3>
@@ -195,15 +194,19 @@ export const DocsIntegracao: React.FC = () => {
                   <td><code>https://swzosaapqtyhmwdiwdje.supabase.co</code></td>
                 </tr>
                 <tr>
-                  <td><strong>Região</strong></td>
-                  <td><code>sa-east-1</code> (São Paulo)</td>
-                </tr>
-                <tr>
                   <td><strong>Total de Questões</strong></td>
                   <td><strong className="text-brand-yellow">78.908</strong></td>
                 </tr>
               </tbody>
             </table>
+
+            <div className="bg-red-500/10 border border-red-500/30 rounded-sm p-4 mt-6">
+              <p className="text-red-400 font-bold mb-2">⚠️ IMPORTANTE</p>
+              <p className="text-gray-300">
+                O app Ouse Questões precisa se conectar a <strong>DOIS</strong> projetos Supabase:
+                o principal (cursos/usuários) e o de questões (banco de 78k questões).
+              </p>
+            </div>
           </section>
 
           {/* Seção 4 */}
@@ -213,52 +216,78 @@ export const DocsIntegracao: React.FC = () => {
             </h2>
 
             <h3>Tabela <code>courses</code> (Projeto Principal)</h3>
-            <p>Armazena os simulados/preparatórios e seus filtros de questões.</p>
-
             <pre>
               <code>{`CREATE TABLE courses (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   subtitle TEXT,
   description TEXT,
   icon TEXT,
-  image_url TEXT,
-  price NUMERIC,
-  is_active BOOLEAN DEFAULT true,
-
-  -- Campos para integração com banco de questões
-  question_filters JSONB DEFAULT '{}',  -- Filtros gerados pela IA
-  questions_count INTEGER DEFAULT 0,     -- Total de questões disponíveis
-
+  image_url TEXT,                        -- Imagem de capa do simulado
+  price DECIMAL(10,2),
+  is_active BOOLEAN DEFAULT false,
+  course_type TEXT DEFAULT 'simulado',   -- 'simulado' ou 'preparatorio'
+  question_filters JSONB DEFAULT '{}',   -- Filtros para buscar questões
+  questions_count INTEGER DEFAULT 0,
+  edital_id UUID REFERENCES editais(id),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );`}</code>
             </pre>
 
-            <h4>Exemplo de <code>question_filters</code></h4>
+            <h4>Estrutura do campo <code>question_filters</code></h4>
             <pre>
               <code>{`{
-  "materias": ["Direito Constitucional", "Direito Administrativo", "Direito Penal"],
-  "bancas": ["CEBRASPE", "CESPE"],
-  "anos": [2019, 2020, 2021, 2022, 2023, 2024],
+  "materias": ["Direito Constitucional", "Português", "Raciocínio Lógico"],
+  "bancas": ["CESPE", "CEBRASPE"],
+  "anos": [2022, 2023, 2024],
   "orgaos": ["PRF", "PF"],
-  "assuntos": ["Direitos Fundamentais", "Atos Administrativos"],
-  "excludeIds": [],
-  "limit": 2000
+  "assuntos": ["Direitos Fundamentais"],
+  "limit": 100
 }`}</code>
+            </pre>
+
+            <h3>Tabela <code>editais</code> (Projeto Principal)</h3>
+            <pre>
+              <code>{`CREATE TABLE editais (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID REFERENCES courses(id),
+  file_url TEXT NOT NULL,
+  file_name TEXT,
+  file_size INTEGER,
+  file_type TEXT,
+  status TEXT DEFAULT 'pending',
+    -- 'pending', 'processing', 'analyzed', 'approved', 'error'
+  ai_analysis JSONB,
+  suggested_filters JSONB,
+  matched_questions_count INTEGER,
+  concurso_nome TEXT,
+  orgao TEXT,
+  banca TEXT,
+  ano INTEGER,
+  cargos TEXT[],
+  processing_log TEXT,
+  error_message TEXT,
+  uploaded_at TIMESTAMPTZ DEFAULT now(),
+  processed_at TIMESTAMPTZ,
+  approved_at TIMESTAMPTZ,
+  approved_by UUID,
+  n8n_execution_id TEXT,
+  webhook_response JSONB
+);`}</code>
             </pre>
 
             <h3>Tabela <code>questoes_concurso</code> (Banco de Questões)</h3>
             <pre>
               <code>{`CREATE TABLE questoes_concurso (
-  id BIGINT PRIMARY KEY,
-  materia TEXT NOT NULL,
+  id SERIAL PRIMARY KEY,
+  materia TEXT,
   assunto TEXT,
   concurso TEXT,
-  enunciado TEXT NOT NULL,
-  alternativas JSON NOT NULL,
-  gabarito CHAR(1),
-  comentario TEXT,
+  enunciado TEXT,           -- Pode conter HTML
+  alternativas JSONB,       -- {"a": "...", "b": "...", "c": "...", "d": "...", "e": "..."}
+  gabarito TEXT,            -- 'a', 'b', 'c', 'd' ou 'e'
+  comentario TEXT,          -- Pode conter HTML
   orgao TEXT,
   cargo_area_especialidade_edicao TEXT,
   prova TEXT,
@@ -267,222 +296,174 @@ export const DocsIntegracao: React.FC = () => {
   imagens_enunciado TEXT,
   imagens_comentario TEXT[],
   questao_revisada TEXT,
-  created_at TIMESTAMP DEFAULT now()
-);`}</code>
-            </pre>
-
-            <h3>Nova Tabela: <code>editais</code></h3>
-            <p>Armazena os editais enviados e o resultado da análise da IA:</p>
-            <pre>
-              <code>{`CREATE TABLE editais (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  course_id TEXT REFERENCES courses(id),
-
-  -- Arquivo do edital
-  file_url TEXT NOT NULL,
-  file_name TEXT,
-  file_size INTEGER,
-
-  -- Status do processamento
-  status TEXT DEFAULT 'pending'
-    CHECK (status IN ('pending', 'processing', 'completed', 'error')),
-
-  -- Resultado da análise da IA
-  ai_analysis JSONB,
-  suggested_filters JSONB,
-  matched_questions_count INTEGER,
-
-  -- Metadados do concurso extraídos
-  concurso_nome TEXT,
-  orgao TEXT,
-  banca TEXT,
-  ano INTEGER,
-  cargos TEXT[],
-
-  -- Logs e erros
-  processing_log TEXT,
-  error_message TEXT,
-
-  -- Timestamps
-  uploaded_at TIMESTAMPTZ DEFAULT now(),
-  processed_at TIMESTAMPTZ,
-  approved_at TIMESTAMPTZ,
-  approved_by UUID REFERENCES auth.users(id)
+  created_at TIMESTAMPTZ DEFAULT now()
 );`}</code>
             </pre>
           </section>
 
-          {/* Seção 5 */}
-          <section id="fluxo" className="mb-16">
+          {/* Seção 5 - Implementado */}
+          <section id="implementado" className="mb-16">
             <h2 className="flex items-center gap-3">
-              <span className="text-brand-yellow">05</span> Fluxo de Criação de Simulado
-            </h2>
-
-            <div className="space-y-6">
-              {/* Etapa 1 */}
-              <div className="bg-brand-card border border-white/10 rounded-sm p-6">
-                <h4 className="text-brand-yellow mb-4">Etapa 1: Upload do Edital</h4>
-                <ol>
-                  <li>Admin acessa: <code>/admin/preparatorios/new</code></li>
-                  <li>Preenche dados básicos (título, descrição, preço)</li>
-                  <li>Seleciona tipo: "Simulado" ou "Preparatório"</li>
-                  <li>Faz upload do PDF do edital</li>
-                  <li>Sistema salva arquivo no Supabase Storage</li>
-                  <li>Cria registro na tabela <code>editais</code> com status "pending"</li>
-                  <li>Dispara webhook para n8n</li>
-                </ol>
-              </div>
-
-              {/* Etapa 2 */}
-              <div className="bg-brand-card border border-white/10 rounded-sm p-6">
-                <h4 className="text-brand-yellow mb-4">Etapa 2: Processamento no N8N</h4>
-                <p className="mb-4"><strong>Workflow:</strong> "Processar Edital de Concurso"</p>
-                <ol>
-                  <li>Webhook recebe notificação com ID do edital</li>
-                  <li>Busca dados do edital no Supabase</li>
-                  <li>Download do PDF do Storage</li>
-                  <li>Extração de texto do PDF</li>
-                  <li>Agente IA analisa o conteúdo:
-                    <ul>
-                      <li>Identifica órgão, banca, ano</li>
-                      <li>Lista matérias/disciplinas do edital</li>
-                      <li>Identifica cargos e especialidades</li>
-                      <li>Mapeia assuntos específicos</li>
-                    </ul>
-                  </li>
-                  <li>Consulta banco de questões para validar filtros</li>
-                  <li>Gera <code>suggested_filters</code> otimizados</li>
-                  <li>Conta questões que matcham os filtros</li>
-                  <li>Atualiza registro do edital com resultados</li>
-                  <li>Notifica admin que análise está pronta</li>
-                </ol>
-              </div>
-
-              {/* Etapa 3 */}
-              <div className="bg-brand-card border border-white/10 rounded-sm p-6">
-                <h4 className="text-brand-yellow mb-4">Etapa 3: Aprovação do Admin</h4>
-                <ol>
-                  <li>Admin recebe notificação de análise concluída</li>
-                  <li>Acessa página de revisão do simulado</li>
-                  <li>Visualiza:
-                    <ul>
-                      <li>Resumo do edital interpretado pela IA</li>
-                      <li>Filtros sugeridos</li>
-                      <li>Quantidade de questões encontradas</li>
-                      <li>Preview de algumas questões de exemplo</li>
-                    </ul>
-                  </li>
-                  <li>Admin pode:
-                    <ul>
-                      <li>Aprovar filtros como estão</li>
-                      <li>Ajustar filtros manualmente</li>
-                      <li>Adicionar/remover matérias</li>
-                      <li>Excluir questões específicas</li>
-                      <li>Definir limite de questões</li>
-                    </ul>
-                  </li>
-                  <li>Ao aprovar: cria/atualiza registro em <code>courses</code></li>
-                </ol>
-              </div>
-
-              {/* Etapa 4 */}
-              <div className="bg-brand-card border border-white/10 rounded-sm p-6">
-                <h4 className="text-brand-yellow mb-4">Etapa 4: Disponível no App</h4>
-                <ol>
-                  <li>App Ouse-Questoes lista cursos ativos</li>
-                  <li>Usuário seleciona o simulado</li>
-                  <li>App busca <code>question_filters</code> do curso</li>
-                  <li>Executa query no banco de questões externo com os filtros</li>
-                  <li>Retorna questões para o usuário responder</li>
-                  <li>Registra respostas em <code>user_answers</code></li>
-                  <li>Atualiza progresso, XP, streaks</li>
-                </ol>
-              </div>
-            </div>
-          </section>
-
-          {/* Seção 6 */}
-          <section id="implementacao" className="mb-16">
-            <h2 className="flex items-center gap-3">
-              <span className="text-brand-yellow">06</span> Implementação Detalhada
+              <span className="text-brand-yellow">05</span> O Que Já Foi Implementado
             </h2>
 
             <h3>Site-Ouse (Painel Admin)</h3>
 
-            <h4>Páginas a Criar/Modificar</h4>
+            <h4>Páginas Criadas</h4>
             <table>
               <thead>
                 <tr>
                   <th>Página</th>
-                  <th>Caminho</th>
-                  <th>Descrição</th>
+                  <th>Rota</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>Lista de Simulados</td>
+                  <td>Lista de Preparatórios</td>
                   <td><code>/admin/preparatorios</code></td>
-                  <td>Listar todos os simulados com status</td>
+                  <td><span className="text-green-400">✅</span></td>
                 </tr>
                 <tr>
-                  <td>Novo Simulado</td>
+                  <td>Novo Preparatório</td>
                   <td><code>/admin/preparatorios/new</code></td>
-                  <td>Criar simulado com upload de edital</td>
+                  <td><span className="text-green-400">✅</span></td>
                 </tr>
                 <tr>
-                  <td>Editar Simulado</td>
+                  <td>Editar Preparatório</td>
                   <td><code>/admin/preparatorios/edit/:id</code></td>
-                  <td>Editar e aprovar filtros</td>
-                </tr>
-                <tr>
-                  <td>Revisar Análise</td>
-                  <td><code>/admin/preparatorios/:id/review</code></td>
-                  <td>Revisar análise da IA</td>
+                  <td><span className="text-green-400">✅</span></td>
                 </tr>
               </tbody>
             </table>
 
-            <h4>Componentes Necessários</h4>
+            <h4>Componentes Criados</h4>
+            <ul>
+              <li><code>EditalUploader.tsx</code> - Upload de PDF com drag-and-drop ou URL</li>
+              <li><code>ManualFilterSelector.tsx</code> - Seleção manual de filtros com busca</li>
+              <li><code>FilterReview.tsx</code> - Revisão e edição de filtros</li>
+              <li><code>QuestionPreview.tsx</code> - Preview de questões em tempo real</li>
+              <li><code>CourseImageUpload.tsx</code> - Upload de imagem de capa</li>
+            </ul>
+
+            <h4>Services Criados</h4>
+            <ul>
+              <li><code>simuladoService.ts</code> - CRUD de cursos e editais, webhook n8n</li>
+              <li><code>externalQuestionsService.ts</code> - Busca questões do banco externo</li>
+            </ul>
+
+            <h4>Funcionalidades</h4>
+            <ul>
+              <li>✅ Criar simulado via upload de edital (aguardando n8n)</li>
+              <li>✅ Criar simulado com filtros manuais (funcional agora)</li>
+              <li>✅ Preview de questões correspondentes aos filtros</li>
+              <li>✅ Contador de questões em tempo real</li>
+              <li>✅ Upload de imagem de capa</li>
+              <li>✅ Ativar/desativar simulados</li>
+              <li>✅ Dashboard com estatísticas de preparatórios</li>
+            </ul>
+
+            <h4>Storage Buckets</h4>
+            <ul>
+              <li><code>editais</code> - PDFs de editais (privado)</li>
+              <li><code>course-images</code> - Imagens de capa (público)</li>
+            </ul>
+          </section>
+
+          {/* Seção 6 */}
+          <section id="fluxo" className="mb-16">
+            <h2 className="flex items-center gap-3">
+              <span className="text-brand-yellow">06</span> Fluxos de Criação de Simulado
+            </h2>
+
+            <div className="space-y-6">
+              {/* Modo Manual */}
+              <div className="bg-green-500/10 border border-green-500/30 rounded-sm p-6">
+                <h4 className="text-green-400 mb-4">🟢 Modo Manual (Funcional Agora)</h4>
+                <ol>
+                  <li>Admin acessa <code>/admin/preparatorios/new</code></li>
+                  <li>Preenche título, descrição, preço</li>
+                  <li>Faz upload de imagem de capa (opcional)</li>
+                  <li>Seleciona modo "Manual"</li>
+                  <li>Seleciona matérias, bancas, anos, órgãos desejados</li>
+                  <li>Sistema mostra quantidade de questões em tempo real</li>
+                  <li>Sistema mostra preview das questões</li>
+                  <li>Define limite de questões (opcional)</li>
+                  <li>Clica em "Criar Simulado"</li>
+                  <li>Simulado é criado e ativado automaticamente</li>
+                </ol>
+              </div>
+
+              {/* Modo Edital */}
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-sm p-6">
+                <h4 className="text-yellow-400 mb-4">🟡 Modo Via Edital (Aguardando N8N)</h4>
+                <ol>
+                  <li>Admin acessa <code>/admin/preparatorios/new</code></li>
+                  <li>Preenche título, descrição, preço</li>
+                  <li>Seleciona modo "Via Edital"</li>
+                  <li>Faz upload do PDF do edital</li>
+                  <li>Sistema envia para n8n processar</li>
+                  <li>IA analisa o edital e sugere filtros</li>
+                  <li>Admin revisa e aprova filtros</li>
+                  <li>Simulado é ativado</li>
+                </ol>
+                <p className="text-yellow-400/70 text-sm mt-4">
+                  * Este fluxo depende da configuração do workflow n8n
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Seção 7 - App Integration */}
+          <section id="app-integracao" className="mb-16">
+            <h2 className="flex items-center gap-3">
+              <span className="text-brand-yellow">07</span> Integração no App Ouse Questões
+            </h2>
+
+            <div className="bg-red-500/10 border border-red-500/30 rounded-sm p-6 mb-6">
+              <h4 className="text-red-400 font-bold mb-2">⚠️ PROBLEMA IDENTIFICADO</h4>
+              <p className="text-gray-300">
+                O app Ouse Questões <strong>NÃO está buscando simulados do Supabase</strong>.
+                Os dados parecem estar hardcoded. Quando alteramos o nome no Supabase,
+                o app continua mostrando o nome antigo.
+              </p>
+            </div>
+
+            <h3>O que o App Precisa Fazer</h3>
+
+            <h4>1. Configurar Dois Clientes Supabase</h4>
             <pre>
-              <code>{`// components/admin/SimuladoForm.tsx
-// - Formulário de criação com upload de PDF
-// - Campos: título, descrição, preço, tipo, edital
+              <code>{`// lib/supabase.ts
+import { createClient } from '@supabase/supabase-js';
 
-// components/admin/EditalUploader.tsx
-// - Componente de upload de PDF para Supabase Storage
-// - Progress bar, validação de tipo de arquivo
+// Cliente principal (cursos, usuários)
+export const supabase = createClient(
+  'https://avlttxzppcywybiaxxzd.supabase.co',
+  'SUA_ANON_KEY_PRINCIPAL'
+);
 
-// components/admin/FilterReview.tsx
-// - Exibição dos filtros sugeridos pela IA
-// - Edição manual de filtros
-// - Preview de questões
-
-// components/admin/QuestionPreview.tsx
-// - Lista de questões de exemplo que matcham os filtros
-// - Opção de excluir questões específicas`}</code>
+// Cliente do banco de questões
+export const questionsDb = createClient(
+  'https://swzosaapqtyhmwdiwdje.supabase.co',
+  'SUA_ANON_KEY_QUESTOES'
+);`}</code>
             </pre>
 
-            <h4>Service: simuladoService.ts</h4>
+            <h4>2. Buscar Simulados Ativos</h4>
             <pre>
-              <code>{`export interface Simulado {
+              <code>{`// services/coursesService.ts
+
+export interface Course {
   id: string;
   title: string;
-  subtitle?: string;
-  description?: string;
-  price?: number;
+  subtitle: string | null;
+  description: string | null;
+  image_url: string | null;
+  price: number | null;
   is_active: boolean;
+  course_type: 'simulado' | 'preparatorio';
   question_filters: QuestionFilters;
   questions_count: number;
-  edital?: Edital;
-}
-
-export interface Edital {
-  id: string;
-  file_url: string;
-  status: 'pending' | 'processing' | 'completed' | 'error';
-  ai_analysis?: AIAnalysis;
-  suggested_filters?: QuestionFilters;
-  matched_questions_count?: number;
 }
 
 export interface QuestionFilters {
@@ -491,421 +472,272 @@ export interface QuestionFilters {
   anos?: number[];
   orgaos?: string[];
   assuntos?: string[];
-  excludeIds?: number[];
   limit?: number;
 }
 
-// Funções do service
-export async function createSimulado(data: CreateSimuladoInput): Promise<Simulado>;
-export async function uploadEdital(simuladoId: string, file: File): Promise<Edital>;
-export async function getEditalStatus(editalId: string): Promise<Edital>;
-export async function approveFilters(simuladoId: string, filters: QuestionFilters): Promise<Simulado>;
-export async function previewQuestions(filters: QuestionFilters, limit?: number): Promise<Question[]>;
-export async function countMatchingQuestions(filters: QuestionFilters): Promise<number>;`}</code>
-            </pre>
+export async function getActiveSimulados(): Promise<Course[]> {
+  const { data, error } = await supabase
+    .from('courses')
+    .select('*')
+    .eq('is_active', true)
+    .eq('course_type', 'simulado')
+    .order('created_at', { ascending: false });
 
-            <h3>N8N Workflow</h3>
+  if (error) {
+    console.error('Error fetching simulados:', error);
+    return [];
+  }
 
-            <h4>Diagrama do Workflow</h4>
-            <div className="bg-brand-darker border border-white/10 rounded-sm p-6 overflow-x-auto">
-              <pre className="text-sm text-gray-300 whitespace-pre font-mono">
-{`┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Webhook   │───▶│  Supabase   │───▶│  Download   │───▶│  Extract    │
-│   Trigger   │    │  Get Edital │    │    PDF      │    │   Text      │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
-                                                               │
-                                                               ▼
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Supabase   │◀───│   Count     │◀───│   Query     │◀───│  AI Agent   │
-│   Update    │    │  Questions  │    │  Questions  │    │   Gemini    │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
-      │
-      ▼
-┌─────────────┐
-│   Notify    │
-│    Admin    │
-└─────────────┘`}
-              </pre>
-            </div>
+  return data || [];
+}
 
-            <h4>Prompt do Agente IA</h4>
-            <pre>
-              <code>{`# Agente Analisador de Editais de Concursos
+export async function getSimuladoById(id: string): Promise<Course | null> {
+  const { data, error } = await supabase
+    .from('courses')
+    .select('*')
+    .eq('id', id)
+    .single();
 
-## Contexto
-Você é um especialista em concursos públicos brasileiros. Sua tarefa é analisar
-editais de concursos e extrair informações estruturadas para criar filtros de
-busca em um banco de questões.
+  if (error) {
+    console.error('Error fetching simulado:', error);
+    return null;
+  }
 
-## Banco de Questões Disponível
-O banco possui questões com os seguintes campos para filtro:
-- materia: Nome da disciplina (ex: "Direito Constitucional", "Português")
-- assunto: Tópico específico dentro da matéria
-- banca: Organizadora do concurso (ex: "CEBRASPE", "FCC", "FGV")
-- orgao: Órgão do concurso (ex: "PRF", "PF", "TRT")
-- ano: Ano da prova (2015-2024)
-
-## Formato de Saída
-{
-  "concurso": {
-    "nome": "string",
-    "orgao": "string",
-    "banca": "string",
-    "ano": number,
-    "cargos": ["string"]
-  },
-  "materias": [
-    {
-      "nome_edital": "string",
-      "nome_banco": "string",
-      "peso": number,
-      "assuntos": ["string"]
-    }
-  ],
-  "filtros_sugeridos": {
-    "materias": ["string"],
-    "bancas": ["string"],
-    "anos": [number],
-    "orgaos": ["string"],
-    "assuntos": ["string"]
-  },
-  "resumo": "string com análise geral do edital"
+  return data;
 }`}</code>
             </pre>
 
-            <h4>Queries para o Banco de Questões</h4>
+            <h4>3. Buscar Questões do Banco Externo</h4>
             <pre>
-              <code>{`-- Buscar matérias únicas disponíveis
-SELECT DISTINCT materia FROM questoes_concurso ORDER BY materia;
+              <code>{`// services/questionsService.ts
 
--- Buscar bancas únicas disponíveis
-SELECT DISTINCT banca FROM questoes_concurso WHERE banca IS NOT NULL ORDER BY banca;
+export interface Question {
+  id: number;
+  materia: string;
+  assunto: string | null;
+  enunciado: string;        // PODE CONTER HTML!
+  alternativas: {
+    a?: string;
+    b?: string;
+    c?: string;
+    d?: string;
+    e?: string;
+  };
+  gabarito: string | null;
+  comentario: string | null; // PODE CONTER HTML!
+  orgao: string | null;
+  ano: number | null;
+  banca: string | null;
+}
 
--- Contar questões com filtros
-SELECT COUNT(*) as total
-FROM questoes_concurso
-WHERE
-  ($1::text[] IS NULL OR materia = ANY($1))
-  AND ($2::text[] IS NULL OR banca = ANY($2))
-  AND ($3::int[] IS NULL OR ano = ANY($3))
-  AND ($4::text[] IS NULL OR orgao = ANY($4))
-  AND ($5::text[] IS NULL OR assunto = ANY($5));
-
--- Buscar questões de exemplo
-SELECT id, materia, assunto, banca, ano, enunciado
-FROM questoes_concurso
-WHERE
-  ($1::text[] IS NULL OR materia = ANY($1))
-  AND ($2::text[] IS NULL OR banca = ANY($2))
-ORDER BY ano DESC, RANDOM()
-LIMIT 10;`}</code>
-            </pre>
-
-            <h3>Ouse-Questoes (App)</h3>
-
-            <h4>Service de Questões Externas</h4>
-            <pre>
-              <code>{`// services/externalQuestionsService.ts
-
-export async function getQuestionsForCourse(
-  filters: CourseQuestionFilters,
-  options?: {
-    limit?: number;
-    offset?: number;
-    randomize?: boolean;
-    excludeAnswered?: number[];
-  }
-): Promise<ExternalQuestion[]> {
+export async function getQuestionsForSimulado(
+  filters: QuestionFilters,
+  options?: { limit?: number; offset?: number; randomize?: boolean }
+): Promise<Question[]> {
   let query = questionsDb
     .from('questoes_concurso')
     .select('*');
 
   // Aplicar filtros
-  if (filters.materias?.length) {
+  if (filters.materias && filters.materias.length > 0) {
     query = query.in('materia', filters.materias);
   }
-  if (filters.bancas?.length) {
+  if (filters.bancas && filters.bancas.length > 0) {
     query = query.in('banca', filters.bancas);
   }
-  if (filters.anos?.length) {
+  if (filters.anos && filters.anos.length > 0) {
     query = query.in('ano', filters.anos);
   }
-  // ... demais filtros
+  if (filters.orgaos && filters.orgaos.length > 0) {
+    query = query.in('orgao', filters.orgaos);
+  }
+  if (filters.assuntos && filters.assuntos.length > 0) {
+    query = query.in('assunto', filters.assuntos);
+  }
+
+  // Paginação
+  const limit = options?.limit || filters.limit || 50;
+  const offset = options?.offset || 0;
+
+  query = query
+    .order('ano', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   const { data, error } = await query;
-  if (error) throw error;
 
-  return options?.randomize ? shuffleArray(data) : data || [];
-}`}</code>
-            </pre>
-
-            <h4>Hook: useSimuladoQuestions</h4>
-            <pre>
-              <code>{`// hooks/useSimuladoQuestions.ts
-
-export function useSimuladoQuestions(
-  courseId: string,
-  options?: {
-    pageSize?: number;
-    excludeAnswered?: boolean;
-    randomize?: boolean;
+  if (error) {
+    console.error('Error fetching questions:', error);
+    return [];
   }
-): UseSimuladoQuestionsResult {
-  const [questions, setQuestions] = useState<ExternalQuestion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [filters, setFilters] = useState<CourseQuestionFilters | null>(null);
 
-  // Carregar filtros do curso
-  useEffect(() => {
-    async function loadCourseFilters() {
-      const { data, error } = await supabase
-        .from('courses')
-        .select('question_filters, questions_count')
-        .eq('id', courseId)
-        .single();
+  let questions = data || [];
 
-      if (error) throw error;
-      setFilters(data.question_filters);
-      setTotalCount(data.questions_count);
-    }
-    loadCourseFilters();
-  }, [courseId]);
+  // Embaralhar se solicitado
+  if (options?.randomize && questions.length > 0) {
+    questions = shuffleArray(questions);
+  }
 
-  // ... implementação completa no documento original
+  return questions;
+}
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }`}</code>
             </pre>
+
+            <h4>4. Fluxo de Uso no App</h4>
+            <pre>
+              <code>{`// Exemplo de uso em uma tela
+
+// 1. Carregar lista de simulados
+const simulados = await getActiveSimulados();
+
+// 2. Usuário seleciona um simulado
+const simulado = await getSimuladoById(simuladoId);
+
+// 3. Carregar questões do simulado
+const questions = await getQuestionsForSimulado(
+  simulado.question_filters,
+  { randomize: true }
+);
+
+// 4. Exibir questões para o usuário responder
+// IMPORTANTE: enunciado e alternativas podem conter HTML!`}</code>
+            </pre>
+
+            <h4>5. Checklist do App</h4>
+            <ul>
+              <li>☐ Configurar variáveis de ambiente com URLs e chaves dos dois Supabase</li>
+              <li>☐ Criar cliente Supabase para projeto principal</li>
+              <li>☐ Criar cliente Supabase para projeto de questões</li>
+              <li>☐ Implementar <code>getActiveSimulados()</code></li>
+              <li>☐ Implementar <code>getSimuladoById()</code></li>
+              <li>☐ Implementar <code>getQuestionsForSimulado()</code></li>
+              <li>☐ Atualizar tela de listagem para usar dados do Supabase</li>
+              <li>☐ Atualizar tela de simulado para carregar questões dinamicamente</li>
+              <li>☐ Renderizar HTML nos campos enunciado/alternativas/comentário</li>
+              <li>☐ Exibir imagem de capa (<code>image_url</code>)</li>
+              <li>☐ Exibir preço ou "Gratuito"</li>
+              <li>☐ <strong>Remover dados hardcoded/mockados</strong></li>
+            </ul>
           </section>
 
-          {/* Seção 7 */}
+          {/* Seção 8 */}
           <section id="ambiente" className="mb-16">
             <h2 className="flex items-center gap-3">
-              <span className="text-brand-yellow">07</span> Configurações de Ambiente
+              <span className="text-brand-yellow">08</span> Configurações de Ambiente
             </h2>
 
             <h3>Site-Ouse (.env.local)</h3>
             <pre>
               <code>{`# Supabase Principal
 VITE_SUPABASE_URL=https://avlttxzppcywybiaxxzd.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_SUPABASE_ANON_KEY=sua_chave_anon
 
 # Banco de Questões (para preview no admin)
 VITE_QUESTIONS_DB_URL=https://swzosaapqtyhmwdiwdje.supabase.co
-VITE_QUESTIONS_DB_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_QUESTIONS_DB_ANON_KEY=sua_chave_anon_questoes
 
-# N8N Webhook
+# N8N Webhook (quando configurado)
 VITE_N8N_WEBHOOK_URL=https://n8n.ousepassar.com/webhook/processar-edital
 
-# Google AI (já existe)
-VITE_GEMINI_API_KEY=...`}</code>
+# Google AI
+VITE_GEMINI_API_KEY=sua_chave_gemini`}</code>
             </pre>
 
             <h3>Ouse-Questoes (.env)</h3>
             <pre>
-              <code>{`# Supabase Principal
-VITE_SUPABASE_URL=https://avlttxzppcywybiaxxzd.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+              <code>{`# Supabase Principal (cursos, usuários)
+SUPABASE_URL=https://avlttxzppcywybiaxxzd.supabase.co
+SUPABASE_ANON_KEY=sua_chave_anon
 
 # Banco de Questões Externo
-VITE_QUESTIONS_DB_URL=https://swzosaapqtyhmwdiwdje.supabase.co
-VITE_QUESTIONS_DB_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`}</code>
+QUESTIONS_DB_URL=https://swzosaapqtyhmwdiwdje.supabase.co
+QUESTIONS_DB_ANON_KEY=sua_chave_anon_questoes`}</code>
             </pre>
 
-            <h3>N8N Credentials</h3>
-            <pre>
-              <code>{`{
-  "supabase_main": {
-    "url": "https://avlttxzppcywybiaxxzd.supabase.co",
-    "serviceKey": "SERVICE_ROLE_KEY_AQUI"
-  },
-  "supabase_questions": {
-    "url": "https://swzosaapqtyhmwdiwdje.supabase.co",
-    "serviceKey": "SERVICE_ROLE_KEY_AQUI"
-  },
-  "gemini": {
-    "apiKey": "GEMINI_API_KEY_AQUI"
-  }
-}`}</code>
-            </pre>
-          </section>
-
-          {/* Seção 8 */}
-          <section id="migrations" className="mb-16">
-            <h2 className="flex items-center gap-3">
-              <span className="text-brand-yellow">08</span> Migrations SQL
-            </h2>
-
-            <h3>Criar Tabela de Editais</h3>
-            <pre>
-              <code>{`-- Migration: create_editais_table
--- Projeto: ousepassar (avlttxzppcywybiaxxzd)
-
-CREATE TABLE IF NOT EXISTS editais (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  course_id TEXT REFERENCES courses(id) ON DELETE CASCADE,
-
-  -- Arquivo
-  file_url TEXT NOT NULL,
-  file_name TEXT,
-  file_size INTEGER,
-
-  -- Status
-  status TEXT DEFAULT 'pending'
-    CHECK (status IN ('pending', 'processing', 'completed', 'error')),
-
-  -- Análise da IA
-  ai_analysis JSONB,
-  suggested_filters JSONB,
-  matched_questions_count INTEGER,
-
-  -- Dados do concurso
-  concurso_nome TEXT,
-  orgao TEXT,
-  banca TEXT,
-  ano INTEGER,
-  cargos TEXT[],
-
-  -- Logs
-  processing_log TEXT,
-  error_message TEXT,
-
-  -- Timestamps
-  uploaded_at TIMESTAMPTZ DEFAULT now(),
-  processed_at TIMESTAMPTZ,
-  approved_at TIMESTAMPTZ,
-  approved_by UUID REFERENCES auth.users(id)
-);
-
--- Índices
-CREATE INDEX idx_editais_course_id ON editais(course_id);
-CREATE INDEX idx_editais_status ON editais(status);
-
--- RLS
-ALTER TABLE editais ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Admins can manage editais" ON editais
-  FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');`}</code>
-            </pre>
-
-            <h3>Adicionar Tipo aos Courses</h3>
-            <pre>
-              <code>{`-- Migration: add_course_type
--- Projeto: ousepassar (avlttxzppcywybiaxxzd)
-
-ALTER TABLE courses
-ADD COLUMN IF NOT EXISTS course_type TEXT DEFAULT 'preparatorio'
-CHECK (course_type IN ('preparatorio', 'simulado'));
-
-ALTER TABLE courses
-ADD COLUMN IF NOT EXISTS edital_id UUID REFERENCES editais(id);
-
-CREATE INDEX idx_courses_type ON courses(course_type);`}</code>
-            </pre>
-
-            <h3>Storage Bucket para Editais</h3>
-            <pre>
-              <code>{`-- Criar bucket para editais
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('editais', 'editais', false)
-ON CONFLICT (id) DO NOTHING;
-
--- Política de upload (apenas autenticados)
-CREATE POLICY "Authenticated users can upload editais"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (bucket_id = 'editais');
-
--- Política de leitura (apenas autenticados)
-CREATE POLICY "Authenticated users can read editais"
-ON storage.objects FOR SELECT
-TO authenticated
-USING (bucket_id = 'editais');`}</code>
-            </pre>
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-sm p-4 mt-6">
+              <p className="text-blue-400 font-bold mb-2">💡 Como Obter as Chaves</p>
+              <ol className="text-gray-300 text-sm">
+                <li>Acesse <a href="https://supabase.com/dashboard" className="text-brand-yellow">supabase.com/dashboard</a></li>
+                <li>Selecione o projeto</li>
+                <li>Vá em Settings → API</li>
+                <li>Copie a <code>anon</code> key (pública)</li>
+              </ol>
+            </div>
           </section>
 
           {/* Seção 9 */}
-          <section id="checklist" className="mb-16">
+          <section id="migrations" className="mb-16">
             <h2 className="flex items-center gap-3">
-              <span className="text-brand-yellow">09</span> Checklist de Implementação
+              <span className="text-brand-yellow">09</span> Migrations SQL
             </h2>
 
-            <h3>Fase 1: Infraestrutura</h3>
-            <ul>
-              <li>Criar tabela <code>editais</code> no Supabase</li>
-              <li>Adicionar coluna <code>course_type</code> na tabela <code>courses</code></li>
-              <li>Criar bucket de storage para editais</li>
-              <li>Configurar políticas de RLS</li>
-            </ul>
+            <p>As migrations já foram executadas no Supabase principal. Documentadas aqui para referência:</p>
 
-            <h3>Fase 2: Site-Ouse (Admin)</h3>
-            <ul>
-              <li>Criar página de listagem de simulados</li>
-              <li>Criar formulário de novo simulado com upload</li>
-              <li>Implementar componente de upload de PDF</li>
-              <li>Criar página de revisão de análise da IA</li>
-              <li>Implementar edição manual de filtros</li>
-              <li>Adicionar preview de questões</li>
-              <li>Integrar com webhook do n8n</li>
-            </ul>
+            <h3>Bucket de Imagens de Cursos</h3>
+            <pre>
+              <code>{`-- Criar bucket course-images (já executado)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'course-images',
+  'course-images',
+  true,
+  5242880,
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+ON CONFLICT (id) DO NOTHING;
 
-            <h3>Fase 3: N8N Workflow</h3>
-            <ul>
-              <li>Criar workflow de processamento de edital</li>
-              <li>Configurar extração de texto de PDF</li>
-              <li>Implementar agente IA para análise</li>
-              <li>Criar queries de validação no banco de questões</li>
-              <li>Configurar notificações para admin</li>
-            </ul>
+-- Policies de acesso público
+CREATE POLICY "Public read access for course images"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'course-images');
 
-            <h3>Fase 4: Ouse-Questoes (App)</h3>
-            <ul>
-              <li>Implementar <code>externalQuestionsService.ts</code></li>
-              <li>Criar hook <code>useSimuladoQuestions</code></li>
-              <li>Integrar listagem de cursos com filtro por tipo</li>
-              <li>Implementar fluxo de questões do simulado</li>
-              <li>Testar integração completa</li>
-            </ul>
-
-            <h3>Fase 5: Testes e Deploy</h3>
-            <ul>
-              <li>Testes de integração entre projetos</li>
-              <li>Testes de carga no banco de questões</li>
-              <li>Validação de filtros com editais reais</li>
-              <li>Deploy em produção</li>
-              <li>Monitoramento e ajustes</li>
-            </ul>
+CREATE POLICY "Authenticated users can upload course images"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'course-images' AND auth.role() = 'authenticated');`}</code>
+            </pre>
           </section>
 
           {/* Seção 10 */}
-          <section id="consideracoes" className="mb-16">
+          <section id="checklist" className="mb-16">
             <h2 className="flex items-center gap-3">
-              <span className="text-brand-yellow">10</span> Considerações Técnicas
+              <span className="text-brand-yellow">10</span> Checklist de Implementação
             </h2>
 
-            <h3>Performance</h3>
+            <h3>Site-Ouse (Admin) - <span className="text-green-400">CONCLUÍDO</span></h3>
             <ul>
-              <li><strong>Índices no Banco de Questões:</strong> Garantir índices em <code>materia</code>, <code>banca</code>, <code>ano</code>, <code>orgao</code>, <code>assunto</code></li>
-              <li><strong>Paginação:</strong> Sempre usar paginação ao buscar questões (máximo 100 por request)</li>
-              <li><strong>Cache:</strong> Considerar cache de filtros de cursos no app</li>
-              <li><strong>Lazy Loading:</strong> Carregar questões sob demanda conforme usuário avança</li>
+              <li>✅ Tabelas <code>courses</code> e <code>editais</code> no Supabase</li>
+              <li>✅ Storage buckets configurados</li>
+              <li>✅ Página de listagem de simulados</li>
+              <li>✅ Criação via edital (estrutura pronta)</li>
+              <li>✅ Criação via filtros manuais (funcional)</li>
+              <li>✅ Preview de questões em tempo real</li>
+              <li>✅ Upload de imagem de capa</li>
+              <li>✅ Dashboard com estatísticas</li>
             </ul>
 
-            <h3>Segurança</h3>
+            <h3>Ouse-Questoes (App) - <span className="text-yellow-400">PENDENTE</span></h3>
             <ul>
-              <li><strong>RLS:</strong> Row Level Security em todas as tabelas sensíveis</li>
-              <li><strong>Storage:</strong> Bucket de editais deve ser privado</li>
-              <li><strong>Service Keys:</strong> Usar service role key apenas no n8n (server-side)</li>
-              <li><strong>Validação:</strong> Validar tipo de arquivo no upload (apenas PDF)</li>
+              <li>☐ Configurar dois clientes Supabase</li>
+              <li>☐ Remover dados mockados/hardcoded</li>
+              <li>☐ Buscar simulados da tabela <code>courses</code></li>
+              <li>☐ Buscar questões da tabela <code>questoes_concurso</code></li>
+              <li>☐ Aplicar filtros do <code>question_filters</code></li>
+              <li>☐ Exibir imagem de capa dos simulados</li>
+              <li>☐ Renderizar HTML nos campos de questão</li>
             </ul>
 
-            <h3>Escalabilidade</h3>
+            <h3>N8N (Futuro)</h3>
             <ul>
-              <li><strong>Banco de Questões:</strong> Preparado para crescer (já tem 78.908 questões)</li>
-              <li><strong>Filtros JSONB:</strong> Flexível para adicionar novos critérios</li>
-              <li><strong>N8N:</strong> Pode processar múltiplos editais em paralelo</li>
+              <li>☐ Workflow de processamento de edital</li>
+              <li>☐ Agente IA para análise</li>
+              <li>☐ Integração com webhook</li>
             </ul>
           </section>
 
@@ -913,12 +745,12 @@ USING (bucket_id = 'editais');`}</code>
           <div className="border-t border-white/10 pt-8 mt-16">
             <blockquote>
               <p className="text-gray-400">
-                <strong className="text-white">Nota:</strong> Este documento deve ser atualizado
-                conforme o desenvolvimento avança e novas decisões são tomadas.
+                <strong className="text-white">Próximo passo:</strong> Integrar o app Ouse Questões
+                com o Supabase para buscar simulados e questões dinamicamente.
               </p>
             </blockquote>
             <p className="text-gray-500 text-sm mt-4">
-              Última atualização: 27/11/2025 | Versão 1.0
+              Última atualização: 27/11/2025 | Versão 2.0
             </p>
           </div>
 

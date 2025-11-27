@@ -176,6 +176,133 @@ export interface Database {
           updated_at?: string
         }
       }
+      courses: {
+        Row: {
+          id: string
+          title: string
+          subtitle: string | null
+          description: string | null
+          icon: string | null
+          image_url: string | null
+          price: number | null
+          is_active: boolean
+          course_type: 'simulado' | 'preparatorio'
+          question_filters: Json
+          questions_count: number
+          edital_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          subtitle?: string | null
+          description?: string | null
+          icon?: string | null
+          image_url?: string | null
+          price?: number | null
+          is_active?: boolean
+          course_type?: 'simulado' | 'preparatorio'
+          question_filters?: Json
+          questions_count?: number
+          edital_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          subtitle?: string | null
+          description?: string | null
+          icon?: string | null
+          image_url?: string | null
+          price?: number | null
+          is_active?: boolean
+          course_type?: 'simulado' | 'preparatorio'
+          question_filters?: Json
+          questions_count?: number
+          edital_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      editais: {
+        Row: {
+          id: string
+          course_id: string | null
+          file_url: string
+          file_name: string | null
+          file_size: number | null
+          file_type: string | null
+          status: 'pending' | 'processing' | 'completed' | 'error'
+          ai_analysis: Json | null
+          suggested_filters: Json | null
+          matched_questions_count: number | null
+          concurso_nome: string | null
+          orgao: string | null
+          banca: string | null
+          ano: number | null
+          cargos: string[] | null
+          processing_log: string | null
+          error_message: string | null
+          uploaded_at: string
+          processed_at: string | null
+          approved_at: string | null
+          approved_by: string | null
+          n8n_execution_id: string | null
+          webhook_response: Json | null
+        }
+        Insert: {
+          id?: string
+          course_id?: string | null
+          file_url: string
+          file_name?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          status?: 'pending' | 'processing' | 'completed' | 'error'
+          ai_analysis?: Json | null
+          suggested_filters?: Json | null
+          matched_questions_count?: number | null
+          concurso_nome?: string | null
+          orgao?: string | null
+          banca?: string | null
+          ano?: number | null
+          cargos?: string[] | null
+          processing_log?: string | null
+          error_message?: string | null
+          uploaded_at?: string
+          processed_at?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          n8n_execution_id?: string | null
+          webhook_response?: Json | null
+        }
+        Update: {
+          id?: string
+          course_id?: string | null
+          file_url?: string
+          file_name?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          status?: 'pending' | 'processing' | 'completed' | 'error'
+          ai_analysis?: Json | null
+          suggested_filters?: Json | null
+          matched_questions_count?: number | null
+          concurso_nome?: string | null
+          orgao?: string | null
+          banca?: string | null
+          ano?: number | null
+          cargos?: string[] | null
+          processing_log?: string | null
+          error_message?: string | null
+          uploaded_at?: string
+          processed_at?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          n8n_execution_id?: string | null
+          webhook_response?: Json | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -184,7 +311,8 @@ export interface Database {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      course_type: 'simulado' | 'preparatorio'
+      edital_status: 'pending' | 'processing' | 'completed' | 'error'
     }
   }
 }
