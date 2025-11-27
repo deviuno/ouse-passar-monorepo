@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, Clock, ChevronRight, Hash, Eye, Loader2, Search, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Calendar, Clock, ChevronRight, ChevronLeft, Hash, Eye, Loader2, Search, X } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { BlogPost } from '../types';
-import { getPublishedPosts, getPostBySlug, getCategories, getPostsByCategory, searchPosts } from '../services/blogService';
+import { getPublishedPosts, getPostBySlug, getCategories, getPostsByCategory, searchPosts, getAdjacentPosts, getSuggestedPosts } from '../services/blogService';
 import { formatDate, getAvatarUrl } from '../lib/utils';
 import { SEOHead } from './SEOHead';
 import { PageHero } from './PageHero';
@@ -337,6 +337,8 @@ export const BlogPostView: React.FC = () => {
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [adjacentPosts, setAdjacentPosts] = useState<{ previous: BlogPost | null; next: BlogPost | null }>({ previous: null, next: null });
+  const [suggestedPosts, setSuggestedPosts] = useState<BlogPost[]>([]);
 
   useEffect(() => {
     if (slug) {
@@ -350,6 +352,14 @@ export const BlogPostView: React.FC = () => {
       const data = await getPostBySlug(slug);
       if (data.post) {
         setPost(data.post);
+
+        // Load adjacent posts for navigation
+        const adjacent = await getAdjacentPosts(data.post.date);
+        setAdjacentPosts({ previous: adjacent.previous, next: adjacent.next });
+
+        // Load suggested posts
+        const suggested = await getSuggestedPosts(slug, data.post.category, 3);
+        setSuggestedPosts(suggested.posts);
       } else {
         setError('Artigo não encontrado');
       }
@@ -509,6 +519,116 @@ export const BlogPostView: React.FC = () => {
               <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 bg-white/20 rounded-full mix-blend-overlay blur-3xl -translate-y-1/2 translate-x-1/2"></div>
             </div>
           </div>
+
+          {/* Post Navigation - Previous/Next */}
+          {(adjacentPosts.previous || adjacentPosts.next) && (
+            <div className="mt-8 sm:mt-12 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Previous Post */}
+              {adjacentPosts.previous ? (
+                <Link
+                  to={`/blog/${adjacentPosts.previous.slug}`}
+                  className="group bg-brand-card border border-white/5 p-4 sm:p-6 hover:border-brand-yellow/50 transition-all flex items-center gap-4"
+                >
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-brand-dark flex items-center justify-center flex-shrink-0 group-hover:bg-brand-yellow/20 transition-colors">
+                    <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 text-brand-yellow" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[0.65rem] sm:text-xs text-gray-500 uppercase tracking-wider font-bold">Post Anterior</span>
+                    <p className="text-white font-bold text-sm sm:text-base truncate group-hover:text-brand-yellow transition-colors">
+                      {adjacentPosts.previous.title}
+                    </p>
+                  </div>
+                </Link>
+              ) : (
+                <div className="hidden sm:block"></div>
+              )}
+
+              {/* Next Post */}
+              {adjacentPosts.next ? (
+                <Link
+                  to={`/blog/${adjacentPosts.next.slug}`}
+                  className="group bg-brand-card border border-white/5 p-4 sm:p-6 hover:border-brand-yellow/50 transition-all flex items-center gap-4 sm:flex-row-reverse sm:text-right"
+                >
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-brand-dark flex items-center justify-center flex-shrink-0 group-hover:bg-brand-yellow/20 transition-colors">
+                    <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-brand-yellow" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[0.65rem] sm:text-xs text-gray-500 uppercase tracking-wider font-bold">Próximo Post</span>
+                    <p className="text-white font-bold text-sm sm:text-base truncate group-hover:text-brand-yellow transition-colors">
+                      {adjacentPosts.next.title}
+                    </p>
+                  </div>
+                </Link>
+              ) : (
+                <div className="hidden sm:block"></div>
+              )}
+            </div>
+          )}
+
+          {/* Suggested Posts */}
+          {suggestedPosts.length > 0 && (
+            <div className="mt-12 sm:mt-16 md:mt-20">
+              <div className="flex items-center justify-between mb-6 sm:mb-8">
+                <h3 className="text-lg sm:text-xl md:text-2xl font-black text-white uppercase tracking-tight font-display">
+                  Continue Lendo
+                </h3>
+                <Link
+                  to="/blog"
+                  className="text-brand-yellow text-xs sm:text-sm font-bold uppercase tracking-wider hover:text-white transition-colors flex items-center gap-1"
+                >
+                  Ver Todos <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {suggestedPosts.map((suggestedPost) => (
+                  <Link
+                    key={suggestedPost.id}
+                    to={`/blog/${suggestedPost.slug}`}
+                    className="group bg-brand-card border border-white/5 overflow-hidden hover:border-brand-yellow/50 transition-all duration-300 flex flex-col"
+                  >
+                    {/* Image */}
+                    <div className="relative h-36 sm:h-40 overflow-hidden">
+                      <div className="absolute inset-0 bg-brand-dark/20 group-hover:bg-transparent transition-colors z-10"></div>
+                      <img
+                        src={suggestedPost.imageUrl}
+                        alt={suggestedPost.title}
+                        className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-20 bg-brand-yellow text-brand-darker px-2 py-0.5 sm:px-2.5 sm:py-1 text-[0.6rem] sm:text-[0.65rem] font-black uppercase tracking-wide">
+                        {suggestedPost.category}
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-4 sm:p-5 flex-1 flex flex-col">
+                      <div className="flex items-center text-gray-500 text-[0.6rem] sm:text-[0.65rem] mb-2 sm:mb-3 space-x-2 sm:space-x-3 font-mono uppercase">
+                        <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {formatDate(suggestedPost.date)}</span>
+                        <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {suggestedPost.readTime}</span>
+                      </div>
+
+                      <h4 className="text-sm sm:text-base font-bold text-white mb-2 group-hover:text-brand-yellow transition-colors line-clamp-2 leading-tight">
+                        {suggestedPost.title}
+                      </h4>
+
+                      <p className="text-gray-400 text-xs sm:text-sm line-clamp-2 flex-1">
+                        {suggestedPost.excerpt}
+                      </p>
+
+                      <div className="mt-3 sm:mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
+                        <span className="text-[0.6rem] sm:text-[0.65rem] text-gray-500 uppercase font-bold">
+                          {suggestedPost.author}
+                        </span>
+                        <span className="text-brand-yellow text-[0.6rem] sm:text-[0.65rem] font-black uppercase tracking-wider flex items-center group-hover:translate-x-1 transition-transform">
+                          Ler <ChevronRight className="w-3 h-3 ml-1" />
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </article>
     </>

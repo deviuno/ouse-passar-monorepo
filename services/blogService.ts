@@ -412,3 +412,106 @@ export async function getPostBySlugAdmin(slug: string): Promise<{ post: BlogPost
         };
     }
 }
+
+/**
+ * Get adjacent posts (previous and next) for navigation
+ */
+export async function getAdjacentPosts(currentDate: string): Promise<{
+    previous: BlogPost | null;
+    next: BlogPost | null;
+    error?: string;
+}> {
+    try {
+        // Get previous post (older than current)
+        const { data: prevData, error: prevError } = await supabase
+            .from('artigos')
+            .select('*, autores_artigos!left(nome, imagem_perfil), categories!left(name, slug)')
+            .eq('status_publicacao', 'publicado')
+            .lt('data_publicacao', currentDate)
+            .order('data_publicacao', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (prevError) throw prevError;
+
+        // Get next post (newer than current)
+        const { data: nextData, error: nextError } = await supabase
+            .from('artigos')
+            .select('*, autores_artigos!left(nome, imagem_perfil), categories!left(name, slug)')
+            .eq('status_publicacao', 'publicado')
+            .gt('data_publicacao', currentDate)
+            .order('data_publicacao', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+        if (nextError) throw nextError;
+
+        return {
+            previous: prevData ? artigoToBlogPost(prevData) : null,
+            next: nextData ? artigoToBlogPost(nextData) : null,
+        };
+    } catch (error: any) {
+        console.error('Erro ao carregar posts adjacentes:', error);
+        return {
+            previous: null,
+            next: null,
+            error: error.message || 'Erro ao carregar navegação',
+        };
+    }
+}
+
+/**
+ * Get suggested posts (excluding current post)
+ * Prioritizes posts from the same category, then fills with recent posts
+ */
+export async function getSuggestedPosts(
+    currentSlug: string,
+    category?: string,
+    limit: number = 3
+): Promise<{ posts: BlogPost[]; error?: string }> {
+    try {
+        let posts: BlogPost[] = [];
+
+        // First, try to get posts from the same category
+        if (category) {
+            const { data: categoryPosts, error: catError } = await supabase
+                .from('artigos')
+                .select('*, autores_artigos!left(nome, imagem_perfil), categories!left(name, slug)')
+                .eq('status_publicacao', 'publicado')
+                .neq('slug', currentSlug)
+                .eq('categories.name', category)
+                .order('data_publicacao', { ascending: false })
+                .limit(limit);
+
+            if (!catError && categoryPosts) {
+                posts = categoryPosts.map(artigoToBlogPost);
+            }
+        }
+
+        // If we don't have enough posts, fill with recent posts
+        if (posts.length < limit) {
+            const excludeSlugs = [currentSlug, ...posts.map(p => p.slug)];
+            const remaining = limit - posts.length;
+
+            const { data: recentPosts, error: recentError } = await supabase
+                .from('artigos')
+                .select('*, autores_artigos!left(nome, imagem_perfil), categories!left(name, slug)')
+                .eq('status_publicacao', 'publicado')
+                .not('slug', 'in', `(${excludeSlugs.map(s => `"${s}"`).join(',')})`)
+                .order('data_publicacao', { ascending: false })
+                .limit(remaining);
+
+            if (!recentError && recentPosts) {
+                posts = [...posts, ...recentPosts.map(artigoToBlogPost)];
+            }
+        }
+
+        return { posts };
+    } catch (error: any) {
+        console.error('Erro ao carregar sugestões:', error);
+        return {
+            posts: [],
+            error: error.message || 'Erro ao carregar sugestões',
+        };
+    }
+}
