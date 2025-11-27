@@ -59,6 +59,7 @@ export interface Course {
   image?: string; // New field for Vertical Cards
   isOwned: boolean;
   price?: string;
+  blockSize?: number; // Quantidade de questões por bloco no simulado
 }
 
 export interface Comment {

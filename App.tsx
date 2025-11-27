@@ -40,6 +40,7 @@ import {
 import {
   fetchExternalQuestions,
   fetchRandomQuestions,
+  fetchQuestionBlock,
   getExternalQuestionsStats,
   QuestionsStats,
 } from './services/externalQuestionsService';
@@ -114,6 +115,13 @@ const App: React.FC = () => {
     const [externalQuestions, setExternalQuestions] = useState<ParsedQuestion[]>([]);
     const [questionsStats, setQuestionsStats] = useState<QuestionsStats | null>(null);
     const [currentCourseFilters, setCurrentCourseFilters] = useState<CourseQuestionFilters | null>(null);
+    const [currentCourseBlockSize, setCurrentCourseBlockSize] = useState<number>(20);
+
+    // Questões respondidas por curso (para rotação de blocos)
+    const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Record<string, number[]>>(() => {
+        const saved = localStorage.getItem('ousepassar_answered_by_course');
+        return saved ? JSON.parse(saved) : {};
+    });
 
     // Courses State (from Supabase)
     const [courses, setCourses] = useState<Course[]>([]);
@@ -131,6 +139,7 @@ const App: React.FC = () => {
     useEffect(() => { localStorage.setItem('ousepassar_owned_courses', JSON.stringify(ownedCourseIds)); }, [ownedCourseIds]);
     useEffect(() => { localStorage.setItem('ousepassar_flashcards', JSON.stringify(flashcards)); }, [flashcards]);
     useEffect(() => { localStorage.setItem('ousepassar_reviews', JSON.stringify(reviews)); }, [reviews]);
+    useEffect(() => { localStorage.setItem('ousepassar_answered_by_course', JSON.stringify(answeredQuestionIds)); }, [answeredQuestionIds]);
 
     // Load user data from Supabase when authenticated
     const loadUserData = useCallback(async (uid: string) => {
@@ -379,16 +388,32 @@ const App: React.FC = () => {
                 const courseData = await fetchCourseById(tempSelectedCourse.id) as CourseWithFilters | null;
                 const filters: CourseQuestionFilters = courseData?.questionFilters || {};
 
-                // Set limit based on study mode
-                const questionLimit = mode === 'hard' ? 30 : 50;
-                filters.limit = questionLimit;
+                // Get block size from course or use default
+                const blockSize = courseData?.blockSize || 20;
+                setCurrentCourseBlockSize(blockSize);
+                setCurrentCourseFilters(filters);
 
-                // Fetch questions from external DB
-                const questions = await fetchRandomQuestions(filters, questionLimit);
+                // Get answered question IDs for this course
+                const courseAnsweredIds = answeredQuestionIds[tempSelectedCourse.id] || [];
+
+                // Fetch a block of questions, excluding already answered ones
+                const { questions, didReset } = await fetchQuestionBlock(
+                    filters,
+                    blockSize,
+                    courseAnsweredIds
+                );
+
+                if (didReset) {
+                    // All questions were answered, starting fresh cycle
+                    setAnsweredQuestionIds(prev => ({
+                        ...prev,
+                        [tempSelectedCourse.id]: []
+                    }));
+                    showToast('Parabéns! Você completou todas as questões. Reiniciando ciclo!', 'success');
+                }
 
                 if (questions.length > 0) {
                     setExternalQuestions(questions);
-                    setCurrentCourseFilters(filters);
                     showToast(`${questions.length} questões carregadas para ${tempSelectedCourse.title}!`, 'success');
                 } else {
                     // Fallback to mock questions if no external questions found
@@ -577,7 +602,62 @@ const App: React.FC = () => {
                 }).catch(err => console.error('Error updating simulado stats:', err));
             }
         }
+
+        // Save answered question IDs for block rotation
+        if (activeCourse && activeCourse.id !== 'review') {
+            const answeredIds = userAnswers.map(a => a.questionId);
+            setAnsweredQuestionIds(prev => ({
+                ...prev,
+                [activeCourse.id]: [...(prev[activeCourse.id] || []), ...answeredIds]
+            }));
+        }
+
         setCurrentView('summary');
+    };
+
+    // Handle starting a new simulado from the same course (block rotation)
+    const handleNewSimulado = async () => {
+        if (!activeCourse || !currentCourseFilters) {
+            setCurrentView('home');
+            return;
+        }
+
+        setQuestionIndex(0);
+        setUserAnswers([]);
+
+        try {
+            // Get updated answered question IDs (including from the simulado we just finished)
+            const courseAnsweredIds = answeredQuestionIds[activeCourse.id] || [];
+
+            // Fetch next block of questions
+            const { questions, didReset } = await fetchQuestionBlock(
+                currentCourseFilters,
+                currentCourseBlockSize,
+                courseAnsweredIds
+            );
+
+            if (didReset) {
+                // All questions were answered, starting fresh cycle
+                setAnsweredQuestionIds(prev => ({
+                    ...prev,
+                    [activeCourse.id]: []
+                }));
+                showToast('Você completou todas as questões! Reiniciando ciclo.', 'success');
+            }
+
+            if (questions.length > 0) {
+                setExternalQuestions(questions);
+                showToast(`Novo simulado: ${questions.length} questões carregadas!`, 'success');
+                setCurrentView('study');
+            } else {
+                showToast('Erro ao carregar novas questões.', 'error');
+                setCurrentView('home');
+            }
+        } catch (error) {
+            console.error('Error loading new simulado:', error);
+            showToast('Erro ao carregar questões.', 'error');
+            setCurrentView('home');
+        }
     };
 
     // const handleBuyItem = ... REMOVED as Store is removed
@@ -676,7 +756,15 @@ const App: React.FC = () => {
             );
         }
 
-        if (currentView === 'summary') return <SimuladoSummary answers={userAnswers} questions={activeQuestions} onExit={() => setCurrentView('home')} onRestart={() => handleStartStudy(studyMode, simulatedTime)} />;
+        if (currentView === 'summary') return (
+            <SimuladoSummary
+                answers={userAnswers}
+                questions={activeQuestions}
+                onExit={() => setCurrentView('home')}
+                onRestart={() => handleStartStudy(studyMode, simulatedTime)}
+                onNewSimulado={activeCourse?.id !== 'review' ? handleNewSimulado : undefined}
+            />
+        );
         if (currentView === 'profile') return <ProfileView stats={stats} onOpenCadernoErros={() => setCurrentView('caderno_erros')} onOpenFlashcards={() => setCurrentView('flashcards')} onOpenGuide={() => setCurrentView('guide')} onBack={() => setCurrentView('home')} />;
         if (currentView === 'guide') return <GuideView onBack={() => setCurrentView('profile')} />;
         if (currentView === 'caderno_erros') return <CadernoErrosView answers={globalAnswers} questions={allQuestions} onBack={() => setCurrentView('profile')} onGenerateFlashcards={handleGenerateFlashcards} isGenerating={isGeneratingFlashcards} />;

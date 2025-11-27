@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { CheckCircle, XCircle, Award, Home, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, Award, Home, RotateCcw, PlayCircle } from 'lucide-react';
 import { UserAnswer, ParsedQuestion } from '../types';
 
 interface SimuladoSummaryProps {
@@ -8,9 +8,10 @@ interface SimuladoSummaryProps {
   questions: ParsedQuestion[];
   onExit: () => void;
   onRestart: () => void;
+  onNewSimulado?: () => void; // Novo simulado com próximo bloco de questões
 }
 
-const SimuladoSummary: React.FC<SimuladoSummaryProps> = ({ answers, questions, onExit, onRestart }) => {
+const SimuladoSummary: React.FC<SimuladoSummaryProps> = ({ answers, questions, onExit, onRestart, onNewSimulado }) => {
   const total = questions.length;
   const correctCount = answers.filter(a => a.isCorrect).length;
   const percentage = Math.round((correctCount / total) * 100);
@@ -91,21 +92,32 @@ const SimuladoSummary: React.FC<SimuladoSummaryProps> = ({ answers, questions, o
       </div>
 
       {/* Footer Actions */}
-      <div className="fixed bottom-0 w-full max-w-md bg-[#1A1A1A] border-t border-gray-800 p-4 flex space-x-3 z-20">
-         <button 
-           onClick={onExit}
-           className="flex-1 py-3 rounded-xl border border-gray-700 text-gray-300 font-bold hover:bg-gray-800 flex items-center justify-center"
-         >
-           <Home size={18} className="mr-2" />
-           Início
-         </button>
-         <button 
-           onClick={onRestart}
-           className="flex-1 py-3 rounded-xl bg-[#FFB800] text-black font-bold hover:bg-[#FFC933] flex items-center justify-center shadow-lg"
-         >
-           <RotateCcw size={18} className="mr-2" />
-           Refazer
-         </button>
+      <div className="fixed bottom-0 w-full max-w-md bg-[#1A1A1A] border-t border-gray-800 p-4 z-20">
+         <div className="flex space-x-3 mb-3">
+           <button
+             onClick={onExit}
+             className="flex-1 py-3 rounded-xl border border-gray-700 text-gray-300 font-bold hover:bg-gray-800 flex items-center justify-center"
+           >
+             <Home size={18} className="mr-2" />
+             Início
+           </button>
+           <button
+             onClick={onRestart}
+             className="flex-1 py-3 rounded-xl border border-gray-700 text-gray-300 font-bold hover:bg-gray-800 flex items-center justify-center"
+           >
+             <RotateCcw size={18} className="mr-2" />
+             Refazer
+           </button>
+         </div>
+         {onNewSimulado && (
+           <button
+             onClick={onNewSimulado}
+             className="w-full py-3 rounded-xl bg-[#FFB800] text-black font-bold hover:bg-[#FFC933] flex items-center justify-center shadow-lg"
+           >
+             <PlayCircle size={18} className="mr-2" />
+             Novo Simulado (Próximas Questões)
+           </button>
+         )}
       </div>
     </div>
   );

@@ -427,3 +427,116 @@ export const BANCA_SHORT_NAMES: Record<string, string> = {
 export const getShortBancaName = (banca: string): string => {
   return BANCA_SHORT_NAMES[banca] || banca;
 };
+
+/**
+ * Busca um bloco de questões para simulado, excluindo questões já respondidas
+ * Implementa a lógica de rotação: quando todas as questões foram usadas, reinicia
+ *
+ * @param filters - Filtros do curso
+ * @param blockSize - Tamanho do bloco (ex: 20 questões)
+ * @param answeredIds - IDs das questões já respondidas pelo usuário neste curso
+ * @returns Bloco de questões e flag indicando se houve reset
+ */
+export const fetchQuestionBlock = async (
+  filters: CourseQuestionFilters,
+  blockSize: number = 20,
+  answeredIds: number[] = []
+): Promise<{ questions: ParsedQuestion[]; didReset: boolean }> => {
+  try {
+    console.log('[fetchQuestionBlock] Filters:', JSON.stringify(filters, null, 2));
+    console.log('[fetchQuestionBlock] Block size:', blockSize);
+    console.log('[fetchQuestionBlock] Answered IDs count:', answeredIds.length);
+
+    // Primeiro, tenta buscar questões excluindo as já respondidas
+    let query = questionsDb
+      .from('questoes_concurso')
+      .select('*');
+
+    // Aplicar filtros do curso
+    if (filters.materias && filters.materias.length > 0) {
+      query = query.in('materia', filters.materias);
+    }
+    if (filters.bancas && filters.bancas.length > 0) {
+      query = query.in('banca', filters.bancas);
+    }
+    if (filters.anos && filters.anos.length > 0) {
+      query = query.in('ano', filters.anos);
+    }
+    if (filters.orgaos && filters.orgaos.length > 0) {
+      query = query.in('orgao', filters.orgaos);
+    }
+    if (filters.assuntos && filters.assuntos.length > 0) {
+      query = query.in('assunto', filters.assuntos);
+    }
+
+    // Excluir questões já respondidas (se houver)
+    if (answeredIds.length > 0) {
+      query = query.not('id', 'in', `(${answeredIds.join(',')})`);
+    }
+
+    // Ordenar por ano (mais recentes primeiro) e limitar ao tamanho do bloco
+    query = query.order('ano', { ascending: false, nullsFirst: false }).limit(blockSize);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[fetchQuestionBlock] Query error:', error);
+      throw error;
+    }
+
+    // Se encontrou questões suficientes, retorna
+    if (data && data.length > 0) {
+      console.log('[fetchQuestionBlock] Found questions:', data.length);
+      // Embaralha para variedade
+      const shuffled = data.sort(() => Math.random() - 0.5);
+      return {
+        questions: shuffled.map(transformExternalQuestion),
+        didReset: false,
+      };
+    }
+
+    // Se não encontrou questões (todas foram respondidas), faz reset e busca novamente
+    console.log('[fetchQuestionBlock] No new questions found, resetting...');
+
+    let resetQuery = questionsDb
+      .from('questoes_concurso')
+      .select('*');
+
+    // Aplicar mesmos filtros, mas sem excluir IDs
+    if (filters.materias && filters.materias.length > 0) {
+      resetQuery = resetQuery.in('materia', filters.materias);
+    }
+    if (filters.bancas && filters.bancas.length > 0) {
+      resetQuery = resetQuery.in('banca', filters.bancas);
+    }
+    if (filters.anos && filters.anos.length > 0) {
+      resetQuery = resetQuery.in('ano', filters.anos);
+    }
+    if (filters.orgaos && filters.orgaos.length > 0) {
+      resetQuery = resetQuery.in('orgao', filters.orgaos);
+    }
+    if (filters.assuntos && filters.assuntos.length > 0) {
+      resetQuery = resetQuery.in('assunto', filters.assuntos);
+    }
+
+    resetQuery = resetQuery.order('ano', { ascending: false, nullsFirst: false }).limit(blockSize);
+
+    const { data: resetData, error: resetError } = await resetQuery;
+
+    if (resetError) {
+      console.error('[fetchQuestionBlock] Reset query error:', resetError);
+      throw resetError;
+    }
+
+    console.log('[fetchQuestionBlock] Reset - Found questions:', resetData?.length || 0);
+
+    const shuffledReset = (resetData || []).sort(() => Math.random() - 0.5);
+    return {
+      questions: shuffledReset.map(transformExternalQuestion),
+      didReset: true, // Indica que houve reset - útil para limpar answered IDs no front
+    };
+  } catch (error) {
+    console.error('[fetchQuestionBlock] Failed:', error);
+    return { questions: [], didReset: false };
+  }
+};

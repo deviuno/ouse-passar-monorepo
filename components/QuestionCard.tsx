@@ -190,10 +190,37 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
   // Mock Stats Data based on question ID or generic
   const currentStats = MOCK_STATS['default'];
 
+  // Função para formatar texto com quebras de linha e negrito
+  const formatText = (text: string) => {
+    if (!text) return null;
+
+    // Divide por quebras de linha e processa cada parte
+    return text.split('\n').map((paragraph, idx) => {
+      // Processa negrito **texto** ou __texto__
+      const parts = paragraph.split(/(\*\*[^*]+\*\*|__[^_]+__)/g);
+
+      const formattedParts = parts.map((part, partIdx) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={partIdx} className="font-bold text-white">{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('__') && part.endsWith('__')) {
+          return <strong key={partIdx} className="font-bold text-white">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+
+      return (
+        <p key={idx} className={idx > 0 ? 'mt-3' : ''}>
+          {formattedParts}
+        </p>
+      );
+    });
+  };
+
   return (
-    <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-24 px-4">
+    <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-24 px-4 pt-6">
       {/* Header Info */}
-      <div className="mb-4">
+      <div className="mb-5">
         <div className="flex justify-between items-start mb-2">
             <div className="flex flex-col flex-1">
                 <div className="flex items-center mb-1 flex-wrap gap-2">
@@ -238,8 +265,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       </div>
 
       {/* Enunciado */}
-      <div className="text-base leading-relaxed mb-6 font-medium">
-        {question.enunciado}
+      <div className="text-base leading-relaxed mb-6 font-medium text-gray-100">
+        {formatText(question.enunciado)}
       </div>
 
       {/* Alternatives */}
@@ -302,7 +329,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                    </button>
                )}
                
-               <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+               <div className="text-sm text-gray-300 leading-relaxed">
                    {loadingExplanation ? (
                        <div className="space-y-2">
                            <div className="h-4 bg-gray-700 rounded animate-pulse w-3/4"></div>
@@ -310,9 +337,9 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                            <div className="h-4 bg-gray-700 rounded animate-pulse w-5/6"></div>
                        </div>
                    ) : (
-                       studyMode === 'reta_final' 
-                       ? <><span className="text-purple-400 font-bold text-xs mb-1 block">RESUMO RETA FINAL:</span>{explanation}</> 
-                       : explanation
+                       studyMode === 'reta_final'
+                       ? <><span className="text-purple-400 font-bold text-xs mb-1 block">RESUMO RETA FINAL:</span>{formatText(explanation || '')}</>
+                       : formatText(explanation || '')
                    )}
                </div>
             </div>

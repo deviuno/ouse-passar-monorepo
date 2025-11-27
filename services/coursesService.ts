@@ -14,6 +14,7 @@ export interface DbCourseWithFilters {
   question_filters: CourseQuestionFilters | null;
   questions_count: number | null;
   description: string | null;
+  block_size: number | null; // Quantidade de questões por bloco no simulado
   created_at: string;
   updated_at: string;
 }
@@ -22,6 +23,7 @@ export interface CourseWithFilters extends Course {
   questionFilters?: CourseQuestionFilters;
   questionsCount?: number;
   description?: string;
+  blockSize?: number;
 }
 
 // Transform DB course to app Course format
@@ -36,6 +38,7 @@ const transformCourse = (dbCourse: DbCourseWithFilters, isOwned: boolean = false
   questionFilters: dbCourse.question_filters || undefined,
   questionsCount: dbCourse.questions_count || undefined,
   description: dbCourse.description || undefined,
+  blockSize: dbCourse.block_size || 20, // Default: 20 questões por bloco
 });
 
 // Fetch all available courses
