@@ -19,6 +19,7 @@ import RedacaoView from './components/RedacaoView';
 import PaymentModal from './components/PaymentModal';
 import ReviewIntroModal from './components/ReviewIntroModal';
 import RankingView from './components/RankingView';
+import GuideView from './components/GuideView';
 import { ToastContainer } from './components/Toast';
 import { generateFlashcards } from './services/geminiService';
 import {
@@ -63,7 +64,7 @@ const parseQuestions = (rawQuestions: typeof MOCK_QUESTIONS): ParsedQuestion[] =
 };
 
 const App: React.FC = () => {
-    const [currentView, setCurrentView] = useState<'home' | 'simulados' | 'study' | 'pegadinhas' | 'profile' | 'summary' | 'caderno_erros' | 'flashcards' | 'pvp' | 'redacao' | 'ranking'>('home');
+    const [currentView, setCurrentView] = useState<'home' | 'simulados' | 'study' | 'pegadinhas' | 'profile' | 'summary' | 'caderno_erros' | 'flashcards' | 'pvp' | 'redacao' | 'ranking' | 'guide'>('home');
     const [activeCourse, setActiveCourse] = useState<Course | null>(null);
 
     // Auth State
@@ -651,7 +652,8 @@ const App: React.FC = () => {
         }
 
         if (currentView === 'summary') return <SimuladoSummary answers={userAnswers} questions={activeQuestions} onExit={() => setCurrentView('home')} onRestart={() => handleStartStudy(studyMode, simulatedTime)} />;
-        if (currentView === 'profile') return <ProfileView stats={stats} onOpenCadernoErros={() => setCurrentView('caderno_erros')} onOpenFlashcards={() => setCurrentView('flashcards')} onBack={() => setCurrentView('home')} />;
+        if (currentView === 'profile') return <ProfileView stats={stats} onOpenCadernoErros={() => setCurrentView('caderno_erros')} onOpenFlashcards={() => setCurrentView('flashcards')} onOpenGuide={() => setCurrentView('guide')} onBack={() => setCurrentView('home')} />;
+        if (currentView === 'guide') return <GuideView onBack={() => setCurrentView('profile')} />;
         if (currentView === 'caderno_erros') return <CadernoErrosView answers={globalAnswers} questions={allQuestions} onBack={() => setCurrentView('profile')} onGenerateFlashcards={handleGenerateFlashcards} isGenerating={isGeneratingFlashcards} />;
         if (currentView === 'flashcards') return <FlashcardsView cards={flashcards} onBack={() => setCurrentView('profile')} onGoToCadernoErros={() => setCurrentView('caderno_erros')} />;
         if (currentView === 'pvp') return <PvPGameView questions={allQuestions} userStats={stats} onFinish={handlePvPFinish} onExit={() => setCurrentView('home')} />;
@@ -661,7 +663,7 @@ const App: React.FC = () => {
         return null;
     };
 
-    const noHeaderViews = ['home', 'summary', 'caderno_erros', 'store', 'flashcards', 'pvp', 'redacao', 'simulados', 'pegadinhas', 'profile', 'ranking'];
+    const noHeaderViews = ['home', 'summary', 'caderno_erros', 'store', 'flashcards', 'pvp', 'redacao', 'simulados', 'pegadinhas', 'profile', 'ranking', 'guide'];
     const bottomNavViews = ['home', 'simulados', 'pegadinhas', 'profile'];
 
     return (

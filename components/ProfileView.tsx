@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserStats } from '../types';
 import { USER_AVATAR_URL, STORE_ITEMS } from '../constants';
-import { Flame, Trophy, Target, Clock, Settings, Edit2, Share2, Award, ChevronUp, ChevronDown, Minus, BookX, Layers, ArrowLeft, LogOut, Loader2, Mail } from 'lucide-react';
+import { Flame, Trophy, Target, Clock, Settings, Edit2, Share2, Award, ChevronUp, ChevronDown, Minus, BookX, Layers, ArrowLeft, LogOut, Loader2, Mail, HelpCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   getLeagueRanking,
@@ -17,10 +17,11 @@ interface ProfileViewProps {
   stats: UserStats;
   onOpenCadernoErros: () => void;
   onOpenFlashcards: () => void;
+  onOpenGuide: () => void;
   onBack: () => void;
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, onOpenFlashcards, onBack }) => {
+const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, onOpenFlashcards, onOpenGuide, onBack }) => {
   const { user, profile, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [ranking, setRanking] = useState<LeagueRankingUser[]>([]);
@@ -314,6 +315,18 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, on
                 <Layers size={18} className="mr-3 text-purple-400" />
                 <span className="font-medium text-sm">Meus Flashcards</span>
             </div>
+        </button>
+
+        {/* Guia do Concurseiro */}
+        <button
+            onClick={onOpenGuide}
+            className="w-full bg-gradient-to-r from-[#FFB800]/10 to-[#FFB800]/5 p-4 rounded-xl flex items-center justify-between text-[#FFB800] hover:from-[#FFB800]/20 hover:to-[#FFB800]/10 transition-colors border border-[#FFB800]/30"
+        >
+            <div className="flex items-center">
+                <HelpCircle size={18} className="mr-3 text-[#FFB800]" />
+                <span className="font-medium text-sm">Guia do Concurseiro</span>
+            </div>
+            <span className="text-[10px] bg-[#FFB800] text-black px-2 py-0.5 rounded-full font-bold">NOVO</span>
         </button>
 
         <button className="w-full bg-[#252525] p-4 rounded-xl flex items-center justify-between text-gray-300 hover:text-white hover:bg-[#2A2A2A] transition-colors">
