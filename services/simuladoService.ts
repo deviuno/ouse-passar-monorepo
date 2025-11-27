@@ -499,9 +499,9 @@ export async function getEditalByCourseId(courseId: string): Promise<{ edital: E
       .eq('course_id', courseId)
       .order('uploaded_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
+    if (error) throw error;
 
     return { edital: data ? mapEditalRow(data) : null };
   } catch (error: any) {
