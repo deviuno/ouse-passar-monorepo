@@ -1,21 +1,21 @@
 
-
 import React from 'react';
 import { Course } from '../types';
-import { COURSES } from '../constants';
-import { AlertTriangle, Lock, ShoppingBag, ArrowLeft, Filter } from 'lucide-react';
+import { AlertTriangle, Lock, ShoppingBag, ArrowLeft, Filter, Loader2 } from 'lucide-react';
 
 interface PegadinhasViewProps {
+  courses: Course[];
   onSelectCourse: (course: Course, isPegadinhaMode: boolean) => void;
   onBuyCourse: (course: Course) => void;
   ownedCourseIds: string[];
   onBack: () => void;
+  isLoading?: boolean;
 }
 
-const PegadinhasView: React.FC<PegadinhasViewProps> = ({ onSelectCourse, onBuyCourse, ownedCourseIds, onBack }) => {
-  // Use the main COURSES list logic
-  const myCourses = COURSES.filter(c => ownedCourseIds.includes(c.id));
-  const storeCourses = COURSES.filter(c => !ownedCourseIds.includes(c.id));
+const PegadinhasView: React.FC<PegadinhasViewProps> = ({ courses, onSelectCourse, onBuyCourse, ownedCourseIds, onBack, isLoading = false }) => {
+  // Filter courses based on ownership
+  const myCourses = courses.filter(c => ownedCourseIds.includes(c.id) || c.isOwned);
+  const storeCourses = courses.filter(c => !ownedCourseIds.includes(c.id) && !c.isOwned);
 
   return (
     <div className="pb-24 overflow-y-auto h-full no-scrollbar bg-[#1A1A1A]">
@@ -44,7 +44,12 @@ const PegadinhasView: React.FC<PegadinhasViewProps> = ({ onSelectCourse, onBuyCo
                 <h2 className="text-lg font-bold text-white">Meus Treinos</h2>
             </div>
 
-            {myCourses.length > 0 ? (
+            {isLoading ? (
+                <div className="p-8 rounded-xl border border-dashed border-gray-800 text-center flex flex-col items-center justify-center">
+                    <Loader2 className="animate-spin text-orange-500 mb-2" size={24} />
+                    <p className="text-sm text-gray-500">Carregando cursos...</p>
+                </div>
+            ) : myCourses.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4">
                     {myCourses.map(course => (
                         <button 

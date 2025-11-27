@@ -169,7 +169,7 @@ export const analyzeEssay = async (topic: string, text: string): Promise<EssayFe
             config: { responseMimeType: 'application/json' }
         });
 
-        const jsonStr = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const jsonStr = (response.text || '').replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(jsonStr);
 
     } catch (error) {

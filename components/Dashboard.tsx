@@ -2,12 +2,13 @@
 
 import React, { useState } from 'react';
 import { UserStats, Course, GamificationModalType } from '../types';
-import { COURSES, MOCK_LEAGUE } from '../constants';
-import { Flame, Trophy, Target, ChevronRight, Lock, ShoppingBag, ChevronUp, ChevronDown, Minus, Coins, Swords, PenTool, BrainCircuit } from 'lucide-react';
+import { MOCK_LEAGUE } from '../constants';
+import { Flame, Trophy, Target, ChevronRight, Lock, ShoppingBag, ChevronUp, ChevronDown, Minus, Coins, Swords, PenTool, BrainCircuit, Loader2 } from 'lucide-react';
 import GamificationModal from './GamificationModal';
 
 interface DashboardProps {
   stats: UserStats;
+  courses: Course[];
   ownedCourseIds: string[];
   pendingReviewCount?: number;
   onSelectCourse: (course: Course) => void;
@@ -17,12 +18,13 @@ interface DashboardProps {
   onStartReview?: () => void;
   onNavigateToProfile: () => void; // Used by modal
   onViewRanking: () => void;
+  isLoading?: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats, ownedCourseIds, pendingReviewCount = 0, onSelectCourse, onBuyCourse, onStartPvP, onStartRedacao, onStartReview, onNavigateToProfile, onViewRanking }) => {
+const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, pendingReviewCount = 0, onSelectCourse, onBuyCourse, onStartPvP, onStartRedacao, onStartReview, onNavigateToProfile, onViewRanking, isLoading = false }) => {
   // Filter courses based on the owned IDs passed from App (source of truth)
-  const myCourses = COURSES.filter(c => ownedCourseIds.includes(c.id));
-  const storeCourses = COURSES.filter(c => !ownedCourseIds.includes(c.id));
+  const myCourses = courses.filter(c => ownedCourseIds.includes(c.id) || c.isOwned);
+  const storeCourses = courses.filter(c => !ownedCourseIds.includes(c.id) && !c.isOwned);
 
   // Modal State
   const [modalType, setModalType] = useState<GamificationModalType>(null);
@@ -131,10 +133,17 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, ownedCourseIds, pendingRev
             <h2 className="text-lg font-bold">Meus Preparatórios</h2>
         </div>
 
-        {myCourses.length > 0 ? (
+        {isLoading ? (
+            <div className="px-4">
+                <div className="p-8 rounded-xl border border-dashed border-gray-800 text-center flex flex-col items-center justify-center">
+                    <Loader2 className="animate-spin text-[#FFB800] mb-2" size={24} />
+                    <p className="text-sm text-gray-500">Carregando cursos...</p>
+                </div>
+            </div>
+        ) : myCourses.length > 0 ? (
             <div className="flex overflow-x-auto px-4 pb-4 space-x-3 no-scrollbar snap-x">
                 {myCourses.map(course => (
-                    <button 
+                    <button
                         key={course.id}
                         onClick={() => onSelectCourse(course)}
                         className="flex-none w-[40vw] sm:w-40 aspect-[3/4] rounded-xl overflow-hidden relative group snap-center shadow-lg border border-gray-800 hover:border-[#FFB800] transition-all"
@@ -147,7 +156,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, ownedCourseIds, pendingRev
                                  <div className="text-4xl opacity-20">{course.icon}</div>
                              </div>
                          )}
-                         
+
                          {/* Gradient Overlay */}
                          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
 

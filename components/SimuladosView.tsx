@@ -1,17 +1,19 @@
 
-
 import React from 'react';
 import { Course } from '../types';
-import { COURSES } from '../constants';
-import { BookOpen, ArrowLeft } from 'lucide-react';
+import { BookOpen, ArrowLeft, Loader2 } from 'lucide-react';
 
 interface SimuladosViewProps {
+  courses: Course[];
+  ownedCourseIds: string[];
   onSelectCourse: (course: Course) => void;
   onBack: () => void;
+  isLoading?: boolean;
 }
 
-const SimuladosView: React.FC<SimuladosViewProps> = ({ onSelectCourse, onBack }) => {
-  const myCourses = COURSES.filter(c => c.isOwned);
+const SimuladosView: React.FC<SimuladosViewProps> = ({ courses, ownedCourseIds, onSelectCourse, onBack, isLoading = false }) => {
+  // Filter to show only owned courses
+  const myCourses = courses.filter(c => ownedCourseIds.includes(c.id) || c.isOwned);
 
   return (
     <div className="pb-24 overflow-y-auto h-full no-scrollbar bg-[#1A1A1A]">
@@ -31,7 +33,19 @@ const SimuladosView: React.FC<SimuladosViewProps> = ({ onSelectCourse, onBack })
               Selecione o preparatório para iniciar seus estudos.
           </p>
 
-          {/* Grid Layout of Vertical Cards */}
+          {/* Loading State */}
+          {isLoading ? (
+              <div className="p-8 rounded-xl border border-dashed border-gray-800 text-center flex flex-col items-center justify-center">
+                  <Loader2 className="animate-spin text-[#FFB800] mb-2" size={24} />
+                  <p className="text-sm text-gray-500">Carregando cursos...</p>
+              </div>
+          ) : myCourses.length === 0 ? (
+              <div className="p-8 rounded-xl border border-dashed border-gray-800 text-center">
+                  <p className="text-sm text-gray-500">Você ainda não possui preparatórios.</p>
+                  <p className="text-xs text-gray-600 mt-2">Adquira um preparatório na tela inicial.</p>
+              </div>
+          ) : (
+          /* Grid Layout of Vertical Cards */
           <div className="grid grid-cols-2 gap-4">
               {myCourses.map(course => (
                   <button 
@@ -64,6 +78,7 @@ const SimuladosView: React.FC<SimuladosViewProps> = ({ onSelectCourse, onBack })
                   </button>
               ))}
           </div>
+          )}
       </div>
     </div>
   );

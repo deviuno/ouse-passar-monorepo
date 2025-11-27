@@ -28,6 +28,7 @@ export interface CommunityStats {
 }
 
 export interface ParsedQuestion extends Omit<RawQuestion, 'alternativas'> {
+  alternativas: string; // Keep the original JSON string for compatibility
   parsedAlternativas: Alternative[];
   isPegadinha?: boolean; // Derived from data analysis
   communityStats?: CommunityStats[];
