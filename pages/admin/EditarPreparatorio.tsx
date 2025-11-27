@@ -43,6 +43,7 @@ export const EditarPreparatorio: React.FC = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState<string>('');
+  const [blockSize, setBlockSize] = useState<string>('20');
   const [isSaving, setIsSaving] = useState(false);
 
   // Load course and edital
@@ -70,6 +71,7 @@ export const EditarPreparatorio: React.FC = () => {
         setTitle(courseData.title);
         setDescription(courseData.description || '');
         setPrice(courseData.price?.toString() || '');
+        setBlockSize(courseData.block_size?.toString() || '20');
 
         // Load edital
         const { edital: editalData } = await getEditalByCourseId(id);
@@ -111,6 +113,7 @@ export const EditarPreparatorio: React.FC = () => {
         title,
         description: description || undefined,
         price: price ? parseFloat(price) : undefined,
+        block_size: blockSize ? parseInt(blockSize, 10) : 20,
       });
 
       if (error) throw new Error(error);
@@ -348,6 +351,24 @@ export const EditarPreparatorio: React.FC = () => {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+              Questões por Bloco
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={blockSize}
+              onChange={(e) => setBlockSize(e.target.value)}
+              placeholder="20"
+              className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow"
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Quantidade de questões que aparecem por vez no simulado do aluno.
+            </p>
+          </div>
+
           <button
             onClick={handleSaveBasicInfo}
             disabled={isSaving}
@@ -467,6 +488,10 @@ export const EditarPreparatorio: React.FC = () => {
                 Este simulado está disponível para os usuários com{' '}
                 <span className="font-bold text-green-500">
                   {course.questions_count?.toLocaleString('pt-BR')} questões
+                </span>
+                {' '}em blocos de{' '}
+                <span className="font-bold text-green-500">
+                  {course.block_size || 20} questões
                 </span>
               </p>
             </div>

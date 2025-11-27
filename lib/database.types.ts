@@ -193,6 +193,7 @@ export interface Database {
           course_type: 'simulado' | 'preparatorio'
           question_filters: Json
           questions_count: number
+          block_size: number
           edital_id: string | null
           created_at: string
           updated_at: string
@@ -209,6 +210,7 @@ export interface Database {
           course_type?: 'simulado' | 'preparatorio'
           question_filters?: Json
           questions_count?: number
+          block_size?: number
           edital_id?: string | null
           created_at?: string
           updated_at?: string
@@ -225,6 +227,7 @@ export interface Database {
           course_type?: 'simulado' | 'preparatorio'
           question_filters?: Json
           questions_count?: number
+          block_size?: number
           edital_id?: string | null
           created_at?: string
           updated_at?: string

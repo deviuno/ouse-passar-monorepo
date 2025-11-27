@@ -77,6 +77,7 @@ export interface Course {
   course_type: CourseType;
   question_filters: QuestionFilters;
   questions_count: number;
+  block_size: number;
   edital_id: string | null;
   created_at: string;
   updated_at: string;
@@ -94,6 +95,7 @@ export interface CreateCourseInput {
   course_type: CourseType;
   question_filters?: QuestionFilters;
   questions_count?: number;
+  block_size?: number;
   is_active?: boolean;
 }
 
@@ -101,6 +103,7 @@ export interface UpdateCourseInput extends Partial<CreateCourseInput> {
   is_active?: boolean;
   question_filters?: QuestionFilters;
   questions_count?: number;
+  block_size?: number;
   edital_id?: string;
 }
 
@@ -146,6 +149,7 @@ export async function getCourses(options?: {
       course_type: item.course_type,
       question_filters: item.question_filters as QuestionFilters,
       questions_count: item.questions_count,
+      block_size: item.block_size || 20,
       edital_id: item.edital_id,
       created_at: item.created_at,
       updated_at: item.updated_at,
@@ -188,6 +192,7 @@ export async function getCourseById(id: string): Promise<{ course: Course | null
       course_type: data.course_type,
       question_filters: data.question_filters as QuestionFilters,
       questions_count: data.questions_count,
+      block_size: data.block_size || 20,
       edital_id: data.edital_id,
       created_at: data.created_at,
       updated_at: data.updated_at,
@@ -208,6 +213,8 @@ export async function createCourse(input: CreateCourseInput): Promise<{ course: 
   try {
     // Use provided questions_count or fallback to filter limit
     const questionsCount = input.questions_count ?? input.question_filters?.limit ?? 0;
+    // Default block_size to 20 if not provided
+    const blockSize = input.block_size ?? 20;
 
     const { data, error } = await supabase
       .from('courses')
@@ -222,6 +229,7 @@ export async function createCourse(input: CreateCourseInput): Promise<{ course: 
         is_active: input.is_active ?? false,
         question_filters: (input.question_filters || {}) as unknown as Json,
         questions_count: questionsCount,
+        block_size: blockSize,
       })
       .select()
       .single();
@@ -244,6 +252,7 @@ export async function createCourse(input: CreateCourseInput): Promise<{ course: 
       course_type: data.course_type,
       question_filters: data.question_filters as QuestionFilters,
       questions_count: data.questions_count,
+      block_size: data.block_size || 20,
       edital_id: data.edital_id,
       created_at: data.created_at,
       updated_at: data.updated_at,
@@ -276,6 +285,7 @@ export async function updateCourse(id: string, input: UpdateCourseInput): Promis
     if (input.is_active !== undefined) updateData.is_active = input.is_active;
     if (input.question_filters !== undefined) updateData.question_filters = input.question_filters;
     if (input.questions_count !== undefined) updateData.questions_count = input.questions_count;
+    if (input.block_size !== undefined) updateData.block_size = input.block_size;
     if (input.edital_id !== undefined) updateData.edital_id = input.edital_id;
 
     const { data, error } = await supabase
@@ -303,6 +313,7 @@ export async function updateCourse(id: string, input: UpdateCourseInput): Promis
       course_type: data.course_type,
       question_filters: data.question_filters as QuestionFilters,
       questions_count: data.questions_count,
+      block_size: data.block_size || 20,
       edital_id: data.edital_id,
       created_at: data.created_at,
       updated_at: data.updated_at,

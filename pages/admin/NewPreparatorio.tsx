@@ -38,6 +38,7 @@ export const NewPreparatorio: React.FC = () => {
   const [type, setType] = useState<CourseType>('simulado');
   const [price, setPrice] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
+  const [blockSize, setBlockSize] = useState<string>('20');
 
   // Creation mode state
   const [creationMode, setCreationMode] = useState<CreationMode | null>(null);
@@ -83,6 +84,7 @@ export const NewPreparatorio: React.FC = () => {
         price: price ? parseFloat(price) : undefined,
         course_type: type,
         image_url: imageUrl || undefined,
+        block_size: blockSize ? parseInt(blockSize, 10) : 20,
       });
 
       if (courseError || !course) {
@@ -131,6 +133,7 @@ export const NewPreparatorio: React.FC = () => {
         price: price ? parseFloat(price) : undefined,
         course_type: type,
         image_url: imageUrl || undefined,
+        block_size: blockSize ? parseInt(blockSize, 10) : 20,
       });
 
       if (courseError || !course) {
@@ -216,6 +219,7 @@ export const NewPreparatorio: React.FC = () => {
         image_url: imageUrl || undefined,
         question_filters: manualFilters,
         questions_count: manualQuestionCount,
+        block_size: blockSize ? parseInt(blockSize, 10) : 20,
         is_active: true, // Activate immediately since it's manual
       });
 
@@ -311,6 +315,24 @@ export const NewPreparatorio: React.FC = () => {
               value={imageUrl}
               onChange={setImageUrl}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+              Questões por Bloco
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={blockSize}
+              onChange={(e) => setBlockSize(e.target.value)}
+              placeholder="20"
+              className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Quantidade de questões que aparecem por vez no simulado do aluno. Após responder todas, novas questões serão carregadas.
+            </p>
           </div>
         </div>
 

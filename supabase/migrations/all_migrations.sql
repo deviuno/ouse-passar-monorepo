@@ -208,5 +208,17 @@ USING (bucket_id = 'editais')
 WITH CHECK (bucket_id = 'editais');
 
 -- ============================================================================
+-- 004: ADD BLOCK_SIZE TO COURSES
+-- ============================================================================
+
+-- Add block_size column to courses table
+-- This controls how many questions appear per simulado block for students
+ALTER TABLE courses
+ADD COLUMN IF NOT EXISTS block_size INTEGER DEFAULT 20;
+
+-- Comment
+COMMENT ON COLUMN courses.block_size IS 'Number of questions per simulado block shown to students. Default is 20.';
+
+-- ============================================================================
 -- DONE! Migrations completed successfully.
 -- ============================================================================
