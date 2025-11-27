@@ -215,6 +215,7 @@ export const NewPreparatorio: React.FC = () => {
         course_type: type,
         image_url: imageUrl || undefined,
         question_filters: manualFilters,
+        questions_count: manualQuestionCount,
         is_active: true, // Activate immediately since it's manual
       });
 

@@ -93,6 +93,7 @@ export interface CreateCourseInput {
   price?: number;
   course_type: CourseType;
   question_filters?: QuestionFilters;
+  questions_count?: number;
   is_active?: boolean;
 }
 
@@ -205,8 +206,8 @@ export async function getCourseById(id: string): Promise<{ course: Course | null
  */
 export async function createCourse(input: CreateCourseInput): Promise<{ course: Course | null; error?: string }> {
   try {
-    // Calculate questions count if filters are provided
-    const questionsCount = input.question_filters?.limit || 0;
+    // Use provided questions_count or fallback to filter limit
+    const questionsCount = input.questions_count ?? input.question_filters?.limit ?? 0;
 
     const { data, error } = await supabase
       .from('courses')

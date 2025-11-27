@@ -444,6 +444,58 @@ export const ManualFilterSelector: React.FC<ManualFilterSelectorProps> = ({
           onCountUpdate={(count) => setQuestionCount(count)}
         />
       )}
+
+      {/* Floating Question Count Card */}
+      {hasFilters && (
+        <div className="fixed bottom-6 right-6 z-40">
+          <div className={`
+            bg-brand-card border shadow-2xl rounded-lg p-4 min-w-[200px]
+            transition-all duration-300 transform
+            ${countLoading ? 'border-brand-yellow/30' : questionCount > 0 ? 'border-green-500/30' : 'border-red-500/30'}
+          `}
+          style={{
+            animation: 'slideInUp 0.3s ease-out',
+          }}
+          >
+            <style>{`
+              @keyframes slideInUp {
+                from {
+                  transform: translateY(100%);
+                  opacity: 0;
+                }
+                to {
+                  transform: translateY(0);
+                  opacity: 1;
+                }
+              }
+            `}</style>
+            <div className="flex items-center gap-3">
+              {countLoading ? (
+                <Loader2 className="w-8 h-8 text-brand-yellow animate-spin" />
+              ) : questionCount > 0 ? (
+                <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                </div>
+              ) : (
+                <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wider">Questões</p>
+                <p className={`text-2xl font-black ${questionCount > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {countLoading ? '...' : questionCount.toLocaleString('pt-BR')}
+                </p>
+              </div>
+            </div>
+            {questionLimit && questionCount > 0 && (
+              <p className="text-xs text-gray-500 mt-2 border-t border-white/5 pt-2">
+                Limitado a {questionLimit.toLocaleString('pt-BR')}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
