@@ -16,8 +16,10 @@ import {
   CheckSquare,
 } from 'lucide-react';
 import { getCourses, deleteCourse, Course, getCoursesStats } from '../../services/simuladoService';
+import { useToast } from '../../components/ui/Toast';
 
 export const Preparatorios: React.FC = () => {
+  const toast = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,8 +70,9 @@ export const Preparatorios: React.FC = () => {
 
       setCourses((prev) => prev.filter((c) => c.id !== id));
       setOpenMenu(null);
+      toast.success('Preparatório excluído com sucesso!');
     } catch (err: any) {
-      alert(err.message);
+      toast.error('Erro ao excluir preparatório');
     }
   };
 

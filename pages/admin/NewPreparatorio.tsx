@@ -16,6 +16,7 @@ import {
 import { EditalUploader } from '../../components/admin/EditalUploader';
 import { ManualFilterSelector } from '../../components/admin/ManualFilterSelector';
 import { CourseImageUpload } from '../../components/admin/CourseImageUpload';
+import { useToast } from '../../components/ui/Toast';
 import {
   createCourse,
   uploadEdital,
@@ -29,6 +30,7 @@ type CreationMode = 'edital' | 'manual';
 
 export const NewPreparatorio: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
 
   // Form state
   const [name, setName] = useState('');
@@ -106,6 +108,7 @@ export const NewPreparatorio: React.FC = () => {
       setIsUploading(false);
       setUploadError(err.message);
       setError(err.message);
+      toast.error('Erro ao criar preparatório');
     }
   };
 
@@ -152,6 +155,7 @@ export const NewPreparatorio: React.FC = () => {
       setIsUploading(false);
       setUploadError(err.message);
       setError(err.message);
+      toast.error('Erro ao criar preparatório');
     }
   };
 
@@ -174,10 +178,12 @@ export const NewPreparatorio: React.FC = () => {
       setTimeout(() => {
         setIsProcessing(false);
         setShowSuccess(true);
+        toast.success('Edital enviado para processamento!');
       }, 6000);
     } catch (err: any) {
       setIsProcessing(false);
       setError(err.message);
+      toast.error('Erro no processamento');
     }
   };
 
@@ -218,8 +224,10 @@ export const NewPreparatorio: React.FC = () => {
 
       setCreatedCourseId(course.id);
       setShowSuccess(true);
+      toast.success('Simulado criado com sucesso!');
     } catch (err: any) {
       setError(err.message);
+      toast.error('Erro ao criar simulado');
     } finally {
       setIsSavingManual(false);
     }

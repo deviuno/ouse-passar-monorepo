@@ -16,6 +16,9 @@ import { useScrollAnimation } from './lib/useScrollAnimation';
 import { AuthProvider } from './lib/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
+// UI
+import { ToastProvider } from './components/ui/Toast';
+
 // Admin Imports
 import { AdminLayout } from './components/admin/AdminLayout';
 import { Dashboard } from './pages/admin/Dashboard';
@@ -94,6 +97,7 @@ const App: React.FC = () => {
   return (
     <Router>
       <AuthProvider>
+        <ToastProvider>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Layout />}>
@@ -134,6 +138,7 @@ const App: React.FC = () => {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );

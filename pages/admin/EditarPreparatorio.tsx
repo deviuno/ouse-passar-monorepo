@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { FilterReview } from '../../components/admin/FilterReview';
+import { useToast } from '../../components/ui/Toast';
 import {
   getCourseById,
   getEditalByCourseId,
@@ -27,6 +28,7 @@ import {
 export const EditarPreparatorio: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [course, setCourse] = useState<Course | null>(null);
   const [edital, setEdital] = useState<Edital | null>(null);
@@ -116,8 +118,11 @@ export const EditarPreparatorio: React.FC = () => {
       // Refresh course data
       const { course: updatedCourse } = await getCourseById(id);
       if (updatedCourse) setCourse(updatedCourse);
+
+      toast.success('Alterações salvas com sucesso!');
     } catch (err: any) {
       setError(err.message);
+      toast.error('Erro ao salvar alterações');
     } finally {
       setIsSaving(false);
     }
@@ -139,8 +144,11 @@ export const EditarPreparatorio: React.FC = () => {
 
       const { edital: updatedEdital } = await getEditalByCourseId(id);
       if (updatedEdital) setEdital(updatedEdital);
+
+      toast.success('Filtros aprovados! Simulado ativado.');
     } catch (err: any) {
       setError(err.message);
+      toast.error('Erro ao aprovar filtros');
     } finally {
       setIsApproving(false);
     }
@@ -175,9 +183,11 @@ export const EditarPreparatorio: React.FC = () => {
     try {
       const { error } = await deleteCourse(id);
       if (error) throw new Error(error);
+      toast.success('Preparatório excluído com sucesso!');
       navigate('/admin/preparatorios');
     } catch (err: any) {
       setError(err.message);
+      toast.error('Erro ao excluir preparatório');
       setIsDeleting(false);
     }
   };
