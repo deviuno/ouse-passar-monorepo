@@ -28,6 +28,7 @@ import { Settings } from './pages/admin/Settings';
 import { Login } from './pages/admin/Login';
 import { Preparatorios } from './pages/admin/Preparatorios';
 import { NewPreparatorio } from './pages/admin/NewPreparatorio';
+import { DocsIntegracao } from './pages/DocsIntegracao';
 
 // Wrapper for Home Page components
 const Home = () => {
@@ -103,6 +104,9 @@ const App: React.FC = () => {
 
           {/* Admin Login (Public) */}
           <Route path="/admin/login" element={<Login />} />
+
+          {/* Documentation (Public - Direct access only, no menu links) */}
+          <Route path="/docs/integracao-questoes" element={<DocsIntegracao />} />
 
           {/* Protected Admin Routes */}
           <Route

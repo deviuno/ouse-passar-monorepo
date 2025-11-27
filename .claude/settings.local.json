@@ -8,7 +8,9 @@
       "Bash(npx:*)",
       "Bash(npm run setup:storage:*)",
       "Bash(env)",
-      "Bash(node scripts/apply-storage-policies.js:*)"
+      "Bash(node scripts/apply-storage-policies.js:*)",
+      "Bash(cd:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []
