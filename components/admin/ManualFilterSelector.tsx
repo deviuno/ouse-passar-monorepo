@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import {
   getFilterOptions,
+  getDynamicFilterOptions,
   countQuestionsForFilters,
   isExternalDbAvailable,
   QuestionFilters,
@@ -63,15 +64,18 @@ export const ManualFilterSelector: React.FC<ManualFilterSelectorProps> = ({
   const [questionCount, setQuestionCount] = useState<number>(0);
   const [countLoading, setCountLoading] = useState(false);
 
-  // Load available filter options
+  // Load available filter options on mount
   useEffect(() => {
     loadFilterOptions();
   }, []);
 
-  // Update count when filters change
+  // Update available options and count when filters change
   useEffect(() => {
     const filters = buildFilters();
     updateQuestionCount(filters);
+
+    // Update available options based on current selections
+    updateDynamicOptions(filters);
   }, [selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos]);
 
   // Notify parent of filter changes
@@ -105,6 +109,45 @@ export const ManualFilterSelector: React.FC<ManualFilterSelectorProps> = ({
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateDynamicOptions = async (filters: QuestionFilters) => {
+    // Only update if at least one filter is selected
+    const hasFilters =
+      (filters.materias && filters.materias.length > 0) ||
+      (filters.bancas && filters.bancas.length > 0) ||
+      (filters.anos && filters.anos.length > 0) ||
+      (filters.orgaos && filters.orgaos.length > 0);
+
+    if (!hasFilters) {
+      // Reset to initial options if no filters selected
+      loadFilterOptions();
+      return;
+    }
+
+    try {
+      const { materias, bancas, anos, orgaos } = await getDynamicFilterOptions(filters);
+
+      // Update available options, keeping currently selected items even if they're not in the new list
+      setAvailableMaterias(prev => {
+        const combined = new Set([...materias, ...selectedMaterias]);
+        return Array.from(combined).sort();
+      });
+      setAvailableBancas(prev => {
+        const combined = new Set([...bancas, ...selectedBancas]);
+        return Array.from(combined).sort();
+      });
+      setAvailableAnos(prev => {
+        const combined = new Set([...anos, ...selectedAnos]);
+        return Array.from(combined).sort((a, b) => b - a);
+      });
+      setAvailableOrgaos(prev => {
+        const combined = new Set([...orgaos, ...selectedOrgaos]);
+        return Array.from(combined).sort();
+      });
+    } catch (err) {
+      console.error('Error updating dynamic options:', err);
     }
   };
 

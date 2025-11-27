@@ -235,6 +235,7 @@ export async function previewQuestions(
 
 /**
  * Get available filter options (unique values)
+ * This returns ALL options without considering current selections
  */
 export async function getFilterOptions(): Promise<{
   materias: string[];
@@ -291,6 +292,94 @@ export async function getFilterOptions(): Promise<{
     return { materias, bancas, anos, orgaos };
   } catch (error: any) {
     console.error('Error fetching filter options:', error);
+    return {
+      materias: [],
+      bancas: [],
+      anos: [],
+      orgaos: [],
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Get dynamic filter options based on current selections
+ * Returns only options that have matching questions considering all other filters
+ */
+export async function getDynamicFilterOptions(currentFilters: QuestionFilters): Promise<{
+  materias: string[];
+  bancas: string[];
+  anos: number[];
+  orgaos: string[];
+  error?: string;
+}> {
+  if (!questionsDb) {
+    return {
+      materias: [],
+      bancas: [],
+      anos: [],
+      orgaos: [],
+      error: 'Banco de questões não configurado.'
+    };
+  }
+
+  try {
+    // Helper function to build query with filters except one
+    const buildFilteredQuery = (excludeFilter: 'materias' | 'bancas' | 'anos' | 'orgaos', selectField: string) => {
+      let query = questionsDb!
+        .from('questoes_concurso')
+        .select(selectField)
+        .not(selectField, 'is', null);
+
+      // Apply all filters except the one we're getting options for
+      if (excludeFilter !== 'materias' && currentFilters.materias && currentFilters.materias.length > 0) {
+        query = query.in('materia', currentFilters.materias);
+      }
+      if (excludeFilter !== 'bancas' && currentFilters.bancas && currentFilters.bancas.length > 0) {
+        query = query.in('banca', currentFilters.bancas);
+      }
+      if (excludeFilter !== 'anos' && currentFilters.anos && currentFilters.anos.length > 0) {
+        query = query.in('ano', currentFilters.anos);
+      }
+      if (excludeFilter !== 'orgaos' && currentFilters.orgaos && currentFilters.orgaos.length > 0) {
+        query = query.in('orgao', currentFilters.orgaos);
+      }
+
+      return query.limit(5000);
+    };
+
+    // Get options considering other filters
+    const [materiasResult, bancasResult, anosResult, orgaosResult] = await Promise.all([
+      buildFilteredQuery('materias', 'materia'),
+      buildFilteredQuery('bancas', 'banca'),
+      buildFilteredQuery('anos', 'ano'),
+      buildFilteredQuery('orgaos', 'orgao'),
+    ]);
+
+    // Extract unique values, filtering out nulls and empty strings
+    const materias = [...new Set((materiasResult.data || [])
+      .map((d: any) => d.materia)
+      .filter((v: any): v is string => v != null && v !== ''))]
+      .sort();
+
+    const bancas = [...new Set((bancasResult.data || [])
+      .map((d: any) => d.banca)
+      .filter((v: any): v is string => v != null && v !== ''))]
+      .sort();
+
+    const anos = [...new Set((anosResult.data || [])
+      .map((d: any) => d.ano)
+      .filter((v: any): v is number => v != null))]
+      .sort((a, b) => b - a);
+
+    const orgaos = [...new Set((orgaosResult.data || [])
+      .map((d: any) => d.orgao)
+      .filter((v: any): v is string => v != null && v !== ''))]
+      .sort();
+
+    return { materias, bancas, anos, orgaos };
+  } catch (error: any) {
+    console.error('Error fetching dynamic filter options:', error);
     return {
       materias: [],
       bancas: [],
