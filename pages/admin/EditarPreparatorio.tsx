@@ -48,6 +48,14 @@ export const EditarPreparatorio: React.FC = () => {
     async function loadData() {
       if (!id) return;
 
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(id)) {
+        setError('ID do curso inválido');
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
