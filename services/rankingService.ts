@@ -245,3 +245,90 @@ export const checkLeaguePromotion = async (
 export const getLeagueTierDisplay = (tier: LeagueTier): { name: string; color: string; icon: string } => {
   return LEAGUE_INFO[tier] || LEAGUE_INFO.ferro;
 };
+
+// ============================================
+// WEEKLY RANKING (Direct Query)
+// ============================================
+
+export interface WeeklyRankingUser {
+  rank: number;
+  user_id: string;
+  name: string;
+  avatar_url: string | null;
+  xp_earned: number;
+  isCurrentUser?: boolean;
+  trend: 'up' | 'down' | 'same';
+}
+
+export const fetchWeeklyRanking = async (
+  currentUserId?: string,
+  limit: number = 10
+): Promise<WeeklyRankingUser[]> => {
+  const weekStart = getWeekStart();
+
+  // Fetch weekly XP with user profiles
+  const { data, error } = await supabase
+    .from('weekly_xp')
+    .select(`
+      user_id,
+      xp_earned,
+      user_profiles!inner (
+        name,
+        avatar_url
+      )
+    `)
+    .eq('week_start', weekStart)
+    .order('xp_earned', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching weekly ranking:', error);
+    return [];
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  // Transform and add ranks
+  return data.map((item: any, index: number) => ({
+    rank: index + 1,
+    user_id: item.user_id,
+    name: item.user_profiles?.name || 'Usuário',
+    avatar_url: item.user_profiles?.avatar_url || null,
+    xp_earned: item.xp_earned || 0,
+    isCurrentUser: item.user_id === currentUserId,
+    trend: 'same' as const, // Could be calculated with previous week data
+  }));
+};
+
+// Fetch all-time ranking based on total XP from user_profiles
+export const fetchAllTimeRanking = async (
+  currentUserId?: string,
+  limit: number = 10
+): Promise<WeeklyRankingUser[]> => {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('id, name, avatar_url, xp')
+    .order('xp', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching all-time ranking:', error);
+    return [];
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  return data.map((user, index) => ({
+    rank: index + 1,
+    user_id: user.id,
+    name: user.name || 'Usuário',
+    avatar_url: user.avatar_url,
+    xp_earned: user.xp || 0,
+    isCurrentUser: user.id === currentUserId,
+    trend: 'same' as const,
+  }));
+};

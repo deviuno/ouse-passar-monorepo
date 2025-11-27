@@ -19,6 +19,7 @@ import RedacaoView from './components/RedacaoView';
 import PaymentModal from './components/PaymentModal';
 import FreeEnrollModal from './components/FreeEnrollModal';
 import ReviewIntroModal from './components/ReviewIntroModal';
+import ReviewCompletionModal from './components/ReviewCompletionModal';
 import RankingView from './components/RankingView';
 import GuideView from './components/GuideView';
 import { ToastContainer } from './components/Toast';
@@ -46,6 +47,7 @@ import {
 } from './services/externalQuestionsService';
 import { CourseQuestionFilters } from './services/questionsDbClient';
 import { fetchCourseById, CourseWithFilters } from './services/coursesService';
+import { fetchAllTimeRanking, WeeklyRankingUser } from './services/rankingService';
 
 // --- Helper to parse the JSON string in alternatives ---
 const parseQuestions = (rawQuestions: typeof MOCK_QUESTIONS): ParsedQuestion[] => {
@@ -127,10 +129,18 @@ const App: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [coursesLoading, setCoursesLoading] = useState(true);
 
+    // Ranking State
+    const [weeklyRanking, setWeeklyRanking] = useState<WeeklyRankingUser[]>([]);
+    const [userRankPosition, setUserRankPosition] = useState<number | undefined>(undefined);
+    const [userLeagueTier, setUserLeagueTier] = useState<string>('ferro');
+
     // UI State: Toasts & Modals
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
     const [isReviewIntroOpen, setIsReviewIntroOpen] = useState(false);
+    const [isReviewCompletionOpen, setIsReviewCompletionOpen] = useState(false);
+    const [reviewSessionAnswers, setReviewSessionAnswers] = useState<UserAnswer[]>([]);
+    const [reviewSessionQuestions, setReviewSessionQuestions] = useState<ParsedQuestion[]>([]);
 
     // Effects for Persistence (localStorage fallback)
     useEffect(() => { localStorage.setItem('ousepassar_stats', JSON.stringify(stats)); }, [stats]);
@@ -154,6 +164,10 @@ const App: React.FC = () => {
 
             if (profile) {
                 setStats(transformProfileToStats(profile));
+                // Set league tier from profile
+                if (profile.league_tier) {
+                    setUserLeagueTier(profile.league_tier);
+                }
             }
 
             if (answers.length > 0) {
@@ -195,6 +209,24 @@ const App: React.FC = () => {
         }
     }, []);
 
+    // Load ranking data
+    const loadRanking = useCallback(async (uid: string | null) => {
+        try {
+            const ranking = await fetchAllTimeRanking(uid || undefined, 10);
+            setWeeklyRanking(ranking);
+
+            // Find current user's position
+            if (uid) {
+                const userEntry = ranking.find(r => r.user_id === uid);
+                if (userEntry) {
+                    setUserRankPosition(userEntry.rank);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading ranking:', error);
+        }
+    }, []);
+
     // Initialize auth state and load questions from external DB
     useEffect(() => {
         const initializeApp = async () => {
@@ -211,6 +243,9 @@ const App: React.FC = () => {
 
                 // Load courses from Supabase
                 await loadCourses(session?.user?.id || null);
+
+                // Load ranking data
+                await loadRanking(session?.user?.id || null);
 
                 // Load questions stats from external DB (Scrapping project)
                 const stats = await getExternalQuestionsStats();
@@ -238,6 +273,7 @@ const App: React.FC = () => {
                     setUserId(session.user.id);
                     await loadUserData(session.user.id);
                     await loadCourses(session.user.id);
+                    await loadRanking(session.user.id);
                 }
 
                 if (event === 'SIGNED_OUT') {
@@ -246,8 +282,11 @@ const App: React.FC = () => {
                     setGlobalAnswers([]);
                     setReviews([]);
                     setFlashcards([]);
+                    setWeeklyRanking([]);
+                    setUserRankPosition(undefined);
                     // Reload courses without user (only free courses will be owned)
                     await loadCourses(null);
+                    await loadRanking(null);
                 }
             }
         );
@@ -255,7 +294,7 @@ const App: React.FC = () => {
         return () => {
             subscription.unsubscribe();
         };
-    }, [loadUserData, loadCourses]);
+    }, [loadUserData, loadCourses, loadRanking]);
 
     const [questionIndex, setQuestionIndex] = useState(0);
     const [isTutorOpen, setIsTutorOpen] = useState(false);
@@ -435,6 +474,17 @@ const App: React.FC = () => {
 
     const confirmStartReview = () => {
         setIsReviewIntroOpen(false);
+
+        // Check if there are questions to review
+        const today = Date.now();
+        const dueReviewIds = reviews.filter(r => r.nextReviewDate <= today).map(r => r.questionId);
+        const reviewQuestions = allQuestions.filter(item => dueReviewIds.includes(item.id));
+
+        if (reviewQuestions.length === 0) {
+            showToast('Nenhuma questão para revisar agora!', 'info');
+            return;
+        }
+
         setStudyMode('review');
         setIsPegadinhaSession(false);
         setQuestionIndex(0);
@@ -579,6 +629,54 @@ const App: React.FC = () => {
     };
 
     const handleFinishSimulado = () => {
+        // Handle Review Mode completion differently
+        if (studyMode === 'review') {
+            // Update SRS for correctly answered questions (increase interval)
+            userAnswers.forEach(answer => {
+                if (answer.isCorrect) {
+                    // Find existing review item
+                    const existingReview = reviews.find(r => r.questionId === answer.questionId);
+                    const currentInterval = existingReview?.interval || 1;
+
+                    // Increase interval: 1 -> 3 -> 7 -> 14 -> 30 days
+                    let newInterval = 1;
+                    if (currentInterval <= 1) newInterval = 3;
+                    else if (currentInterval <= 3) newInterval = 7;
+                    else if (currentInterval <= 7) newInterval = 14;
+                    else newInterval = 30;
+
+                    const nextDate = Date.now() + (newInterval * 24 * 60 * 60 * 1000);
+
+                    setReviews(prev => {
+                        const filtered = prev.filter(r => r.questionId !== answer.questionId);
+                        return [...filtered, {
+                            questionId: answer.questionId,
+                            nextReviewDate: nextDate,
+                            lastDifficulty: 'easy' as const,
+                            interval: newInterval
+                        }];
+                    });
+
+                    // Save to Supabase if authenticated
+                    if (userId) {
+                        upsertUserReview(userId, {
+                            questionId: answer.questionId,
+                            nextReviewDate: nextDate,
+                            lastDifficulty: 'easy',
+                            intervalDays: newInterval,
+                        }).catch(err => console.error('Error updating review:', err));
+                    }
+                }
+                // Incorrect answers are already scheduled for immediate review in handleAnswer
+            });
+
+            // Save session data for completion modal
+            setReviewSessionAnswers(userAnswers);
+            setReviewSessionQuestions(activeQuestions);
+            setIsReviewCompletionOpen(true);
+            return;
+        }
+
         if (studyMode === 'hard') {
             const correctCount = userAnswers.filter(a => a.isCorrect).length;
             const coinsEarned = correctCount * 20;
@@ -724,6 +822,9 @@ const App: React.FC = () => {
                     courses={courses}
                     ownedCourseIds={ownedCourseIds}
                     pendingReviewCount={pendingReviewCount}
+                    weeklyRanking={weeklyRanking}
+                    userRankPosition={userRankPosition}
+                    userLeagueTier={userLeagueTier}
                     onSelectCourse={handleSelectCourse}
                     onBuyCourse={handleSelectStoreCourse}
                     onEnrollFreeCourse={handleSelectFreeCourse}
@@ -862,6 +963,18 @@ const App: React.FC = () => {
                     onStart={confirmStartReview}
                     count={pendingReviewCount}
                     userName="Dhyêgo" // Could be dynamic from stats/profile
+                />
+
+                {/* Review Completion Modal */}
+                <ReviewCompletionModal
+                    isOpen={isReviewCompletionOpen}
+                    onClose={() => {
+                        setIsReviewCompletionOpen(false);
+                        setCurrentView('home');
+                    }}
+                    answers={reviewSessionAnswers}
+                    questions={reviewSessionQuestions}
+                    nextReviewCount={pendingReviewCount}
                 />
             </div>
         </div>

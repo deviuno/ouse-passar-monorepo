@@ -2,11 +2,11 @@ import { GoogleGenAI } from "@google/genai";
 import { ParsedQuestion, Flashcard, EssayFeedback } from '../types';
 
 // NOTE: In a production app, never expose API keys on the client side like this if possible.
-// However, per instructions for this environment, we use process.env.API_KEY directly.
+// For Vite, environment variables must be prefixed with VITE_ and accessed via import.meta.env
 const getClient = () => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    console.error("API Key missing");
+    console.error("API Key missing. Please set VITE_GEMINI_API_KEY in your .env file.");
     return null;
   }
   return new GoogleGenAI({ apiKey });

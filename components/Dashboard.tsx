@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { UserStats, Course, GamificationModalType } from '../types';
-import { MOCK_LEAGUE } from '../constants';
+import { WeeklyRankingUser } from '../services/rankingService';
 import { Flame, Trophy, Target, ChevronRight, Lock, ShoppingBag, ChevronUp, ChevronDown, Minus, Coins, Swords, PenTool, BrainCircuit, Loader2, Gift } from 'lucide-react';
 import GamificationModal from './GamificationModal';
 
@@ -11,6 +11,9 @@ interface DashboardProps {
   courses: Course[];
   ownedCourseIds: string[];
   pendingReviewCount?: number;
+  weeklyRanking: WeeklyRankingUser[];
+  userRankPosition?: number;
+  userLeagueTier?: string;
   onSelectCourse: (course: Course) => void;
   onBuyCourse: (course: Course) => void;
   onEnrollFreeCourse: (course: Course) => void;
@@ -22,7 +25,7 @@ interface DashboardProps {
   isLoading?: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, pendingReviewCount = 0, onSelectCourse, onBuyCourse, onEnrollFreeCourse, onStartPvP, onStartRedacao, onStartReview, onNavigateToProfile, onViewRanking, isLoading = false }) => {
+const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, pendingReviewCount = 0, weeklyRanking, userRankPosition, userLeagueTier = 'ferro', onSelectCourse, onBuyCourse, onEnrollFreeCourse, onStartPvP, onStartRedacao, onStartReview, onNavigateToProfile, onViewRanking, isLoading = false }) => {
   // Filter courses based on the owned IDs passed from App (source of truth)
   const myCourses = courses.filter(c => ownedCourseIds.includes(c.id) || c.isOwned);
   // Free courses that user hasn't enrolled in yet
@@ -67,14 +70,16 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, p
             </button>
 
             {/* Ranking */}
-            <button 
+            <button
                 onClick={() => handleOpenModal('league')}
                 className="bg-[#252525] p-3 rounded-xl border border-yellow-900/30 flex flex-col items-center justify-center relative overflow-hidden group hover:bg-[#2A2A2A] transition-all"
             >
                 <div className="absolute inset-0 bg-yellow-500/5 group-hover:bg-yellow-500/10 transition-colors"></div>
                 <Trophy size={20} className="mb-1 text-yellow-400 fill-yellow-400" />
-                <span className="font-bold text-lg text-white">#3</span>
-                <span className="text-[10px] text-yellow-600 font-bold uppercase tracking-tight">Liga Ouro</span>
+                <span className="font-bold text-lg text-white">#{userRankPosition || '-'}</span>
+                <span className="text-[10px] text-yellow-600 font-bold uppercase tracking-tight">
+                  Liga {userLeagueTier.charAt(0).toUpperCase() + userLeagueTier.slice(1)}
+                </span>
             </button>
 
             {/* Daily Goal - Clickable */}
@@ -332,7 +337,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, p
                 <Trophy className="mr-2 text-[#FFB800]" size={20} />
                 Ranking Semanal
             </h2>
-             <button 
+             <button
                 onClick={onViewRanking}
                 className="text-xs text-[#FFB800] font-bold hover:underline"
             >
@@ -340,21 +345,28 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, p
              </button>
         </div>
         <div className="bg-[#252525] rounded-2xl border border-gray-800 overflow-hidden shadow-lg">
-            {MOCK_LEAGUE.map((user) => (
-                <div 
-                    key={user.rank} 
+            {weeklyRanking.length > 0 ? (
+              weeklyRanking.map((user) => (
+                <div
+                    key={user.user_id}
                     className={`flex items-center justify-between p-4 border-b border-gray-800 last:border-0 ${user.isCurrentUser ? 'bg-[#FFB800]/10' : ''}`}
                 >
                     <div className="flex items-center space-x-3">
                         <span className={`font-bold w-6 text-center ${user.rank <= 3 ? 'text-[#FFB800]' : 'text-gray-500'}`}>
                             {user.rank}
                         </span>
-                        <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full bg-gray-700 object-cover" />
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} alt={user.name} className="w-8 h-8 rounded-full bg-gray-700 object-cover" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FFB800] to-[#FF8C00] flex items-center justify-center text-black font-bold text-sm">
+                            {user.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         <div>
                             <p className={`text-sm font-bold ${user.isCurrentUser ? 'text-[#FFB800]' : 'text-white'}`}>
                                 {user.name} {user.isCurrentUser && '(Você)'}
                             </p>
-                            <p className="text-xs text-gray-500">{user.xp}</p>
+                            <p className="text-xs text-gray-500">{user.xp_earned} XP</p>
                         </div>
                     </div>
                     <div>
@@ -363,7 +375,14 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, p
                         {user.trend === 'same' && <Minus size={16} className="text-gray-600" />}
                     </div>
                 </div>
-            ))}
+              ))
+            ) : (
+              <div className="p-6 text-center">
+                <Trophy size={32} className="mx-auto text-gray-600 mb-2" />
+                <p className="text-gray-500 text-sm">Nenhum participante esta semana.</p>
+                <p className="text-gray-600 text-xs">Responda questões para aparecer no ranking!</p>
+              </div>
+            )}
         </div>
       </div>
       
