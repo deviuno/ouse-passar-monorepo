@@ -14,7 +14,10 @@
       "mcp__supabase__execute_sql",
       "Bash(cat:*)",
       "mcp__supabase__apply_migration",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "mcp__supabase__get_project",
+      "mcp__supabase__get_publishable_keys",
+      "mcp__supabase__get_project_url"
     ],
     "deny": [],
     "ask": []
