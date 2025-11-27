@@ -115,7 +115,24 @@
 | Filtrar por course_type | ⚠️ PARCIAL | Dados disponíveis, filtro pode ser adicionado na UI |
 | Remover dados hardcoded/mockados | ✅ DONE | Removido import de COURSES em todos os componentes |
 
-### 2.4 Fluxo de Questões
+### 2.4 Sistema de Autenticação - **✅ IMPLEMENTADO**
+
+| Tarefa | Status | Observações |
+|--------|--------|-------------|
+| Serviço `authService.ts` | ✅ DONE | Login, registro, OAuth Google, reset de senha |
+| Contexto `AuthContext.tsx` | ✅ DONE | Gerenciamento global de estado de auth |
+| Componente `LoginView.tsx` | ✅ DONE | Tela de login com email/senha e Google |
+| Componente `RegisterView.tsx` | ✅ DONE | Tela de cadastro com validação de senha |
+| Componente `ForgotPasswordView.tsx` | ✅ DONE | Tela de recuperação de senha |
+| Componente `ResetPasswordView.tsx` | ✅ DONE | Tela para definir nova senha |
+| Componente `AuthWrapper.tsx` | ✅ DONE | Wrapper que protege rotas autenticadas |
+| Trigger para criar perfil no signup | ✅ DONE | Já existia no Supabase |
+| RLS nas tabelas de usuário | ✅ DONE | Políticas já configuradas |
+| Integração no `index.tsx` | ✅ DONE | AuthProvider + AuthWrapper envolvem o App |
+| Logout no `ProfileView.tsx` | ✅ DONE | Botão de sair com loading state |
+| Exibição de dados do usuário | ✅ DONE | Nome e email no ProfileView |
+
+### 2.5 Fluxo de Questões
 
 | Tarefa | Status | Observações |
 |--------|--------|-------------|
@@ -225,11 +242,11 @@
 | Fase | Total | Concluído | Pendente | % |
 |------|-------|-----------|----------|---|
 | Fase 1: Infraestrutura | 18 | 18 | 0 | 100% |
-| Fase 2: App | 23 | 22 | 1 | 96% |
+| Fase 2: App (incluindo Auth) | 35 | 34 | 1 | 97% |
 | Fase 3: Admin | 18 | 18 | 0 | 100% |
 | Fase 4: n8n | 12 | 0 | 12 | 0% |
 | Fase 5: Testes | 9 | 1 | 8 | 11% |
-| **TOTAL** | **80** | **59** | **21** | **74%** |
+| **TOTAL** | **92** | **71** | **21** | **77%** |
 
 ---
 

@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { UserStats } from '../types';
 import { MOCK_ACHIEVEMENTS, MOCK_LEAGUE, USER_AVATAR_URL, STORE_ITEMS } from '../constants';
-import { Flame, Trophy, Target, Clock, Settings, Edit2, Share2, Award, ChevronUp, ChevronDown, Minus, BookX, Layers, ArrowLeft } from 'lucide-react';
+import { Flame, Trophy, Target, Clock, Settings, Edit2, Share2, Award, ChevronUp, ChevronDown, Minus, BookX, Layers, ArrowLeft, LogOut, Loader2, Mail } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ProfileViewProps {
   stats: UserStats;
@@ -12,6 +13,19 @@ interface ProfileViewProps {
 }
 
 const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, onOpenFlashcards, onBack }) => {
+  const { user, profile, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    setIsLoggingOut(false);
+  };
+
+  // Get user display name from profile or auth metadata
+  const displayName = profile?.name || user?.user_metadata?.name || 'Concurseiro Focado';
+  const userEmail = user?.email || '';
+  const createdAt = user?.created_at ? new Date(user.created_at).getFullYear() : new Date().getFullYear();
   // Calculate level progress (mock calculation)
   const nextLevelXp = 2000;
   const progressPercent = Math.min((stats.xp / nextLevelXp) * 100, 100);
@@ -47,12 +61,18 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, on
                     className="w-full h-full rounded-full border-4 border-[#1A1A1A] object-cover" 
                 />
             </div>
-            <h1 className="text-2xl font-bold text-white">Concurseiro Focado</h1>
-            <div className="flex items-center mt-1 space-x-2">
+            <h1 className="text-2xl font-bold text-white">{displayName}</h1>
+            {userEmail && (
+              <p className="text-gray-400 text-sm flex items-center mt-1">
+                <Mail size={12} className="mr-1" />
+                {userEmail}
+              </p>
+            )}
+            <div className="flex items-center mt-2 space-x-2">
                 <span className="text-[#FFB800] text-sm font-bold bg-[#FFB800]/10 px-3 py-1 rounded-full border border-[#FFB800]/20">
                     Guardião da Lei
                 </span>
-                <span className="text-gray-500 text-sm">Entrou em 2024</span>
+                <span className="text-gray-500 text-sm">Entrou em {createdAt}</span>
             </div>
         </div>
       </div>
@@ -208,11 +228,25 @@ const ProfileView: React.FC<ProfileViewProps> = ({ stats, onOpenCadernoErros, on
         </button>
       </div>
 
-      <div className="mt-8 text-center">
-          <button className="text-xs text-red-500 font-bold hover:text-red-400 p-2">
-              Sair da Conta
+      <div className="mt-8 text-center pb-8">
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="text-sm text-red-500 font-bold hover:text-red-400 p-3 flex items-center justify-center mx-auto space-x-2 disabled:opacity-50"
+          >
+            {isLoggingOut ? (
+              <>
+                <Loader2 className="animate-spin" size={16} />
+                <span>Saindo...</span>
+              </>
+            ) : (
+              <>
+                <LogOut size={16} />
+                <span>Sair da Conta</span>
+              </>
+            )}
           </button>
-          <p className="text-[10px] text-gray-700 mt-2">Versão 1.0.6 Beta</p>
+          <p className="text-[10px] text-gray-700 mt-2">Versão 1.0.7 Beta</p>
       </div>
     </div>
   );
