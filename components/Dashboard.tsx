@@ -413,12 +413,14 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, courses, ownedCourseIds, p
         </div>
       </div>
       
-      <GamificationModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <GamificationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         type={modalType}
         stats={stats}
         onNavigateToProfile={onNavigateToProfile}
+        userRankPosition={userRankPosition}
+        userLeagueTier={userLeagueTier}
       />
     </div>
   );

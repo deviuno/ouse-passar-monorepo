@@ -16,12 +16,12 @@ export const LOGO_URL = "https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp";
 export const USER_AVATAR_URL = "https://i.pravatar.cc/150?u=ousepassar";
 
 export const INITIAL_USER_STATS: UserStats = {
-  xp: 1250,
-  streak: 5,
-  level: 4,
-  correctAnswers: 42,
-  totalAnswered: 58,
-  coins: 100,
+  xp: 0,
+  streak: 0,
+  level: 1,
+  correctAnswers: 0,
+  totalAnswered: 0,
+  coins: 0,
   avatarId: 'default'
 };
 

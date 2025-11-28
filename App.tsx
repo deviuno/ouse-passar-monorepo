@@ -880,7 +880,7 @@ const App: React.FC = () => {
         if (currentView === 'flashcards') return <FlashcardsView cards={flashcards} onBack={() => setCurrentView('profile')} onGoToCadernoErros={() => setCurrentView('caderno_erros')} />;
         if (currentView === 'pvp') return <PvPGameView questions={allQuestions} userStats={stats} onFinish={handlePvPFinish} onExit={() => setCurrentView('home')} />;
         if (currentView === 'redacao') return <RedacaoView onBack={() => setCurrentView('home')} onShowToast={showToast} />;
-        if (currentView === 'ranking') return <RankingView onBack={() => setCurrentView('home')} />;
+        if (currentView === 'ranking') return <RankingView onBack={() => setCurrentView('home')} currentUserId={userId || undefined} />;
 
         return null;
     };

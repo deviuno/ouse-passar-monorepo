@@ -9,9 +9,11 @@ interface GamificationModalProps {
   type: GamificationModalType;
   stats: UserStats;
   onNavigateToProfile: () => void;
+  userRankPosition?: number;
+  userLeagueTier?: string;
 }
 
-const GamificationModal: React.FC<GamificationModalProps> = ({ isOpen, onClose, type, stats, onNavigateToProfile }) => {
+const GamificationModal: React.FC<GamificationModalProps> = ({ isOpen, onClose, type, stats, onNavigateToProfile, userRankPosition, userLeagueTier = 'ferro' }) => {
   const [shouldRender, setShouldRender] = useState(false);
   const [animateIn, setAnimateIn] = useState(false);
 
@@ -75,9 +77,26 @@ const GamificationModal: React.FC<GamificationModalProps> = ({ isOpen, onClose, 
         );
       
       case 'level':
-        const nextLevelXp = 2000;
-        const remaining = nextLevelXp - stats.xp;
-        const progress = (stats.xp / nextLevelXp) * 100;
+        // Mesma lógica do Dashboard: cada nível requer level * 1000 XP
+        const xpForCurrentLevel = (stats.level - 1) * 1000;
+        const xpForNextLevel = stats.level * 1000;
+        const xpInCurrentLevel = stats.xp - xpForCurrentLevel;
+        const xpNeededForLevel = xpForNextLevel - xpForCurrentLevel;
+        const remaining = Math.max(0, xpForNextLevel - stats.xp);
+        const progress = Math.max(2, Math.min(100, (xpInCurrentLevel / xpNeededForLevel) * 100));
+
+        // Títulos dinâmicos baseados no nível
+        const levelTitles: Record<number, string> = {
+          1: 'Iniciante',
+          2: 'Estudante',
+          3: 'Dedicado',
+          4: 'Guardião da Lei',
+          5: 'Especialista',
+          6: 'Mestre',
+          7: 'Lenda',
+        };
+        const levelTitle = levelTitles[stats.level] || 'Mestre Supremo';
+        const nextLevelTitle = levelTitles[stats.level + 1] || 'Mestre Supremo';
 
         return (
           <>
@@ -87,14 +106,14 @@ const GamificationModal: React.FC<GamificationModalProps> = ({ isOpen, onClose, 
               </div>
               <h2 className="text-2xl font-bold text-white mb-1">Nível {stats.level}</h2>
               <p className="text-[#FFB800] text-sm font-bold bg-[#FFB800]/10 px-3 py-1 rounded-full border border-[#FFB800]/20 mt-2">
-                Guardião da Lei
+                {levelTitle}
               </p>
             </div>
 
             <div className="mb-8">
                <div className="flex justify-between text-xs mb-2">
                   <span className="text-gray-400">XP Atual</span>
-                  <span className="text-white font-bold">{stats.xp} / {nextLevelXp}</span>
+                  <span className="text-white font-bold">{stats.xp} / {xpForNextLevel}</span>
                </div>
                <div className="w-full h-4 bg-gray-800 rounded-full overflow-hidden mb-2">
                    <div className="h-full bg-[#FFB800]" style={{ width: `${progress}%` }}></div>
@@ -108,7 +127,7 @@ const GamificationModal: React.FC<GamificationModalProps> = ({ isOpen, onClose, 
                 <h3 className="font-bold text-sm text-gray-300 mb-3">Próximas Recompensas</h3>
                 <div className="flex items-center space-x-3 opacity-50">
                     <div className="bg-gray-800 p-2 rounded-lg"><Star size={16} className="text-gray-400"/></div>
-                    <span className="text-sm text-gray-400">Novo título: "Juiz em Treinamento"</span>
+                    <span className="text-sm text-gray-400">Novo título: "{nextLevelTitle}"</span>
                 </div>
             </div>
           </>
@@ -188,20 +207,30 @@ const GamificationModal: React.FC<GamificationModalProps> = ({ isOpen, onClose, 
 
       case 'league': // Shows specific League info
       case 'ranking': // Fallback for ranking click
+        // Configuração de ligas
+        const leagueConfig: Record<string, { name: string; color: string; bgColor: string; borderColor: string }> = {
+          ferro: { name: 'Ferro', color: 'text-gray-400', bgColor: 'bg-gray-500/10', borderColor: 'border-gray-500/30' },
+          bronze: { name: 'Bronze', color: 'text-orange-700', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30' },
+          prata: { name: 'Prata', color: 'text-gray-200', bgColor: 'bg-gray-300/10', borderColor: 'border-gray-300/30' },
+          ouro: { name: 'Ouro', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10', borderColor: 'border-yellow-500/30' },
+          diamante: { name: 'Diamante', color: 'text-cyan-400', bgColor: 'bg-cyan-500/10', borderColor: 'border-cyan-500/30' },
+        };
+        const currentLeague = leagueConfig[userLeagueTier] || leagueConfig.ferro;
+
         return (
           <>
             <div className="flex flex-col items-center mb-6">
-              <div className="w-20 h-20 bg-yellow-500/10 rounded-full flex items-center justify-center mb-4 border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.2)]">
-                <Trophy size={40} className="text-yellow-500 fill-yellow-500" />
+              <div className={`w-20 h-20 ${currentLeague.bgColor} rounded-full flex items-center justify-center mb-4 border ${currentLeague.borderColor} shadow-[0_0_20px_rgba(234,179,8,0.2)]`}>
+                <Trophy size={40} className={`${currentLeague.color} fill-current`} />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-1">Liga Ouro</h2>
+              <h2 className="text-2xl font-bold text-white mb-1">Liga {currentLeague.name}</h2>
               <p className="text-gray-400 text-sm">Competição Semanal</p>
             </div>
 
             <div className="space-y-3 mb-8">
                <div className="bg-[#252525] p-4 rounded-xl border border-gray-800 flex justify-between items-center">
                    <span className="text-sm text-gray-300">Sua Posição</span>
-                   <span className="font-bold text-white text-lg">#3</span>
+                   <span className="font-bold text-white text-lg">#{userRankPosition || '-'}</span>
                </div>
                <div className="bg-[#252525] p-4 rounded-xl border border-gray-800 flex justify-between items-center">
                    <span className="text-sm text-gray-300">Zona de Promoção</span>
@@ -212,7 +241,7 @@ const GamificationModal: React.FC<GamificationModalProps> = ({ isOpen, onClose, 
                    <span className="font-bold text-red-500 text-sm">Últimos 3 caem</span>
                </div>
             </div>
-            
+
             <p className="text-center text-xs text-gray-500 mb-4">
                 A liga reinicia todo domingo às 23:59.
             </p>

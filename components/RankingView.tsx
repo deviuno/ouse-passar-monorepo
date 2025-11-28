@@ -1,15 +1,18 @@
 
-import React, { useState } from 'react';
-import { ArrowLeft, Trophy, ChevronUp, ChevronDown, Minus, Lock } from 'lucide-react';
-import { LeagueTier, LeagueUser } from '../types';
-import { MOCK_RANKING_DATA } from '../constants';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Trophy, ChevronUp, ChevronDown, Minus, Lock, Loader2 } from 'lucide-react';
+import { LeagueTier } from '../types';
+import { fetchAllTimeRanking, WeeklyRankingUser } from '../services/rankingService';
 
 interface RankingViewProps {
   onBack: () => void;
+  currentUserId?: string;
 }
 
-const RankingView: React.FC<RankingViewProps> = ({ onBack }) => {
-  const [activeTier, setActiveTier] = useState<LeagueTier>('ouro');
+const RankingView: React.FC<RankingViewProps> = ({ onBack, currentUserId }) => {
+  const [activeTier, setActiveTier] = useState<LeagueTier>('ferro');
+  const [rankingData, setRankingData] = useState<WeeklyRankingUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const tiers: { id: LeagueTier; name: string; color: string }[] = [
     { id: 'ferro', name: 'Ferro', color: 'text-gray-400' },
@@ -19,7 +22,24 @@ const RankingView: React.FC<RankingViewProps> = ({ onBack }) => {
     { id: 'diamante', name: 'Diamante', color: 'text-cyan-400' },
   ];
 
-  const currentList = MOCK_RANKING_DATA[activeTier] || [];
+  // Buscar ranking do Supabase
+  useEffect(() => {
+    const loadRanking = async () => {
+      setIsLoading(true);
+      try {
+        // Por enquanto, busca ranking geral (all-time) - pode ser filtrado por liga depois
+        const data = await fetchAllTimeRanking(currentUserId, 50);
+        setRankingData(data);
+      } catch (error) {
+        console.error('Error loading ranking:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadRanking();
+  }, [currentUserId]);
+
+  const currentList = rankingData;
 
   return (
     <div className="pb-24 overflow-y-auto h-full no-scrollbar bg-[#1A1A1A] flex flex-col">
@@ -61,10 +81,15 @@ const RankingView: React.FC<RankingViewProps> = ({ onBack }) => {
          </div>
 
          <div className="bg-[#252525] rounded-2xl border border-gray-800 overflow-hidden shadow-lg">
-            {currentList.length > 0 ? (
+            {isLoading ? (
+                <div className="p-8 text-center flex flex-col items-center">
+                    <Loader2 size={32} className="mb-2 animate-spin text-[#FFB800]" />
+                    <p className="text-gray-500">Carregando ranking...</p>
+                </div>
+            ) : currentList.length > 0 ? (
                 currentList.map((user, index) => (
-                    <div 
-                        key={index} 
+                    <div
+                        key={user.user_id}
                         className={`flex items-center justify-between p-4 border-b border-gray-800 last:border-0 ${user.isCurrentUser ? 'bg-[#FFB800]/10 border-l-4 border-l-[#FFB800]' : ''}`}
                     >
                         <div className="flex items-center space-x-3">
@@ -72,14 +97,20 @@ const RankingView: React.FC<RankingViewProps> = ({ onBack }) => {
                                 {user.rank}
                             </span>
                             <div className="relative">
-                                <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full bg-gray-700 object-cover" />
+                                {user.avatar_url ? (
+                                    <img src={user.avatar_url} alt={user.name} className="w-10 h-10 rounded-full bg-gray-700 object-cover" />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FFB800] to-[#FF8C00] flex items-center justify-center text-black font-bold">
+                                        {user.name.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
                                 {user.rank === 1 && <div className="absolute -top-1 -right-1 text-xs">👑</div>}
                             </div>
                             <div>
                                 <p className={`text-sm font-bold ${user.isCurrentUser ? 'text-white' : 'text-gray-300'}`}>
                                     {user.name} {user.isCurrentUser && '(Você)'}
                                 </p>
-                                <p className="text-xs text-gray-500">{user.xp}</p>
+                                <p className="text-xs text-gray-500">{user.xp_earned.toLocaleString()} XP</p>
                             </div>
                         </div>
                         <div>
@@ -91,8 +122,9 @@ const RankingView: React.FC<RankingViewProps> = ({ onBack }) => {
                 ))
             ) : (
                 <div className="p-8 text-center text-gray-500 flex flex-col items-center">
-                    <Lock size={32} className="mb-2 opacity-50" />
-                    <p>Liga bloqueada ou sem dados.</p>
+                    <Trophy size={32} className="mb-2 opacity-50" />
+                    <p>Nenhum participante ainda.</p>
+                    <p className="text-xs mt-1">Responda questões para aparecer no ranking!</p>
                 </div>
             )}
          </div>
