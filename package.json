@@ -1,0 +1,19 @@
+{
+  "name": "ouse-passar-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:questoes": "npm run dev -w @ouse/questoes",
+    "dev:site": "npm run dev -w @ouse/site",
+    "build:questoes": "npm run build -w @ouse/questoes",
+    "build:site": "npm run build -w @ouse/site",
+    "build": "npm run build -ws",
+    "install:all": "npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
