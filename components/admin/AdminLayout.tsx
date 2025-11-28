@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, Gamepad2, Zap, Trophy, Medal, Star } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 export const AdminLayout: React.FC = () => {
@@ -8,6 +8,7 @@ export const AdminLayout: React.FC = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const [blogOpen, setBlogOpen] = useState(false);
+    const [gamificationOpen, setGamificationOpen] = useState(false);
 
     const isActive = (path: string) => {
         return location.pathname === path ? 'bg-brand-yellow text-brand-darker' : 'text-gray-400 hover:text-white hover:bg-white/5';
@@ -101,6 +102,64 @@ export const AdminLayout: React.FC = () => {
                         <GraduationCap className="w-5 h-5 mr-3" />
                         Preparatórios
                     </Link>
+
+                    {/* Gamification Accordion */}
+                    <div className="space-y-1">
+                        <button
+                            onClick={() => setGamificationOpen(!gamificationOpen)}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/gamification') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <div className="flex items-center">
+                                <Gamepad2 className="w-5 h-5 mr-3" />
+                                Gamificação
+                            </div>
+                            <ChevronDown className={`w-4 h-4 transition-transform ${gamificationOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {gamificationOpen && (
+                            <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
+                                <Link
+                                    to="/admin/gamification"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification')}`}
+                                >
+                                    <Settings className="w-4 h-4 mr-3" />
+                                    Configurações
+                                </Link>
+
+                                <Link
+                                    to="/admin/gamification/levels"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/levels')}`}
+                                >
+                                    <Star className="w-4 h-4 mr-3" />
+                                    Níveis
+                                </Link>
+
+                                <Link
+                                    to="/admin/gamification/leagues"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/leagues')}`}
+                                >
+                                    <Medal className="w-4 h-4 mr-3" />
+                                    Ligas
+                                </Link>
+
+                                <Link
+                                    to="/admin/gamification/xp-actions"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/xp-actions')}`}
+                                >
+                                    <Zap className="w-4 h-4 mr-3" />
+                                    Ações de XP
+                                </Link>
+
+                                <Link
+                                    to="/admin/gamification/achievements"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/achievements')}`}
+                                >
+                                    <Trophy className="w-4 h-4 mr-3" />
+                                    Conquistas
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                 </nav>
 
                 <div className="p-4 border-t border-white/5 space-y-2">

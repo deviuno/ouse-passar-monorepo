@@ -34,6 +34,15 @@ import { NewPreparatorio } from './pages/admin/NewPreparatorio';
 import { EditarPreparatorio } from './pages/admin/EditarPreparatorio';
 import { DocsIntegracao } from './pages/DocsIntegracao';
 
+// Gamification Admin
+import {
+  GamificationSettingsPage,
+  LevelsPage,
+  LeaguesPage,
+  XpActionsPage,
+  AchievementsPage,
+} from './pages/admin/gamification';
+
 // Wrapper for Home Page components
 const Home = () => {
   const navigate = useNavigate();
@@ -133,6 +142,13 @@ const App: React.FC = () => {
             <Route path="preparatorios" element={<Preparatorios />} />
             <Route path="preparatorios/new" element={<NewPreparatorio />} />
             <Route path="preparatorios/edit/:id" element={<EditarPreparatorio />} />
+
+            {/* Gamification Admin */}
+            <Route path="gamification" element={<GamificationSettingsPage />} />
+            <Route path="gamification/levels" element={<LevelsPage />} />
+            <Route path="gamification/leagues" element={<LeaguesPage />} />
+            <Route path="gamification/xp-actions" element={<XpActionsPage />} />
+            <Route path="gamification/achievements" element={<AchievementsPage />} />
           </Route>
 
           {/* Fallback */}
