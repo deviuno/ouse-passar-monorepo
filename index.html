@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ouse Passar | A Elite dos Concursos Públicos</title>
+  <link rel="icon" type="image/webp" href="https://ousepassar.com/wp-content/uploads/2025/02/favicon-100x100.webp" />
+  <link rel="apple-touch-icon" href="https://ousepassar.com/wp-content/uploads/2025/02/favicon-100x100.webp" />
+  <meta name="description"
+    content="A plataforma estratégica definitiva para aprovação em concursos policiais, tribunais e administrativos. Método validado com milhares de aprovados." />
+  <!-- Mantendo Tailwind CDN por simplicidade na migração, idealmente migraria para PostCSS no futuro -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Montserrat:ital,wght@0,400;0,700;0,900;1,400&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Montserrat', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              dark: '#1A1A1A', // Dark background
+              darker: '#111111', // Almost black
+              card: '#242424', // Card background
+              yellow: '#FFB800', // Primary Accent
+              yellowHover: '#E5A600',
+              gray: '#B0B0B0', // Text gray
+              white: '#FFFFFF',
+            }
+          },
+          backgroundImage: {
+            'hero-pattern': "url('https://www.transparenttextures.com/patterns/carbon-fibre.png')",
+            'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #1A1A1A;
+      color: #FFFFFF;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-display {
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    /* Custom scrollbar for Dark Theme */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #111;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #FFB800;
+    }
+
+    .text-glow {
+      text-shadow: 0 0 20px rgba(255, 184, 0, 0.3);
+    }
+
+    /* Scroll Animations */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInLeft {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes fadeInRight {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Animation classes */
+    .animate-fade-in-up {
+      animation: fadeInUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    .animate-fade-in-left {
+      animation: fadeInLeft 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    .animate-fade-in-right {
+      animation: fadeInRight 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    .animate-fade-in {
+      animation: fadeIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    .animate-scale-in {
+      animation: scaleIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    .animate-slide-in-up {
+      animation: slideInUp 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    /* Stagger delays for children */
+    .stagger-1 {
+      animation-delay: 0.1s;
+    }
+
+    .stagger-2 {
+      animation-delay: 0.2s;
+    }
+
+    .stagger-3 {
+      animation-delay: 0.3s;
+    }
+
+    .stagger-4 {
+      animation-delay: 0.4s;
+    }
+
+    .stagger-5 {
+      animation-delay: 0.5s;
+    }
+
+    .stagger-6 {
+      animation-delay: 0.6s;
+    }
+
+    /* Initial state for animations */
+    .scroll-animate {
+      opacity: 0;
+    }
+
+    .scroll-animate.visible {
+      opacity: 1;
+    }
+
+    /* Blog Content Styles - Formatação para HTML do banco de dados */
+    .blog-content {
+      max-width: none;
+    }
+
+    /* Títulos - Hierarquia H1-H6 */
+    .blog-content h1 {
+      font-size: 2.25rem;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 1.5rem;
+      margin-top: 3rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(255, 184, 0, 0.3);
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .blog-content h2 {
+      font-size: 1.875rem;
+      font-weight: 900;
+      color: #FFB800;
+      margin-bottom: 1.25rem;
+      margin-top: 2.5rem;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .blog-content h3 {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 1rem;
+      margin-top: 2rem;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .blog-content h4 {
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: #e5e5e5;
+      margin-bottom: 0.75rem;
+      margin-top: 1.5rem;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .blog-content h5 {
+      font-size: 1.125rem;
+      font-weight: 900;
+      color: #d4d4d4;
+      margin-bottom: 0.75rem;
+      margin-top: 1.5rem;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .blog-content h6 {
+      font-size: 1rem;
+      font-weight: 900;
+      color: #a3a3a3;
+      margin-bottom: 0.5rem;
+      margin-top: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    /* Parágrafos */
+    .blog-content p {
+      color: #d4d4d4;
+      font-weight: 300;
+      line-height: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Links */
+    .blog-content a {
+      color: #FFB800;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .blog-content a:hover {
+      text-decoration: underline;
+      color: #ffffff;
+    }
+
+    /* Ênfase e Strong */
+    .blog-content strong {
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .blog-content em {
+      color: #e5e5e5;
+      font-style: italic;
+    }
+
+    /* Código inline */
+    .blog-content code {
+      color: #FFB800;
+      background-color: #111111;
+      padding: 0.125rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+      font-family: monospace;
+    }
+
+    /* Blocos de código */
+    .blog-content pre {
+      background-color: #111111;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.125rem;
+      padding: 1rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+    }
+
+    .blog-content pre code {
+      background-color: transparent;
+      padding: 0;
+    }
+
+    /* Blockquotes */
+    .blog-content blockquote {
+      border-left: 4px solid #FFB800;
+      background-color: rgba(17, 17, 17, 0.5);
+      padding-left: 1.5rem;
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+      font-style: italic;
+      color: #d4d4d4;
+      margin: 2rem 0;
+    }
+
+    /* Listas */
+    .blog-content ul {
+      list-style-type: disc;
+      padding-left: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .blog-content ul li {
+      margin-bottom: 0.5rem;
+    }
+
+    .blog-content ol {
+      list-style-type: decimal;
+      padding-left: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .blog-content ol li {
+      margin-bottom: 0.5rem;
+    }
+
+    .blog-content li {
+      color: #d4d4d4;
+      line-height: 1.75rem;
+    }
+
+    .blog-content ul > li::marker {
+      color: #FFB800;
+    }
+
+    .blog-content ol > li::marker {
+      color: #FFB800;
+      font-weight: 700;
+    }
+
+    /* Imagens */
+    .blog-content img {
+      border-radius: 0.125rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin: 2rem 0;
+      width: 100%;
+      max-height: 500px;
+      object-fit: cover;
+      box-shadow: 0 0 30px rgba(255, 184, 0, 0.1);
+      display: block;
+    }
+
+    /* Figures e Figcaption */
+    .blog-content figure {
+      margin: 2rem 0;
+    }
+
+    .blog-content figure img {
+      max-height: 500px;
+      object-fit: cover;
+    }
+
+    .blog-content figcaption {
+      text-align: center;
+      color: #737373;
+      font-size: 0.875rem;
+      margin-top: 0.75rem;
+      font-style: italic;
+    }
+
+    /* Responsive: Ajustar altura de imagens em dispositivos menores */
+    @media (max-width: 768px) {
+      .blog-content img {
+        max-height: 350px;
+      }
+
+      .blog-content figure img {
+        max-height: 350px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .blog-content img {
+        max-height: 280px;
+      }
+
+      .blog-content figure img {
+        max-height: 280px;
+      }
+    }
+
+    /* Tabelas */
+    .blog-content table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 2rem 0;
+    }
+
+    .blog-content thead {
+      border-bottom: 2px solid #FFB800;
+    }
+
+    .blog-content th {
+      text-align: left;
+      padding: 0.75rem;
+      color: #ffffff;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+      letter-spacing: 0.05em;
+    }
+
+    .blog-content td {
+      padding: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      color: #d4d4d4;
+    }
+
+    .blog-content tr:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      transition: background-color 0.3s;
+    }
+
+    /* Linha horizontal */
+    .blog-content hr {
+      border-color: rgba(255, 255, 255, 0.1);
+      margin: 2.5rem 0;
+    }
+
+    /* Primeiro parágrafo após título */
+    .blog-content h1 + p,
+    .blog-content h2 + p,
+    .blog-content h3 + p {
+      margin-top: 1rem;
+    }
+
+    /* Quebras de linha */
+    .blog-content br {
+      display: block;
+      content: "";
+      margin-top: 0.5rem;
+    }
+
+    /* Evitar múltiplas quebras muito espaçadas */
+    .blog-content br + br {
+      margin-top: 0.75rem;
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
+  }
+}
+</script>
+</head>
+
+<body class="bg-brand-dark text-white selection:bg-brand-yellow selection:text-brand-darker">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
