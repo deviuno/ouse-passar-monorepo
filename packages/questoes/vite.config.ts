@@ -13,6 +13,10 @@ export default defineConfig(({ mode }) => {
       // Pushes the server-side process.env.API_KEY to the client-side build
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
     },
+    server: {
+      port: 5180,
+      strictPort: true,
+    },
     build: {
       outDir: 'dist',
     }
