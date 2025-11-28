@@ -1,0 +1,207 @@
+{
+  "name": "Tutor IA - Ouse Passar",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tutor-chat",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "344191af-08bc-4874-bf26-464c7bc1213f",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-384, 400],
+      "webhookId": "tutor-chat-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai e valida os dados recebidos\nconst body = $input.first().json.body;\n\n// Validação básica\nif (!body || !body.question || !body.userMessage) {\n  throw new Error('Dados inválidos: question e userMessage são obrigatórios');\n}\n\nconst question = body.question;\nconst userMessage = body.userMessage;\nconst chatHistory = body.history || [];\nconst userInfo = body.user || {};\n\n// Gera sessionId baseado no ID da questão (para manter memória por questão)\nconst sessionId = `question_${question.id}`;\n\n// Encontra a alternativa correta\nconst alternativasArray = Array.isArray(question.alternativas) \n  ? question.alternativas \n  : JSON.parse(question.alternativas);\n\nconst alternativaCorreta = alternativasArray.find(a => a.letter === question.gabarito);\n\n// Formata as alternativas para o prompt\nconst alternativasFormatadas = alternativasArray\n  .map(a => `${a.letter}) ${a.text}`)\n  .join('\\n');\n\nreturn {\n  json: {\n    sessionId,\n    question: {\n      id: question.id,\n      materia: question.materia,\n      assunto: question.assunto || 'Não especificado',\n      banca: question.banca || 'Não especificada',\n      orgao: question.orgao || '',\n      ano: question.ano || '',\n      enunciado: question.enunciado,\n      alternativas: alternativasFormatadas,\n      gabarito: question.gabarito,\n      alternativaCorretaTexto: alternativaCorreta?.text || '',\n      comentarioProfessor: question.comentario || 'Sem comentário do professor disponível',\n      isPegadinha: question.isPegadinha || false,\n      explicacaoPegadinha: question.explicacaoPegadinha || ''\n    },\n    user: {\n      name: userInfo.name || '',\n      level: userInfo.level || 1,\n      xp: userInfo.xp || 0,\n      courseName: userInfo.courseName || '',\n      streak: userInfo.streak || 0\n    },\n    userMessage\n  }\n};"
+      },
+      "id": "953095f2-32ed-4dca-8f6b-e217e3241661",
+      "name": "Extrair Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst q = data.question;\nconst u = data.user;\n\n// Monta saudação personalizada\nconst nomeAluno = u.name ? u.name.split(' ')[0] : 'aluno';\nconst cursoInfo = u.courseName ? `Você está estudando para: **${u.courseName}**` : '';\nconst levelInfo = u.level > 1 ? `Você está no nível ${u.level}!` : '';\nconst streakInfo = u.streak >= 3 ? `🔥 ${u.streak} dias de sequência!` : '';\n\nconst systemPrompt = `Você é o Tutor IA do \"Ouse Passar\", um tutor para concursos públicos.\n\n## DADOS DO ALUNO\n- Nome: ${nomeAluno}\n- Curso: ${u.courseName || 'Não definido'}\n- Nível: ${u.level} | XP: ${u.xp}\n- Sequência: ${u.streak} dias\n\n## CONTEXTO DA QUESTÃO\n- Matéria: ${q.materia} | Assunto: ${q.assunto}\n- Banca: ${q.banca} | Ano: ${q.ano}\n- Enunciado: ${q.enunciado}\n- Alternativas:\n${q.alternativas}\n- Gabarito: ${q.gabarito}\n- Comentário do professor: ${q.comentarioProfessor}\n\n## REGRAS IMPORTANTES\n\n1. **CHAME PELO NOME**: Use \"${nomeAluno}\" nas respostas quando fizer sentido.\n\n2. **RESPOSTAS CURTAS**: Máximo 2-3 frases por parágrafo. Quebre em parágrafos pequenos.\n\n3. **SEJA CONVERSACIONAL**: Responda naturalmente. NÃO despeje toda a explicação de uma vez.\n\n4. **INCENTIVE**: De vez em quando, mencione o progresso ou o objetivo (${u.courseName || 'o concurso'}).\n\n5. **NUNCA INVENTE**: O gabarito é SEMPRE ${q.gabarito}. Não mude isso.\n\n6. **TOM**: Amigável e direto. Use 1 emoji no máximo por mensagem.\n\n## EXEMPLOS\n\nAluno: \"oi\"\nTutor: \"E aí, ${nomeAluno}! 👋 Tô aqui pra te ajudar com essa questão de ${q.assunto}. O que quer saber?\"\n\nAluno: \"não entendi\"\nTutor: \"Tranquilo! Essa questão trata de [conceito em 1 frase].\n\nQuer que eu explique o conceito ou vamos direto pro gabarito?\"\n\nAluno: \"por que é a ${q.gabarito}?\"\nTutor: \"A ${q.gabarito} está certa porque [explicação em 2-3 frases curtas].\n\nQuer que eu detalhe algum ponto?\"`;\n\nreturn {\n  json: {\n    sessionId: data.sessionId,\n    chatInput: systemPrompt + '\\n\\n---\\nMensagem do aluno: ' + data.userMessage\n  }\n};"
+      },
+      "id": "fcb07c02-a9eb-4109-bf3b-f8a6b24d256f",
+      "name": "Construir Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [64, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\nlet aiResponse = '';\n\ntry {\n  // O AI Agent retorna a resposta em 'output' ou 'text'\n  if (response.output) {\n    aiResponse = response.output;\n  } else if (response.text) {\n    aiResponse = response.text;\n  } else if (typeof response === 'string') {\n    aiResponse = response;\n  } else {\n    // Tenta encontrar qualquer campo com a resposta\n    const keys = Object.keys(response);\n    for (const key of keys) {\n      if (typeof response[key] === 'string' && response[key].length > 10) {\n        aiResponse = response[key];\n        break;\n      }\n    }\n  }\n  \n  if (!aiResponse) {\n    aiResponse = 'Tive um problema ao processar sua pergunta. Pode reformular?';\n  }\n  \n} catch (error) {\n  console.error('Erro ao processar resposta:', error);\n  aiResponse = 'Ocorreu um erro técnico. Por favor, tente novamente.';\n}\n\nreturn {\n  json: {\n    success: true,\n    response: aiResponse\n  }\n};"
+      },
+      "id": "0b1a1d95-55bf-4b1f-ab21-63e695ff132a",
+      "name": "Processar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [512, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "4e919bce-a551-491f-9249-6aa04c63dc1f",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [288, 400],
+      "id": "94d8dc0a-fda8-460b-86aa-0ef5cae2fb00",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [160, 620],
+      "id": "88af27ab-e2c1-4bdb-bd83-a55bd22caa4a",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "3gqvUPRabuJrN8vk",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [320, 620],
+      "id": "6890ea7e-edbd-4d04-9c13-3e984a49a60d",
+      "name": "Simple Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extrair Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Dados": {
+      "main": [
+        [
+          {
+            "node": "Construir Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Resposta": {
+      "main": [
+        [
+          {
+            "node": "Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Processar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "702aa22f-5453-4e0d-8b4e-4cdf4944f8f7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a9b45529cf86eccbf9f8874147b43fca25c1ac8ce9ddc2f796df4ee92fe4b12b"
+  },
+  "id": "q6D4YFSZTgjzM40b",
+  "tags": []
+}

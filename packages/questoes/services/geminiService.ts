@@ -39,48 +39,61 @@ export const generateExplanation = async (question: ParsedQuestion): Promise<str
   }
 };
 
+// URL do webhook n8n para o Tutor IA
+const N8N_TUTOR_WEBHOOK_URL = import.meta.env.VITE_N8N_TUTOR_WEBHOOK_URL || 'http://72.61.217.225:5678/webhook/tutor-chat';
+
+export interface TutorUserContext {
+  name?: string;
+  level?: number;
+  xp?: number;
+  courseName?: string;
+  streak?: number;
+}
+
 export const chatWithTutor = async (
   history: { role: 'user' | 'model'; text: string }[],
   newMessage: string,
-  questionContext: ParsedQuestion
+  questionContext: ParsedQuestion,
+  userContext?: TutorUserContext
 ): Promise<string> => {
-  const client = getClient();
-  if (!client) return "Erro: Chave de API não configurada.";
-
-  const systemInstruction = `
-    Você é o Tutor IA do app "Ouse Passar". Seu objetivo é ajudar o aluno a entender a questão atual.
-    
-    Dados da Questão Atual:
-    Matéria: ${questionContext.materia}
-    Banca: ${questionContext.banca}
-    Enunciado: ${questionContext.enunciado}
-    Gabarito: ${questionContext.gabarito}
-    
-    Regras:
-    1. Responda dúvidas específicas sobre essa questão.
-    2. Seja breve, motivador e use linguagem acessível.
-    3. Se o aluno errar, explique o erro sem julgar.
-    4. Use emojis ocasionalmente.
-  `;
-
   try {
-    // Construct chat history in the format expected by the SDK
-    const previousHistory = history.map(msg => ({
-      role: msg.role,
-      parts: [{ text: msg.text }],
-    }));
-
-    const chat = client.chats.create({
-      model: 'gemini-2.5-flash',
-      config: { systemInstruction },
-      history: previousHistory,
+    const response = await fetch(N8N_TUTOR_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: {
+          id: questionContext.id,
+          materia: questionContext.materia,
+          assunto: questionContext.assunto,
+          banca: questionContext.banca,
+          orgao: questionContext.orgao,
+          ano: questionContext.ano,
+          enunciado: questionContext.enunciado,
+          alternativas: questionContext.parsedAlternativas,
+          gabarito: questionContext.gabarito,
+          comentario: questionContext.comentario,
+          isPegadinha: questionContext.isPegadinha,
+          explicacaoPegadinha: questionContext.explicacaoPegadinha,
+        },
+        user: userContext || {},
+        userMessage: newMessage,
+        history: history,
+      }),
     });
 
-    const result = await chat.sendMessage({ message: newMessage });
-    return result.text || "Desculpe, não entendi.";
+    const data = await response.json();
+
+    if (data.success) {
+      return data.response;
+    } else {
+      console.error('Erro do Tutor:', data.error);
+      return data.response || 'Tive um problema técnico. Tente novamente.';
+    }
   } catch (error) {
-    console.error("Erro no chat:", error);
-    return "Tive um problema técnico. Tente novamente.";
+    console.error('Erro ao conectar com o Tutor:', error);
+    return 'Erro ao conectar com o Professor IA. Verifique sua conexão.';
   }
 };
 

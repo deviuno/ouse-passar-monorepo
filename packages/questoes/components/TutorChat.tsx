@@ -1,13 +1,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Sparkles, Mic, Square, MicOff } from 'lucide-react';
-import { chatWithTutor } from '../services/geminiService';
+import { chatWithTutor, TutorUserContext } from '../services/geminiService';
 import { ParsedQuestion } from '../types';
 
 interface TutorChatProps {
   isOpen: boolean;
   onClose: () => void;
   question: ParsedQuestion;
+  userContext?: TutorUserContext;
 }
 
 interface Message {
@@ -15,9 +16,13 @@ interface Message {
   text: string;
 }
 
-const TutorChat: React.FC<TutorChatProps> = ({ isOpen, onClose, question }) => {
+const TutorChat: React.FC<TutorChatProps> = ({ isOpen, onClose, question, userContext }) => {
+  const greeting = userContext?.name
+    ? `Olá, **${userContext.name}**! 👋 Sou seu Tutor IA. Vi que você está na questão de **${question.assunto}**. Como posso te ajudar?`
+    : `Olá! Sou seu Tutor IA. Vi que você está na questão de **${question.assunto}**. Como posso te ajudar a entender melhor?`;
+
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: `Olá! Sou seu Tutor IA. Vi que você está na questão de **${question.assunto}**. Como posso te ajudar a entender melhor?` }
+    { role: 'model', text: greeting }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -113,7 +118,7 @@ const TutorChat: React.FC<TutorChatProps> = ({ isOpen, onClose, question }) => {
     setMessages(prev => [...prev, { role: 'user', text: userText }]);
     setIsLoading(true);
 
-    const response = await chatWithTutor(messages, userText, question);
+    const response = await chatWithTutor(messages, userText, question, userContext);
 
     setMessages(prev => [...prev, { role: 'model', text: response }]);
     setIsLoading(false);
