@@ -539,8 +539,8 @@ export const mensagensIncentivoService = {
 export interface CreatePlanejamentoInput {
   preparatorio_id: string;
   nome_aluno: string;
-  email?: string;
-  mensagem_incentivo?: string;
+  email?: string | null;
+  mensagem_incentivo?: string | null;
 }
 
 export const planejamentosService = {
