@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Eye, Trash2, User, Calendar, List, LayoutGrid, ChevronLeft, ChevronRight, GripVertical, Phone, X, Clock, Briefcase, GraduationCap, Target, AlertCircle } from 'lucide-react';
-import { leadsService, LeadWithVendedor } from '../../services/adminUsersService';
-import { LeadDifficulty, EducationLevel, LeadGender } from '../../lib/database.types';
+import { Eye, Trash2, User, Calendar, List, LayoutGrid, ChevronLeft, ChevronRight, GripVertical, Phone, X, Clock, Briefcase, GraduationCap, Target, AlertCircle, Filter } from 'lucide-react';
+import { leadsService, LeadWithVendedor, adminUsersService } from '../../services/adminUsersService';
+import { LeadDifficulty, EducationLevel, LeadGender, AdminUser } from '../../lib/database.types';
 import { useAuth } from '../../lib/AuthContext';
 
 // Status do Kanban
@@ -521,15 +521,67 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
 export const Leads: React.FC = () => {
     const { user, isAdmin } = useAuth();
     const [leads, setLeads] = useState<LeadWithVendedor[]>([]);
+    const [allLeads, setAllLeads] = useState<LeadWithVendedor[]>([]); // Todos os leads sem filtro de status/vendedor
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
     const [selectedLead, setSelectedLead] = useState<LeadWithVendedor | null>(null);
 
+    // Filtros
+    const [vendedores, setVendedores] = useState<AdminUser[]>([]);
+    const [selectedVendedor, setSelectedVendedor] = useState<string>('todos');
+    const [selectedStatus, setSelectedStatus] = useState<string>('todos');
+
+    // Carregar vendedores ao iniciar (apenas admin)
+    useEffect(() => {
+        if (isAdmin) {
+            loadVendedores();
+        }
+    }, [isAdmin]);
+
     useEffect(() => {
         loadLeads();
     }, [selectedDate]);
+
+    // Aplicar filtros quando mudam
+    useEffect(() => {
+        applyFilters();
+    }, [allLeads, selectedVendedor, selectedStatus]);
+
+    const loadVendedores = async () => {
+        try {
+            const data = await adminUsersService.getAll();
+            // Filtrar apenas vendedores e admins ativos
+            const vendedoresList = data.filter(u => (u.role === 'vendedor' || u.role === 'admin') && u.is_active);
+            setVendedores(vendedoresList);
+        } catch (error) {
+            console.error('Erro ao carregar vendedores:', error);
+        }
+    };
+
+    const normalizeStatus = (status: string | null): LeadStatus => {
+        if (!status || status === 'novo' || status === 'planejamento_gerado') {
+            return 'apresentacao';
+        }
+        return status as LeadStatus;
+    };
+
+    const applyFilters = () => {
+        let filtered = [...allLeads];
+
+        // Filtrar por vendedor (apenas admin)
+        if (isAdmin && selectedVendedor !== 'todos') {
+            filtered = filtered.filter(lead => lead.vendedor_id === selectedVendedor);
+        }
+
+        // Filtrar por status
+        if (selectedStatus !== 'todos') {
+            filtered = filtered.filter(lead => normalizeStatus(lead.status) === selectedStatus);
+        }
+
+        setLeads(filtered);
+    };
 
     const loadLeads = async () => {
         setLoading(true);
@@ -550,7 +602,7 @@ export const Leads: React.FC = () => {
                 return leadDate === selectedDate;
             });
 
-            setLeads(filteredData);
+            setAllLeads(filteredData); // Armazena todos os leads filtrados por data
         } catch (error) {
             console.error('Erro ao carregar leads:', error);
         }
@@ -560,6 +612,7 @@ export const Leads: React.FC = () => {
     const handleDelete = async (id: string) => {
         try {
             await leadsService.delete(id);
+            setAllLeads(allLeads.filter(l => l.id !== id));
             setLeads(leads.filter(l => l.id !== id));
             if (selectedLead?.id === id) {
                 setSelectedLead(null);
@@ -572,6 +625,9 @@ export const Leads: React.FC = () => {
 
     const handleStatusChange = async (leadId: string, newStatus: LeadStatus) => {
         // Atualizar localmente primeiro para feedback imediato
+        setAllLeads(allLeads.map(l =>
+            l.id === leadId ? { ...l, status: newStatus } : l
+        ));
         setLeads(leads.map(l =>
             l.id === leadId ? { ...l, status: newStatus } : l
         ));
@@ -609,12 +665,15 @@ export const Leads: React.FC = () => {
         if (!draggedLeadId) return;
 
         const lead = leads.find(l => l.id === draggedLeadId);
-        if (!lead || lead.status === newStatus) {
+        if (!lead || normalizeStatus(lead.status) === newStatus) {
             setDraggedLeadId(null);
             return;
         }
 
         // Atualizar localmente primeiro para feedback imediato
+        setAllLeads(allLeads.map(l =>
+            l.id === draggedLeadId ? { ...l, status: newStatus } : l
+        ));
         setLeads(leads.map(l =>
             l.id === draggedLeadId ? { ...l, status: newStatus } : l
         ));
@@ -708,41 +767,94 @@ export const Leads: React.FC = () => {
             {/* Barra de Filtros */}
             <div className="bg-brand-card border border-white/5 rounded-sm p-4 mb-6">
                 <div className="flex items-center justify-between flex-wrap gap-4">
-                    {/* Filtro de Data */}
-                    <div className="flex items-center gap-2">
-                        <span className="text-gray-400 text-sm font-bold uppercase">Data:</span>
-                        <div className="flex items-center bg-brand-dark border border-white/10 rounded-sm">
-                            <button
-                                onClick={() => changeDate(-1)}
-                                className="p-2 text-gray-400 hover:text-white transition-colors"
-                            >
-                                <ChevronLeft className="w-4 h-4" />
-                            </button>
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent text-white text-sm px-2 py-1 outline-none"
-                            />
-                            <button
-                                onClick={() => changeDate(1)}
-                                className="p-2 text-gray-400 hover:text-white transition-colors"
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </button>
+                    {/* Primeira linha de filtros */}
+                    <div className="flex items-center gap-4 flex-wrap">
+                        {/* Filtro de Data */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-gray-400 text-sm font-bold uppercase">Data:</span>
+                            <div className="flex items-center bg-brand-dark border border-white/10 rounded-sm">
+                                <button
+                                    onClick={() => changeDate(-1)}
+                                    className="p-2 text-gray-400 hover:text-white transition-colors"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <input
+                                    type="date"
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="bg-transparent text-white text-sm px-2 py-1 outline-none"
+                                />
+                                <button
+                                    onClick={() => changeDate(1)}
+                                    className="p-2 text-gray-400 hover:text-white transition-colors"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                            {!isToday && (
+                                <button
+                                    onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+                                    className="text-xs text-brand-yellow hover:underline"
+                                >
+                                    Hoje
+                                </button>
+                            )}
+                            {isToday && (
+                                <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded">
+                                    Hoje
+                                </span>
+                            )}
                         </div>
-                        {!isToday && (
-                            <button
-                                onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-                                className="text-xs text-brand-yellow hover:underline"
-                            >
-                                Hoje
-                            </button>
+
+                        {/* Filtro de Vendedor (apenas admin) */}
+                        {isAdmin && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-gray-400 text-sm font-bold uppercase">Vendedor:</span>
+                                <select
+                                    value={selectedVendedor}
+                                    onChange={(e) => setSelectedVendedor(e.target.value)}
+                                    className="bg-brand-dark border border-white/10 rounded-sm text-white text-sm px-3 py-2 outline-none focus:border-brand-yellow/50 transition-colors"
+                                >
+                                    <option value="todos">Todos</option>
+                                    {vendedores.map((v) => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         )}
-                        {isToday && (
-                            <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded">
-                                Hoje
-                            </span>
+
+                        {/* Filtro de Status */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-gray-400 text-sm font-bold uppercase">Status:</span>
+                            <select
+                                value={selectedStatus}
+                                onChange={(e) => setSelectedStatus(e.target.value)}
+                                className="bg-brand-dark border border-white/10 rounded-sm text-white text-sm px-3 py-2 outline-none focus:border-brand-yellow/50 transition-colors"
+                            >
+                                <option value="todos">Todos</option>
+                                {KANBAN_COLUMNS.map((col) => (
+                                    <option key={col.id} value={col.id}>
+                                        {col.title}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Indicador de filtros ativos */}
+                        {(selectedVendedor !== 'todos' || selectedStatus !== 'todos') && (
+                            <button
+                                onClick={() => {
+                                    setSelectedVendedor('todos');
+                                    setSelectedStatus('todos');
+                                }}
+                                className="flex items-center gap-1 text-xs text-brand-yellow hover:text-brand-yellow/80 transition-colors"
+                            >
+                                <Filter className="w-3 h-3" />
+                                Limpar filtros
+                            </button>
                         )}
                     </div>
 
