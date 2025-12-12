@@ -547,6 +547,229 @@ export interface Database {
           }
         ]
       }
+      preparatorios: {
+        Row: {
+          id: string
+          nome: string
+          slug: string
+          descricao: string | null
+          icone: string
+          cor: string
+          is_active: boolean
+          ordem: number
+          imagem_capa: string | null
+          preco: number | null
+          preco_desconto: number | null
+          checkout_url: string | null
+          descricao_curta: string | null
+          descricao_vendas: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          slug: string
+          descricao?: string | null
+          icone?: string
+          cor?: string
+          is_active?: boolean
+          ordem?: number
+          imagem_capa?: string | null
+          preco?: number | null
+          preco_desconto?: number | null
+          checkout_url?: string | null
+          descricao_curta?: string | null
+          descricao_vendas?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          slug?: string
+          descricao?: string | null
+          icone?: string
+          cor?: string
+          is_active?: boolean
+          ordem?: number
+          imagem_capa?: string | null
+          preco?: number | null
+          preco_desconto?: number | null
+          checkout_url?: string | null
+          descricao_curta?: string | null
+          descricao_vendas?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rodadas: {
+        Row: {
+          id: string
+          preparatorio_id: string
+          numero: number
+          titulo: string
+          nota: string | null
+          ordem: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          preparatorio_id: string
+          numero: number
+          titulo: string
+          nota?: string | null
+          ordem?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          preparatorio_id?: string
+          numero?: number
+          titulo?: string
+          nota?: string | null
+          ordem?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rodadas_preparatorio_id_fkey"
+            columns: ["preparatorio_id"]
+            referencedRelation: "preparatorios"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      missoes: {
+        Row: {
+          id: string
+          rodada_id: string
+          numero: string
+          tipo: 'padrao' | 'revisao' | 'acao'
+          materia: string | null
+          assunto: string | null
+          instrucoes: string | null
+          tema: string | null
+          acao: string | null
+          extra: string[] | null
+          obs: string | null
+          ordem: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          rodada_id: string
+          numero: string
+          tipo?: 'padrao' | 'revisao' | 'acao'
+          materia?: string | null
+          assunto?: string | null
+          instrucoes?: string | null
+          tema?: string | null
+          acao?: string | null
+          extra?: string[] | null
+          obs?: string | null
+          ordem?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          rodada_id?: string
+          numero?: string
+          tipo?: 'padrao' | 'revisao' | 'acao'
+          materia?: string | null
+          assunto?: string | null
+          instrucoes?: string | null
+          tema?: string | null
+          acao?: string | null
+          extra?: string[] | null
+          obs?: string | null
+          ordem?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missoes_rodada_id_fkey"
+            columns: ["rodada_id"]
+            referencedRelation: "rodadas"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      mensagens_incentivo: {
+        Row: {
+          id: string
+          preparatorio_id: string
+          mensagem: string
+          ordem: number
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          preparatorio_id: string
+          mensagem: string
+          ordem?: number
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          preparatorio_id?: string
+          mensagem?: string
+          ordem?: number
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensagens_incentivo_preparatorio_id_fkey"
+            columns: ["preparatorio_id"]
+            referencedRelation: "preparatorios"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      planejamentos: {
+        Row: {
+          id: string
+          preparatorio_id: string
+          nome_aluno: string
+          email: string | null
+          mensagem_incentivo: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          preparatorio_id: string
+          nome_aluno: string
+          email?: string | null
+          mensagem_incentivo?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          preparatorio_id?: string
+          nome_aluno?: string
+          email?: string | null
+          mensagem_incentivo?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planejamentos_preparatorio_id_fkey"
+            columns: ["preparatorio_id"]
+            referencedRelation: "preparatorios"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -561,6 +784,7 @@ export interface Database {
       lead_difficulty: 'tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros'
       lead_gender: 'masculino' | 'feminino' | 'outro' | 'prefiro_nao_dizer'
       education_level: 'fundamental_incompleto' | 'fundamental_completo' | 'medio_incompleto' | 'medio_completo' | 'superior_incompleto' | 'superior_completo' | 'pos_graduacao' | 'mestrado' | 'doutorado'
+      missao_tipo: 'padrao' | 'revisao' | 'acao'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -615,4 +839,82 @@ export interface Lead {
   status: string
   created_at: string
   updated_at: string
+}
+
+// Tipos auxiliares para o sistema de preparatorios
+export type MissaoTipo = Database['public']['Enums']['missao_tipo']
+
+export interface Preparatorio {
+  id: string
+  nome: string
+  slug: string
+  descricao: string | null
+  icone: string
+  cor: string
+  is_active: boolean
+  ordem: number
+  imagem_capa: string | null
+  preco: number | null
+  preco_desconto: number | null
+  checkout_url: string | null
+  descricao_curta: string | null
+  descricao_vendas: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Rodada {
+  id: string
+  preparatorio_id: string
+  numero: number
+  titulo: string
+  nota: string | null
+  ordem: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Missao {
+  id: string
+  rodada_id: string
+  numero: string
+  tipo: MissaoTipo
+  materia: string | null
+  assunto: string | null
+  instrucoes: string | null
+  tema: string | null
+  acao: string | null
+  extra: string[] | null
+  obs: string | null
+  ordem: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MensagemIncentivo {
+  id: string
+  preparatorio_id: string
+  mensagem: string
+  ordem: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface Planejamento {
+  id: string
+  preparatorio_id: string
+  nome_aluno: string
+  email: string | null
+  mensagem_incentivo: string | null
+  created_at: string
+}
+
+// Tipos compostos para uso no frontend
+export interface RodadaComMissoes extends Rodada {
+  missoes: Missao[]
+}
+
+export interface PreparatorioCompleto extends Preparatorio {
+  rodadas: RodadaComMissoes[]
+  mensagens_incentivo: MensagemIncentivo[]
 }

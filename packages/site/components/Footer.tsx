@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Instagram, Youtube, MapPin, Mail, MessageCircle } from 'lucide-react';
 
 export const Footer: React.FC = () => {
@@ -44,6 +45,7 @@ export const Footer: React.FC = () => {
             <ul className="space-y-3 text-sm font-medium">
               <li><a href="#" className="hover:text-brand-yellow hover:translate-x-1 transition-all inline-block">Sobre Nós</a></li>
               <li><a href="#" className="hover:text-brand-yellow hover:translate-x-1 transition-all inline-block">Metodologia</a></li>
+              <li><Link to="/planejamentos" className="hover:text-brand-yellow hover:translate-x-1 transition-all inline-block">Planejamentos</Link></li>
               <li><a href="#" className="hover:text-brand-yellow hover:translate-x-1 transition-all inline-block">Blog Tático</a></li>
               <li><a href="https://ouse-passar.memberkit.com.br/" target="_blank" rel="noopener noreferrer" className="hover:text-brand-yellow hover:translate-x-1 transition-all inline-block">Área do Aluno</a></li>
               <li><a href="#" className="hover:text-brand-yellow hover:translate-x-1 transition-all inline-block">Política de Privacidade</a></li>

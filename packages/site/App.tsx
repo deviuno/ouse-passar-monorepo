@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { SalesLayout } from './components/SalesLayout';
 import { Hero } from './components/Hero';
 import { Methodology } from './components/Methodology';
 import { WhyChoose } from './components/WhyChoose';
@@ -35,11 +36,17 @@ import { EditarPreparatorio } from './pages/admin/EditarPreparatorio';
 import { DocsIntegracao } from './pages/DocsIntegracao';
 import { PlanejamentoPRFForm } from './pages/PlanejamentoPRF';
 import { PlanejamentoPRFView } from './pages/PlanejamentoPRFView';
+import { Planejamentos as PlanejamentosPublic } from './pages/Planejamentos';
+import { PlanejamentoVendas } from './pages/PlanejamentoVendas';
 import { Users } from './pages/admin/Users';
-import { Planejamentos } from './pages/admin/Planejamentos';
+import { Planejamentos as PlanejamentosAdmin } from './pages/admin/Planejamentos';
 import { Leads } from './pages/admin/Leads';
 import { Profile } from './pages/admin/Profile';
 import { AdminIndex } from './pages/admin/AdminIndex';
+import { PreparatoriosPlanos } from './pages/admin/PreparatoriosPlanos';
+import { RodadasAdmin } from './pages/admin/Rodadas';
+import { MissoesAdmin } from './pages/admin/Missoes';
+import { MensagensIncentivoAdmin } from './pages/admin/MensagensIncentivo';
 
 // Gamification Admin
 import {
@@ -114,61 +121,78 @@ const App: React.FC = () => {
     <Router>
       <AuthProvider>
         <ToastProvider>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Home />} />
-            <Route path="mentoria" element={<Mentorship />} />
-            <Route path="blog" element={<BlogList />} />
-            <Route path="blog/:slug" element={<BlogPostView />} />
-            <Route path="planejamento-prf" element={<PlanejamentoPRFForm />} />
-          </Route>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Home />} />
+              <Route path="mentoria" element={<Mentorship />} />
+              <Route path="blog" element={<BlogList />} />
+              <Route path="blog/:slug" element={<BlogPostView />} />
+              <Route path="planejamento-prf" element={<PlanejamentoPRFForm />} />
+            </Route>
 
-          {/* Planejamento PRF View (fora do Layout principal para ter layout proprio) */}
-          <Route path="/planejamento-prf/:id" element={<PlanejamentoPRFView />} />
+            {/* Sales Pages - Layout com footer minimalista */}
+            <Route path="/" element={<SalesLayout />}>
+              <Route path="planejamentos" element={<PlanejamentosPublic />} />
+            </Route>
 
-          {/* Admin Login (Public) */}
-          <Route path="/admin/login" element={<Login />} />
+            {/* Pagina de Vendas - Sem header, apenas footer */}
+            <Route path="/planejamento/:slug" element={<PlanejamentoVendas />} />
 
-          {/* Documentation (Public - Direct access only, no menu links) */}
-          <Route path="/docs/integracao-questoes" element={<DocsIntegracao />} />
+            {/* Planejamento PRF View (fora do Layout principal para ter layout proprio) */}
+            <Route path="/planejamento-prf/:id" element={<PlanejamentoPRFView />} />
 
-          {/* Protected Admin Routes */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<AdminIndex />} />
-            <Route path="users" element={<Users />} />
-            <Route path="planejamentos" element={<Planejamentos />} />
-            <Route path="leads" element={<Leads />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="authors" element={<Authors />} />
-            <Route path="categories" element={<Categories />} />
-            <Route path="articles" element={<Articles />} />
-            <Route path="articles/new" element={<ArticleEditor />} />
-            <Route path="articles/new-ai" element={<NewArticleAI />} />
-            <Route path="articles/edit/:slug" element={<ArticleEditor />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="preparatorios" element={<Preparatorios />} />
-            <Route path="preparatorios/new" element={<NewPreparatorio />} />
-            <Route path="preparatorios/edit/:id" element={<EditarPreparatorio />} />
+            {/* Planejamento Dinâmico View */}
+            <Route path="/planejamento/:slug/:id" element={<PlanejamentoPRFView />} />
 
-            {/* Gamification Admin */}
-            <Route path="gamification" element={<GamificationSettingsPage />} />
-            <Route path="gamification/levels" element={<LevelsPage />} />
-            <Route path="gamification/leagues" element={<LeaguesPage />} />
-            <Route path="gamification/xp-actions" element={<XpActionsPage />} />
-            <Route path="gamification/achievements" element={<AchievementsPage />} />
-          </Route>
+            {/* Admin Login (Public) */}
+            <Route path="/admin/login" element={<Login />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            {/* Documentation (Public - Direct access only, no menu links) */}
+            <Route path="/docs/integracao-questoes" element={<DocsIntegracao />} />
+
+            {/* Protected Admin Routes */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<AdminIndex />} />
+              <Route path="users" element={<Users />} />
+              <Route path="planejamentos" element={<PlanejamentosAdmin />} />
+              <Route path="leads" element={<Leads />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="authors" element={<Authors />} />
+              <Route path="categories" element={<Categories />} />
+              <Route path="articles" element={<Articles />} />
+              <Route path="articles/new" element={<ArticleEditor />} />
+              <Route path="articles/new-ai" element={<NewArticleAI />} />
+              <Route path="articles/edit/:slug" element={<ArticleEditor />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="preparatorios" element={<Preparatorios />} />
+              <Route path="preparatorios/new" element={<NewPreparatorio />} />
+              <Route path="preparatorios/edit/:id" element={<EditarPreparatorio />} />
+
+              {/* Gamification Admin */}
+              <Route path="gamification" element={<GamificationSettingsPage />} />
+              <Route path="gamification/levels" element={<LevelsPage />} />
+              <Route path="gamification/leagues" element={<LeaguesPage />} />
+              <Route path="gamification/xp-actions" element={<XpActionsPage />} />
+              <Route path="gamification/achievements" element={<AchievementsPage />} />
+
+              {/* Planejamentos - Sistema Dinâmico */}
+              <Route path="planos-preparatorios" element={<PreparatoriosPlanos />} />
+              <Route path="planos-preparatorios/:preparatorioId/rodadas" element={<RodadasAdmin />} />
+              <Route path="planos-preparatorios/:preparatorioId/rodadas/:rodadaId/missoes" element={<MissoesAdmin />} />
+              <Route path="planos-preparatorios/:preparatorioId/mensagens" element={<MensagensIncentivoAdmin />} />
+            </Route>
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </ToastProvider>
       </AuthProvider>
     </Router>
