@@ -11,10 +11,17 @@
     "build:questoes": "npm run build -w @ouse/questoes",
     "build:site": "npm run build -w @ouse/site",
     "build": "npm run build -ws",
+    "typecheck:site": "npm run typecheck -w @ouse/site",
+    "typecheck:questoes": "npm run typecheck -w @ouse/questoes",
+    "typecheck": "npm run typecheck -ws --if-present",
     "install:all": "npm install",
-    "push": "push.bat"
+    "push": "push.bat",
+    "prepare": "husky"
   },
   "engines": {
     "node": "20.x"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
   }
 }

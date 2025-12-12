@@ -1,0 +1,2 @@
+echo "Verificando tipos TypeScript..."
+npm run typecheck:site
