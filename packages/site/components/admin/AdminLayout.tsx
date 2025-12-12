@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, Gamepad2, Zap, Trophy, Medal, Star } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, Gamepad2, Zap, Trophy, Medal, Star, ClipboardList, UserCheck } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 export const AdminLayout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, logout } = useAuth();
+    const { user, logout, isAdmin, isVendedor } = useAuth();
     const [blogOpen, setBlogOpen] = useState(false);
     const [gamificationOpen, setGamificationOpen] = useState(false);
 
@@ -24,142 +24,192 @@ export const AdminLayout: React.FC = () => {
                         alt="Ouse Passar"
                         className="h-10 mb-4"
                     />
-                    <div className="flex items-center bg-brand-dark/50 border border-white/5 p-3 rounded-sm">
-                        <div className="w-8 h-8 bg-brand-yellow/20 rounded-full flex items-center justify-center mr-3">
-                            <User className="w-4 h-4 text-brand-yellow" />
+                    <Link
+                        to="/admin/profile"
+                        className="block bg-brand-dark/50 border border-white/5 p-4 rounded-sm hover:border-brand-yellow/30 transition-colors cursor-pointer"
+                    >
+                        <div className="flex flex-col items-center">
+                            <div className="w-16 h-16 rounded-full overflow-hidden mb-3 border-2 border-brand-yellow/30">
+                                {user?.avatar_url ? (
+                                    <img
+                                        src={user.avatar_url}
+                                        alt={user.name}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full bg-brand-yellow/20 flex items-center justify-center">
+                                        <User className="w-8 h-8 text-brand-yellow" />
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-white text-sm font-bold text-center truncate w-full">{user?.name}</p>
+                            <span className="mt-2 text-[10px] bg-brand-yellow/20 text-brand-yellow px-3 py-1 rounded-full uppercase font-bold tracking-wide">
+                                Estrategista
+                            </span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-white text-sm font-bold truncate">{user?.name}</p>
-                            <p className="text-gray-500 text-xs truncate">{user?.email}</p>
-                        </div>
-                    </div>
+                    </Link>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+                    {/* Dashboard - Admin only */}
+                    {isAdmin && (
+                        <Link
+                            to="/admin"
+                            className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin')}`}
+                        >
+                            <LayoutDashboard className="w-5 h-5 mr-3" />
+                            Dashboard
+                        </Link>
+                    )}
+
+                    {/* Planejamentos - Admin and Vendedor */}
                     <Link
-                        to="/admin"
-                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin')}`}
+                        to="/admin/planejamentos"
+                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/planejamentos')}`}
                     >
-                        <LayoutDashboard className="w-5 h-5 mr-3" />
-                        Dashboard
+                        <ClipboardList className="w-5 h-5 mr-3" />
+                        Planejamentos
                     </Link>
 
-                    {/* Blog Accordion */}
-                    <div className="space-y-1">
-                        <button
-                            onClick={() => setBlogOpen(!blogOpen)}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/articles') || location.pathname.includes('/admin/categories') || location.pathname.includes('/admin/authors') || location.pathname.includes('/admin/settings') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                        >
-                            <div className="flex items-center">
-                                <BookOpen className="w-5 h-5 mr-3" />
-                                Blog
-                            </div>
-                            <ChevronDown className={`w-4 h-4 transition-transform ${blogOpen ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {blogOpen && (
-                            <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
-                                <Link
-                                    to="/admin/articles"
-                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/articles')}`}
-                                >
-                                    <FileText className="w-4 h-4 mr-3" />
-                                    Artigos
-                                </Link>
-
-                                <Link
-                                    to="/admin/categories"
-                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/categories')}`}
-                                >
-                                    <BookOpen className="w-4 h-4 mr-3" />
-                                    Categorias
-                                </Link>
-
-                                <Link
-                                    to="/admin/authors"
-                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/authors')}`}
-                                >
-                                    <Users className="w-4 h-4 mr-3" />
-                                    Autores
-                                </Link>
-
-                                <Link
-                                    to="/admin/settings"
-                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/settings')}`}
-                                >
-                                    <Settings className="w-4 h-4 mr-3" />
-                                    Configurações
-                                </Link>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Preparatórios */}
+                    {/* Leads - Admin and Vendedor */}
                     <Link
-                        to="/admin/preparatorios"
-                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/preparatorios')}`}
+                        to="/admin/leads"
+                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/leads')}`}
                     >
-                        <GraduationCap className="w-5 h-5 mr-3" />
-                        Preparatórios
+                        <UserCheck className="w-5 h-5 mr-3" />
+                        Leads
                     </Link>
 
-                    {/* Gamification Accordion */}
-                    <div className="space-y-1">
-                        <button
-                            onClick={() => setGamificationOpen(!gamificationOpen)}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/gamification') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                        >
-                            <div className="flex items-center">
-                                <Gamepad2 className="w-5 h-5 mr-3" />
-                                Gamificação
+                    {/* Admin-only sections */}
+                    {isAdmin && (
+                        <>
+                            {/* Usuários */}
+                            <Link
+                                to="/admin/users"
+                                className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/users')}`}
+                            >
+                                <Users className="w-5 h-5 mr-3" />
+                                Usuários
+                            </Link>
+
+                            {/* Blog Accordion */}
+                            <div className="space-y-1">
+                                <button
+                                    onClick={() => setBlogOpen(!blogOpen)}
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/articles') || location.pathname.includes('/admin/categories') || location.pathname.includes('/admin/authors') || location.pathname.includes('/admin/settings') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                >
+                                    <div className="flex items-center">
+                                        <BookOpen className="w-5 h-5 mr-3" />
+                                        Blog
+                                    </div>
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${blogOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {blogOpen && (
+                                    <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
+                                        <Link
+                                            to="/admin/articles"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/articles')}`}
+                                        >
+                                            <FileText className="w-4 h-4 mr-3" />
+                                            Artigos
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/categories"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/categories')}`}
+                                        >
+                                            <BookOpen className="w-4 h-4 mr-3" />
+                                            Categorias
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/authors"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/authors')}`}
+                                        >
+                                            <Users className="w-4 h-4 mr-3" />
+                                            Autores
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/settings"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/settings')}`}
+                                        >
+                                            <Settings className="w-4 h-4 mr-3" />
+                                            Configurações
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
-                            <ChevronDown className={`w-4 h-4 transition-transform ${gamificationOpen ? 'rotate-180' : ''}`} />
-                        </button>
 
-                        {gamificationOpen && (
-                            <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
-                                <Link
-                                    to="/admin/gamification"
-                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification')}`}
-                                >
-                                    <Settings className="w-4 h-4 mr-3" />
-                                    Configurações
-                                </Link>
+                            {/* Preparatórios */}
+                            <Link
+                                to="/admin/preparatorios"
+                                className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/preparatorios')}`}
+                            >
+                                <GraduationCap className="w-5 h-5 mr-3" />
+                                Preparatórios
+                            </Link>
 
-                                <Link
-                                    to="/admin/gamification/levels"
-                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/levels')}`}
+                            {/* Gamification Accordion */}
+                            <div className="space-y-1">
+                                <button
+                                    onClick={() => setGamificationOpen(!gamificationOpen)}
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/gamification') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                                 >
-                                    <Star className="w-4 h-4 mr-3" />
-                                    Níveis
-                                </Link>
+                                    <div className="flex items-center">
+                                        <Gamepad2 className="w-5 h-5 mr-3" />
+                                        Gamificação
+                                    </div>
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${gamificationOpen ? 'rotate-180' : ''}`} />
+                                </button>
 
-                                <Link
-                                    to="/admin/gamification/leagues"
-                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/leagues')}`}
-                                >
-                                    <Medal className="w-4 h-4 mr-3" />
-                                    Ligas
-                                </Link>
+                                {gamificationOpen && (
+                                    <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
+                                        <Link
+                                            to="/admin/gamification"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification')}`}
+                                        >
+                                            <Settings className="w-4 h-4 mr-3" />
+                                            Configurações
+                                        </Link>
 
-                                <Link
-                                    to="/admin/gamification/xp-actions"
-                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/xp-actions')}`}
-                                >
-                                    <Zap className="w-4 h-4 mr-3" />
-                                    Ações de XP
-                                </Link>
+                                        <Link
+                                            to="/admin/gamification/levels"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/levels')}`}
+                                        >
+                                            <Star className="w-4 h-4 mr-3" />
+                                            Níveis
+                                        </Link>
 
-                                <Link
-                                    to="/admin/gamification/achievements"
-                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/achievements')}`}
-                                >
-                                    <Trophy className="w-4 h-4 mr-3" />
-                                    Conquistas
-                                </Link>
+                                        <Link
+                                            to="/admin/gamification/leagues"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/leagues')}`}
+                                        >
+                                            <Medal className="w-4 h-4 mr-3" />
+                                            Ligas
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/gamification/xp-actions"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/xp-actions')}`}
+                                        >
+                                            <Zap className="w-4 h-4 mr-3" />
+                                            Ações de XP
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/gamification/achievements"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/achievements')}`}
+                                        >
+                                            <Trophy className="w-4 h-4 mr-3" />
+                                            Conquistas
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </nav>
 
                 <div className="p-4 border-t border-white/5 space-y-2">

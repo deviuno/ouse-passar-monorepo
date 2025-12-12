@@ -107,40 +107,55 @@ const MissaoCard: React.FC<{ missao: Missao; compact?: boolean }> = ({ missao, c
 };
 
 // Componente de Rodada
+// Componente de Rodada
 const RodadaSection: React.FC<{ rodada: Rodada }> = ({ rodada }) => {
+  // Dividir missoes em paginas de 6 (para garantir que caiba em uma pagina com margens)
+  const chunks: Missao[][] = [];
+  for (let i = 0; i < rodada.missoes.length; i += 6) {
+    chunks.push(rodada.missoes.slice(i, i + 6));
+  }
+
   return (
-    <div className="mb-16 page-break-inside-avoid relative">
-      {/* Header da Rodada */}
-      <div className="flex flex-col items-center justify-center mb-8 relative">
-        <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-yellow/50 to-transparent top-1/2 -z-10"></div>
-        <div className="bg-brand-darker px-8 py-2 border border-brand-yellow/30 rounded-full shadow-[0_0_30px_rgba(255,184,0,0.15)]">
-          <h3 className="text-3xl font-black text-brand-yellow uppercase tracking-tighter font-display">
-            {rodada.numero}ª RODADA
-          </h3>
-        </div>
-        {rodada.titulo.replace(/^\d+a RODADA /, '') && (
-          <p className="mt-2 text-gray-500 text-sm uppercase tracking-widest font-bold">
-            {rodada.titulo.replace(/^\d+a RODADA /, '').replace(/[()]/g, '')}
-          </p>
-        )}
-      </div>
-
-      {rodada.nota && (
-        <div className="max-w-3xl mx-auto mb-8 p-4 bg-yellow-900/10 border border-yellow-500/20 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-          <p className="text-yellow-500/80 text-sm font-medium">{rodada.nota}</p>
-        </div>
-      )}
-
-      {/* Grid de Missões - Estilo Tabela */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {rodada.missoes.map((missao, index) => (
-          <div key={index}>
-            <MissaoCard missao={missao} />
+    <>
+      {chunks.map((chunk, index) => (
+        <div key={index} className="mb-16 page-break-inside-avoid relative print:h-screen print:flex print:flex-col print:justify-start print:pt-12 print:pb-8">
+          {/* Header da Rodada (Repetido em todas as paginas) */}
+          <div className="flex flex-col items-center justify-center mb-8 relative">
+            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-yellow/50 to-transparent top-1/2 -z-10"></div>
+            <div className="bg-brand-darker px-8 py-2 border border-brand-yellow/30 rounded-full shadow-[0_0_30px_rgba(255,184,0,0.15)]">
+              <h3 className="text-3xl font-black text-brand-yellow uppercase tracking-tighter font-display">
+                {rodada.numero}ª RODADA
+              </h3>
+            </div>
+            {rodada.titulo.replace(/^\d+a RODADA /, '') && (
+              <p className="mt-2 text-gray-500 text-sm uppercase tracking-widest font-bold">
+                {rodada.titulo.replace(/^\d+a RODADA /, '').replace(/[()]/g, '')}
+              </p>
+            )}
           </div>
-        ))}
-      </div>
-    </div>
+
+          {/* Nota apenas na primeira pagina */}
+          {index === 0 && rodada.nota && (
+            <div className="max-w-3xl mx-auto mb-8 p-4 bg-yellow-900/10 border border-yellow-500/20 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <p className="text-yellow-500/80 text-sm font-medium">{rodada.nota}</p>
+            </div>
+          )}
+
+          {/* Grid de Missões - Estilo Tabela */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {chunk.map((missao, mIndex) => (
+              <div key={mIndex}>
+                <MissaoCard missao={missao} />
+              </div>
+            ))}
+          </div>
+
+          {/* Footer de Paginacao Interna (opcional, visual apenas) */}
+
+        </div>
+      ))}
+    </>
   );
 };
 
@@ -209,8 +224,61 @@ const SlideView: React.FC<{
     </div>
   );
 };
+// Componente de Capa (Slide 0)
+const CoverSlideView: React.FC<{
+  nomeAluno: string;
+  concurso: string;
+  mensagem?: string;
+  totalSlides: number;
+}> = ({ nomeAluno, concurso, mensagem, totalSlides }) => {
+  return (
+    <div className="w-full h-full bg-brand-darker flex flex-col p-8 overflow-hidden relative">
+      {/* Background Image */}
+      <div className="absolute bottom-0 right-0 opacity-20 pointer-events-none">
+        <img
+          src="https://ousepassar.com/wp-content/uploads/2025/02/PQ-devo-escolher-copiar.webp"
+          alt=""
+          className="w-[800px] max-w-[80vw] object-contain"
+        />
+      </div>
 
-// Componente Principal
+      {/* Header Info */}
+      <div className="flex items-center justify-between mb-12">
+        <img
+          src="https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp"
+          alt="Ouse Passar"
+          className="h-16 object-contain"
+        />
+        <div className="text-right">
+          <span className="text-brand-yellow font-black text-xl uppercase tracking-widest">
+            Slide 01 / {String(totalSlides).padStart(2, '0')}
+          </span>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col justify-center items-center text-center z-10">
+        <h1 className="text-4xl md:text-6xl font-black text-brand-yellow uppercase tracking-tighter mb-4 shadow-yellow-500/20 drop-shadow-2xl">
+          CRONOGRAMA TÁTICO
+        </h1>
+        <p className="text-white text-2xl md:text-3xl font-bold uppercase tracking-widest mb-12">
+          {concurso}
+        </p>
+
+        <div className="bg-brand-card/50 backdrop-blur-sm border border-brand-yellow/30 p-8 rounded-2xl shadow-2xl max-w-4xl w-full">
+          <p className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-2">Cadete</p>
+          <h2 className="text-3xl md:text-5xl font-black text-white uppercase mb-6">{nomeAluno}</h2>
+
+          {mensagem && (
+            <div className="border-t border-white/10 pt-6 mt-6">
+              <p className="text-xl text-gray-300 italic font-medium">"{mensagem}"</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 export const PlanejamentoPRFView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -239,7 +307,8 @@ export const PlanejamentoPRFView: React.FC = () => {
     return slides;
   };
 
-  const slides = gerarSlides();
+  const contentSlides = gerarSlides();
+  const totalSlides = contentSlides.length + 1; // +1 para a capa
 
   useEffect(() => {
     const fetchPlanejamento = async () => {
@@ -277,7 +346,7 @@ export const PlanejamentoPRFView: React.FC = () => {
       if (!apresentacaoAtiva) return;
 
       if (e.key === 'ArrowRight' || e.key === ' ') {
-        setSlideAtual(prev => Math.min(prev + 1, slides.length - 1));
+        setSlideAtual(prev => Math.min(prev + 1, totalSlides - 1));
       } else if (e.key === 'ArrowLeft') {
         setSlideAtual(prev => Math.max(prev - 1, 0));
       } else if (e.key === 'Escape') {
@@ -287,7 +356,7 @@ export const PlanejamentoPRFView: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [apresentacaoAtiva, slides.length]);
+  }, [apresentacaoAtiva, totalSlides]);
 
   const handlePrint = () => {
     window.print();
@@ -350,11 +419,11 @@ export const PlanejamentoPRFView: React.FC = () => {
             <ChevronLeft className="w-6 h-6 text-white" />
           </button>
           <span className="text-white px-4 font-mono font-bold">
-            {String(slideAtual + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+            {String(slideAtual + 1).padStart(2, '0')} / {String(totalSlides).padStart(2, '0')}
           </span>
           <button
-            onClick={() => setSlideAtual(prev => Math.min(prev + 1, slides.length - 1))}
-            disabled={slideAtual === slides.length - 1}
+            onClick={() => setSlideAtual(prev => Math.min(prev + 1, totalSlides - 1))}
+            disabled={slideAtual === totalSlides - 1}
             className="p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ChevronRight className="w-6 h-6 text-white" />
@@ -370,13 +439,22 @@ export const PlanejamentoPRFView: React.FC = () => {
 
         {/* Slide Atual */}
         <div className="flex-1">
-          <SlideView
-            rodada={slides[slideAtual].rodada}
-            missoes={slides[slideAtual].missoes}
-            slideIndex={slideAtual}
-            totalSlides={slides.length}
-            nomeAluno={planejamento.nome_aluno}
-          />
+          {slideAtual === 0 ? (
+            <CoverSlideView
+              nomeAluno={planejamento.nome_aluno}
+              concurso={planejamento.concurso}
+              mensagem={planejamento.mensagem_incentivo}
+              totalSlides={totalSlides}
+            />
+          ) : (
+            <SlideView
+              rodada={contentSlides[slideAtual - 1].rodada}
+              missoes={contentSlides[slideAtual - 1].missoes}
+              slideIndex={slideAtual}
+              totalSlides={totalSlides}
+              nomeAluno={planejamento.nome_aluno}
+            />
+          )}
         </div>
 
         {/* Instrucoes */}
@@ -422,6 +500,7 @@ export const PlanejamentoPRFView: React.FC = () => {
             padding: 8mm !important;
             min-height: 100vh;
             background-color: #0a0a0a !important;
+            padding-top: 5mm !important;
           }
 
           .no-print {
@@ -451,16 +530,9 @@ export const PlanejamentoPRFView: React.FC = () => {
             break-inside: avoid;
           }
 
-          /* Cada rodada em nova página */
-          .space-y-24 > div {
-            page-break-after: always;
-            break-after: page;
-            margin-bottom: 0 !important;
-          }
-
-          .space-y-24 > div:last-child {
-            page-break-after: avoid;
-            break-after: avoid;
+          /* Cada rodada controla sua propria paginacao via classes print: */
+          .space-y-24 {
+            gap: 0 !important;
           }
 
           /* Preservar cores escuras */
@@ -625,50 +697,63 @@ export const PlanejamentoPRFView: React.FC = () => {
       {/* Conteudo para Impressao e Visualizacao */}
       <div ref={printRef} className="max-w-[1600px] mx-auto px-6 py-12 print-content">
         {/* Header do Planejamento */}
-        <div className="mb-16 text-center relative">
+        {/* Header do Planejamento */}
+        {/* Header do Planejamento */}
+        <div className="mb-8 print:mb-0 text-center relative print:h-[250mm] print:flex print:flex-col print:justify-start print:items-center isolate print:break-after-page print:overflow-hidden print:pt-12">
           {/* Header visivel apenas na impressao */}
-          <div className="print-header mb-8">
-            <h1 className="text-3xl font-black text-brand-yellow uppercase tracking-tight">
+          <div className="print-header mb-6 relative z-10">
+            <div className="flex justify-center mb-4">
+              <img
+                src="https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp"
+                alt="Ouse Passar"
+                className="h-20 object-contain"
+              />
+            </div>
+            <h1 className="text-2xl font-black text-brand-yellow uppercase tracking-tight">
               CRONOGRAMA OUSE PASSAR - PRF
             </h1>
           </div>
 
-          <div className="inline-flex flex-col md:flex-row items-center gap-6 bg-brand-card border border-brand-yellow/20 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
 
 
-            <div className="p-4 bg-brand-yellow/10 rounded-xl border border-brand-yellow/20">
-              <Target className="w-12 h-12 text-brand-yellow" />
+          <div className="inline-flex flex-col md:flex-row items-center gap-4 bg-brand-card border border-brand-yellow/20 rounded-xl p-6 shadow-2xl relative overflow-hidden z-10 max-w-3xl w-full mx-auto">
+
+
+            <div className="p-3 bg-brand-yellow/10 rounded-lg border border-brand-yellow/20">
+              <Target className="w-10 h-10 text-brand-yellow" />
             </div>
 
-            <div className="text-center md:text-left z-10">
-              <p className="text-brand-yellow font-bold uppercase tracking-widest text-xs mb-1">Plano de Estudos Tático</p>
-              <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter mb-2">
+            <div className="text-center md:text-left z-10 flex-1">
+              <p className="text-brand-yellow font-bold uppercase tracking-widest text-[10px] mb-1">Plano de Estudos Tático</p>
+              <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter mb-2">
                 {planejamento.nome_aluno}
               </h1>
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-4">
-                <div className="flex items-center gap-2 bg-black/30 border border-white/10 rounded-md px-3 py-1.5">
-                  <FileText className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-gray-300 text-xs font-bold uppercase">{planejamento.concurso}</span>
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3">
+                <div className="flex items-center gap-1.5 bg-black/30 border border-white/10 rounded px-2.5 py-1">
+                  <FileText className="w-3 h-3 text-gray-400" />
+                  <span className="text-gray-300 text-[10px] font-bold uppercase">{planejamento.concurso}</span>
                 </div>
-                <div className="flex items-center gap-2 bg-black/30 border border-white/10 rounded-md px-3 py-1.5">
-                  <BookOpen className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-gray-300 text-xs font-bold uppercase">16 Rodadas | 184 Missões</span>
+                <div className="flex items-center gap-1.5 bg-black/30 border border-white/10 rounded px-2.5 py-1">
+                  <BookOpen className="w-3 h-3 text-gray-400" />
+                  <span className="text-gray-300 text-[10px] font-bold uppercase">16 Rodadas | 184 Missões</span>
                 </div>
               </div>
             </div>
           </div>
 
           {planejamento.mensagem_incentivo && (
-            <div className="mt-8 max-w-3xl mx-auto">
-              <div className="relative py-6 px-8">
-                <span className="absolute top-0 left-0 text-6xl text-brand-yellow/20 font-serif">"</span>
-                <p className="text-xl text-gray-300 font-medium italic relative z-10">
+            <div className="mt-6 max-w-2xl mx-auto">
+              <div className="relative py-4 px-6">
+                <span className="absolute top-0 left-0 text-4xl text-brand-yellow/20 font-serif">"</span>
+                <p className="text-lg text-gray-300 font-medium italic relative z-10">
                   {planejamento.mensagem_incentivo}
                 </p>
-                <span className="absolute bottom-0 right-0 text-6xl text-brand-yellow/20 font-serif leading-[0] h-4">"</span>
+                <span className="absolute bottom-0 right-0 text-4xl text-brand-yellow/20 font-serif leading-[0] h-3">"</span>
               </div>
             </div>
           )}
+
+
         </div>
 
         {/* Rodadas */}
@@ -685,7 +770,7 @@ export const PlanejamentoPRFView: React.FC = () => {
           </p>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

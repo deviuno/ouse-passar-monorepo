@@ -408,9 +408,62 @@ export interface Database {
     Enums: {
       course_type: 'simulado' | 'preparatorio'
       edital_status: 'pending' | 'processing' | 'analyzed' | 'completed' | 'error'
+      user_role: 'admin' | 'vendedor' | 'cliente'
+      lead_difficulty: 'tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros'
+      lead_gender: 'masculino' | 'feminino' | 'outro' | 'prefiro_nao_dizer'
+      education_level: 'fundamental_incompleto' | 'fundamental_completo' | 'medio_incompleto' | 'medio_completo' | 'superior_incompleto' | 'superior_completo' | 'pos_graduacao' | 'mestrado' | 'doutorado'
     }
     CompositeTypes: {
       [_ in never]: never
     }
   }
+}
+
+// Tipos auxiliares para admin_users
+export type UserRole = Database['public']['Enums']['user_role']
+export type LeadDifficulty = Database['public']['Enums']['lead_difficulty']
+export type LeadGender = Database['public']['Enums']['lead_gender']
+export type EducationLevel = Database['public']['Enums']['education_level']
+
+export interface AdminUser {
+  id: string
+  email: string
+  password_hash: string
+  name: string
+  role: UserRole
+  is_active: boolean
+  avatar_url: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  last_login: string | null
+}
+
+export interface Lead {
+  id: string
+  nome: string
+  sexo: LeadGender | null
+  email: string | null
+  telefone: string | null
+  concurso_almejado: string
+  nivel_escolaridade: EducationLevel | null
+  trabalha: boolean
+  e_concursado: boolean
+  possui_curso_concurso: boolean
+  qual_curso: string | null
+  minutos_domingo: number
+  minutos_segunda: number
+  minutos_terca: number
+  minutos_quarta: number
+  minutos_quinta: number
+  minutos_sexta: number
+  minutos_sabado: number
+  principal_dificuldade: LeadDifficulty | null
+  principais_dificuldades: LeadDifficulty[]
+  dificuldade_outros: string | null
+  vendedor_id: string | null
+  planejamento_id: string | null
+  status: string
+  created_at: string
+  updated_at: string
 }

@@ -35,6 +35,11 @@ import { EditarPreparatorio } from './pages/admin/EditarPreparatorio';
 import { DocsIntegracao } from './pages/DocsIntegracao';
 import { PlanejamentoPRFForm } from './pages/PlanejamentoPRF';
 import { PlanejamentoPRFView } from './pages/PlanejamentoPRFView';
+import { Users } from './pages/admin/Users';
+import { Planejamentos } from './pages/admin/Planejamentos';
+import { Leads } from './pages/admin/Leads';
+import { Profile } from './pages/admin/Profile';
+import { AdminIndex } from './pages/admin/AdminIndex';
 
 // Gamification Admin
 import {
@@ -137,7 +142,11 @@ const App: React.FC = () => {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Dashboard />} />
+            <Route index element={<AdminIndex />} />
+            <Route path="users" element={<Users />} />
+            <Route path="planejamentos" element={<Planejamentos />} />
+            <Route path="leads" element={<Leads />} />
+            <Route path="profile" element={<Profile />} />
             <Route path="authors" element={<Authors />} />
             <Route path="categories" element={<Categories />} />
             <Route path="articles" element={<Articles />} />
