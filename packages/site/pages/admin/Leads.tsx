@@ -104,7 +104,10 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({ lead, onClose, 
         return labels[difficulty];
     };
 
-    const currentStatus = lead.status || 'apresentacao';
+    // Normaliza status para o Kanban (planejamento_gerado e novo são tratados como apresentacao)
+    const currentStatus = (!lead.status || lead.status === 'novo' || lead.status === 'planejamento_gerado')
+        ? 'apresentacao'
+        : lead.status;
 
     const weekDays = [
         { key: 'minutos_segunda', label: 'Seg' },
@@ -156,7 +159,7 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({ lead, onClose, 
                                     key={col.id}
                                     onClick={() => onStatusChange(lead.id, col.id)}
                                     className={`px-3 py-1.5 rounded text-xs font-bold uppercase border transition-all ${
-                                        currentStatus === col.id || (currentStatus === 'novo' && col.id === 'apresentacao')
+                                        currentStatus === col.id
                                             ? `${col.bgColor} ${col.color} ${col.borderColor}`
                                             : 'bg-brand-dark/50 text-gray-500 border-white/10 hover:border-white/30'
                                     }`}
@@ -629,8 +632,8 @@ export const Leads: React.FC = () => {
 
     const getLeadsByStatus = (status: LeadStatus) => {
         return leads.filter(lead => {
-            // Leads novos ou sem status vão para "apresentacao"
-            if (!lead.status || lead.status === 'novo' || lead.status === 'apresentacao') {
+            // Leads novos, sem status, ou com planejamento gerado vão para "apresentacao"
+            if (!lead.status || lead.status === 'novo' || lead.status === 'apresentacao' || lead.status === 'planejamento_gerado') {
                 return status === 'apresentacao';
             }
             return lead.status === status;
@@ -679,6 +682,7 @@ export const Leads: React.FC = () => {
         const statusConfig: Record<string, { label: string; className: string }> = {
             'apresentacao': { label: 'Apresentação', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
             'novo': { label: 'Apresentação', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+            'planejamento_gerado': { label: 'Apresentação', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
             'followup': { label: 'Follow-up', className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
             'perdido': { label: 'Perdido', className: 'bg-red-500/20 text-red-400 border-red-500/30' },
             'ganho': { label: 'Ganho', className: 'bg-green-500/20 text-green-400 border-green-500/30' }
