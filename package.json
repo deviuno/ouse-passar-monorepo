@@ -11,7 +11,8 @@
     "build:questoes": "npm run build -w @ouse/questoes",
     "build:site": "npm run build -w @ouse/site",
     "build": "npm run build -ws",
-    "install:all": "npm install"
+    "install:all": "npm install",
+    "push": "push.bat"
   },
   "engines": {
     "node": ">=18.0.0"
