@@ -286,6 +286,33 @@ export interface Database {
         }
         Relationships: []
       }
+      planejamentos_prf: {
+        Row: {
+          id: string
+          nome_aluno: string
+          email: string | null
+          concurso: string
+          mensagem_incentivo: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nome_aluno: string
+          email?: string | null
+          concurso: string
+          mensagem_incentivo: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nome_aluno?: string
+          email?: string | null
+          concurso?: string
+          mensagem_incentivo?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       editais: {
         Row: {
           id: string
