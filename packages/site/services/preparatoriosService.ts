@@ -21,14 +21,28 @@ export interface CreatePreparatorioInput {
   is_active?: boolean;
   ordem?: number;
   imagem_capa?: string;
-  preco?: number;
-  preco_desconto?: number;
+  preco?: number | null;
+  preco_desconto?: number | null;
   checkout_url?: string;
   descricao_curta?: string;
   descricao_vendas?: string;
 }
 
-export interface UpdatePreparatorioInput extends Partial<CreatePreparatorioInput> {}
+export interface UpdatePreparatorioInput {
+  nome?: string;
+  slug?: string;
+  descricao?: string;
+  icone?: string;
+  cor?: string;
+  is_active?: boolean;
+  ordem?: number;
+  imagem_capa?: string;
+  preco?: number | null;
+  preco_desconto?: number | null;
+  checkout_url?: string;
+  descricao_curta?: string;
+  descricao_vendas?: string;
+}
 
 export const preparatoriosService = {
   async getAll(includeInactive = false): Promise<Preparatorio[]> {
@@ -297,17 +311,28 @@ export interface CreateMissaoInput {
   rodada_id: string;
   numero: string;
   tipo?: MissaoTipo;
-  materia?: string;
-  assunto?: string;
-  instrucoes?: string;
-  tema?: string;
-  acao?: string;
-  extra?: string[];
-  obs?: string;
+  materia?: string | null;
+  assunto?: string | null;
+  instrucoes?: string | null;
+  tema?: string | null;
+  acao?: string | null;
+  extra?: string[] | null;
+  obs?: string | null;
   ordem?: number;
 }
 
-export interface UpdateMissaoInput extends Partial<Omit<CreateMissaoInput, 'rodada_id'>> {}
+export interface UpdateMissaoInput {
+  numero?: string;
+  tipo?: MissaoTipo;
+  materia?: string | null;
+  assunto?: string | null;
+  instrucoes?: string | null;
+  tema?: string | null;
+  acao?: string | null;
+  extra?: string[] | null;
+  obs?: string | null;
+  ordem?: number;
+}
 
 export const missoesService = {
   async getByRodada(rodadaId: string): Promise<Missao[]> {
