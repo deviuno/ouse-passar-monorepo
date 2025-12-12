@@ -33,6 +33,8 @@ import { Preparatorios } from './pages/admin/Preparatorios';
 import { NewPreparatorio } from './pages/admin/NewPreparatorio';
 import { EditarPreparatorio } from './pages/admin/EditarPreparatorio';
 import { DocsIntegracao } from './pages/DocsIntegracao';
+import { PlanejamentoPRFForm } from './pages/PlanejamentoPRF';
+import { PlanejamentoPRFView } from './pages/PlanejamentoPRFView';
 
 // Gamification Admin
 import {
@@ -114,7 +116,11 @@ const App: React.FC = () => {
             <Route path="mentoria" element={<Mentorship />} />
             <Route path="blog" element={<BlogList />} />
             <Route path="blog/:slug" element={<BlogPostView />} />
+            <Route path="planejamento-prf" element={<PlanejamentoPRFForm />} />
           </Route>
+
+          {/* Planejamento PRF View (fora do Layout principal para ter layout proprio) */}
+          <Route path="/planejamento-prf/:id" element={<PlanejamentoPRFView />} />
 
           {/* Admin Login (Public) */}
           <Route path="/admin/login" element={<Login />} />
