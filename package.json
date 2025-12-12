@@ -16,7 +16,7 @@
     "typecheck": "npm run typecheck -ws --if-present",
     "install:all": "npm install",
     "push": "push.bat",
-    "prepare": "husky"
+    "prepare": "node -e \"if (!process.env.VERCEL) require('child_process').execSync('npx husky', {stdio: 'inherit'})\""
   },
   "engines": {
     "node": "20.x"
