@@ -49,17 +49,13 @@ export const adminUsersService = {
   },
 
   async create(input: CreateUserInput): Promise<AdminUser> {
-    const insertData: Record<string, unknown> = {
+    const insertData = {
       email: input.email,
       password_hash: input.password, // Em produção, usar hash
       name: input.name,
-      role: input.role
+      role: input.role,
+      created_by: isValidUUID(input.created_by) ? input.created_by : null
     };
-
-    // Só adiciona created_by se for um UUID válido
-    if (isValidUUID(input.created_by)) {
-      insertData.created_by = input.created_by;
-    }
 
     const { data, error } = await supabase
       .from('admin_users')
@@ -72,7 +68,13 @@ export const adminUsersService = {
   },
 
   async update(id: string, input: UpdateUserInput): Promise<AdminUser> {
-    const updateData: Record<string, unknown> = {};
+    const updateData: {
+      email?: string;
+      name?: string;
+      role?: UserRole;
+      password_hash?: string;
+      is_active?: boolean;
+    } = {};
 
     if (input.email) updateData.email = input.email;
     if (input.name) updateData.name = input.name;
@@ -145,7 +147,7 @@ export interface LeadWithVendedor extends Lead {
     id: string;
     name: string;
     email: string;
-  };
+  } | null;
 }
 
 export const leadsService = {

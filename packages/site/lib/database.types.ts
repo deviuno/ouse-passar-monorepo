@@ -398,6 +398,155 @@ export interface Database {
           }
         ]
       }
+      admin_users: {
+        Row: {
+          id: string
+          email: string
+          password_hash: string
+          name: string
+          role: 'admin' | 'vendedor' | 'cliente'
+          is_active: boolean
+          avatar_url: string | null
+          created_at: string
+          updated_at: string
+          created_by: string | null
+          last_login: string | null
+        }
+        Insert: {
+          id?: string
+          email: string
+          password_hash: string
+          name: string
+          role?: 'admin' | 'vendedor' | 'cliente'
+          is_active?: boolean
+          avatar_url?: string | null
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          last_login?: string | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          password_hash?: string
+          name?: string
+          role?: 'admin' | 'vendedor' | 'cliente'
+          is_active?: boolean
+          avatar_url?: string | null
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          last_login?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_users_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      leads: {
+        Row: {
+          id: string
+          nome: string
+          sexo: 'masculino' | 'feminino' | 'outro' | 'prefiro_nao_dizer' | null
+          email: string | null
+          telefone: string | null
+          concurso_almejado: string
+          nivel_escolaridade: 'fundamental_incompleto' | 'fundamental_completo' | 'medio_incompleto' | 'medio_completo' | 'superior_incompleto' | 'superior_completo' | 'pos_graduacao' | 'mestrado' | 'doutorado' | null
+          trabalha: boolean
+          e_concursado: boolean
+          possui_curso_concurso: boolean
+          qual_curso: string | null
+          minutos_domingo: number
+          minutos_segunda: number
+          minutos_terca: number
+          minutos_quarta: number
+          minutos_quinta: number
+          minutos_sexta: number
+          minutos_sabado: number
+          principal_dificuldade: 'tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros' | null
+          principais_dificuldades: ('tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros')[]
+          dificuldade_outros: string | null
+          vendedor_id: string | null
+          planejamento_id: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          sexo?: 'masculino' | 'feminino' | 'outro' | 'prefiro_nao_dizer' | null
+          email?: string | null
+          telefone?: string | null
+          concurso_almejado: string
+          nivel_escolaridade?: 'fundamental_incompleto' | 'fundamental_completo' | 'medio_incompleto' | 'medio_completo' | 'superior_incompleto' | 'superior_completo' | 'pos_graduacao' | 'mestrado' | 'doutorado' | null
+          trabalha?: boolean
+          e_concursado?: boolean
+          possui_curso_concurso?: boolean
+          qual_curso?: string | null
+          minutos_domingo?: number
+          minutos_segunda?: number
+          minutos_terca?: number
+          minutos_quarta?: number
+          minutos_quinta?: number
+          minutos_sexta?: number
+          minutos_sabado?: number
+          principal_dificuldade?: 'tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros' | null
+          principais_dificuldades?: ('tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros')[]
+          dificuldade_outros?: string | null
+          vendedor_id?: string | null
+          planejamento_id?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          sexo?: 'masculino' | 'feminino' | 'outro' | 'prefiro_nao_dizer' | null
+          email?: string | null
+          telefone?: string | null
+          concurso_almejado?: string
+          nivel_escolaridade?: 'fundamental_incompleto' | 'fundamental_completo' | 'medio_incompleto' | 'medio_completo' | 'superior_incompleto' | 'superior_completo' | 'pos_graduacao' | 'mestrado' | 'doutorado' | null
+          trabalha?: boolean
+          e_concursado?: boolean
+          possui_curso_concurso?: boolean
+          qual_curso?: string | null
+          minutos_domingo?: number
+          minutos_segunda?: number
+          minutos_terca?: number
+          minutos_quarta?: number
+          minutos_quinta?: number
+          minutos_sexta?: number
+          minutos_sabado?: number
+          principal_dificuldade?: 'tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros' | null
+          principais_dificuldades?: ('tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros')[]
+          dificuldade_outros?: string | null
+          vendedor_id?: string | null
+          planejamento_id?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_planejamento_id_fkey"
+            columns: ["planejamento_id"]
+            referencedRelation: "planejamentos_prf"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
