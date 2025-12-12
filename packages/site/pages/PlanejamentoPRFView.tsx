@@ -13,8 +13,31 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { planejamentoPRF, Rodada, Missao } from '../lib/planejamentoPRF';
+import { planejamentoPRF, Rodada as RodadaStatic, Missao as MissaoStatic } from '../lib/planejamentoPRF';
 import { SEOHead } from '../components/SEOHead';
+import { preparatoriosService, planejamentosService } from '../services/preparatoriosService';
+import { PreparatorioCompleto, RodadaComMissoes, Missao as MissaoDB } from '../lib/database.types';
+
+// Interface unificada para rodada (compatível com estático e dinâmico)
+interface Rodada {
+  numero: number;
+  titulo: string;
+  nota?: string;
+  missoes: Missao[];
+}
+
+// Interface unificada para missão
+interface Missao {
+  numero: string;
+  tipo?: string;
+  materia?: string;
+  assunto?: string;
+  instrucoes?: string;
+  tema?: string;
+  acao?: string;
+  extra?: string[];
+  obs?: string;
+}
 
 interface PlanejamentoData {
   id: string;
@@ -23,6 +46,9 @@ interface PlanejamentoData {
   concurso: string;
   mensagem_incentivo: string;
   created_at: string;
+  // Campos dinâmicos
+  preparatorio_id?: string;
+  cor?: string;
 }
 
 // Componente de Card da Missao (Estilo Tabela)
@@ -109,7 +135,7 @@ const MissaoCard: React.FC<{ missao: Missao; compact?: boolean }> = ({ missao, c
 // Componente de Rodada
 // Componente de Rodada
 const RodadaSection: React.FC<{ rodada: Rodada }> = ({ rodada }) => {
-  // Dividir missoes em paginas de 6 (para garantir que caiba em uma pagina com margens)
+  // Dividir missoes em paginas de 6 (apenas para impressao)
   const chunks: Missao[][] = [];
   for (let i = 0; i < rodada.missoes.length; i += 6) {
     chunks.push(rodada.missoes.slice(i, i + 6));
@@ -117,9 +143,44 @@ const RodadaSection: React.FC<{ rodada: Rodada }> = ({ rodada }) => {
 
   return (
     <>
+      {/* Versao para Tela - Todas as missoes juntas */}
+      <div className="mb-16 relative print:hidden">
+        {/* Header da Rodada */}
+        <div className="flex flex-col items-center justify-center mb-8 relative">
+          <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-yellow/50 to-transparent top-1/2 -z-10"></div>
+          <div className="bg-brand-darker px-8 py-2 border border-brand-yellow/30 rounded-full shadow-[0_0_30px_rgba(255,184,0,0.15)]">
+            <h3 className="text-3xl font-black text-brand-yellow uppercase tracking-tighter font-display">
+              {rodada.numero}ª RODADA
+            </h3>
+          </div>
+          {rodada.titulo.replace(/^\d+a RODADA /, '') && (
+            <p className="mt-2 text-gray-500 text-sm uppercase tracking-widest font-bold">
+              {rodada.titulo.replace(/^\d+a RODADA /, '').replace(/[()]/g, '')}
+            </p>
+          )}
+        </div>
+
+        {rodada.nota && (
+          <div className="max-w-3xl mx-auto mb-8 p-4 bg-yellow-900/10 border border-yellow-500/20 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <p className="text-yellow-500/80 text-sm font-medium">{rodada.nota}</p>
+          </div>
+        )}
+
+        {/* Grid de Missoes - Todas as missoes da rodada */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {rodada.missoes.map((missao, mIndex) => (
+            <div key={mIndex}>
+              <MissaoCard missao={missao} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Versao para Impressao - Missoes em chunks de 6 por pagina */}
       {chunks.map((chunk, index) => (
-        <div key={index} className="mb-16 page-break-inside-avoid relative print:h-screen print:flex print:flex-col print:justify-start print:pt-12 print:pb-8">
-          {/* Header da Rodada (Repetido em todas as paginas) */}
+        <div key={index} className="hidden print:block mb-16 page-break-inside-avoid relative print:h-screen print:flex print:flex-col print:justify-start print:pt-12 print:pb-8">
+          {/* Header da Rodada (Repetido em todas as paginas de impressao) */}
           <div className="flex flex-col items-center justify-center mb-8 relative">
             <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-yellow/50 to-transparent top-1/2 -z-10"></div>
             <div className="bg-brand-darker px-8 py-2 border border-brand-yellow/30 rounded-full shadow-[0_0_30px_rgba(255,184,0,0.15)]">
@@ -134,7 +195,7 @@ const RodadaSection: React.FC<{ rodada: Rodada }> = ({ rodada }) => {
             )}
           </div>
 
-          {/* Nota apenas na primeira pagina */}
+          {/* Nota apenas na primeira pagina de impressao */}
           {index === 0 && rodada.nota && (
             <div className="max-w-3xl mx-auto mb-8 p-4 bg-yellow-900/10 border border-yellow-500/20 rounded-lg flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
@@ -142,7 +203,7 @@ const RodadaSection: React.FC<{ rodada: Rodada }> = ({ rodada }) => {
             </div>
           )}
 
-          {/* Grid de Missões - Estilo Tabela */}
+          {/* Grid de Missoes - Chunk atual */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {chunk.map((missao, mIndex) => (
               <div key={mIndex}>
@@ -150,9 +211,6 @@ const RodadaSection: React.FC<{ rodada: Rodada }> = ({ rodada }) => {
               </div>
             ))}
           </div>
-
-          {/* Footer de Paginacao Interna (opcional, visual apenas) */}
-
         </div>
       ))}
     </>
@@ -280,21 +338,23 @@ const CoverSlideView: React.FC<{
   );
 };
 export const PlanejamentoPRFView: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id: string; slug?: string }>();
   const navigate = useNavigate();
   const printRef = useRef<HTMLDivElement>(null);
 
   const [planejamento, setPlanejamento] = useState<PlanejamentoData | null>(null);
+  const [rodadas, setRodadas] = useState<Rodada[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [apresentacaoAtiva, setApresentacaoAtiva] = useState(false);
   const [slideAtual, setSlideAtual] = useState(0);
+  const [isDynamic, setIsDynamic] = useState(false);
 
   // Gerar slides para apresentacao
   const gerarSlides = () => {
     const slides: { rodada: Rodada; missoes: Missao[] }[] = [];
 
-    planejamentoPRF.forEach(rodada => {
+    rodadas.forEach(rodada => {
       // Dividir missoes em grupos de 8 (maximo por slide)
       for (let i = 0; i < rodada.missoes.length; i += 8) {
         slides.push({
@@ -310,6 +370,10 @@ export const PlanejamentoPRFView: React.FC = () => {
   const contentSlides = gerarSlides();
   const totalSlides = contentSlides.length + 1; // +1 para a capa
 
+  // Calcular totais para exibição
+  const totalRodadas = rodadas.length;
+  const totalMissoes = rodadas.reduce((acc, r) => acc + r.missoes.length, 0);
+
   useEffect(() => {
     const fetchPlanejamento = async () => {
       if (!id) {
@@ -319,16 +383,80 @@ export const PlanejamentoPRFView: React.FC = () => {
       }
 
       try {
-        const { data, error: fetchError } = await supabase
-          .from('planejamentos_prf')
-          .select('*')
-          .eq('id', id)
-          .single();
+        // Se temos um slug, é uma rota dinâmica
+        if (slug) {
+          setIsDynamic(true);
 
-        if (fetchError) throw fetchError;
-        if (!data) throw new Error('Planejamento não encontrado');
+          // Buscar planejamento da nova tabela
+          const planejamentoData = await planejamentosService.getById(id);
+          if (!planejamentoData) throw new Error('Planejamento não encontrado');
 
-        setPlanejamento(data);
+          // Buscar preparatório completo com rodadas e missões
+          const preparatorio = await preparatoriosService.getCompletoById(planejamentoData.preparatorio_id);
+          if (!preparatorio) throw new Error('Preparatório não encontrado');
+
+          // Converter para formato unificado
+          const rodadasUnificadas: Rodada[] = preparatorio.rodadas.map((r: RodadaComMissoes) => ({
+            numero: r.numero,
+            titulo: r.titulo,
+            nota: r.nota || undefined,
+            missoes: r.missoes.map((m: MissaoDB) => ({
+              numero: m.numero,
+              tipo: m.tipo,
+              materia: m.materia || undefined,
+              assunto: m.assunto || undefined,
+              instrucoes: m.instrucoes || undefined,
+              tema: m.tema || undefined,
+              acao: m.acao || undefined,
+              extra: m.extra || undefined,
+              obs: m.obs || undefined
+            }))
+          }));
+
+          setRodadas(rodadasUnificadas);
+          setPlanejamento({
+            id: planejamentoData.id,
+            nome_aluno: planejamentoData.nome_aluno,
+            email: planejamentoData.email,
+            concurso: preparatorio.nome,
+            mensagem_incentivo: planejamentoData.mensagem_incentivo || '',
+            created_at: planejamentoData.created_at,
+            preparatorio_id: planejamentoData.preparatorio_id,
+            cor: preparatorio.cor
+          });
+        } else {
+          // Rota legado - usar tabela planejamentos_prf e dados estáticos
+          setIsDynamic(false);
+
+          const { data, error: fetchError } = await supabase
+            .from('planejamentos_prf')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+          if (fetchError) throw fetchError;
+          if (!data) throw new Error('Planejamento não encontrado');
+
+          // Converter dados estáticos para formato unificado
+          const rodadasUnificadas: Rodada[] = planejamentoPRF.map((r: RodadaStatic) => ({
+            numero: r.numero,
+            titulo: r.titulo,
+            nota: r.nota,
+            missoes: r.missoes.map((m: MissaoStatic) => ({
+              numero: m.numero,
+              materia: m.materia,
+              assunto: m.assunto,
+              instrucoes: m.instrucoes,
+              tema: m.tema,
+              acao: m.acao,
+              extra: m.extra,
+              obs: m.obs
+            }))
+          }));
+
+          setRodadas(rodadasUnificadas);
+          setPlanejamento(data);
+        }
       } catch (err: any) {
         console.error('Erro ao buscar planejamento:', err);
         setError('Planejamento não encontrado. Verifique o link.');
@@ -338,7 +466,7 @@ export const PlanejamentoPRFView: React.FC = () => {
     };
 
     fetchPlanejamento();
-  }, [id]);
+  }, [id, slug]);
 
   // Handler de teclas para apresentacao
   useEffect(() => {
@@ -735,7 +863,7 @@ export const PlanejamentoPRFView: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1.5 bg-black/30 border border-white/10 rounded px-2.5 py-1">
                   <BookOpen className="w-3 h-3 text-gray-400" />
-                  <span className="text-gray-300 text-[10px] font-bold uppercase">16 Rodadas | 184 Missões</span>
+                  <span className="text-gray-300 text-[10px] font-bold uppercase">{totalRodadas} Rodadas | {totalMissoes} Missões</span>
                 </div>
               </div>
             </div>
@@ -758,7 +886,7 @@ export const PlanejamentoPRFView: React.FC = () => {
 
         {/* Rodadas */}
         <div className="space-y-24">
-          {planejamentoPRF.map((rodada, index) => (
+          {rodadas.map((rodada, index) => (
             <RodadaSection key={index} rodada={rodada} />
           ))}
         </div>

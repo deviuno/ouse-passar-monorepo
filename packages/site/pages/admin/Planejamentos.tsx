@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Plus, X, Check, User, Clock, Target, Minus, Shield, Award } from 'lucide-react';
+import { Plus, X, Check, User, Clock, Target, Minus, Shield, Award, Book } from 'lucide-react';
 import { leadsService, CreateLeadInput } from '../../services/adminUsersService';
-import { LeadDifficulty, LeadGender, EducationLevel, Lead } from '../../lib/database.types';
+import { LeadDifficulty, LeadGender, EducationLevel, Lead, Preparatorio } from '../../lib/database.types';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { preparatoriosService, planejamentosService } from '../../services/preparatoriosService';
 
 // Componente de Confetes
 const Confetti: React.FC = () => {
@@ -225,10 +226,11 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
 interface SuccessCardProps {
     lead: Lead;
     planejamentoId: string;
+    slug: string;
     onClose: () => void;
 }
 
-const SuccessCard: React.FC<SuccessCardProps> = ({ lead, planejamentoId, onClose }) => {
+const SuccessCard: React.FC<SuccessCardProps> = ({ lead, planejamentoId, slug, onClose }) => {
     const firstName = lead.nome.split(' ')[0];
     const totalMinutos = lead.minutos_domingo + lead.minutos_segunda + lead.minutos_terca +
         lead.minutos_quarta + lead.minutos_quinta + lead.minutos_sexta + lead.minutos_sabado;
@@ -278,7 +280,7 @@ const SuccessCard: React.FC<SuccessCardProps> = ({ lead, planejamentoId, onClose
                 </div>
 
                 <a
-                    href={`/planejamento-prf/${planejamentoId}`}
+                    href={`/planejamento/${slug}/${planejamentoId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full bg-brand-yellow text-brand-darker py-4 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
@@ -356,12 +358,14 @@ const MinutesInput: React.FC<MinutesInputProps> = ({ label, value, onChange }) =
 // Formulário de Geração de Planejamento Personalizado
 interface LeadFormProps {
     onClose: () => void;
-    onSuccess: (lead: Lead, planejamentoId: string) => void;
+    onSuccess: (lead: Lead, planejamentoId: string, preparatorioSlug: string) => void;
     vendedorId: string;
     concursoDefault?: string;
+    preparatorioId?: string;
+    preparatorioSlug?: string;
 }
 
-const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, concursoDefault }) => {
+const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, concursoDefault, preparatorioId, preparatorioSlug }) => {
     const [loading, setLoading] = useState(false);
     const [showLoading, setShowLoading] = useState(false);
     const [createdLead, setCreatedLead] = useState<Lead | null>(null);
@@ -409,21 +413,36 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
         if (!createdLead) return;
 
         try {
-            const { data: planejamento, error } = await supabase
-                .from('planejamentos_prf')
-                .insert({
+            let planejamentoId: string;
+            let slug = preparatorioSlug || 'prf';
+
+            // Se temos um preparatório dinâmico, usar a nova tabela
+            if (preparatorioId) {
+                const planejamento = await planejamentosService.create({
+                    preparatorio_id: preparatorioId,
                     nome_aluno: createdLead.nome,
-                    email: createdLead.email,
-                    concurso: createdLead.concurso_almejado,
-                    mensagem_incentivo: `${createdLead.nome.split(' ')[0]}, sua jornada começa agora!`
-                })
-                .select()
-                .single();
+                    email: createdLead.email
+                });
+                planejamentoId = planejamento.id;
+            } else {
+                // Fallback para tabela antiga (planejamentos_prf) para compatibilidade
+                const { data: planejamento, error } = await supabase
+                    .from('planejamentos_prf')
+                    .insert({
+                        nome_aluno: createdLead.nome,
+                        email: createdLead.email,
+                        concurso: createdLead.concurso_almejado,
+                        mensagem_incentivo: `${createdLead.nome.split(' ')[0]}, sua jornada começa agora!`
+                    })
+                    .select()
+                    .single();
 
-            if (error) throw error;
+                if (error) throw error;
+                planejamentoId = planejamento.id;
+            }
 
-            await leadsService.linkPlanejamento(createdLead.id, planejamento.id);
-            onSuccess(createdLead, planejamento.id);
+            await leadsService.linkPlanejamento(createdLead.id, planejamentoId);
+            onSuccess(createdLead, planejamentoId, slug);
         } catch (error) {
             console.error('Erro ao criar planejamento:', error);
             alert('Erro ao criar planejamento');
@@ -431,7 +450,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
             setShowLoading(false);
             setLoading(false);
         }
-    }, [createdLead, onSuccess]);
+    }, [createdLead, onSuccess, preparatorioId, preparatorioSlug]);
 
     const handleDifficultyToggle = (difficulty: LeadDifficulty) => {
         const current = formData.principais_dificuldades || [];
@@ -806,6 +825,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
 // Tipos de planejamentos disponíveis
 interface PlanejamentoType {
     id: string;
+    slug: string;
     title: string;
     subtitle: string;
     description: string;
@@ -813,58 +833,67 @@ interface PlanejamentoType {
     features: string[];
     concurso: string;
     available: boolean;
+    cor: string;
 }
+
+// Helper para escolher ícone baseado no nome
+const getIconForPreparatorio = (nome: string): React.ReactNode => {
+    const nomeLower = nome.toLowerCase();
+    if (nomeLower.includes('prf') || nomeLower.includes('policia') || nomeLower.includes('federal')) {
+        return <Shield className="w-8 h-8" />;
+    }
+    if (nomeLower.includes('cfo') || nomeLower.includes('oficiais') || nomeLower.includes('militar')) {
+        return <Award className="w-8 h-8" />;
+    }
+    return <Book className="w-8 h-8" />;
+};
 
 // Página Principal de Planejamentos
 export const Planejamentos: React.FC = () => {
     const { user } = useAuth();
     const [showForm, setShowForm] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
-    const [successData, setSuccessData] = useState<{ lead: Lead; planejamentoId: string } | null>(null);
+    const [successData, setSuccessData] = useState<{ lead: Lead; planejamentoId: string; slug: string } | null>(null);
     const [selectedPlanejamento, setSelectedPlanejamento] = useState<PlanejamentoType | null>(null);
+    const [planejamentos, setPlanejamentos] = useState<PlanejamentoType[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const planejamentos: PlanejamentoType[] = [
-        {
-            id: 'prf',
-            title: 'PRF',
-            subtitle: 'Polícia Rodoviária Federal',
-            description: 'Planejamento completo e personalizado para aprovação no concurso da PRF. Metodologia exclusiva Ouse Passar com foco em resultados.',
-            icon: <Shield className="w-8 h-8" />,
-            features: [
-                'Cronograma personalizado',
-                'Metodologia Ouse Passar',
-                'Análise do perfil do aluno',
-                'Distribuição otimizada de matérias',
-                'Foco nas disciplinas mais cobradas'
-            ],
-            concurso: 'PRF - Policia Rodoviaria Federal',
-            available: true
-        },
-        {
-            id: 'pf',
-            title: 'PF',
-            subtitle: 'Polícia Federal',
-            description: 'Em breve: Planejamento especializado para o concurso da Polícia Federal.',
-            icon: <Shield className="w-8 h-8" />,
-            features: [
-                'Em desenvolvimento'
-            ],
-            concurso: 'PF - Polícia Federal',
-            available: false
-        },
-        {
-            id: 'cfo',
-            title: 'CFO',
-            subtitle: 'Curso de Formação de Oficiais',
-            description: 'Em breve: Planejamento para concursos de formação de oficiais das forças armadas.',
-            icon: <Award className="w-8 h-8" />,
-            features: [
-                'Em desenvolvimento'
-            ],
-            concurso: 'CFO - Curso de Formação de Oficiais',
-            available: false
-        }
-    ];
+    // Carregar preparatórios do banco de dados
+    useEffect(() => {
+        const loadPreparatorios = async () => {
+            try {
+                setLoading(true);
+                const data = await preparatoriosService.getAll(false); // Apenas ativos
+
+                const mapped: PlanejamentoType[] = data.map((prep: Preparatorio) => ({
+                    id: prep.id,
+                    slug: prep.slug,
+                    title: prep.slug.toUpperCase(),
+                    subtitle: prep.nome,
+                    description: prep.descricao || `Planejamento completo e personalizado para aprovação no concurso. Metodologia exclusiva Ouse Passar com foco em resultados.`,
+                    icon: getIconForPreparatorio(prep.nome),
+                    features: [
+                        'Cronograma personalizado',
+                        'Metodologia Ouse Passar',
+                        'Análise do perfil do aluno',
+                        'Distribuição otimizada de matérias',
+                        'Foco nas disciplinas mais cobradas'
+                    ],
+                    concurso: prep.nome,
+                    available: prep.is_active,
+                    cor: prep.cor
+                }));
+
+                setPlanejamentos(mapped);
+            } catch (error) {
+                console.error('Erro ao carregar preparatorios:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadPreparatorios();
+    }, []);
 
     const handleCardClick = (planejamento: PlanejamentoType) => {
         if (!planejamento.available) return;
@@ -872,11 +901,11 @@ export const Planejamentos: React.FC = () => {
         setShowForm(true);
     };
 
-    const handleSuccess = (lead: Lead, planejamentoId: string) => {
+    const handleSuccess = (lead: Lead, planejamentoId: string, slug: string) => {
         setShowForm(false);
         setSelectedPlanejamento(null);
         setShowConfetti(true);
-        setSuccessData({ lead, planejamentoId });
+        setSuccessData({ lead, planejamentoId, slug });
         setTimeout(() => setShowConfetti(false), 5000);
     };
 
@@ -889,6 +918,14 @@ export const Planejamentos: React.FC = () => {
         setSelectedPlanejamento(null);
     };
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-yellow"></div>
+            </div>
+        );
+    }
+
     return (
         <div>
             {showConfetti && <Confetti />}
@@ -896,6 +933,7 @@ export const Planejamentos: React.FC = () => {
                 <SuccessCard
                     lead={successData.lead}
                     planejamentoId={successData.planejamentoId}
+                    slug={successData.slug}
                     onClose={handleCloseSuccess}
                 />
             )}
@@ -905,6 +943,13 @@ export const Planejamentos: React.FC = () => {
                 <p className="text-gray-500 mt-1">Selecione um planejamento para gerar para seu lead</p>
             </div>
 
+            {planejamentos.length === 0 ? (
+                <div className="bg-brand-card border border-white/10 p-12 text-center">
+                    <Book className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                    <h3 className="text-lg font-bold text-white mb-2">Nenhum preparatório disponível</h3>
+                    <p className="text-gray-500 mb-6">Crie um preparatório na seção de gerenciamento para poder gerar planejamentos.</p>
+                </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {planejamentos.map((planejamento) => (
                     <div
@@ -984,6 +1029,7 @@ export const Planejamentos: React.FC = () => {
                     </div>
                 ))}
             </div>
+            )}
 
             {showForm && user?.id && selectedPlanejamento && (
                 <LeadForm
@@ -991,6 +1037,8 @@ export const Planejamentos: React.FC = () => {
                     onSuccess={handleSuccess}
                     vendedorId={user.id}
                     concursoDefault={selectedPlanejamento.concurso}
+                    preparatorioId={selectedPlanejamento.id}
+                    preparatorioSlug={selectedPlanejamento.slug}
                 />
             )}
         </div>

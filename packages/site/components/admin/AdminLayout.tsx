@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, Gamepad2, Zap, Trophy, Medal, Star, ClipboardList, UserCheck } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, Gamepad2, Zap, Trophy, Medal, Star, ClipboardList, UserCheck, Plus, List } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 export const AdminLayout: React.FC = () => {
@@ -9,6 +9,7 @@ export const AdminLayout: React.FC = () => {
     const { user, logout, isAdmin, isVendedor } = useAuth();
     const [blogOpen, setBlogOpen] = useState(false);
     const [gamificationOpen, setGamificationOpen] = useState(false);
+    const [planejamentosOpen, setPlanejamentosOpen] = useState(location.pathname.includes('/admin/planejamentos') || location.pathname.includes('/admin/planos-preparatorios'));
 
     const isActive = (path: string) => {
         return location.pathname === path ? 'bg-brand-yellow text-brand-darker' : 'text-gray-400 hover:text-white hover:bg-white/5';
@@ -62,14 +63,39 @@ export const AdminLayout: React.FC = () => {
                         </Link>
                     )}
 
-                    {/* Planejamentos - Admin and Vendedor */}
-                    <Link
-                        to="/admin/planejamentos"
-                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/planejamentos')}`}
-                    >
-                        <ClipboardList className="w-5 h-5 mr-3" />
-                        Planejamentos
-                    </Link>
+                    {/* Planejamentos Accordion - Admin and Vendedor */}
+                    <div className="space-y-1">
+                        <button
+                            onClick={() => setPlanejamentosOpen(!planejamentosOpen)}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/planejamentos') || location.pathname.includes('/admin/planos-preparatorios') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <div className="flex items-center">
+                                <ClipboardList className="w-5 h-5 mr-3" />
+                                Planejamentos
+                            </div>
+                            <ChevronDown className={`w-4 h-4 transition-transform ${planejamentosOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {planejamentosOpen && (
+                            <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
+                                <Link
+                                    to="/admin/planejamentos"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/planejamentos')}`}
+                                >
+                                    <Plus className="w-4 h-4 mr-3" />
+                                    Geração
+                                </Link>
+
+                                <Link
+                                    to="/admin/planos-preparatorios"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/planos-preparatorios')}`}
+                                >
+                                    <List className="w-4 h-4 mr-3" />
+                                    Preparatórios
+                                </Link>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Leads - Admin and Vendedor */}
                     <Link
