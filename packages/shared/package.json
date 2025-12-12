@@ -5,6 +5,9 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "scripts": {
+    "build": "echo 'No build needed for shared package'"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/types/index.ts",
