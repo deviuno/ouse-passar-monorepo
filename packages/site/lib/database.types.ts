@@ -472,6 +472,9 @@ export interface Database {
           dificuldade_outros: string | null
           vendedor_id: string | null
           planejamento_id: string | null
+          agendamento_id: string | null
+          user_id: string | null
+          senha_temporaria: string | null
           status: string
           created_at: string
           updated_at: string
@@ -500,6 +503,9 @@ export interface Database {
           dificuldade_outros?: string | null
           vendedor_id?: string | null
           planejamento_id?: string | null
+          agendamento_id?: string | null
+          user_id?: string | null
+          senha_temporaria?: string | null
           status?: string
           created_at?: string
           updated_at?: string
@@ -528,6 +534,9 @@ export interface Database {
           dificuldade_outros?: string | null
           vendedor_id?: string | null
           planejamento_id?: string | null
+          agendamento_id?: string | null
+          user_id?: string | null
+          senha_temporaria?: string | null
           status?: string
           created_at?: string
           updated_at?: string
@@ -543,6 +552,12 @@ export interface Database {
             foreignKeyName: "leads_planejamento_id_fkey"
             columns: ["planejamento_id"]
             referencedRelation: "planejamentos_prf"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            referencedRelation: "agendamentos"
             referencedColumns: ["id"]
           }
         ]
@@ -770,6 +785,144 @@ export interface Database {
           }
         ]
       }
+      vendedor_schedules: {
+        Row: {
+          id: string
+          vendedor_id: string
+          dia_semana: number
+          is_active: boolean
+          manha_inicio: string | null
+          manha_fim: string | null
+          tarde_inicio: string | null
+          tarde_fim: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          vendedor_id: string
+          dia_semana: number
+          is_active?: boolean
+          manha_inicio?: string | null
+          manha_fim?: string | null
+          tarde_inicio?: string | null
+          tarde_fim?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          vendedor_id?: string
+          dia_semana?: number
+          is_active?: boolean
+          manha_inicio?: string | null
+          manha_fim?: string | null
+          tarde_inicio?: string | null
+          tarde_fim?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendedor_schedules_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      agendamentos: {
+        Row: {
+          id: string
+          lead_id: string
+          vendedor_id: string
+          preparatorio_id: string
+          data_hora: string
+          duracao_minutos: number
+          status: 'agendado' | 'confirmado' | 'realizado' | 'cancelado' | 'nao_compareceu'
+          notas: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          vendedor_id: string
+          preparatorio_id: string
+          data_hora: string
+          duracao_minutos?: number
+          status?: 'agendado' | 'confirmado' | 'realizado' | 'cancelado' | 'nao_compareceu'
+          notas?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          vendedor_id?: string
+          preparatorio_id?: string
+          data_hora?: string
+          duracao_minutos?: number
+          status?: 'agendado' | 'confirmado' | 'realizado' | 'cancelado' | 'nao_compareceu'
+          notas?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agendamentos_lead_id_fkey"
+            columns: ["lead_id"]
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamentos_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamentos_preparatorio_id_fkey"
+            columns: ["preparatorio_id"]
+            referencedRelation: "preparatorios"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      round_robin_state: {
+        Row: {
+          id: string
+          preparatorio_id: string | null
+          ultimo_vendedor_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          preparatorio_id?: string | null
+          ultimo_vendedor_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          preparatorio_id?: string | null
+          ultimo_vendedor_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "round_robin_state_preparatorio_id_fkey"
+            columns: ["preparatorio_id"]
+            referencedRelation: "preparatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "round_robin_state_ultimo_vendedor_id_fkey"
+            columns: ["ultimo_vendedor_id"]
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -785,6 +938,7 @@ export interface Database {
       lead_gender: 'masculino' | 'feminino' | 'outro' | 'prefiro_nao_dizer'
       education_level: 'fundamental_incompleto' | 'fundamental_completo' | 'medio_incompleto' | 'medio_completo' | 'superior_incompleto' | 'superior_completo' | 'pos_graduacao' | 'mestrado' | 'doutorado'
       missao_tipo: 'padrao' | 'revisao' | 'acao'
+      agendamento_status: 'agendado' | 'confirmado' | 'realizado' | 'cancelado' | 'nao_compareceu'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -798,6 +952,8 @@ export type LeadDifficulty = Database['public']['Enums']['lead_difficulty']
 export type LeadGender = Database['public']['Enums']['lead_gender']
 export type EducationLevel = Database['public']['Enums']['education_level']
 
+export type UserGender = 'masculino' | 'feminino'
+
 export interface AdminUser {
   id: string
   email: string
@@ -806,6 +962,7 @@ export interface AdminUser {
   role: UserRole
   is_active: boolean
   avatar_url: string | null
+  genero?: UserGender | null
   created_at: string
   updated_at: string
   created_by: string | null
@@ -836,6 +993,9 @@ export interface Lead {
   dificuldade_outros: string | null
   vendedor_id: string | null
   planejamento_id: string | null
+  agendamento_id: string | null
+  user_id?: string | null
+  senha_temporaria?: string | null
   status: string
   created_at: string
   updated_at: string
@@ -903,6 +1063,7 @@ export interface MensagemIncentivo {
 export interface Planejamento {
   id: string
   preparatorio_id: string
+  lead_id?: string | null
   nome_aluno: string
   email: string | null
   mensagem_incentivo: string | null
@@ -917,4 +1078,71 @@ export interface RodadaComMissoes extends Rodada {
 export interface PreparatorioCompleto extends Preparatorio {
   rodadas: RodadaComMissoes[]
   mensagens_incentivo: MensagemIncentivo[]
+}
+
+// Tipos para o sistema de agendamento
+export type AgendamentoStatus = Database['public']['Enums']['agendamento_status']
+
+export interface VendedorSchedule {
+  id: string
+  vendedor_id: string
+  dia_semana: number // 0=Domingo, 1=Segunda... 6=Sábado
+  is_active: boolean
+  manha_inicio: string | null
+  manha_fim: string | null
+  tarde_inicio: string | null
+  tarde_fim: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Agendamento {
+  id: string
+  lead_id: string
+  vendedor_id: string
+  preparatorio_id: string
+  data_hora: string
+  duracao_minutos: number
+  status: AgendamentoStatus
+  notas: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AgendamentoWithDetails extends Agendamento {
+  lead?: Lead
+  vendedor?: AdminUser
+  preparatorio?: Preparatorio
+}
+
+export interface RoundRobinState {
+  id: string
+  preparatorio_id: string | null
+  ultimo_vendedor_id: string | null
+  updated_at: string
+}
+
+export interface TimeSlot {
+  data: string // YYYY-MM-DD
+  hora_inicio: string // HH:mm
+  hora_fim: string // HH:mm
+  vendedor_id: string
+  vendedor_nome: string
+  vendedor_avatar?: string | null
+  vendedor_genero?: UserGender | null
+}
+
+export interface LeadWithAgendamento extends Lead {
+  agendamento?: Agendamento
+  vendedor?: AdminUser
+}
+
+export interface MissaoExecutada {
+  id: string
+  user_id: string
+  planejamento_id: string
+  rodada_numero: number
+  missao_numero: number
+  completed_at: string
+  created_at: string
 }

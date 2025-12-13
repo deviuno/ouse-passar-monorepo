@@ -10,13 +10,20 @@ import {
   BookOpen,
   Target,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Lock,
+  Check,
+  Loader2,
+  BarChart2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { planejamentoPRF, Rodada as RodadaStatic, Missao as MissaoStatic } from '../lib/planejamentoPRF';
 import { SEOHead } from '../components/SEOHead';
 import { preparatoriosService, planejamentosService } from '../services/preparatoriosService';
-import { PreparatorioCompleto, RodadaComMissoes, Missao as MissaoDB } from '../lib/database.types';
+import { PreparatorioCompleto, RodadaComMissoes, Missao as MissaoDB, AdminUser } from '../lib/database.types';
+import { useAuth } from '../lib/AuthContext';
+import { studentService } from '../services/studentService';
+import { missaoService } from '../services/missaoService';
 
 // Interface unificada para rodada (compatível com estático e dinâmico)
 interface Rodada {
@@ -51,18 +58,53 @@ interface PlanejamentoData {
   cor?: string;
 }
 
+// Props do componente MissaoCard
+interface MissaoCardProps {
+  missao: Missao;
+  compact?: boolean;
+  isCompleted?: boolean;
+  isInteractive?: boolean;
+  onClick?: () => void;
+}
+
 // Componente de Card da Missao (Estilo Tabela)
-const MissaoCard: React.FC<{ missao: Missao; compact?: boolean }> = ({ missao, compact = false }) => {
+const MissaoCard: React.FC<MissaoCardProps> = ({
+  missao,
+  compact = false,
+  isCompleted = false,
+  isInteractive = false,
+  onClick
+}) => {
   const isTemaOuAcao = !missao.materia && (missao.tema || missao.acao);
   const isRevisao = isTemaOuAcao && (missao.tema?.includes('REVISÃO') || missao.acao?.includes('REVISÃO'));
+
+  // Estilos de borda baseados no estado
+  const borderColor = isCompleted
+    ? 'border-green-700/50' // Verde discreto quando completo
+    : 'border-brand-yellow/30';
+
+  // Classes de hover para cards interativos
+  const hoverClasses = isInteractive
+    ? 'cursor-pointer transition-all duration-300 ease-out hover:-translate-y-[5px] hover:shadow-lg hover:border-brand-yellow/70'
+    : '';
+
+  const completedHoverClasses = isCompleted && isInteractive
+    ? 'hover:border-green-600/70'
+    : '';
 
   // Layout para Células Especiais (Revisão/Ação)
   if (isTemaOuAcao) {
     return (
-      <div className={`h-full flex flex-col border border-brand-yellow/30 ${compact ? 'min-h-[100px]' : 'min-h-[180px]'}`}>
+      <div
+        className={`h-full flex flex-col border ${borderColor} ${compact ? 'min-h-[100px]' : 'min-h-[180px]'} ${hoverClasses} ${completedHoverClasses}`}
+        onClick={onClick}
+      >
         {/* Header da Célula */}
-        <div className="bg-brand-darker border-b border-brand-yellow/30 py-1 px-2 text-center">
-          <span className="text-brand-yellow font-black text-sm uppercase tracking-wider">
+        <div className={`bg-brand-darker border-b ${borderColor} py-1 px-2 text-center flex items-center justify-center gap-2`}>
+          {isCompleted && (
+            <Check className="w-4 h-4 text-green-500" />
+          )}
+          <span className={`font-black text-sm uppercase tracking-wider ${isCompleted ? 'text-green-500' : 'text-brand-yellow'}`}>
             {missao.numero.includes(',') || missao.numero.includes('e') ? 'Missões' : 'Missão'} {missao.numero}
           </span>
         </div>
@@ -86,10 +128,16 @@ const MissaoCard: React.FC<{ missao: Missao; compact?: boolean }> = ({ missao, c
 
   // Layout Padrão (Matéria/Assunto)
   return (
-    <div className={`h-full flex flex-col border border-brand-yellow/30 bg-brand-card ${compact ? 'text-xs' : ''}`}>
+    <div
+      className={`h-full flex flex-col border ${borderColor} bg-brand-card ${compact ? 'text-xs' : ''} ${hoverClasses} ${completedHoverClasses}`}
+      onClick={onClick}
+    >
       {/* Header da Célula */}
-      <div className="bg-black border-b border-brand-yellow/30 py-1.5 px-2 text-center relative overflow-hidden">
-        <span className="text-brand-yellow font-black text-sm uppercase tracking-wider relative z-10">
+      <div className={`bg-black border-b ${borderColor} py-1.5 px-2 text-center relative overflow-hidden flex items-center justify-center gap-2`}>
+        {isCompleted && (
+          <Check className="w-4 h-4 text-green-500" />
+        )}
+        <span className={`font-black text-sm uppercase tracking-wider relative z-10 ${isCompleted ? 'text-green-500' : 'text-brand-yellow'}`}>
           Missão {missao.numero}
         </span>
       </div>
@@ -99,13 +147,13 @@ const MissaoCard: React.FC<{ missao: Missao; compact?: boolean }> = ({ missao, c
 
         {/* Matéria */}
         <div className="border-b border-white/5 pb-2">
-          <p className="text-[10px] text-brand-yellow font-bold uppercase tracking-widest mb-0.5 opacity-80">Matéria</p>
+          <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 opacity-80 ${isCompleted ? 'text-green-500' : 'text-brand-yellow'}`}>Matéria</p>
           <p className="text-white font-bold leading-tight">{missao.materia}</p>
         </div>
 
         {/* Assunto */}
         <div className="flex-1">
-          <p className="text-[10px] text-brand-yellow font-bold uppercase tracking-widest mb-0.5 opacity-80">Assunto</p>
+          <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 opacity-80 ${isCompleted ? 'text-green-500' : 'text-brand-yellow'}`}>Assunto</p>
           <p className="text-gray-300 text-sm leading-snug font-medium">{missao.assunto}</p>
         </div>
 
@@ -132,9 +180,21 @@ const MissaoCard: React.FC<{ missao: Missao; compact?: boolean }> = ({ missao, c
   );
 };
 
+// Props do componente RodadaSection
+interface RodadaSectionProps {
+  rodada: Rodada;
+  isInteractive?: boolean;
+  isMissaoCompleta?: (rodadaNumero: number, missaoNumero: string) => boolean;
+  onMissaoClick?: (rodadaNumero: number, missao: Missao) => void;
+}
+
 // Componente de Rodada
-// Componente de Rodada
-const RodadaSection: React.FC<{ rodada: Rodada }> = ({ rodada }) => {
+const RodadaSection: React.FC<RodadaSectionProps> = ({
+  rodada,
+  isInteractive = false,
+  isMissaoCompleta,
+  onMissaoClick
+}) => {
   // Dividir missoes em paginas de 6 (apenas para impressao)
   const chunks: Missao[][] = [];
   for (let i = 0; i < rodada.missoes.length; i += 6) {
@@ -171,7 +231,12 @@ const RodadaSection: React.FC<{ rodada: Rodada }> = ({ rodada }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {rodada.missoes.map((missao, mIndex) => (
             <div key={mIndex}>
-              <MissaoCard missao={missao} />
+              <MissaoCard
+                missao={missao}
+                isInteractive={isInteractive}
+                isCompleted={isMissaoCompleta ? isMissaoCompleta(rodada.numero, missao.numero) : false}
+                onClick={onMissaoClick ? () => onMissaoClick(rodada.numero, missao) : undefined}
+              />
             </div>
           ))}
         </div>
@@ -203,11 +268,14 @@ const RodadaSection: React.FC<{ rodada: Rodada }> = ({ rodada }) => {
             </div>
           )}
 
-          {/* Grid de Missoes - Chunk atual */}
+          {/* Grid de Missoes - Chunk atual (sem interatividade para impressão) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {chunk.map((missao, mIndex) => (
               <div key={mIndex}>
-                <MissaoCard missao={missao} />
+                <MissaoCard
+                  missao={missao}
+                  isCompleted={isMissaoCompleta ? isMissaoCompleta(rodada.numero, missao.numero) : false}
+                />
               </div>
             ))}
           </div>
@@ -341,6 +409,7 @@ export const PlanejamentoPRFView: React.FC = () => {
   const { id, slug } = useParams<{ id: string; slug?: string }>();
   const navigate = useNavigate();
   const printRef = useRef<HTMLDivElement>(null);
+  const { user: adminUser, isLoading: isAdminLoading } = useAuth();
 
   const [planejamento, setPlanejamento] = useState<PlanejamentoData | null>(null);
   const [rodadas, setRodadas] = useState<Rodada[]>([]);
@@ -349,6 +418,15 @@ export const PlanejamentoPRFView: React.FC = () => {
   const [apresentacaoAtiva, setApresentacaoAtiva] = useState(false);
   const [slideAtual, setSlideAtual] = useState(0);
   const [isDynamic, setIsDynamic] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
+
+  // Estado para marcação de missões executadas
+  const [currentStudent, setCurrentStudent] = useState<AdminUser | null>(null);
+  const [completedMissions, setCompletedMissions] = useState<Set<string>>(new Set());
+  const [selectedMission, setSelectedMission] = useState<{ rodadaNumero: number; missao: Missao } | null>(null);
+  const [showMissionPopup, setShowMissionPopup] = useState(false);
+  const [loadingMission, setLoadingMission] = useState(false);
 
   // Gerar slides para apresentacao
   const gerarSlides = () => {
@@ -374,8 +452,121 @@ export const PlanejamentoPRFView: React.FC = () => {
   const totalRodadas = rodadas.length;
   const totalMissoes = rodadas.reduce((acc, r) => acc + r.missoes.length, 0);
 
+  // Verificar autenticação
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (isAdminLoading) return;
+
+      // Se é admin ou vendedor, tem acesso
+      if (adminUser && (adminUser.role === 'admin' || adminUser.role === 'vendedor')) {
+        setHasAccess(true);
+        setAuthChecked(true);
+        return;
+      }
+
+      // Verificar se é um aluno logado
+      const storedStudent = localStorage.getItem('ouse_student_user');
+      if (storedStudent) {
+        try {
+          const student: AdminUser = JSON.parse(storedStudent);
+          if (student && student.role === 'cliente' && id) {
+            const canAccess = await studentService.canAccessPlanning(student.id, student.role, id);
+            if (canAccess) {
+              setCurrentStudent(student); // Salvar o estudante para uso posterior
+              setHasAccess(true);
+              setAuthChecked(true);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao verificar acesso do aluno:', error);
+        }
+      }
+
+      // Se não tem acesso, redirecionar para login
+      setAuthChecked(true);
+      setHasAccess(false);
+    };
+
+    checkAuth();
+  }, [adminUser, isAdminLoading, id]);
+
+  // Carregar missões executadas quando o estudante e planejamento estiverem disponíveis
+  useEffect(() => {
+    const loadCompletedMissions = async () => {
+      if (!currentStudent || !id || !isDynamic) return;
+
+      try {
+        const executadasSet = await missaoService.getExecutadasSet(currentStudent.id, id);
+        setCompletedMissions(executadasSet);
+      } catch (error) {
+        console.error('Erro ao carregar missões executadas:', error);
+      }
+    };
+
+    loadCompletedMissions();
+  }, [currentStudent, id, isDynamic]);
+
+  // Função para verificar se uma missão está completa
+  const isMissaoCompleta = (rodadaNumero: number, missaoNumero: string): boolean => {
+    // Extrair o número da missão (pode ser "1", "2,3", etc.)
+    const nums = missaoNumero.split(/[,e]/).map(n => n.trim());
+    // Se qualquer uno dos números estiver completo, considera como completa
+    return nums.some(num => completedMissions.has(`${rodadaNumero}-${num}`));
+  };
+
+  // Função para abrir popup de missão
+  const handleMissaoClick = (rodadaNumero: number, missao: Missao) => {
+    // Só permite interação se for aluno logado e planejamento dinâmico
+    if (!currentStudent || !isDynamic) return;
+
+    setSelectedMission({ rodadaNumero, missao });
+    setShowMissionPopup(true);
+  };
+
+  // Função para marcar missão como executada
+  const handleMarcarExecutada = async () => {
+    if (!selectedMission || !currentStudent || !id) return;
+
+    setLoadingMission(true);
+    try {
+      // Extrair números da missão (pode ser "1", "2,3", etc.)
+      const nums = selectedMission.missao.numero.split(/[,e]/).map(n => n.trim());
+
+      // Marcar cada número como executado
+      for (const num of nums) {
+        const numInt = parseInt(num);
+        if (!isNaN(numInt)) {
+          await missaoService.marcarExecutada(
+            currentStudent.id,
+            id,
+            selectedMission.rodadaNumero,
+            numInt
+          );
+        }
+      }
+
+      // Atualizar o set de missões completadas
+      const newCompleted = new Set(completedMissions);
+      nums.forEach(num => {
+        newCompleted.add(`${selectedMission.rodadaNumero}-${num.trim()}`);
+      });
+      setCompletedMissions(newCompleted);
+
+      setShowMissionPopup(false);
+      setSelectedMission(null);
+    } catch (error) {
+      console.error('Erro ao marcar missão como executada:', error);
+    } finally {
+      setLoadingMission(false);
+    }
+  };
+
   useEffect(() => {
     const fetchPlanejamento = async () => {
+      // Aguardar verificação de auth
+      if (!authChecked || !hasAccess) return;
+
       if (!id) {
         setError('ID do planejamento não encontrado');
         setLoading(false);
@@ -425,37 +616,81 @@ export const PlanejamentoPRFView: React.FC = () => {
             cor: preparatorio.cor
           });
         } else {
-          // Rota legado - usar tabela planejamentos_prf e dados estáticos
-          setIsDynamic(false);
+          // Rota sem slug - tentar primeiro na nova tabela, depois na legada
 
-          const { data, error: fetchError } = await supabase
-            .from('planejamentos_prf')
-            .select('*')
-            .eq('id', id)
-            .single();
+          // Primeiro, tentar buscar na tabela nova (planejamentos)
+          const planejamentoData = await planejamentosService.getById(id);
 
-          if (fetchError) throw fetchError;
-          if (!data) throw new Error('Planejamento não encontrado');
+          if (planejamentoData) {
+            // Encontrado na tabela nova
+            setIsDynamic(true);
 
-          // Converter dados estáticos para formato unificado
-          const rodadasUnificadas: Rodada[] = planejamentoPRF.map((r: RodadaStatic) => ({
-            numero: r.numero,
-            titulo: r.titulo,
-            nota: r.nota,
-            missoes: r.missoes.map((m: MissaoStatic) => ({
-              numero: m.numero,
-              materia: m.materia,
-              assunto: m.assunto,
-              instrucoes: m.instrucoes,
-              tema: m.tema,
-              acao: m.acao,
-              extra: m.extra,
-              obs: m.obs
-            }))
-          }));
+            // Buscar preparatório completo com rodadas e missões
+            const preparatorio = await preparatoriosService.getCompletoById(planejamentoData.preparatorio_id);
+            if (!preparatorio) throw new Error('Preparatório não encontrado');
 
-          setRodadas(rodadasUnificadas);
-          setPlanejamento(data);
+            // Converter para formato unificado
+            const rodadasUnificadas: Rodada[] = preparatorio.rodadas.map((r: RodadaComMissoes) => ({
+              numero: r.numero,
+              titulo: r.titulo,
+              nota: r.nota || undefined,
+              missoes: r.missoes.map((m: MissaoDB) => ({
+                numero: m.numero,
+                tipo: m.tipo,
+                materia: m.materia || undefined,
+                assunto: m.assunto || undefined,
+                instrucoes: m.instrucoes || undefined,
+                tema: m.tema || undefined,
+                acao: m.acao || undefined,
+                extra: m.extra || undefined,
+                obs: m.obs || undefined
+              }))
+            }));
+
+            setRodadas(rodadasUnificadas);
+            setPlanejamento({
+              id: planejamentoData.id,
+              nome_aluno: planejamentoData.nome_aluno,
+              email: planejamentoData.email,
+              concurso: preparatorio.nome,
+              mensagem_incentivo: planejamentoData.mensagem_incentivo || '',
+              created_at: planejamentoData.created_at,
+              preparatorio_id: planejamentoData.preparatorio_id,
+              cor: preparatorio.cor
+            });
+          } else {
+            // Fallback para tabela legada (planejamentos_prf)
+            setIsDynamic(false);
+
+            const { data, error: fetchError } = await supabase
+              .from('planejamentos_prf')
+              .select('*')
+              .eq('id', id)
+              .single();
+
+            if (fetchError) throw fetchError;
+            if (!data) throw new Error('Planejamento não encontrado');
+
+            // Converter dados estáticos para formato unificado
+            const rodadasUnificadas: Rodada[] = planejamentoPRF.map((r: RodadaStatic) => ({
+              numero: r.numero,
+              titulo: r.titulo,
+              nota: r.nota,
+              missoes: r.missoes.map((m: MissaoStatic) => ({
+                numero: m.numero,
+                materia: m.materia,
+                assunto: m.assunto,
+                instrucoes: m.instrucoes,
+                tema: m.tema,
+                acao: m.acao,
+                extra: m.extra,
+                obs: m.obs
+              }))
+            }));
+
+            setRodadas(rodadasUnificadas);
+            setPlanejamento(data);
+          }
         }
       } catch (err: any) {
         console.error('Erro ao buscar planejamento:', err);
@@ -466,7 +701,7 @@ export const PlanejamentoPRFView: React.FC = () => {
     };
 
     fetchPlanejamento();
-  }, [id, slug]);
+  }, [id, slug, authChecked, hasAccess]);
 
   // Handler de teclas para apresentacao
   useEffect(() => {
@@ -501,6 +736,61 @@ export const PlanejamentoPRFView: React.FC = () => {
     setApresentacaoAtiva(false);
     document.exitFullscreen?.().catch(() => { });
   };
+
+  // Aguardando verificação de auth
+  if (!authChecked || isAdminLoading) {
+    return (
+      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-brand-yellow border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-[0_0_30px_rgba(255,184,0,0.2)]" />
+          <p className="text-gray-400 font-medium uppercase tracking-widest text-sm">Verificando acesso...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Sem acesso - mostrar tela de login
+  if (!hasAccess) {
+    const currentPath = window.location.pathname;
+    return (
+      <div className="min-h-screen bg-brand-darker flex items-center justify-center p-4">
+        <div className="text-center max-w-md mx-auto">
+          {/* Logo */}
+          <div className="mb-8">
+            <img
+              src="https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp"
+              alt="Ouse Passar"
+              className="h-12 mx-auto mb-4"
+            />
+          </div>
+
+          <div className="bg-brand-card border border-white/10 rounded-sm p-8">
+            <div className="w-16 h-16 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 flex items-center justify-center mx-auto mb-6">
+              <Lock className="w-8 h-8 text-brand-yellow" />
+            </div>
+
+            <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">
+              Acesso Restrito
+            </h2>
+            <p className="text-gray-400 mb-8">
+              Para visualizar este planejamento, você precisa fazer login com os dados de acesso que recebeu.
+            </p>
+
+            <button
+              onClick={() => navigate(`/login?redirect=${encodeURIComponent(currentPath)}`)}
+              className="w-full bg-brand-yellow text-brand-darker py-4 font-bold uppercase tracking-wide hover:bg-brand-yellow/90 transition-colors"
+            >
+              Fazer Login
+            </button>
+          </div>
+
+          <p className="text-gray-600 text-sm mt-6">
+            Ainda não tem acesso? Entre em contato com seu consultor.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -759,10 +1049,6 @@ export const PlanejamentoPRFView: React.FC = () => {
             font-size: 0.7rem !important;
           }
 
-          .text-xs {
-            font-size: 0.6rem !important;
-          }
-
           .text-\\[10px\\] {
             font-size: 8px !important;
           }
@@ -803,20 +1089,28 @@ export const PlanejamentoPRFView: React.FC = () => {
             <span className="hidden sm:inline font-medium uppercase tracking-wide text-sm">Voltar</span>
           </button>
 
-          <div className="flex items-center gap-4">
+          <div className="flex gap-3">
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-5 py-2.5 bg-brand-card border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+              onClick={() => navigate(`/dashboard-aluno/${id}`)}
+              className="flex items-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-bold py-2 px-4 rounded border border-purple-500/30 transition-colors uppercase text-sm"
             >
-              <Printer className="w-4 h-4" />
-              <span className="hidden sm:inline font-medium uppercase tracking-wide text-xs">Imprimir</span>
+              <BarChart2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Estatísticas</span>
             </button>
+
             <button
               onClick={handleApresentar}
-              className="flex items-center gap-2 px-6 py-2.5 bg-brand-yellow text-brand-darker font-black uppercase tracking-wide text-xs rounded-lg hover:bg-yellow-400 transition-all shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/40 hover:-translate-y-0.5"
+              className="flex items-center gap-2 px-5 py-2.5 bg-brand-yellow/10 border border-brand-yellow/30 rounded-lg text-brand-yellow hover:bg-brand-yellow/20 transition-all font-bold uppercase tracking-wide text-xs"
             >
               <Presentation className="w-4 h-4" />
-              <span className="hidden sm:inline">APRESENTAR</span>
+              <span className="hidden sm:inline">APRESENTAÇÃO</span>
+            </button>
+            <button
+              onClick={() => navigate(`/edital-verticalizado/${slug || 'prf'}/${id}`)}
+              className="flex items-center gap-2 px-6 py-2.5 bg-brand-yellow text-brand-darker font-black uppercase tracking-wide text-xs rounded-lg hover:bg-yellow-400 transition-all shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/40 hover:-translate-y-0.5"
+            >
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">EDITAL VERTICALIZADO</span>
             </button>
           </div>
         </div>
@@ -887,7 +1181,13 @@ export const PlanejamentoPRFView: React.FC = () => {
         {/* Rodadas */}
         <div className="space-y-24">
           {rodadas.map((rodada, index) => (
-            <RodadaSection key={index} rodada={rodada} />
+            <RodadaSection
+              key={index}
+              rodada={rodada}
+              isInteractive={!!currentStudent && isDynamic}
+              isMissaoCompleta={isMissaoCompleta}
+              onMissaoClick={handleMissaoClick}
+            />
           ))}
         </div>
 
@@ -898,6 +1198,90 @@ export const PlanejamentoPRFView: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Popup de Confirmação de Missão */}
+      {showMissionPopup && selectedMission && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/60 z-50"
+            onClick={() => {
+              setShowMissionPopup(false);
+              setSelectedMission(null);
+            }}
+          />
+
+          {/* Modal */}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div
+              className="bg-brand-card border border-white/10 rounded-sm w-full max-w-md shadow-2xl pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-white/10 text-center">
+                <div className="w-16 h-16 bg-brand-yellow/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Target className="w-8 h-8 text-brand-yellow" />
+                </div>
+                <h3 className="text-xl font-bold text-white uppercase tracking-tight">
+                  Missão {selectedMission.missao.numero}
+                </h3>
+                <p className="text-gray-400 text-sm mt-1">
+                  {selectedMission.rodadaNumero}ª Rodada
+                </p>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <p className="text-white text-center text-lg font-medium mb-2">
+                  Você já executou esta missão?
+                </p>
+                {selectedMission.missao.materia && (
+                  <p className="text-gray-400 text-center text-sm">
+                    {selectedMission.missao.materia}
+                    {selectedMission.missao.assunto && ` - ${selectedMission.missao.assunto}`}
+                  </p>
+                )}
+                {selectedMission.missao.tema && (
+                  <p className="text-gray-400 text-center text-sm">
+                    {selectedMission.missao.tema}
+                  </p>
+                )}
+              </div>
+
+              {/* Footer com botões */}
+              <div className="p-6 border-t border-white/10 flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowMissionPopup(false);
+                    setSelectedMission(null);
+                  }}
+                  disabled={loadingMission}
+                  className="flex-1 px-6 py-3 border border-white/20 text-gray-400 hover:text-white hover:border-white/40 transition-colors font-bold uppercase text-sm rounded-sm disabled:opacity-50"
+                >
+                  Não
+                </button>
+                <button
+                  onClick={handleMarcarExecutada}
+                  disabled={loadingMission}
+                  className="flex-1 px-6 py-3 bg-green-600 text-white font-bold uppercase text-sm hover:bg-green-500 transition-colors rounded-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {loadingMission ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Sim, executei
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div >
   );
 };

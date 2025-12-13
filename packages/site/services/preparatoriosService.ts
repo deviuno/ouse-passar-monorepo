@@ -541,6 +541,7 @@ export interface CreatePlanejamentoInput {
   nome_aluno: string;
   email?: string | null;
   mensagem_incentivo?: string | null;
+  lead_id?: string | null;
 }
 
 export const planejamentosService = {
@@ -589,7 +590,8 @@ export const planejamentosService = {
         preparatorio_id: input.preparatorio_id,
         nome_aluno: input.nome_aluno,
         email: input.email,
-        mensagem_incentivo: mensagem
+        mensagem_incentivo: mensagem,
+        lead_id: input.lead_id || null
       })
       .select()
       .single();

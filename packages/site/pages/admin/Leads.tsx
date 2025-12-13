@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Eye, Trash2, User, Calendar, List, LayoutGrid, ChevronLeft, ChevronRight, GripVertical, Phone, X, Clock, Briefcase, GraduationCap, Target, AlertCircle, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Eye, Trash2, User, Calendar, List, LayoutGrid, ChevronLeft, ChevronRight, GripVertical, Phone, X, Clock, Briefcase, GraduationCap, Target, AlertCircle, Filter, Video, PlayCircle, UserCog, ChevronDown, Loader2, Copy, MessageCircle, Key } from 'lucide-react';
 import { leadsService, LeadWithVendedor, adminUsersService } from '../../services/adminUsersService';
-import { LeadDifficulty, EducationLevel, LeadGender, AdminUser } from '../../lib/database.types';
+import { LeadDifficulty, EducationLevel, LeadGender, AdminUser, AgendamentoWithDetails } from '../../lib/database.types';
+import { agendamentosService } from '../../services/schedulingService';
 import { useAuth } from '../../lib/AuthContext';
+import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
+import { generateInviteMessage, generateWhatsAppUrl } from '../../services/studentService';
 
 // Status do Kanban
-type LeadStatus = 'apresentacao' | 'followup' | 'perdido' | 'ganho';
+type LeadStatus = 'agendado' | 'apresentacao' | 'followup' | 'perdido' | 'ganho';
 
 interface KanbanColumn {
     id: LeadStatus;
@@ -16,6 +20,13 @@ interface KanbanColumn {
 }
 
 const KANBAN_COLUMNS: KanbanColumn[] = [
+    {
+        id: 'agendado',
+        title: 'Agendado',
+        color: 'text-purple-400',
+        bgColor: 'bg-purple-500/10',
+        borderColor: 'border-purple-500/30'
+    },
     {
         id: 'apresentacao',
         title: 'Apresentação',
@@ -49,16 +60,111 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
 // Componente Sidebar de Detalhes do Lead
 interface LeadDetailsSidebarProps {
     lead: LeadWithVendedor;
+    agendamento?: AgendamentoWithDetails | null;
     onClose: () => void;
     onDelete: (id: string) => void;
     onStatusChange: (leadId: string, newStatus: LeadStatus) => void;
+    onStartPlanejamento?: (lead: LeadWithVendedor, agendamento: AgendamentoWithDetails) => void;
+    onTransferLead?: (leadId: string, newVendedorId: string) => void;
+    currentUserId?: string;
+    isAdmin?: boolean;
+    vendedores?: AdminUser[];
 }
 
-const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({ lead, onClose, onDelete, onStatusChange }) => {
+const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
+    lead,
+    agendamento,
+    onClose,
+    onDelete,
+    onStatusChange,
+    onStartPlanejamento,
+    onTransferLead,
+    currentUserId,
+    isAdmin = false,
+    vendedores = []
+}) => {
+    const [showTransferDropdown, setShowTransferDropdown] = useState(false);
+    const [transferring, setTransferring] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    // Verifica se o lead tem dados de acesso (user_id e senha_temporaria)
+    const hasAccessData = lead.user_id && lead.senha_temporaria && lead.email;
+
+    // Gera a URL do planejamento
+    const getPlanningUrl = () => {
+        if (!lead.planejamento_id) return '';
+        return `${window.location.origin}/planejamento-prf/${lead.planejamento_id}`;
+    };
+
+    // Copia o texto de convite para a área de transferência
+    const handleCopyAccess = async () => {
+        if (!lead.email || !lead.senha_temporaria) return;
+
+        const message = generateInviteMessage(
+            lead.nome,
+            lead.email,
+            lead.senha_temporaria,
+            getPlanningUrl()
+        );
+
+        try {
+            await navigator.clipboard.writeText(message);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error('Erro ao copiar:', err);
+        }
+    };
+
+    // Abre o WhatsApp Web com a mensagem
+    const handleSendWhatsApp = () => {
+        if (!lead.telefone || !lead.email || !lead.senha_temporaria) return;
+
+        const message = generateInviteMessage(
+            lead.nome,
+            lead.email,
+            lead.senha_temporaria,
+            getPlanningUrl()
+        );
+
+        const whatsappUrl = generateWhatsAppUrl(lead.telefone, message);
+        window.open(whatsappUrl, '_blank');
+    };
+
     const totalMinutos = (lead.minutos_domingo || 0) + (lead.minutos_segunda || 0) +
         (lead.minutos_terca || 0) + (lead.minutos_quarta || 0) +
         (lead.minutos_quinta || 0) + (lead.minutos_sexta || 0) +
         (lead.minutos_sabado || 0);
+
+    // Verifica se o usuário pode iniciar o planejamento
+    // Admin ou vendedor designado podem iniciar
+    const canStartPlanejamento = isAdmin || (currentUserId && lead.vendedor_id === currentUserId);
+
+    // Função para transferir o lead
+    const handleTransfer = async (newVendedorId: string) => {
+        if (!onTransferLead) return;
+        setTransferring(true);
+        try {
+            await onTransferLead(lead.id, newVendedorId);
+            setShowTransferDropdown(false);
+        } finally {
+            setTransferring(false);
+        }
+    };
+
+    // Filtrar vendedores excluindo o atual
+    const availableVendedores = vendedores.filter(v => v.id !== lead.vendedor_id);
+
+    const formatAgendamentoDate = (dataHora: string) => {
+        const date = new Date(dataHora);
+        return date.toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            day: '2-digit',
+            month: 'long',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
 
     const formatMinutesToTime = (minutos: number) => {
         const h = Math.floor(minutos / 60);
@@ -153,22 +259,161 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({ lead, onClose, 
                     {/* Status */}
                     <div>
                         <h4 className="text-xs text-gray-500 uppercase font-bold mb-3">Status</h4>
-                        <div className="flex flex-wrap gap-2">
-                            {KANBAN_COLUMNS.map((col) => (
-                                <button
-                                    key={col.id}
-                                    onClick={() => onStatusChange(lead.id, col.id)}
-                                    className={`px-3 py-1.5 rounded text-xs font-bold uppercase border transition-all ${
-                                        currentStatus === col.id
-                                            ? `${col.bgColor} ${col.color} ${col.borderColor}`
-                                            : 'bg-brand-dark/50 text-gray-500 border-white/10 hover:border-white/30'
-                                    }`}
-                                >
-                                    {col.title}
-                                </button>
-                            ))}
-                        </div>
+                        {/* Bloquear alteração de status para leads agendados */}
+                        {currentStatus === 'agendado' ? (
+                            <div>
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {KANBAN_COLUMNS.map((col) => (
+                                        <button
+                                            key={col.id}
+                                            disabled
+                                            className={`px-3 py-1.5 rounded text-xs font-bold uppercase border transition-all cursor-not-allowed ${currentStatus === col.id
+                                                    ? `${col.bgColor} ${col.color} ${col.borderColor}`
+                                                    : 'bg-brand-dark/50 text-gray-600 border-white/5 opacity-50'
+                                                }`}
+                                        >
+                                            {col.title}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-gray-500 text-xs flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    Status bloqueado. Inicie o planejamento para alterar.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-wrap gap-2">
+                                {KANBAN_COLUMNS.map((col) => (
+                                    <button
+                                        key={col.id}
+                                        onClick={() => onStatusChange(lead.id, col.id)}
+                                        className={`px-3 py-1.5 rounded text-xs font-bold uppercase border transition-all ${currentStatus === col.id
+                                                ? `${col.bgColor} ${col.color} ${col.borderColor}`
+                                                : 'bg-brand-dark/50 text-gray-500 border-white/10 hover:border-white/30'
+                                            }`}
+                                    >
+                                        {col.title}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
+
+                    {/* Agendamento */}
+                    {agendamento && (
+                        <div>
+                            <h4 className="text-xs text-gray-500 uppercase font-bold mb-3 flex items-center">
+                                <Video className="w-3 h-3 mr-2" />
+                                Reunião Agendada
+                            </h4>
+                            <div className="bg-purple-500/10 border border-purple-500/30 rounded-sm p-4 space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4 text-purple-400" />
+                                    <span className="text-white text-sm font-medium capitalize">
+                                        {formatAgendamentoDate(agendamento.data_hora)}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-purple-400" />
+                                    <span className="text-gray-400 text-sm">
+                                        Duração: {agendamento.duracao_minutos} minutos
+                                    </span>
+                                </div>
+                                {agendamento.vendedor && (
+                                    <div className="flex items-center gap-2">
+                                        <User className="w-4 h-4 text-purple-400" />
+                                        <span className="text-gray-400 text-sm">
+                                            Vendedor: {agendamento.vendedor.name}
+                                        </span>
+                                    </div>
+                                )}
+                                {agendamento.notas && (
+                                    <p className="text-gray-400 text-sm italic mt-2">
+                                        "{agendamento.notas}"
+                                    </p>
+                                )}
+
+                                {/* Botão Iniciar Planejamento - só aparece para admin ou vendedor designado */}
+                                {agendamento.status === 'agendado' && onStartPlanejamento && canStartPlanejamento && (
+                                    <button
+                                        onClick={() => onStartPlanejamento(lead, agendamento)}
+                                        className="w-full mt-3 bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 font-bold uppercase text-xs flex items-center justify-center gap-2 transition-colors"
+                                    >
+                                        <PlayCircle className="w-4 h-4" />
+                                        Iniciar Planejamento
+                                    </button>
+                                )}
+
+                                {/* Mensagem quando não tem permissão */}
+                                {agendamento.status === 'agendado' && !canStartPlanejamento && (
+                                    <div className="mt-3 text-center text-gray-500 text-xs">
+                                        Apenas o vendedor designado ou admin pode iniciar o planejamento
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Transferir Lead (apenas admin) */}
+                    {isAdmin && onTransferLead && availableVendedores.length > 0 && (
+                        <div>
+                            <h4 className="text-xs text-gray-500 uppercase font-bold mb-3 flex items-center">
+                                <UserCog className="w-3 h-3 mr-2" />
+                                Transferir Lead
+                            </h4>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowTransferDropdown(!showTransferDropdown)}
+                                    disabled={transferring}
+                                    className="w-full bg-brand-dark border border-white/10 hover:border-white/20 rounded-sm p-3 flex items-center justify-between text-sm transition-colors disabled:opacity-50"
+                                >
+                                    <span className="text-gray-400">
+                                        {transferring ? 'Transferindo...' : 'Selecionar novo vendedor'}
+                                    </span>
+                                    {transferring ? (
+                                        <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                                    ) : (
+                                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showTransferDropdown ? 'rotate-180' : ''}`} />
+                                    )}
+                                </button>
+
+                                {showTransferDropdown && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-white/10 rounded-sm shadow-lg z-10 max-h-48 overflow-y-auto">
+                                        {availableVendedores.map((vendedor) => (
+                                            <button
+                                                key={vendedor.id}
+                                                onClick={() => handleTransfer(vendedor.id)}
+                                                className="w-full text-left px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors flex items-center gap-3"
+                                            >
+                                                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-brand-dark border border-white/10">
+                                                    {vendedor.avatar_url ? (
+                                                        <img
+                                                            src={vendedor.avatar_url}
+                                                            alt={vendedor.name}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <User className="w-4 h-4 text-brand-yellow" />
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <span className="font-medium">{vendedor.name}</span>
+                                                    <span className="text-gray-500 text-xs ml-2">
+                                                        ({vendedor.role === 'admin' ? 'Admin' : 'Vendedor'})
+                                                    </span>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            {lead.vendedor && (
+                                <p className="text-gray-500 text-xs mt-2">
+                                    Vendedor atual: <span className="text-gray-400">{lead.vendedor.name}</span>
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     {/* Informações de Contato */}
                     <div>
@@ -268,9 +513,8 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({ lead, onClose, 
                                     return (
                                         <div key={day.key} className="text-center">
                                             <span className="text-[10px] text-gray-600 uppercase">{day.label}</span>
-                                            <div className={`mt-1 p-2 rounded text-xs font-bold ${
-                                                hasTime ? 'bg-brand-yellow/20 text-brand-yellow' : 'bg-white/5 text-gray-600'
-                                            }`}>
+                                            <div className={`mt-1 p-2 rounded text-xs font-bold ${hasTime ? 'bg-brand-yellow/20 text-brand-yellow' : 'bg-white/5 text-gray-600'
+                                                }`}>
                                                 {hasTime ? formatMinutesToTime(minutes) : '-'}
                                             </div>
                                         </div>
@@ -328,6 +572,51 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({ lead, onClose, 
                             </div>
                         )}
                     </div>
+
+                    {/* Dados de Acesso - só aparece se o lead tem usuário criado */}
+                    {hasAccessData && (
+                        <div className="mt-4 pt-4 border-t border-white/5">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Key className="w-4 h-4 text-brand-yellow" />
+                                <h4 className="text-sm font-bold text-white uppercase">Dados de Acesso</h4>
+                            </div>
+
+                            <div className="bg-brand-dark/50 border border-white/5 rounded-sm p-3 space-y-2">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-gray-500">E-mail</span>
+                                    <span className="text-gray-300 font-mono">{lead.email}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-gray-500">Senha</span>
+                                    <span className="text-gray-300 font-mono">{lead.senha_temporaria}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 mt-3">
+                                <button
+                                    onClick={handleCopyAccess}
+                                    className={`flex-1 py-2 px-3 text-xs font-bold uppercase rounded-sm flex items-center justify-center gap-2 transition-all ${
+                                        copied
+                                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                            : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
+                                    }`}
+                                >
+                                    <Copy className="w-4 h-4" />
+                                    {copied ? 'Copiado!' : 'Copiar Acesso'}
+                                </button>
+
+                                {lead.telefone && (
+                                    <button
+                                        onClick={handleSendWhatsApp}
+                                        className="flex-1 py-2 px-3 text-xs font-bold uppercase bg-green-600/20 text-green-400 border border-green-500/30 rounded-sm flex items-center justify-center gap-2 hover:bg-green-600/30 transition-all"
+                                    >
+                                        <MessageCircle className="w-4 h-4" />
+                                        WhatsApp
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer com ações */}
@@ -345,10 +634,8 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({ lead, onClose, 
                     )}
                     <button
                         onClick={() => {
-                            if (window.confirm('Tem certeza que deseja excluir este lead?')) {
-                                onDelete(lead.id);
-                                onClose();
-                            }
+                            onDelete(lead.id);
+                            onClose();
                         }}
                         className="px-4 py-3 border border-red-500/30 text-red-400 font-bold uppercase text-xs hover:bg-red-500/10 transition-colors flex items-center gap-2"
                     >
@@ -378,12 +665,13 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({ lead, onClose, 
 // Componente do Card do Lead no Kanban
 interface LeadCardProps {
     lead: LeadWithVendedor;
+    agendamento?: AgendamentoWithDetails | null;
     onDragStart: (e: React.DragEvent, leadId: string) => void;
     onDelete: (id: string) => void;
     onClick: (lead: LeadWithVendedor) => void;
 }
 
-const LeadCard: React.FC<LeadCardProps> = ({ lead, onDragStart, onDelete, onClick }) => {
+const LeadCard: React.FC<LeadCardProps> = ({ lead, agendamento, onDragStart, onDelete, onClick }) => {
     const totalMinutos = (lead.minutos_domingo || 0) + (lead.minutos_segunda || 0) +
         (lead.minutos_terca || 0) + (lead.minutos_quarta || 0) +
         (lead.minutos_quinta || 0) + (lead.minutos_sexta || 0) +
@@ -397,18 +685,37 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, onDragStart, onDelete, onClic
         return `${h}h${m}min`;
     };
 
+    const formatAgendamentoShort = (dataHora: string) => {
+        const date = new Date(dataHora);
+        return date.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    const isAgendado = lead.status === 'agendado';
+
     return (
         <div
-            draggable
-            onDragStart={(e) => onDragStart(e, lead.id)}
+            draggable={!isAgendado}
+            onDragStart={(e) => !isAgendado && onDragStart(e, lead.id)}
             onClick={() => onClick(lead)}
-            className="bg-brand-dark border border-white/10 rounded-sm p-3 cursor-grab active:cursor-grabbing hover:border-white/20 transition-colors group"
+            className={`bg-brand-dark border rounded-sm p-3 hover:border-white/20 transition-colors group ${isAgendado
+                    ? 'border-purple-500/30 cursor-pointer'
+                    : 'border-white/10 cursor-grab active:cursor-grabbing'
+                }`}
         >
             <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center flex-1 min-w-0">
-                    <GripVertical className="w-4 h-4 text-gray-600 mr-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                    <div className="w-8 h-8 bg-brand-yellow/20 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
-                        <User className="w-4 h-4 text-brand-yellow" />
+                    {/* Ícone de arrastar - escondido para leads agendados */}
+                    {!isAgendado && (
+                        <GripVertical className="w-4 h-4 text-gray-600 mr-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                    )}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${isAgendado ? 'bg-purple-500/20' : 'bg-brand-yellow/20'
+                        }`}>
+                        <User className={`w-4 h-4 ${isAgendado ? 'text-purple-400' : 'text-brand-yellow'}`} />
                     </div>
                     <p className="text-white text-sm font-bold truncate">{lead.nome}</p>
                 </div>
@@ -416,10 +723,21 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, onDragStart, onDelete, onClic
 
             <div className="space-y-1 text-xs">
                 <p className="text-gray-400 truncate">{lead.concurso_almejado}</p>
-                <div className="flex items-center text-gray-500">
-                    <Calendar className="w-3 h-3 mr-1" />
-                    {formatMinutesToTime(totalMinutos)}/sem
-                </div>
+
+                {/* Mostrar data/hora do agendamento se for lead agendado */}
+                {isAgendado && agendamento && (
+                    <div className="flex items-center text-purple-400 font-medium">
+                        <Video className="w-3 h-3 mr-1" />
+                        {formatAgendamentoShort(agendamento.data_hora)}
+                    </div>
+                )}
+
+                {!isAgendado && (
+                    <div className="flex items-center text-gray-500">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        {formatMinutesToTime(totalMinutos)}/sem
+                    </div>
+                )}
                 {lead.telefone && (
                     <div className="flex items-center text-gray-500">
                         <Phone className="w-3 h-3 mr-1" />
@@ -465,6 +783,7 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, onDragStart, onDelete, onClic
 interface KanbanColumnProps {
     column: KanbanColumn;
     leads: LeadWithVendedor[];
+    agendamentosMap: Record<string, AgendamentoWithDetails>;
     onDragStart: (e: React.DragEvent, leadId: string) => void;
     onDragOver: (e: React.DragEvent) => void;
     onDrop: (e: React.DragEvent, status: LeadStatus) => void;
@@ -475,6 +794,7 @@ interface KanbanColumnProps {
 const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
     column,
     leads,
+    agendamentosMap,
     onDragStart,
     onDragOver,
     onDrop,
@@ -507,6 +827,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
                         <LeadCard
                             key={lead.id}
                             lead={lead}
+                            agendamento={lead.agendamento_id ? agendamentosMap[lead.agendamento_id] : null}
                             onDragStart={onDragStart}
                             onDelete={onDelete}
                             onClick={onLeadClick}
@@ -520,6 +841,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
 
 export const Leads: React.FC = () => {
     const { user, isAdmin } = useAuth();
+    const navigate = useNavigate();
     const [leads, setLeads] = useState<LeadWithVendedor[]>([]);
     const [allLeads, setAllLeads] = useState<LeadWithVendedor[]>([]); // Todos os leads sem filtro de status/vendedor
     const [loading, setLoading] = useState(true);
@@ -528,10 +850,22 @@ export const Leads: React.FC = () => {
     const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
     const [selectedLead, setSelectedLead] = useState<LeadWithVendedor | null>(null);
 
+    // Agendamentos
+    const [agendamentosMap, setAgendamentosMap] = useState<Record<string, AgendamentoWithDetails>>({});
+    const [selectedAgendamento, setSelectedAgendamento] = useState<AgendamentoWithDetails | null>(null);
+
     // Filtros
     const [vendedores, setVendedores] = useState<AdminUser[]>([]);
     const [selectedVendedor, setSelectedVendedor] = useState<string>('todos');
     const [selectedStatus, setSelectedStatus] = useState<string>('todos');
+
+    // Modal de confirmação de exclusão
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; leadId: string | null; leadName: string }>({
+        isOpen: false,
+        leadId: null,
+        leadName: ''
+    });
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Carregar vendedores ao iniciar (apenas admin)
     useEffect(() => {
@@ -603,23 +937,71 @@ export const Leads: React.FC = () => {
             });
 
             setAllLeads(filteredData); // Armazena todos os leads filtrados por data
+
+            // Carregar agendamentos para leads que têm agendamento_id
+            const leadsWithAgendamento = filteredData.filter(l => l.agendamento_id);
+            if (leadsWithAgendamento.length > 0) {
+                const agendamentoIds = leadsWithAgendamento.map(l => l.agendamento_id!);
+                const agendamentos = await Promise.all(
+                    agendamentoIds.map(id => agendamentosService.getById(id))
+                );
+                const map: Record<string, AgendamentoWithDetails> = {};
+                agendamentos.forEach(ag => {
+                    if (ag) {
+                        map[ag.id] = ag;
+                    }
+                });
+                setAgendamentosMap(map);
+            } else {
+                setAgendamentosMap({});
+            }
         } catch (error) {
             console.error('Erro ao carregar leads:', error);
         }
         setLoading(false);
     };
 
-    const handleDelete = async (id: string) => {
+    // Abre o modal de confirmação de exclusão
+    const openDeleteModal = (lead: LeadWithVendedor) => {
+        setDeleteModal({
+            isOpen: true,
+            leadId: lead.id,
+            leadName: lead.nome
+        });
+    };
+
+    // Fecha o modal de confirmação
+    const closeDeleteModal = () => {
+        if (!isDeleting) {
+            setDeleteModal({ isOpen: false, leadId: null, leadName: '' });
+        }
+    };
+
+    // Confirma a exclusão
+    const handleConfirmDelete = async () => {
+        if (!deleteModal.leadId) return;
+
+        setIsDeleting(true);
         try {
-            await leadsService.delete(id);
-            setAllLeads(allLeads.filter(l => l.id !== id));
-            setLeads(leads.filter(l => l.id !== id));
-            if (selectedLead?.id === id) {
+            await leadsService.delete(deleteModal.leadId);
+            setAllLeads(allLeads.filter(l => l.id !== deleteModal.leadId));
+            setLeads(leads.filter(l => l.id !== deleteModal.leadId));
+            if (selectedLead?.id === deleteModal.leadId) {
                 setSelectedLead(null);
             }
+            closeDeleteModal();
         } catch (error) {
             console.error('Erro ao excluir lead:', error);
             alert('Erro ao excluir lead');
+        }
+        setIsDeleting(false);
+    };
+
+    // Função wrapper para compatibilidade com componentes filhos
+    const handleDelete = (id: string) => {
+        const lead = allLeads.find(l => l.id === id);
+        if (lead) {
+            openDeleteModal(lead);
         }
     };
 
@@ -646,11 +1028,82 @@ export const Leads: React.FC = () => {
         }
     };
 
-    const handleLeadClick = (lead: LeadWithVendedor) => {
-        setSelectedLead(lead);
+    const handleLeadClick = async (lead: LeadWithVendedor) => {
+        // Buscar dados atualizados do lead (pode ter sido atualizado após criação de planejamento)
+        try {
+            const updatedLead = await leadsService.getById(lead.id);
+            if (updatedLead) {
+                const leadWithVendedor: LeadWithVendedor = {
+                    ...updatedLead,
+                    vendedor: lead.vendedor // Mantém o vendedor do cache
+                };
+                setSelectedLead(leadWithVendedor);
+
+                // Buscar agendamento se existir
+                if (updatedLead.agendamento_id && agendamentosMap[updatedLead.agendamento_id]) {
+                    setSelectedAgendamento(agendamentosMap[updatedLead.agendamento_id]);
+                } else {
+                    setSelectedAgendamento(null);
+                }
+            } else {
+                setSelectedLead(lead);
+                if (lead.agendamento_id && agendamentosMap[lead.agendamento_id]) {
+                    setSelectedAgendamento(agendamentosMap[lead.agendamento_id]);
+                } else {
+                    setSelectedAgendamento(null);
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao buscar lead atualizado:', error);
+            // Fallback para dados em cache
+            setSelectedLead(lead);
+            if (lead.agendamento_id && agendamentosMap[lead.agendamento_id]) {
+                setSelectedAgendamento(agendamentosMap[lead.agendamento_id]);
+            } else {
+                setSelectedAgendamento(null);
+            }
+        }
+    };
+
+    const handleStartPlanejamento = (lead: LeadWithVendedor, agendamento: AgendamentoWithDetails) => {
+        // Redirecionar para a página de planejamentos com o lead_id
+        // A página de planejamentos vai abrir o formulário automaticamente com os dados do lead
+        navigate(`/admin/planejamentos?lead_id=${lead.id}`);
+    };
+
+    const handleTransferLead = async (leadId: string, newVendedorId: string) => {
+        try {
+            // Atualizar vendedor_id do lead
+            await leadsService.update(leadId, { vendedor_id: newVendedorId });
+
+            // Se tiver agendamento, atualizar vendedor do agendamento também
+            const lead = allLeads.find(l => l.id === leadId);
+            if (lead?.agendamento_id) {
+                await agendamentosService.updateVendedor(lead.agendamento_id, newVendedorId);
+            }
+
+            // Recarregar leads para refletir mudanças
+            await loadLeads();
+
+            // Atualizar o lead selecionado com os novos dados
+            const updatedLead = allLeads.find(l => l.id === leadId);
+            if (updatedLead) {
+                const newVendedor = vendedores.find(v => v.id === newVendedorId);
+                setSelectedLead({ ...updatedLead, vendedor_id: newVendedorId, vendedor: newVendedor });
+            }
+        } catch (error) {
+            console.error('Erro ao transferir lead:', error);
+            alert('Erro ao transferir lead');
+        }
     };
 
     const handleDragStart = (e: React.DragEvent, leadId: string) => {
+        // Verificar se o lead é agendado - não permitir arrastar
+        const lead = leads.find(l => l.id === leadId);
+        if (lead && normalizeStatus(lead.status) === 'agendado') {
+            e.preventDefault();
+            return;
+        }
         setDraggedLeadId(leadId);
         e.dataTransfer.effectAllowed = 'move';
     };
@@ -666,6 +1119,12 @@ export const Leads: React.FC = () => {
 
         const lead = leads.find(l => l.id === draggedLeadId);
         if (!lead || normalizeStatus(lead.status) === newStatus) {
+            setDraggedLeadId(null);
+            return;
+        }
+
+        // Bloquear alteração de status para leads agendados
+        if (normalizeStatus(lead.status) === 'agendado') {
             setDraggedLeadId(null);
             return;
         }
@@ -739,6 +1198,7 @@ export const Leads: React.FC = () => {
 
     const getStatusBadge = (status: string | null) => {
         const statusConfig: Record<string, { label: string; className: string }> = {
+            'agendado': { label: 'Agendado', className: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
             'apresentacao': { label: 'Apresentação', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
             'novo': { label: 'Apresentação', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
             'planejamento_gerado': { label: 'Apresentação', className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
@@ -759,8 +1219,8 @@ export const Leads: React.FC = () => {
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h2 className="text-3xl font-black text-white font-display uppercase">Leads</h2>
-                    <p className="text-gray-500 mt-1">Gerencie seus leads e acompanhe o funil de vendas</p>
+                    <h2 className="text-3xl font-black text-white font-display uppercase">Alunos</h2>
+                    <p className="text-gray-500 mt-1">Gerencie seus alunos e acompanhe o funil de vendas</p>
                 </div>
             </div>
 
@@ -864,22 +1324,20 @@ export const Leads: React.FC = () => {
                         <div className="flex bg-brand-dark border border-white/10 rounded-sm overflow-hidden">
                             <button
                                 onClick={() => setViewMode('kanban')}
-                                className={`p-2 flex items-center gap-2 text-sm transition-colors ${
-                                    viewMode === 'kanban'
+                                className={`p-2 flex items-center gap-2 text-sm transition-colors ${viewMode === 'kanban'
                                         ? 'bg-brand-yellow text-brand-darker'
                                         : 'text-gray-400 hover:text-white'
-                                }`}
+                                    }`}
                             >
                                 <LayoutGrid className="w-4 h-4" />
                                 Kanban
                             </button>
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`p-2 flex items-center gap-2 text-sm transition-colors ${
-                                    viewMode === 'list'
+                                className={`p-2 flex items-center gap-2 text-sm transition-colors ${viewMode === 'list'
                                         ? 'bg-brand-yellow text-brand-darker'
                                         : 'text-gray-400 hover:text-white'
-                                }`}
+                                    }`}
                             >
                                 <List className="w-4 h-4" />
                                 Lista
@@ -913,6 +1371,7 @@ export const Leads: React.FC = () => {
                                 key={column.id}
                                 column={column}
                                 leads={getLeadsByStatus(column.id)}
+                                agendamentosMap={agendamentosMap}
                                 onDragStart={handleDragStart}
                                 onDragOver={handleDragOver}
                                 onDrop={handleDrop}
@@ -1004,9 +1463,7 @@ export const Leads: React.FC = () => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        if (window.confirm('Tem certeza que deseja excluir este lead?')) {
-                                                            handleDelete(lead.id);
-                                                        }
+                                                        handleDelete(lead.id);
                                                     }}
                                                     className="p-2 text-gray-400 hover:text-red-500 transition-colors"
                                                     title="Excluir"
@@ -1027,11 +1484,29 @@ export const Leads: React.FC = () => {
             {selectedLead && (
                 <LeadDetailsSidebar
                     lead={selectedLead}
-                    onClose={() => setSelectedLead(null)}
+                    agendamento={selectedAgendamento}
+                    onClose={() => {
+                        setSelectedLead(null);
+                        setSelectedAgendamento(null);
+                    }}
                     onDelete={handleDelete}
                     onStatusChange={handleStatusChange}
+                    onStartPlanejamento={handleStartPlanejamento}
+                    onTransferLead={handleTransferLead}
+                    currentUserId={user?.id}
+                    isAdmin={isAdmin}
+                    vendedores={vendedores}
                 />
             )}
+
+            {/* Modal de confirmação de exclusão */}
+            <ConfirmDeleteModal
+                isOpen={deleteModal.isOpen}
+                onClose={closeDeleteModal}
+                onConfirm={handleConfirmDelete}
+                itemName={deleteModal.leadName}
+                isLoading={isDeleting}
+            />
         </div>
     );
 };

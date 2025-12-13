@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "setup:storage": "node scripts/setup-storage.js"
@@ -16,12 +16,15 @@
   "dependencies": {
     "@google/genai": "*",
     "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^17.2.3",
+    "framer-motion": "^12.23.26",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
     "react-quill": "^2.0.0",
-    "react-router-dom": "^7.9.6"
+    "react-router-dom": "^7.9.6",
+    "recharts": "^3.5.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",

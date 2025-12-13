@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Plus, X, Check, User, Clock, Target, Minus, Shield, Award, Book } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, X, Check, User, Clock, Target, Minus, Shield, Award, Book, Loader2 } from 'lucide-react';
 import { leadsService, CreateLeadInput } from '../../services/adminUsersService';
 import { LeadDifficulty, LeadGender, EducationLevel, Lead, Preparatorio } from '../../lib/database.types';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { preparatoriosService, planejamentosService } from '../../services/preparatoriosService';
+import { agendamentosService } from '../../services/schedulingService';
+import { studentService, generateRandomPassword } from '../../services/studentService';
 
 // Componente de Confetes
 const Confetti: React.FC = () => {
@@ -311,9 +314,7 @@ const MinutesInput: React.FC<MinutesInputProps> = ({ label, value, onChange }) =
     const formatTime = (minutes: number) => {
         const h = Math.floor(minutes / 60);
         const m = minutes % 60;
-        if (h === 0) return `${m}min`;
-        if (m === 0) return `${h}h`;
-        return `${h}h ${m}min`;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     };
 
     return (
@@ -363,35 +364,37 @@ interface LeadFormProps {
     concursoDefault?: string;
     preparatorioId?: string;
     preparatorioSlug?: string;
+    existingLead?: Lead | null; // Lead existente para edição (vindo de agendamento)
 }
 
-const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, concursoDefault, preparatorioId, preparatorioSlug }) => {
+const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, concursoDefault, preparatorioId, preparatorioSlug, existingLead }) => {
     const [loading, setLoading] = useState(false);
     const [showLoading, setShowLoading] = useState(false);
     const [createdLead, setCreatedLead] = useState<Lead | null>(null);
     const [currentStep, setCurrentStep] = useState(1);
 
+    // Se tiver lead existente (vindo de agendamento), preencher com os dados dele
     const [formData, setFormData] = useState<CreateLeadInput>({
-        nome: '',
-        sexo: undefined,
-        email: '',
-        telefone: '',
-        concurso_almejado: concursoDefault || 'PRF - Policia Rodoviaria Federal',
-        nivel_escolaridade: undefined,
-        trabalha: false,
-        e_concursado: false,
-        possui_curso_concurso: false,
-        qual_curso: '',
-        minutos_domingo: 0,
-        minutos_segunda: 0,
-        minutos_terca: 0,
-        minutos_quarta: 0,
-        minutos_quinta: 0,
-        minutos_sexta: 0,
-        minutos_sabado: 0,
-        principais_dificuldades: [],
-        dificuldade_outros: '',
-        vendedor_id: vendedorId
+        nome: existingLead?.nome || '',
+        sexo: existingLead?.sexo || undefined,
+        email: existingLead?.email || '',
+        telefone: existingLead?.telefone || '',
+        concurso_almejado: existingLead?.concurso_almejado || concursoDefault || 'PRF - Policia Rodoviaria Federal',
+        nivel_escolaridade: existingLead?.nivel_escolaridade || undefined,
+        trabalha: existingLead?.trabalha || false,
+        e_concursado: existingLead?.e_concursado || false,
+        possui_curso_concurso: existingLead?.possui_curso_concurso || false,
+        qual_curso: existingLead?.qual_curso || '',
+        minutos_domingo: existingLead?.minutos_domingo || 0,
+        minutos_segunda: existingLead?.minutos_segunda || 0,
+        minutos_terca: existingLead?.minutos_terca || 0,
+        minutos_quarta: existingLead?.minutos_quarta || 0,
+        minutos_quinta: existingLead?.minutos_quinta || 0,
+        minutos_sexta: existingLead?.minutos_sexta || 0,
+        minutos_sabado: existingLead?.minutos_sabado || 0,
+        principais_dificuldades: existingLead?.principais_dificuldades || [],
+        dificuldade_outros: existingLead?.dificuldade_outros || '',
+        vendedor_id: existingLead?.vendedor_id || vendedorId
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -399,12 +402,29 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
         setLoading(true);
 
         try {
-            const lead = await leadsService.create(formData);
+            let lead: Lead;
+
+            if (existingLead) {
+                // Atualizar lead existente (vindo de agendamento)
+                lead = await leadsService.update(existingLead.id, {
+                    ...formData,
+                    status: 'apresentacao' // Mudar status de agendado para apresentacao
+                });
+
+                // Se tiver agendamento vinculado, atualizar status para 'realizado'
+                if (existingLead.agendamento_id) {
+                    await agendamentosService.updateStatus(existingLead.agendamento_id, 'realizado');
+                }
+            } else {
+                // Criar novo lead
+                lead = await leadsService.create(formData);
+            }
+
             setCreatedLead(lead);
             setShowLoading(true);
         } catch (error) {
-            console.error('Erro ao criar lead:', error);
-            alert('Erro ao criar lead');
+            console.error('Erro ao criar/atualizar lead:', error);
+            alert('Erro ao processar lead');
             setLoading(false);
         }
     };
@@ -421,7 +441,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                 const planejamento = await planejamentosService.create({
                     preparatorio_id: preparatorioId,
                     nome_aluno: createdLead.nome,
-                    email: createdLead.email
+                    email: createdLead.email,
+                    lead_id: createdLead.id
                 });
                 planejamentoId = planejamento.id;
             } else {
@@ -442,6 +463,33 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
             }
 
             await leadsService.linkPlanejamento(createdLead.id, planejamentoId);
+
+            // Criar usuário para o aluno (se tiver email)
+            if (createdLead.email) {
+                try {
+                    // Verificar se já existe um usuário com este email
+                    const emailExists = await studentService.checkEmailExists(createdLead.email);
+
+                    if (!emailExists) {
+                        // Gerar senha aleatória
+                        const password = generateRandomPassword();
+
+                        // Criar usuário
+                        const studentUser = await studentService.createStudent({
+                            email: createdLead.email,
+                            name: createdLead.nome,
+                            password: password
+                        });
+
+                        // Linkar usuário ao lead e salvar senha temporária
+                        await studentService.linkUserToLead(createdLead.id, studentUser.id, password);
+                    }
+                } catch (userError) {
+                    console.error('Erro ao criar usuário do aluno:', userError);
+                    // Não interrompe o fluxo se der erro na criação do usuário
+                }
+            }
+
             onSuccess(createdLead, planejamentoId, slug);
         } catch (error) {
             console.error('Erro ao criar planejamento:', error);
@@ -533,9 +581,16 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                 <div className="flex justify-between items-center p-6 border-b border-white/10 flex-shrink-0">
                     <div>
                         <h3 className="text-xl font-bold text-white uppercase">
-                            Geração de Planejamento Personalizado
+                            {existingLead ? 'Continuar Planejamento' : 'Geração de Planejamento Personalizado'}
                         </h3>
-                        <p className="text-gray-500 text-xs mt-1">Etapa {currentStep} de 2</p>
+                        {existingLead ? (
+                            <p className="text-purple-400 text-xs mt-1 flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                {existingLead.nome} - Etapa {currentStep} de 2
+                            </p>
+                        ) : (
+                            <p className="text-gray-500 text-xs mt-1">Etapa {currentStep} de 2</p>
+                        )}
                     </div>
                     <button onClick={onClose} className="text-gray-500 hover:text-white">
                         <X className="w-6 h-6" />
@@ -546,9 +601,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                 <div className="px-6 py-4 border-b border-white/10 flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                currentStep >= 1 ? 'bg-brand-yellow text-brand-darker' : 'bg-white/10 text-gray-500'
-                            }`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${currentStep >= 1 ? 'bg-brand-yellow text-brand-darker' : 'bg-white/10 text-gray-500'
+                                }`}>
                                 1
                             </div>
                             <span className={`text-sm font-bold uppercase ${currentStep >= 1 ? 'text-white' : 'text-gray-500'}`}>
@@ -557,9 +611,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                         </div>
                         <div className={`flex-1 h-0.5 ${currentStep >= 2 ? 'bg-brand-yellow' : 'bg-white/10'}`} />
                         <div className="flex items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                currentStep >= 2 ? 'bg-brand-yellow text-brand-darker' : 'bg-white/10 text-gray-500'
-                            }`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${currentStep >= 2 ? 'bg-brand-yellow text-brand-darker' : 'bg-white/10 text-gray-500'
+                                }`}>
                                 2
                             </div>
                             <span className={`text-sm font-bold uppercase ${currentStep >= 2 ? 'text-white' : 'text-gray-500'}`}>
@@ -737,11 +790,10 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                                         {difficultyOptions.map(opt => (
                                             <label
                                                 key={opt.value}
-                                                className={`flex items-center gap-2 cursor-pointer p-3 rounded-sm border transition-colors ${
-                                                    formData.principais_dificuldades?.includes(opt.value)
+                                                className={`flex items-center gap-2 cursor-pointer p-3 rounded-sm border transition-colors ${formData.principais_dificuldades?.includes(opt.value)
                                                         ? 'bg-brand-yellow/10 border-brand-yellow/50'
                                                         : 'bg-brand-dark/50 border-white/10 hover:border-white/20'
-                                                }`}
+                                                    }`}
                                             >
                                                 <input
                                                     type="checkbox"
@@ -851,12 +903,17 @@ const getIconForPreparatorio = (nome: string): React.ReactNode => {
 // Página Principal de Planejamentos
 export const Planejamentos: React.FC = () => {
     const { user } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [showForm, setShowForm] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
     const [successData, setSuccessData] = useState<{ lead: Lead; planejamentoId: string; slug: string } | null>(null);
     const [selectedPlanejamento, setSelectedPlanejamento] = useState<PlanejamentoType | null>(null);
     const [planejamentos, setPlanejamentos] = useState<PlanejamentoType[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Estado para lead existente (vindo de agendamento)
+    const [existingLead, setExistingLead] = useState<Lead | null>(null);
+    const [loadingLead, setLoadingLead] = useState(false);
 
     // Carregar preparatórios do banco de dados
     useEffect(() => {
@@ -885,15 +942,81 @@ export const Planejamentos: React.FC = () => {
                 }));
 
                 setPlanejamentos(mapped);
+                return mapped;
             } catch (error) {
                 console.error('Erro ao carregar preparatorios:', error);
+                return [];
             } finally {
                 setLoading(false);
             }
         };
 
-        loadPreparatorios();
+        loadPreparatorios().then((mapped) => {
+            // Verificar se tem lead_id na URL (vindo de agendamento)
+            const leadId = searchParams.get('lead_id');
+            if (leadId && mapped.length > 0) {
+                loadExistingLead(leadId, mapped);
+            }
+        });
     }, []);
+
+    // Carregar lead existente (vindo de agendamento)
+    const loadExistingLead = async (leadId: string, availablePlanejamentos: PlanejamentoType[]) => {
+        try {
+            setLoadingLead(true);
+
+            // Buscar o lead
+            const { data: lead, error: leadError } = await supabase
+                .from('leads')
+                .select('*')
+                .eq('id', leadId)
+                .single();
+
+            if (leadError || !lead) {
+                console.error('Lead não encontrado:', leadError);
+                alert('Lead não encontrado');
+                // Limpar parâmetro da URL
+                searchParams.delete('lead_id');
+                setSearchParams(searchParams);
+                return;
+            }
+
+            setExistingLead(lead);
+
+            // Se o lead tem agendamento, buscar o preparatorio associado
+            let preparatorioId: string | null = null;
+            if (lead.agendamento_id) {
+                const agendamento = await agendamentosService.getById(lead.agendamento_id);
+                if (agendamento?.preparatorio_id) {
+                    preparatorioId = agendamento.preparatorio_id;
+                }
+            }
+
+            // Selecionar o preparatório correto
+            let selectedPrep: PlanejamentoType | undefined;
+            if (preparatorioId) {
+                selectedPrep = availablePlanejamentos.find(p => p.id === preparatorioId);
+            }
+
+            // Se não encontrou pelo agendamento, usar o primeiro disponível
+            if (!selectedPrep) {
+                selectedPrep = availablePlanejamentos.find(p => p.available);
+            }
+
+            if (selectedPrep) {
+                setSelectedPlanejamento(selectedPrep);
+                setShowForm(true);
+            } else {
+                alert('Nenhum preparatório disponível');
+            }
+
+        } catch (error) {
+            console.error('Erro ao carregar lead:', error);
+            alert('Erro ao carregar dados do lead');
+        } finally {
+            setLoadingLead(false);
+        }
+    };
 
     const handleCardClick = (planejamento: PlanejamentoType) => {
         if (!planejamento.available) return;
@@ -904,9 +1027,14 @@ export const Planejamentos: React.FC = () => {
     const handleSuccess = (lead: Lead, planejamentoId: string, slug: string) => {
         setShowForm(false);
         setSelectedPlanejamento(null);
+        setExistingLead(null);
         setShowConfetti(true);
         setSuccessData({ lead, planejamentoId, slug });
         setTimeout(() => setShowConfetti(false), 5000);
+
+        // Limpar lead_id da URL
+        searchParams.delete('lead_id');
+        setSearchParams(searchParams);
     };
 
     const handleCloseSuccess = () => {
@@ -916,12 +1044,22 @@ export const Planejamentos: React.FC = () => {
     const handleCloseForm = () => {
         setShowForm(false);
         setSelectedPlanejamento(null);
+        setExistingLead(null);
+
+        // Limpar lead_id da URL
+        searchParams.delete('lead_id');
+        setSearchParams(searchParams);
     };
 
-    if (loading) {
+    if (loading || loadingLead) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-yellow"></div>
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-yellow mx-auto mb-4"></div>
+                    {loadingLead && (
+                        <p className="text-gray-400 text-sm">Carregando dados do lead...</p>
+                    )}
+                </div>
             </div>
         );
     }
@@ -939,8 +1077,8 @@ export const Planejamentos: React.FC = () => {
             )}
 
             <div className="mb-8">
-                <h2 className="text-3xl font-black text-white font-display uppercase">Planejamentos</h2>
-                <p className="text-gray-500 mt-1">Selecione um planejamento para gerar para seu lead</p>
+                <h2 className="text-3xl font-black text-white font-display uppercase">Gerar Planejamento</h2>
+                <p className="text-gray-500 mt-1">Selecione um planejamento para gerar para seu aluno</p>
             </div>
 
             {planejamentos.length === 0 ? (
@@ -950,95 +1088,92 @@ export const Planejamentos: React.FC = () => {
                     <p className="text-gray-500 mb-6">Crie um preparatório na seção de gerenciamento para poder gerar planejamentos.</p>
                 </div>
             ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {planejamentos.map((planejamento) => (
-                    <div
-                        key={planejamento.id}
-                        onClick={() => handleCardClick(planejamento)}
-                        className={`bg-brand-card border rounded-sm overflow-hidden transition-all duration-300 ${
-                            planejamento.available
-                                ? 'border-white/10 hover:border-brand-yellow/50 cursor-pointer hover:transform hover:scale-[1.02]'
-                                : 'border-white/5 opacity-60 cursor-not-allowed'
-                        }`}
-                    >
-                        {/* Header do Card */}
-                        <div className={`p-6 ${planejamento.available ? 'bg-brand-yellow/10' : 'bg-white/5'}`}>
-                            <div className="flex items-center justify-between mb-4">
-                                <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
-                                    planejamento.available ? 'bg-brand-yellow/20 text-brand-yellow' : 'bg-white/10 text-gray-500'
-                                }`}>
-                                    {planejamento.icon}
-                                </div>
-                                {planejamento.available ? (
-                                    <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-bold uppercase rounded border border-green-500/30">
-                                        Disponível
-                                    </span>
-                                ) : (
-                                    <span className="px-3 py-1 bg-white/10 text-gray-500 text-xs font-bold uppercase rounded border border-white/10">
-                                        Em breve
-                                    </span>
-                                )}
-                            </div>
-                            <h3 className="text-2xl font-black text-white uppercase">{planejamento.title}</h3>
-                            <p className={`text-sm font-medium ${planejamento.available ? 'text-brand-yellow' : 'text-gray-500'}`}>
-                                {planejamento.subtitle}
-                            </p>
-                        </div>
-
-                        {/* Body do Card */}
-                        <div className="p-6">
-                            <p className="text-gray-400 text-sm mb-4 line-clamp-3">
-                                {planejamento.description}
-                            </p>
-
-                            <div className="space-y-2">
-                                <p className="text-xs text-gray-500 uppercase font-bold mb-2">Inclui:</p>
-                                {planejamento.features.map((feature, index) => (
-                                    <div key={index} className="flex items-center text-sm">
-                                        <Check className={`w-4 h-4 mr-2 flex-shrink-0 ${
-                                            planejamento.available ? 'text-green-400' : 'text-gray-600'
-                                        }`} />
-                                        <span className={planejamento.available ? 'text-gray-300' : 'text-gray-600'}>
-                                            {feature}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Footer do Card */}
-                        <div className={`p-4 border-t ${planejamento.available ? 'border-white/10' : 'border-white/5'}`}>
-                            <button
-                                disabled={!planejamento.available}
-                                className={`w-full py-3 font-bold uppercase text-sm transition-colors flex items-center justify-center gap-2 ${
-                                    planejamento.available
-                                        ? 'bg-brand-yellow text-brand-darker hover:bg-brand-yellow/90'
-                                        : 'bg-white/5 text-gray-600 cursor-not-allowed'
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {planejamentos.map((planejamento) => (
+                        <div
+                            key={planejamento.id}
+                            onClick={() => handleCardClick(planejamento)}
+                            className={`bg-brand-card border rounded-sm overflow-hidden transition-all duration-300 ${planejamento.available
+                                    ? 'border-white/10 hover:border-brand-yellow/50 cursor-pointer hover:transform hover:scale-[1.02]'
+                                    : 'border-white/5 opacity-60 cursor-not-allowed'
                                 }`}
-                            >
-                                {planejamento.available ? (
-                                    <>
-                                        <Plus className="w-4 h-4" />
-                                        Gerar Planejamento
-                                    </>
-                                ) : (
-                                    'Em breve'
-                                )}
-                            </button>
+                        >
+                            {/* Header do Card */}
+                            <div className={`p-6 ${planejamento.available ? 'bg-brand-yellow/10' : 'bg-white/5'}`}>
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className={`w-14 h-14 rounded-full flex items-center justify-center ${planejamento.available ? 'bg-brand-yellow/20 text-brand-yellow' : 'bg-white/10 text-gray-500'
+                                        }`}>
+                                        {planejamento.icon}
+                                    </div>
+                                    {planejamento.available ? (
+                                        <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-bold uppercase rounded border border-green-500/30">
+                                            Disponível
+                                        </span>
+                                    ) : (
+                                        <span className="px-3 py-1 bg-white/10 text-gray-500 text-xs font-bold uppercase rounded border border-white/10">
+                                            Em breve
+                                        </span>
+                                    )}
+                                </div>
+                                <h3 className="text-2xl font-black text-white uppercase">{planejamento.title}</h3>
+                                <p className={`text-sm font-medium ${planejamento.available ? 'text-brand-yellow' : 'text-gray-500'}`}>
+                                    {planejamento.subtitle}
+                                </p>
+                            </div>
+
+                            {/* Body do Card */}
+                            <div className="p-6">
+                                <p className="text-gray-400 text-sm mb-4 line-clamp-3">
+                                    {planejamento.description}
+                                </p>
+
+                                <div className="space-y-2">
+                                    <p className="text-xs text-gray-500 uppercase font-bold mb-2">Inclui:</p>
+                                    {planejamento.features.map((feature, index) => (
+                                        <div key={index} className="flex items-center text-sm">
+                                            <Check className={`w-4 h-4 mr-2 flex-shrink-0 ${planejamento.available ? 'text-green-400' : 'text-gray-600'
+                                                }`} />
+                                            <span className={planejamento.available ? 'text-gray-300' : 'text-gray-600'}>
+                                                {feature}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Footer do Card */}
+                            <div className={`p-4 border-t ${planejamento.available ? 'border-white/10' : 'border-white/5'}`}>
+                                <button
+                                    disabled={!planejamento.available}
+                                    className={`w-full py-3 font-bold uppercase text-sm transition-colors flex items-center justify-center gap-2 ${planejamento.available
+                                            ? 'bg-brand-yellow text-brand-darker hover:bg-brand-yellow/90'
+                                            : 'bg-white/5 text-gray-600 cursor-not-allowed'
+                                        }`}
+                                >
+                                    {planejamento.available ? (
+                                        <>
+                                            <Plus className="w-4 h-4" />
+                                            Gerar Planejamento
+                                        </>
+                                    ) : (
+                                        'Em breve'
+                                    )}
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
             )}
 
             {showForm && user?.id && selectedPlanejamento && (
                 <LeadForm
                     onClose={handleCloseForm}
                     onSuccess={handleSuccess}
-                    vendedorId={user.id}
+                    vendedorId={existingLead?.vendedor_id || user.id}
                     concursoDefault={selectedPlanejamento.concurso}
                     preparatorioId={selectedPlanejamento.id}
                     preparatorioSlug={selectedPlanejamento.slug}
+                    existingLead={existingLead}
                 />
             )}
         </div>

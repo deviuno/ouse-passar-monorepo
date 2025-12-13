@@ -16,6 +16,8 @@ import { useScrollAnimation } from './lib/useScrollAnimation';
 // Auth
 import { AuthProvider } from './lib/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminOnlyRoute } from './components/AdminOnlyRoute';
+import { StudentProtectedRoute } from './components/StudentProtectedRoute';
 
 // UI
 import { ToastProvider } from './components/ui/Toast';
@@ -38,10 +40,14 @@ import { PlanejamentoPRFForm } from './pages/PlanejamentoPRF';
 import { PlanejamentoPRFView } from './pages/PlanejamentoPRFView';
 import { Planejamentos as PlanejamentosPublic } from './pages/Planejamentos';
 import { PlanejamentoVendas } from './pages/PlanejamentoVendas';
+import { Obrigado } from './pages/Obrigado';
+import { EditalVerticalizadoView } from './pages/EditalVerticalizadoView';
+import { StudentDashboardView } from './pages/StudentDashboardView';
 import { Users } from './pages/admin/Users';
 import { Planejamentos as PlanejamentosAdmin } from './pages/admin/Planejamentos';
 import { Leads } from './pages/admin/Leads';
 import { Profile } from './pages/admin/Profile';
+import { StudentLogin } from './pages/StudentLogin';
 import { AdminIndex } from './pages/admin/AdminIndex';
 import { PreparatoriosPlanos } from './pages/admin/PreparatoriosPlanos';
 import { RodadasAdmin } from './pages/admin/Rodadas';
@@ -145,11 +151,27 @@ const App: React.FC = () => {
             {/* Planejamento Dinâmico View */}
             <Route path="/planejamento/:slug/:id" element={<PlanejamentoPRFView />} />
 
+            {/* Edital Verticalizado View */}
+            <Route path="/edital-verticalizado/:slug/:id" element={<EditalVerticalizadoView />} />
+
+            {/* Página de Obrigado (pós-compra com agendamento) */}
+            <Route path="/obrigado" element={<Obrigado />} />
+
             {/* Admin Login (Public) */}
             <Route path="/admin/login" element={<Login />} />
 
+            {/* Student Login (Public) */}
+            <Route path="/login" element={<StudentLogin />} />
+
             {/* Documentation (Public - Direct access only, no menu links) */}
             <Route path="/docs/integracao-questoes" element={<DocsIntegracao />} />
+
+            {/* Dashboard do Aluno - Protegido por StudentProtectedRoute (não admin) */}
+            <Route path="/dashboard-aluno/:id" element={
+              <StudentProtectedRoute>
+                <StudentDashboardView />
+              </StudentProtectedRoute>
+            } />
 
             {/* Protected Admin Routes */}
             <Route
@@ -161,33 +183,33 @@ const App: React.FC = () => {
               }
             >
               <Route index element={<AdminIndex />} />
-              <Route path="users" element={<Users />} />
+              <Route path="users" element={<AdminOnlyRoute><Users /></AdminOnlyRoute>} />
               <Route path="planejamentos" element={<PlanejamentosAdmin />} />
               <Route path="leads" element={<Leads />} />
               <Route path="profile" element={<Profile />} />
-              <Route path="authors" element={<Authors />} />
-              <Route path="categories" element={<Categories />} />
-              <Route path="articles" element={<Articles />} />
-              <Route path="articles/new" element={<ArticleEditor />} />
-              <Route path="articles/new-ai" element={<NewArticleAI />} />
-              <Route path="articles/edit/:slug" element={<ArticleEditor />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="preparatorios" element={<Preparatorios />} />
-              <Route path="preparatorios/new" element={<NewPreparatorio />} />
-              <Route path="preparatorios/edit/:id" element={<EditarPreparatorio />} />
+              <Route path="authors" element={<AdminOnlyRoute><Authors /></AdminOnlyRoute>} />
+              <Route path="categories" element={<AdminOnlyRoute><Categories /></AdminOnlyRoute>} />
+              <Route path="articles" element={<AdminOnlyRoute><Articles /></AdminOnlyRoute>} />
+              <Route path="articles/new" element={<AdminOnlyRoute><ArticleEditor /></AdminOnlyRoute>} />
+              <Route path="articles/new-ai" element={<AdminOnlyRoute><NewArticleAI /></AdminOnlyRoute>} />
+              <Route path="articles/edit/:slug" element={<AdminOnlyRoute><ArticleEditor /></AdminOnlyRoute>} />
+              <Route path="settings" element={<AdminOnlyRoute><Settings /></AdminOnlyRoute>} />
+              <Route path="preparatorios" element={<AdminOnlyRoute><Preparatorios /></AdminOnlyRoute>} />
+              <Route path="preparatorios/new" element={<AdminOnlyRoute><NewPreparatorio /></AdminOnlyRoute>} />
+              <Route path="preparatorios/edit/:id" element={<AdminOnlyRoute><EditarPreparatorio /></AdminOnlyRoute>} />
 
               {/* Gamification Admin */}
-              <Route path="gamification" element={<GamificationSettingsPage />} />
-              <Route path="gamification/levels" element={<LevelsPage />} />
-              <Route path="gamification/leagues" element={<LeaguesPage />} />
-              <Route path="gamification/xp-actions" element={<XpActionsPage />} />
-              <Route path="gamification/achievements" element={<AchievementsPage />} />
+              <Route path="gamification" element={<AdminOnlyRoute><GamificationSettingsPage /></AdminOnlyRoute>} />
+              <Route path="gamification/levels" element={<AdminOnlyRoute><LevelsPage /></AdminOnlyRoute>} />
+              <Route path="gamification/leagues" element={<AdminOnlyRoute><LeaguesPage /></AdminOnlyRoute>} />
+              <Route path="gamification/xp-actions" element={<AdminOnlyRoute><XpActionsPage /></AdminOnlyRoute>} />
+              <Route path="gamification/achievements" element={<AdminOnlyRoute><AchievementsPage /></AdminOnlyRoute>} />
 
               {/* Planejamentos - Sistema Dinâmico */}
-              <Route path="planos-preparatorios" element={<PreparatoriosPlanos />} />
-              <Route path="planos-preparatorios/:preparatorioId/rodadas" element={<RodadasAdmin />} />
-              <Route path="planos-preparatorios/:preparatorioId/rodadas/:rodadaId/missoes" element={<MissoesAdmin />} />
-              <Route path="planos-preparatorios/:preparatorioId/mensagens" element={<MensagensIncentivoAdmin />} />
+              <Route path="planos-preparatorios" element={<AdminOnlyRoute><PreparatoriosPlanos /></AdminOnlyRoute>} />
+              <Route path="planos-preparatorios/:preparatorioId/rodadas" element={<AdminOnlyRoute><RodadasAdmin /></AdminOnlyRoute>} />
+              <Route path="planos-preparatorios/:preparatorioId/rodadas/:rodadaId/missoes" element={<AdminOnlyRoute><MissoesAdmin /></AdminOnlyRoute>} />
+              <Route path="planos-preparatorios/:preparatorioId/mensagens" element={<AdminOnlyRoute><MensagensIncentivoAdmin /></AdminOnlyRoute>} />
             </Route>
 
             {/* Fallback */}

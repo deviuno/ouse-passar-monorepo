@@ -9,7 +9,8 @@ export const AdminLayout: React.FC = () => {
     const { user, logout, isAdmin, isVendedor } = useAuth();
     const [blogOpen, setBlogOpen] = useState(false);
     const [gamificationOpen, setGamificationOpen] = useState(false);
-    const [planejamentosOpen, setPlanejamentosOpen] = useState(location.pathname.includes('/admin/planejamentos') || location.pathname.includes('/admin/planos-preparatorios'));
+    // Accordion sempre aberto
+    const [planejamentosOpen, setPlanejamentosOpen] = useState(true);
 
     const isActive = (path: string) => {
         return location.pathname === path ? 'bg-brand-yellow text-brand-darker' : 'text-gray-400 hover:text-white hover:bg-white/5';
@@ -67,7 +68,7 @@ export const AdminLayout: React.FC = () => {
                     <div className="space-y-1">
                         <button
                             onClick={() => setPlanejamentosOpen(!planejamentosOpen)}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/planejamentos') || location.pathname.includes('/admin/planos-preparatorios') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/planejamentos') || location.pathname.includes('/admin/planos-preparatorios') || location.pathname.includes('/admin/leads') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                         >
                             <div className="flex items-center">
                                 <ClipboardList className="w-5 h-5 mr-3" />
@@ -78,33 +79,37 @@ export const AdminLayout: React.FC = () => {
 
                         {planejamentosOpen && (
                             <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
+                                {/* Gerar Novo - Admin e Vendedor */}
                                 <Link
                                     to="/admin/planejamentos"
                                     className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/planejamentos')}`}
                                 >
                                     <Plus className="w-4 h-4 mr-3" />
-                                    Novo Lead
+                                    Gerar Novo
                                 </Link>
 
+                                {/* Gerenciar Planejamentos - Admin only */}
+                                {isAdmin && (
+                                    <Link
+                                        to="/admin/planos-preparatorios"
+                                        className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/planos-preparatorios')}`}
+                                    >
+                                        <List className="w-4 h-4 mr-3" />
+                                        Gerenciar
+                                    </Link>
+                                )}
+
+                                {/* Alunos - Admin e Vendedor */}
                                 <Link
-                                    to="/admin/planos-preparatorios"
-                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/planos-preparatorios')}`}
+                                    to="/admin/leads"
+                                    className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/leads')}`}
                                 >
-                                    <List className="w-4 h-4 mr-3" />
-                                    Planejamentos
+                                    <UserCheck className="w-4 h-4 mr-3" />
+                                    Alunos
                                 </Link>
                             </div>
                         )}
                     </div>
-
-                    {/* Leads - Admin and Vendedor */}
-                    <Link
-                        to="/admin/leads"
-                        className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/leads')}`}
-                    >
-                        <UserCheck className="w-5 h-5 mr-3" />
-                        Leads
-                    </Link>
 
                     {/* Admin-only sections */}
                     {isAdmin && (

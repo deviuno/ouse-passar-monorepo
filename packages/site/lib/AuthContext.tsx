@@ -60,6 +60,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
+      // IMPORTANTE: Bloquear login de clientes no painel admin
+      // Clientes devem usar a página /login (StudentLogin)
+      if (data.role === 'cliente') {
+        console.warn('Tentativa de login de cliente no painel admin bloqueada');
+        return false;
+      }
+
       // Atualizar último login
       await supabase
         .from('admin_users')

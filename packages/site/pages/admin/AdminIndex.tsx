@@ -6,9 +6,9 @@ import { Dashboard } from './Dashboard';
 export const AdminIndex: React.FC = () => {
     const { isAdmin, isVendedor } = useAuth();
 
-    // Vendedores são redirecionados para planejamentos
+    // Vendedores são redirecionados para alunos
     if (isVendedor && !isAdmin) {
-        return <Navigate to="/admin/planejamentos" replace />;
+        return <Navigate to="/admin/leads" replace />;
     }
 
     // Admins veem o dashboard

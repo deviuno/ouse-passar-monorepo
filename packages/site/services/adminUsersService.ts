@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { AdminUser, UserRole, Lead, LeadDifficulty, LeadGender, EducationLevel } from '../lib/database.types';
+import { AdminUser, UserRole, UserGender, Lead, LeadDifficulty, LeadGender, EducationLevel } from '../lib/database.types';
 
 // ==================== ADMIN USERS ====================
 
@@ -9,6 +9,8 @@ export interface CreateUserInput {
   name: string;
   role: UserRole;
   created_by?: string;
+  avatar_url?: string;
+  genero?: UserGender;
 }
 
 export interface UpdateUserInput {
@@ -17,6 +19,8 @@ export interface UpdateUserInput {
   name?: string;
   role?: UserRole;
   is_active?: boolean;
+  avatar_url?: string | null;
+  genero?: UserGender | null;
 }
 
 // Função auxiliar para validar UUID
@@ -49,13 +53,30 @@ export const adminUsersService = {
   },
 
   async create(input: CreateUserInput): Promise<AdminUser> {
-    const insertData = {
+    const insertData: {
+      email: string;
+      password_hash: string;
+      name: string;
+      role: UserRole;
+      created_by?: string | null;
+      avatar_url?: string;
+      genero?: UserGender;
+    } = {
       email: input.email,
       password_hash: input.password, // Em produção, usar hash
       name: input.name,
-      role: input.role,
-      created_by: isValidUUID(input.created_by) ? input.created_by : null
+      role: input.role
     };
+
+    if (input.genero) insertData.genero = input.genero;
+
+    if (input.created_by && isValidUUID(input.created_by)) {
+      insertData.created_by = input.created_by;
+    }
+
+    if (input.avatar_url) {
+      insertData.avatar_url = input.avatar_url;
+    }
 
     const { data, error } = await supabase
       .from('admin_users')
@@ -74,6 +95,8 @@ export const adminUsersService = {
       role?: UserRole;
       password_hash?: string;
       is_active?: boolean;
+      avatar_url?: string | null;
+      genero?: UserGender | null;
     } = {};
 
     if (input.email) updateData.email = input.email;
@@ -81,6 +104,8 @@ export const adminUsersService = {
     if (input.role) updateData.role = input.role;
     if (input.password) updateData.password_hash = input.password;
     if (typeof input.is_active === 'boolean') updateData.is_active = input.is_active;
+    if (input.avatar_url !== undefined) updateData.avatar_url = input.avatar_url;
+    if (input.genero !== undefined) updateData.genero = input.genero;
 
     const { data, error } = await supabase
       .from('admin_users')
