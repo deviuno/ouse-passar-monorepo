@@ -268,8 +268,8 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                                             key={col.id}
                                             disabled
                                             className={`px-3 py-1.5 rounded text-xs font-bold uppercase border transition-all cursor-not-allowed ${currentStatus === col.id
-                                                    ? `${col.bgColor} ${col.color} ${col.borderColor}`
-                                                    : 'bg-brand-dark/50 text-gray-600 border-white/5 opacity-50'
+                                                ? `${col.bgColor} ${col.color} ${col.borderColor}`
+                                                : 'bg-brand-dark/50 text-gray-600 border-white/5 opacity-50'
                                                 }`}
                                         >
                                             {col.title}
@@ -288,8 +288,8 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                                         key={col.id}
                                         onClick={() => onStatusChange(lead.id, col.id)}
                                         className={`px-3 py-1.5 rounded text-xs font-bold uppercase border transition-all ${currentStatus === col.id
-                                                ? `${col.bgColor} ${col.color} ${col.borderColor}`
-                                                : 'bg-brand-dark/50 text-gray-500 border-white/10 hover:border-white/30'
+                                            ? `${col.bgColor} ${col.color} ${col.borderColor}`
+                                            : 'bg-brand-dark/50 text-gray-500 border-white/10 hover:border-white/30'
                                             }`}
                                     >
                                         {col.title}
@@ -595,11 +595,10 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                             <div className="flex gap-2 mt-3">
                                 <button
                                     onClick={handleCopyAccess}
-                                    className={`flex-1 py-2 px-3 text-xs font-bold uppercase rounded-sm flex items-center justify-center gap-2 transition-all ${
-                                        copied
+                                    className={`flex-1 py-2 px-3 text-xs font-bold uppercase rounded-sm flex items-center justify-center gap-2 transition-all ${copied
                                             ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                                             : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
-                                    }`}
+                                        }`}
                                 >
                                     <Copy className="w-4 h-4" />
                                     {copied ? 'Copiado!' : 'Copiar Acesso'}
@@ -687,12 +686,29 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, agendamento, onDragStart, onD
 
     const formatAgendamentoShort = (dataHora: string) => {
         const date = new Date(dataHora);
-        return date.toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
+        const time = date.toLocaleTimeString('pt-BR', {
             hour: '2-digit',
             minute: '2-digit'
         });
+        const dateStr = date.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric' // Changed to numeric (full year) as requested "aa" usually implies 2-digit but "dd/mm/aa" can be interpreted. Let's stick to dd/mm/yy or dd/mm/yyyy. User said dd/mm/aa (usually 2 digits). 
+            // Wait, "aa" in pt-BR usually means "ano" (2 digits). "aaaa" means 4 digits.
+            // If I use '2-digit', it will be '25'. 'numeric' will be '2025'.
+            // User sample: 13/12/2025 in screenshot.
+            // User request: "00:00 e dd/mm/aa". 
+            // I'll use 2-digit year to match "aa".
+        });
+        // Actually, user screenshot has "13/12/2025".
+        // But request says "dd/mm/aa". 
+        // I will use 2-digit for year to be safe with "aa", or maybe 4-digit if that looks better.
+        // Let's use 2-digit for year to match "aa".
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear().toString().slice(-2);
+
+        return `${time} e ${day}/${month}/${year}`;
     };
 
     const isAgendado = lead.status === 'agendado';
@@ -703,8 +719,8 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, agendamento, onDragStart, onD
             onDragStart={(e) => !isAgendado && onDragStart(e, lead.id)}
             onClick={() => onClick(lead)}
             className={`bg-brand-dark border rounded-sm p-3 hover:border-white/20 transition-colors group ${isAgendado
-                    ? 'border-purple-500/30 cursor-pointer'
-                    : 'border-white/10 cursor-grab active:cursor-grabbing'
+                ? 'border-purple-500/30 cursor-pointer'
+                : 'border-white/10 cursor-grab active:cursor-grabbing'
                 }`}
         >
             <div className="flex items-start justify-between mb-2">
@@ -724,15 +740,13 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, agendamento, onDragStart, onD
             <div className="space-y-1 text-xs">
                 <p className="text-gray-400 truncate">{lead.concurso_almejado}</p>
 
-                {/* Mostrar data/hora do agendamento se for lead agendado */}
-                {isAgendado && agendamento && (
+                {/* Mostrar data/hora do agendamento se tiver, independente do status */}
+                {agendamento ? (
                     <div className="flex items-center text-purple-400 font-medium">
                         <Video className="w-3 h-3 mr-1" />
                         {formatAgendamentoShort(agendamento.data_hora)}
                     </div>
-                )}
-
-                {!isAgendado && (
+                ) : (
                     <div className="flex items-center text-gray-500">
                         <Calendar className="w-3 h-3 mr-1" />
                         {formatMinutesToTime(totalMinutos)}/sem
@@ -1325,8 +1339,8 @@ export const Leads: React.FC = () => {
                             <button
                                 onClick={() => setViewMode('kanban')}
                                 className={`p-2 flex items-center gap-2 text-sm transition-colors ${viewMode === 'kanban'
-                                        ? 'bg-brand-yellow text-brand-darker'
-                                        : 'text-gray-400 hover:text-white'
+                                    ? 'bg-brand-yellow text-brand-darker'
+                                    : 'text-gray-400 hover:text-white'
                                     }`}
                             >
                                 <LayoutGrid className="w-4 h-4" />
@@ -1335,8 +1349,8 @@ export const Leads: React.FC = () => {
                             <button
                                 onClick={() => setViewMode('list')}
                                 className={`p-2 flex items-center gap-2 text-sm transition-colors ${viewMode === 'list'
-                                        ? 'bg-brand-yellow text-brand-darker'
-                                        : 'text-gray-400 hover:text-white'
+                                    ? 'bg-brand-yellow text-brand-darker'
+                                    : 'text-gray-400 hover:text-white'
                                     }`}
                             >
                                 <List className="w-4 h-4" />
