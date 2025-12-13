@@ -49,7 +49,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
             onKeyDown={handleKeyDown}
             tabIndex={-1}
         >
-            <div className="bg-brand-card border border-white/10 rounded-sm w-full max-w-md animate-fade-in">
+            <div className="bg-brand-card border border-white/10 rounded-sm w-full max-w-md animate-fade-in-fast">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-white/10">
                     <div className="flex items-center gap-3">
