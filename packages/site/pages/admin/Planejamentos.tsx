@@ -65,6 +65,8 @@ interface LoadingStepsProps {
 const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [progress, setProgress] = useState(0);
+    const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+    const [isComplete, setIsComplete] = useState(false);
 
     const steps = [
         `Analisando necessidades de ${firstName}`,
@@ -75,105 +77,170 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
     ];
 
     useEffect(() => {
-        // Gerar durações aleatórias para cada etapa (2000ms a 5000ms)
-        const stepDurations = steps.map(() => 2000 + Math.random() * 3000);
-        const totalDuration = stepDurations.reduce((acc, d) => acc + d, 0);
+        // Durações variadas para cada etapa (2500ms a 4500ms)
+        const stepDurations = steps.map(() => 2500 + Math.random() * 2000);
 
-        let elapsed = 0;
-        let currentStepStartTime = 0;
-        let stepIndex = 0;
+        // Padrões de velocidade ÚNICOS para cada etapa
+        // Cada padrão define como a velocidade varia ao longo do progresso (0-100%)
+        const speedPatterns = [
+            // Etapa 1: Começa rápido, fica lento no meio, para, continua lento, termina rápido
+            {
+                type: 'fast-slow-pause-slow-fast',
+                segments: [
+                    { until: 30, speed: 1.8 },   // 0-30%: rápido
+                    { until: 50, speed: 0.4 },   // 30-50%: lento
+                    { until: 55, speed: 0, pause: 800 }, // 50-55%: pausa
+                    { until: 80, speed: 0.5 },   // 55-80%: lento
+                    { until: 100, speed: 1.6 }   // 80-100%: rápido
+                ]
+            },
+            // Etapa 2: Velocidade constante alta (sem pausas)
+            {
+                type: 'constant-fast',
+                segments: [
+                    { until: 100, speed: 1.3 }
+                ]
+            },
+            // Etapa 3: Começa muito lento, acelera gradualmente
+            {
+                type: 'slow-to-fast',
+                segments: [
+                    { until: 20, speed: 0.3 },
+                    { until: 40, speed: 0.5 },
+                    { until: 60, speed: 0.8 },
+                    { until: 80, speed: 1.2 },
+                    { until: 100, speed: 2.0 }
+                ]
+            },
+            // Etapa 4: Rápido, lento, rápido (sem pausa)
+            {
+                type: 'fast-slow-fast',
+                segments: [
+                    { until: 35, speed: 1.6 },
+                    { until: 70, speed: 0.4 },
+                    { until: 100, speed: 1.8 }
+                ]
+            },
+            // Etapa 5: Médio com pausa longa no meio
+            {
+                type: 'medium-pause-medium',
+                segments: [
+                    { until: 45, speed: 1.0 },
+                    { until: 50, speed: 0, pause: 1200 },
+                    { until: 100, speed: 1.2 }
+                ]
+            }
+        ];
 
-        // Pontos de travamento aleatórios para cada etapa
-        const stallPoints = steps.map(() => ({
-            position: 20 + Math.random() * 50, // Trava entre 20% e 70%
-            duration: 500 + Math.random() * 1500, // Trava por 500ms a 2000ms
-            triggered: false
-        }));
-
-        // Segundo travamento para algumas etapas
-        const secondStallPoints = steps.map(() => ({
-            position: 75 + Math.random() * 15, // Trava entre 75% e 90%
-            duration: 300 + Math.random() * 800,
-            triggered: false,
-            active: Math.random() > 0.4 // 60% de chance de ter segundo travamento
-        }));
-
-        let isStalling = false;
-        let stallEndTime = 0;
-        let displayProgress = 0;
+        let currentStepIdx = 0;
+        let stepStartTime = Date.now();
+        let displayedProgress = 0;
+        let isPaused = false;
+        let pauseEndTime = 0;
+        let pauseTriggeredAt: number | null = null;
 
         const interval = setInterval(() => {
             const now = Date.now();
 
-            // Se está em travamento, não avança o progresso
-            if (isStalling) {
-                if (now >= stallEndTime) {
-                    isStalling = false;
-                } else {
-                    // Pequenas oscilações durante o travamento
-                    const oscillation = Math.sin(now / 100) * 0.5;
-                    setProgress(Math.max(0, Math.min(100, displayProgress + oscillation)));
-                    return;
-                }
+            // Se já completou, não fazer nada
+            if (currentStepIdx >= steps.length) {
+                return;
             }
 
-            elapsed += 50;
+            // Se está em pausa
+            if (isPaused) {
+                if (now >= pauseEndTime) {
+                    isPaused = false;
+                    pauseTriggeredAt = null;
+                }
+                return;
+            }
 
-            // Calcular em qual etapa estamos
-            let accumulatedTime = 0;
-            for (let i = 0; i < steps.length; i++) {
-                if (elapsed <= accumulatedTime + stepDurations[i]) {
-                    stepIndex = i;
-                    currentStepStartTime = accumulatedTime;
+            const stepElapsed = now - stepStartTime;
+            const stepDuration = stepDurations[currentStepIdx];
+            const pattern = speedPatterns[currentStepIdx];
+
+            // Calcular progresso base (tempo decorrido / duração)
+            let baseProgress = (stepElapsed / stepDuration) * 100;
+
+            // Encontrar o segmento atual baseado no progresso exibido
+            let currentSegment = pattern.segments[0];
+            let segmentStartProgress = 0;
+
+            for (const segment of pattern.segments) {
+                if (displayedProgress < segment.until) {
+                    currentSegment = segment;
                     break;
                 }
-                accumulatedTime += stepDurations[i];
+                segmentStartProgress = segment.until;
             }
 
-            // Calcular progresso da etapa atual
-            const stepElapsed = elapsed - currentStepStartTime;
-            const currentStepDuration = stepDurations[stepIndex];
-            let rawProgress = (stepElapsed / currentStepDuration) * 100;
-
-            // Verificar se deve travar (primeiro travamento)
-            const stall = stallPoints[stepIndex];
-            if (!stall.triggered && rawProgress >= stall.position && rawProgress < stall.position + 10) {
-                stall.triggered = true;
-                isStalling = true;
-                stallEndTime = now + stall.duration;
-                displayProgress = stall.position;
-                setProgress(displayProgress);
+            // Verificar se deve pausar
+            if (currentSegment.speed === 0 && currentSegment.pause && pauseTriggeredAt !== segmentStartProgress) {
+                isPaused = true;
+                pauseEndTime = now + currentSegment.pause;
+                pauseTriggeredAt = segmentStartProgress;
                 return;
             }
 
-            // Verificar segundo travamento
-            const secondStall = secondStallPoints[stepIndex];
-            if (secondStall.active && !secondStall.triggered && rawProgress >= secondStall.position && rawProgress < secondStall.position + 10) {
-                secondStall.triggered = true;
-                isStalling = true;
-                stallEndTime = now + secondStall.duration;
-                displayProgress = secondStall.position;
-                setProgress(displayProgress);
+            // Calcular incremento baseado na velocidade do segmento
+            const baseIncrement = (50 / stepDuration) * 100; // incremento base por frame (50ms)
+            const speedMultiplier = currentSegment.speed || 0.1;
+            let increment = baseIncrement * speedMultiplier;
+
+            // Micro-variações naturais (±20% da velocidade, nunca negativo)
+            const variation = 0.8 + Math.random() * 0.4;
+            increment *= variation;
+
+            // Micro-pausas ocasionais (3% de chance de pular frame, exceto em velocidade alta)
+            if (speedMultiplier < 1.5 && Math.random() < 0.03) {
                 return;
             }
 
-            // Adicionar variação orgânica ao progresso
-            const wobble = Math.sin(elapsed / 300) * 2;
-            const microPause = Math.random() < 0.05 ? -1 : 0; // 5% de chance de micro pausa
-            displayProgress = Math.min(100, Math.max(0, rawProgress + wobble + microPause));
+            // Atualizar progresso (NUNCA retrocede)
+            const newProgress = Math.min(100, displayedProgress + increment);
+            displayedProgress = newProgress;
 
-            setCurrentStep(stepIndex);
-            setProgress(stepIndex === steps.length - 1 && elapsed >= totalDuration ? 100 : displayProgress);
+            setCurrentStep(currentStepIdx);
+            setProgress(Math.round(newProgress * 10) / 10);
 
-            if (elapsed >= totalDuration) {
-                clearInterval(interval);
-                setProgress(100);
-                setTimeout(onComplete, 800);
+            // Verificar se a etapa atual terminou
+            if (newProgress >= 100) {
+                // Marcar etapa como completa
+                setCompletedSteps(prev => [...prev, currentStepIdx]);
+
+                // Avançar para próxima etapa
+                currentStepIdx++;
+                displayedProgress = 0;
+                stepStartTime = now;
+                pauseTriggeredAt = null;
+
+                // Se todas as etapas terminaram
+                if (currentStepIdx >= steps.length) {
+                    clearInterval(interval);
+                    setProgress(100);
+                    setIsComplete(true);
+                    setTimeout(onComplete, 1000);
+                }
             }
         }, 50);
 
         return () => clearInterval(interval);
     }, [firstName, onComplete, steps.length]);
+
+    // Determinar o estado de cada barra
+    const getStepState = (index: number) => {
+        if (isComplete || completedSteps.includes(index)) {
+            return 'completed';
+        }
+        if (index === currentStep) {
+            return 'active';
+        }
+        if (index < currentStep) {
+            return 'completed';
+        }
+        return 'pending';
+    };
 
     return (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
@@ -189,36 +256,51 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
                 </div>
 
                 <div className="space-y-4">
-                    {steps.map((step, index) => (
-                        <div key={index} className="bg-brand-card border border-white/5 p-4 rounded-sm">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className={`text-sm font-bold uppercase ${index <= currentStep ? 'text-white' : 'text-gray-600'}`}>
-                                    {step}
-                                </span>
-                                {index < currentStep && (
-                                    <Check className="w-5 h-5 text-green-400" />
+                    {steps.map((step, index) => {
+                        const state = getStepState(index);
+
+                        return (
+                            <div key={index} className="bg-brand-card border border-white/5 p-4 rounded-sm">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className={`text-sm font-bold uppercase ${state !== 'pending' ? 'text-white' : 'text-gray-600'}`}>
+                                        {step}
+                                    </span>
+                                    {state === 'completed' && (
+                                        <Check className="w-5 h-5 text-green-400" />
+                                    )}
+                                </div>
+
+                                {/* Barra ativa (em progresso) */}
+                                {state === 'active' && (
+                                    <div className="relative">
+                                        <div className="h-2 bg-brand-dark rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-brand-yellow transition-all duration-75 ease-linear"
+                                                style={{ width: `${progress}%` }}
+                                            />
+                                        </div>
+                                        <span className="absolute right-0 top-3 text-xs text-gray-500">
+                                            {Math.round(progress)}%
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* Barra completa */}
+                                {state === 'completed' && (
+                                    <div className="h-2 bg-green-500/20 rounded-full overflow-hidden">
+                                        <div className="h-full bg-green-500 w-full" />
+                                    </div>
+                                )}
+
+                                {/* Barra pendente (ainda não começou) */}
+                                {state === 'pending' && (
+                                    <div className="h-2 bg-brand-dark rounded-full overflow-hidden">
+                                        <div className="h-full bg-gray-700 w-0" />
+                                    </div>
                                 )}
                             </div>
-                            {index === currentStep && (
-                                <div className="relative">
-                                    <div className="h-2 bg-brand-dark rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-brand-yellow transition-all duration-100 ease-out"
-                                            style={{ width: `${progress}%` }}
-                                        />
-                                    </div>
-                                    <span className="absolute right-0 top-3 text-xs text-gray-500">
-                                        {Math.round(progress)}%
-                                    </span>
-                                </div>
-                            )}
-                            {index < currentStep && (
-                                <div className="h-2 bg-green-500/20 rounded-full overflow-hidden">
-                                    <div className="h-full bg-green-500 w-full" />
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>
@@ -516,8 +598,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
     };
 
     const handleNextStep = () => {
-        if (!formData.nome || !formData.concurso_almejado) {
-            alert('Preencha os campos obrigatórios: Nome e Concurso Almejado');
+        if (!formData.nome || !formData.concurso_almejado || !formData.email || !formData.telefone) {
+            alert('Preencha os campos obrigatórios: Nome, Email, WhatsApp e Concurso Almejado');
             return;
         }
         setCurrentStep(2);
@@ -656,6 +738,28 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                                                 ))}
                                             </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Email *</label>
+                                            <input
+                                                type="email"
+                                                value={formData.email || ''}
+                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                                placeholder="email@exemplo.com"
+                                                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors placeholder:text-gray-600"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-gray-400 text-xs font-bold uppercase mb-2">WhatsApp *</label>
+                                            <input
+                                                type="tel"
+                                                value={formData.telefone || ''}
+                                                onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                                                placeholder="(00) 00000-0000"
+                                                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors placeholder:text-gray-600"
+                                                required
+                                            />
                                         </div>
                                     </div>
                                 </div>
