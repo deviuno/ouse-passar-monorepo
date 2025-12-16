@@ -36,6 +36,13 @@ const iconMap: Record<string, React.FC<{ className?: string }>> = {
   'coffee': Coffee
 };
 
+// Helper para adicionar transparência a uma cor hex
+const addAlpha = (hexColor: string, opacity: number): string => {
+  // Converte opacity (0-1) para hex (00-FF)
+  const alphaHex = Math.round(opacity * 255).toString(16).padStart(2, '0');
+  return `${hexColor}${alphaHex}`;
+};
+
 // Cores disponíveis para novas atividades
 const CORES_DISPONIVEIS = [
   '#FFB800', // Amarelo (brand)
@@ -367,17 +374,22 @@ export const PlanejadorSemanalView: React.FC = () => {
     return atividadeId === selectedActivity.id;
   }, [slots, selectedActivity]);
 
-  // Marcar um slot (sem toggle, apenas adicionar) - com atualização otimista
+  // Marcar um slot (sem toggle, apenas adicionar/sobrescrever) - com atualização otimista
   const markSlot = useCallback((dia: number, hora: string) => {
     if (!selectedActivity || !id) return;
-
-    // Verificar se já está marcado (com qualquer atividade)
-    const alreadyMarked = slots.some(s => s.dia_semana === dia && s.hora_inicio === hora);
-    if (alreadyMarked) return;
 
     const isDefault = 'is_default' in selectedActivity;
     const atividadeTipoId = isDefault ? selectedActivity.id : null;
     const atividadeUsuarioId = isDefault ? null : selectedActivity.id;
+
+    // Verificar se já está marcado com a MESMA atividade (não faz nada)
+    const existingSlot = slots.find(s => s.dia_semana === dia && s.hora_inicio === hora);
+    if (existingSlot) {
+      const existingAtividadeId = existingSlot.atividade_tipo_id || existingSlot.atividade_usuario_id;
+      if (existingAtividadeId === selectedActivity.id) {
+        return; // Já está marcado com a mesma atividade, não precisa fazer nada
+      }
+    }
 
     // Criar slot local
     const newSlot: PlanejadorSlot = {
@@ -390,8 +402,11 @@ export const PlanejadorSemanalView: React.FC = () => {
       created_at: new Date().toISOString()
     };
 
-    // Adicionar à UI imediatamente
-    setSlots(prev => [...prev, newSlot]);
+    // Adicionar à UI imediatamente (remove o existente se houver, depois adiciona o novo)
+    setSlots(prev => {
+      const filtered = prev.filter(s => !(s.dia_semana === dia && s.hora_inicio === hora));
+      return [...filtered, newSlot];
+    });
 
     // Salvar no banco em background (não espera, não remove se falhar)
     planejadorService.setSlot(id, dia, hora, atividadeTipoId, atividadeUsuarioId)
@@ -780,7 +795,9 @@ export const PlanejadorSemanalView: React.FC = () => {
                             isDragging ? 'transition-none' : 'transition-all duration-150'
                           }`}
                           style={{
-                            backgroundColor: effectiveColor || (isSelected ? 'rgba(10,10,10,0.5)' : 'rgba(10,10,10,0.3)')
+                            backgroundColor: effectiveColor
+                              ? addAlpha(effectiveColor, 0.6)
+                              : (isSelected ? 'rgba(10,10,10,0.5)' : 'rgba(10,10,10,0.3)')
                           }}
                         >
                           {/* Indicador visual para slots marcados */}
