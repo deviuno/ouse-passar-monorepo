@@ -23,7 +23,8 @@ import {
   CheckCircle2,
   Clock,
   HelpCircle,
-  Save
+  Save,
+  User
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SEOHead } from '../components/SEOHead';
@@ -173,6 +174,95 @@ const NumericInput: React.FC<{
   </div>
 );
 
+// Helper: Converte decimal para HH:MM (ex: 1.5 -> "01:30")
+const decimalToTime = (decimal: number | null): string => {
+  if (decimal === null || decimal === undefined) return '';
+  const hours = Math.floor(decimal);
+  const minutes = Math.round((decimal - hours) * 60);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
+// Helper: Converte HH:MM para decimal (ex: "01:30" -> 1.5)
+const timeToDecimal = (time: string): number | null => {
+  if (!time || time.length < 5) return null;
+  const [hours, minutes] = time.split(':').map(Number);
+  if (isNaN(hours) || isNaN(minutes)) return null;
+  return hours + minutes / 60;
+};
+
+// Componente de input de tempo com máscara HH:MM
+const TimeInput: React.FC<{
+  value: number | null;
+  onChange: (value: number | null) => void;
+  placeholder?: string;
+  maxHours?: number;
+}> = ({ value, onChange, placeholder = '00:00', maxHours = 23 }) => {
+  const [displayValue, setDisplayValue] = useState(decimalToTime(value));
+
+  // Atualiza display quando value externo muda
+  useEffect(() => {
+    setDisplayValue(decimalToTime(value));
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let input = e.target.value.replace(/\D/g, ''); // Remove não-dígitos
+
+    // Limita a 4 dígitos
+    if (input.length > 4) input = input.slice(0, 4);
+
+    // Formata como HH:MM
+    let formatted = '';
+    if (input.length >= 1) {
+      const hours = input.slice(0, 2);
+      formatted = hours;
+      if (input.length >= 3) {
+        const minutes = input.slice(2, 4);
+        formatted = `${hours}:${minutes}`;
+      }
+    }
+
+    setDisplayValue(formatted);
+  };
+
+  const handleBlur = () => {
+    if (!displayValue) {
+      onChange(null);
+      return;
+    }
+
+    // Completa o formato se necessário
+    let finalValue = displayValue;
+    if (displayValue.length === 1) finalValue = `0${displayValue}:00`;
+    else if (displayValue.length === 2) finalValue = `${displayValue}:00`;
+    else if (displayValue.length === 4) finalValue = `${displayValue.slice(0, 2)}:${displayValue.slice(2)}`;
+
+    // Valida horas e minutos
+    const [hoursStr, minutesStr] = finalValue.split(':');
+    let hours = parseInt(hoursStr) || 0;
+    let minutes = parseInt(minutesStr) || 0;
+
+    // Limita valores
+    if (hours > maxHours) hours = maxHours;
+    if (minutes > 59) minutes = 59;
+
+    const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    setDisplayValue(formatted);
+    onChange(timeToDecimal(formatted));
+  };
+
+  return (
+    <input
+      type="text"
+      value={displayValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      maxLength={5}
+      className="w-20 bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-center focus:outline-none focus:border-brand-yellow/50 font-mono"
+    />
+  );
+};
+
 // Componente Principal
 export const PlannerPerformanceView: React.FC = () => {
   const { id, slug } = useParams<{ id: string; slug?: string }>();
@@ -195,7 +285,7 @@ export const PlannerPerformanceView: React.FC = () => {
   const navLinks = [
     { label: 'Calendário', path: `/planejador-semanal/${slug}/${id}`, icon: Calendar, active: false },
     { label: 'Planner', path: `/planner/${slug}/${id}`, icon: ClipboardCheck, active: true },
-    { label: 'Planejamento', path: `/planejamento/${slug}/${id}`, icon: Target, active: false },
+    { label: 'Missões', path: `/planejamento/${slug}/${id}`, icon: Target, active: false },
     { label: 'Edital', path: `/edital-verticalizado/${slug}/${id}`, icon: FileText, active: false },
   ];
 
@@ -327,6 +417,15 @@ export const PlannerPerformanceView: React.FC = () => {
               })}
             </nav>
 
+            {/* Botão Perfil (desktop) */}
+            <button
+              onClick={() => navigate(`/perfil/${slug}/${id}`)}
+              className="hidden md:flex items-center justify-center w-9 h-9 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+              title="Perfil"
+            >
+              <User className="w-5 h-5" />
+            </button>
+
             {/* Mobile Menu Button */}
             <div className="md:hidden">
               <button
@@ -369,6 +468,18 @@ export const PlannerPerformanceView: React.FC = () => {
                     </button>
                   );
                 })}
+
+                {/* Perfil no mobile */}
+                <button
+                  onClick={() => {
+                    navigate(`/perfil/${slug}/${id}`);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 border-transparent text-gray-400 hover:text-white hover:bg-white/5 transition-all mt-2 border-t border-white/10"
+                >
+                  <User className="w-4 h-4" />
+                  Perfil
+                </button>
               </div>
             </motion.div>
           )}
@@ -443,16 +554,18 @@ export const PlannerPerformanceView: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-4 mb-6">
             <div className="bg-brand-dark/50 rounded-lg p-4">
               <p className="text-xs text-gray-500 uppercase font-bold mb-1">Planejado hoje</p>
-              <p className="text-2xl font-black text-white">{horasPlanejadas}h</p>
+              <p className="text-2xl font-black text-white font-mono">{decimalToTime(horasPlanejadas)}</p>
             </div>
             <div className="bg-brand-dark/50 rounded-lg p-4">
               <p className="text-xs text-gray-500 uppercase font-bold mb-2">Estudado hoje</p>
-              <NumericInput
-                value={planner.horas_estudadas ?? null}
-                onChange={v => updateField('horas_estudadas', v ?? 0)}
-                suffix="horas"
-                step={0.25}
-              />
+              <div className="flex items-center gap-2">
+                <TimeInput
+                  value={planner.horas_estudadas ?? null}
+                  onChange={v => updateField('horas_estudadas', v ?? 0)}
+                  maxHours={24}
+                />
+                <span className="text-gray-500 text-sm">horas</span>
+              </div>
             </div>
           </div>
 
@@ -562,13 +675,14 @@ export const PlannerPerformanceView: React.FC = () => {
                   <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
                     <Moon className="w-3 h-3" /> Sono
                   </p>
-                  <NumericInput
-                    value={planner.horas_sono ?? null}
-                    onChange={v => updateField('horas_sono', v)}
-                    suffix="horas"
-                    step={0.5}
-                    max={14}
-                  />
+                  <div className="flex items-center gap-2">
+                    <TimeInput
+                      value={planner.horas_sono ?? null}
+                      onChange={v => updateField('horas_sono', v)}
+                      maxHours={14}
+                    />
+                    <span className="text-gray-500 text-sm">horas</span>
+                  </div>
                 </div>
               </div>
             </div>

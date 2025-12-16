@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Check, Loader2, BookOpen, Target, Lock, ChevronDown, Calendar, FileText, Menu as MenuIcon, X, ChevronRight, ClipboardCheck } from 'lucide-react';
+import { Check, Loader2, BookOpen, Target, Lock, ChevronDown, Calendar, FileText, Menu as MenuIcon, X, ChevronRight, ClipboardCheck, User } from 'lucide-react';
 import { SEOHead } from '../components/SEOHead';
 import { useAuth } from '../lib/AuthContext';
 import { planejamentosService } from '../services/preparatoriosService';
@@ -92,7 +92,7 @@ export const EditalVerticalizadoView: React.FC = () => {
     const navLinks = [
         { label: 'Calendário', path: `/planejador-semanal/${slug || 'prf'}/${id}`, icon: Calendar, active: false },
         { label: 'Planner', path: `/planner/${slug || 'prf'}/${id}`, icon: ClipboardCheck, active: false },
-        { label: 'Planejamento', path: `/planejamento/${slug || 'prf'}/${id}`, icon: Target, active: false },
+        { label: 'Missões', path: `/planejamento/${slug || 'prf'}/${id}`, icon: Target, active: false },
         { label: 'Edital', path: `/edital-verticalizado/${slug || 'prf'}/${id}`, icon: FileText, active: true },
     ];
 
@@ -350,8 +350,14 @@ export const EditalVerticalizadoView: React.FC = () => {
                             })}
                         </nav>
 
-                        {/* Espaço reservado para manter alinhamento */}
-                        <div className="hidden md:block w-32" />
+                        {/* Botão Perfil (desktop) */}
+                        <button
+                            onClick={() => navigate(`/perfil/${slug || 'prf'}/${id}`)}
+                            className="hidden md:flex items-center justify-center w-9 h-9 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                            title="Perfil"
+                        >
+                            <User className="w-5 h-5" />
+                        </button>
 
                         {/* Mobile Menu Button */}
                         <div className="md:hidden flex items-center">
@@ -390,6 +396,18 @@ export const EditalVerticalizadoView: React.FC = () => {
                                     </button>
                                 );
                             })}
+
+                            {/* Perfil no mobile */}
+                            <button
+                                onClick={() => {
+                                    navigate(`/perfil/${slug || 'prf'}/${id}`);
+                                    setMobileMenuOpen(false);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 border-transparent text-gray-400 hover:text-white hover:bg-white/5 transition-all mt-2 border-t border-white/10"
+                            >
+                                <User className="w-4 h-4" />
+                                Perfil
+                            </button>
                         </div>
                     </div>
                 )}

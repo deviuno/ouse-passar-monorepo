@@ -16,7 +16,8 @@ import {
   BarChart2,
   Calendar,
   Menu as MenuIcon,
-  ClipboardCheck
+  ClipboardCheck,
+  User
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { planejamentoPRF, Rodada as RodadaStatic, Missao as MissaoStatic } from '../lib/planejamentoPRF';
@@ -435,7 +436,7 @@ export const PlanejamentoPRFView: React.FC = () => {
   const navLinks = [
     { label: 'Calendário', path: `/planejador-semanal/${slug || 'prf'}/${id}`, icon: Calendar, active: false },
     { label: 'Planner', path: `/planner/${slug || 'prf'}/${id}`, icon: ClipboardCheck, active: false },
-    { label: 'Planejamento', path: `/planejamento/${slug || 'prf'}/${id}`, icon: Target, active: true },
+    { label: 'Missões', path: `/planejamento/${slug || 'prf'}/${id}`, icon: Target, active: true },
     { label: 'Edital', path: `/edital-verticalizado/${slug || 'prf'}/${id}`, icon: FileText, active: false },
   ];
 
@@ -1124,18 +1125,18 @@ export const PlanejamentoPRFView: React.FC = () => {
             {/* Botões de Ação (desktop) */}
             <div className="hidden md:flex items-center gap-2">
               <button
-                onClick={() => navigate(`/dashboard-aluno/${id}`)}
-                className="flex items-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-bold py-2 px-3 rounded-lg border border-purple-500/30 transition-colors uppercase text-xs"
-              >
-                <BarChart2 className="w-4 h-4" />
-                <span className="hidden lg:inline">Estatísticas</span>
-              </button>
-              <button
                 onClick={handleApresentar}
-                className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all font-bold uppercase tracking-wide text-xs"
+                className="flex items-center justify-center w-9 h-9 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                title="Modo Apresentação"
               >
                 <Presentation className="w-4 h-4" />
-                <span className="hidden lg:inline">Apresentar</span>
+              </button>
+              <button
+                onClick={() => navigate(`/perfil/${slug || 'prf'}/${id}`)}
+                className="flex items-center justify-center w-9 h-9 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                title="Perfil"
+              >
+                <User className="w-5 h-5" />
               </button>
             </div>
 
@@ -1181,16 +1182,6 @@ export const PlanejamentoPRFView: React.FC = () => {
               <div className="pt-3 mt-2 border-t border-white/10 space-y-2">
                 <button
                   onClick={() => {
-                    navigate(`/dashboard-aluno/${id}`);
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase text-purple-400 hover:bg-purple-500/10 transition-all"
-                >
-                  <BarChart2 className="w-4 h-4" />
-                  Estatísticas
-                </button>
-                <button
-                  onClick={() => {
                     handleApresentar();
                     setMobileMenuOpen(false);
                   }}
@@ -1198,6 +1189,16 @@ export const PlanejamentoPRFView: React.FC = () => {
                 >
                   <Presentation className="w-4 h-4" />
                   Modo Apresentação
+                </button>
+                <button
+                  onClick={() => {
+                    navigate(`/perfil/${slug || 'prf'}/${id}`);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+                >
+                  <User className="w-4 h-4" />
+                  Perfil
                 </button>
               </div>
             </div>

@@ -17,7 +17,8 @@ import {
   FileText,
   Menu as MenuIcon,
   ChevronRight,
-  ClipboardCheck
+  ClipboardCheck,
+  User
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SEOHead } from '../components/SEOHead';
@@ -305,7 +306,7 @@ export const PlanejadorSemanalView: React.FC = () => {
   const navLinks = [
     { label: 'Calendário', path: `/planejador-semanal/${slug}/${id}`, icon: Calendar, active: true },
     { label: 'Planner', path: `/planner/${slug}/${id}`, icon: ClipboardCheck, active: false },
-    { label: 'Planejamento', path: `/planejamento/${slug}/${id}`, icon: Target, active: false },
+    { label: 'Missões', path: `/planejamento/${slug}/${id}`, icon: Target, active: false },
     { label: 'Edital', path: `/edital-verticalizado/${slug}/${id}`, icon: FileText, active: false },
   ];
 
@@ -615,13 +616,14 @@ export const PlanejadorSemanalView: React.FC = () => {
               })}
             </nav>
 
-            {/* Info de sono (desktop) */}
-            <div className="hidden md:flex items-center gap-2 bg-brand-card border border-white/10 rounded-lg px-3 py-2">
-              <Moon className="w-4 h-4 text-purple-400" />
-              <span className="text-sm text-gray-300">
-                <span className="font-bold text-white">{horasSono}h</span> de sono
-              </span>
-            </div>
+            {/* Botão Perfil (desktop) */}
+            <button
+              onClick={() => navigate(`/perfil/${slug}/${id}`)}
+              className="hidden md:flex items-center justify-center w-9 h-9 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+              title="Perfil"
+            >
+              <User className="w-5 h-5" />
+            </button>
 
             {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center">
@@ -667,13 +669,17 @@ export const PlanejadorSemanalView: React.FC = () => {
                   );
                 })}
 
-                {/* Info de sono no mobile */}
-                <div className="flex items-center gap-2 px-4 py-3 border-t border-white/10 mt-2">
-                  <Moon className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm text-gray-300">
-                    <span className="font-bold text-white">{horasSono}h</span> de sono
-                  </span>
-                </div>
+                {/* Perfil no mobile */}
+                <button
+                  onClick={() => {
+                    navigate(`/perfil/${slug}/${id}`);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 border-transparent text-gray-400 hover:text-white hover:bg-white/5 transition-all mt-2 border-t border-white/10"
+                >
+                  <User className="w-4 h-4" />
+                  Perfil
+                </button>
               </div>
             </motion.div>
           )}

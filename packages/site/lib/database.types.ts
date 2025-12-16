@@ -477,6 +477,7 @@ export interface Database {
           agendamento_id: string | null
           user_id: string | null
           senha_temporaria: string | null
+          avatar_url: string | null
           status: string
           created_at: string
           updated_at: string
@@ -510,6 +511,7 @@ export interface Database {
           agendamento_id?: string | null
           user_id?: string | null
           senha_temporaria?: string | null
+          avatar_url?: string | null
           status?: string
           created_at?: string
           updated_at?: string
@@ -543,6 +545,7 @@ export interface Database {
           agendamento_id?: string | null
           user_id?: string | null
           senha_temporaria?: string | null
+          avatar_url?: string | null
           status?: string
           created_at?: string
           updated_at?: string
@@ -1374,6 +1377,7 @@ export interface Lead {
   agendamento_id: string | null
   user_id?: string | null
   senha_temporaria?: string | null
+  avatar_url?: string | null
   status: string
   created_at: string
   updated_at: string

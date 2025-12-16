@@ -45,6 +45,7 @@ import { EditalVerticalizadoView } from './pages/EditalVerticalizadoView';
 import { StudentDashboardView } from './pages/StudentDashboardView';
 import { PlanejadorSemanalView } from './pages/PlanejadorSemanalView';
 import { PlannerPerformanceView } from './pages/PlannerPerformanceView';
+import { PlannerPerfilView } from './pages/PlannerPerfilView';
 import { Users } from './pages/admin/Users';
 import { Planejamentos as PlanejamentosAdmin } from './pages/admin/Planejamentos';
 import { Leads } from './pages/admin/Leads';
@@ -161,6 +162,9 @@ const App: React.FC = () => {
 
             {/* Planner de Performance View */}
             <Route path="/planner/:slug/:id" element={<PlannerPerformanceView />} />
+
+            {/* Perfil do Aluno View */}
+            <Route path="/perfil/:slug/:id" element={<PlannerPerfilView />} />
 
             {/* Página de Obrigado (pós-compra com agendamento) */}
             <Route path="/obrigado" element={<Obrigado />} />
