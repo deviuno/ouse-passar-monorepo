@@ -1,6 +1,13 @@
 import { supabase } from '../lib/supabase';
 import { AtividadeTipo, AtividadeUsuario, PlanejadorSlot } from '../lib/database.types';
 
+// Helper para normalizar formato de hora (remove segundos se houver)
+const normalizeTime = (time: string): string => {
+  // Converte "HH:MM:SS" para "HH:MM"
+  const parts = time.split(':');
+  return `${parts[0]}:${parts[1]}`;
+};
+
 export interface CreateAtividadeInput {
   planejamento_id: string;
   nome: string;
@@ -116,7 +123,11 @@ export const planejadorService = {
       throw error;
     }
 
-    return data || [];
+    // Normaliza o formato do horário (remove segundos se houver)
+    return (data || []).map(slot => ({
+      ...slot,
+      hora_inicio: normalizeTime(slot.hora_inicio)
+    }));
   },
 
   /**
@@ -149,7 +160,11 @@ export const planejadorService = {
       throw error;
     }
 
-    return data;
+    // Normaliza o formato do horário ao retornar
+    return {
+      ...data,
+      hora_inicio: normalizeTime(data.hora_inicio)
+    };
   },
 
   /**
