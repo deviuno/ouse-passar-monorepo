@@ -15,7 +15,8 @@ import {
   Loader2,
   BarChart2,
   Calendar,
-  Menu as MenuIcon
+  Menu as MenuIcon,
+  ClipboardCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { planejamentoPRF, Rodada as RodadaStatic, Missao as MissaoStatic } from '../lib/planejamentoPRF';
@@ -433,6 +434,7 @@ export const PlanejamentoPRFView: React.FC = () => {
   // Links de navegação
   const navLinks = [
     { label: 'Calendário', path: `/planejador-semanal/${slug || 'prf'}/${id}`, icon: Calendar, active: false },
+    { label: 'Planner', path: `/planner/${slug || 'prf'}/${id}`, icon: ClipboardCheck, active: false },
     { label: 'Planejamento', path: `/planejamento/${slug || 'prf'}/${id}`, icon: Target, active: true },
     { label: 'Edital', path: `/edital-verticalizado/${slug || 'prf'}/${id}`, icon: FileText, active: false },
   ];

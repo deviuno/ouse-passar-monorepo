@@ -16,7 +16,8 @@ import {
   Target,
   FileText,
   Menu as MenuIcon,
-  ChevronRight
+  ChevronRight,
+  ClipboardCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SEOHead } from '../components/SEOHead';
@@ -303,6 +304,7 @@ export const PlanejadorSemanalView: React.FC = () => {
   // Links de navegação
   const navLinks = [
     { label: 'Calendário', path: `/planejador-semanal/${slug}/${id}`, icon: Calendar, active: true },
+    { label: 'Planner', path: `/planner/${slug}/${id}`, icon: ClipboardCheck, active: false },
     { label: 'Planejamento', path: `/planejamento/${slug}/${id}`, icon: Target, active: false },
     { label: 'Edital', path: `/edital-verticalizado/${slug}/${id}`, icon: FileText, active: false },
   ];

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Check, Loader2, BookOpen, Target, Lock, ChevronDown, Calendar, FileText, Menu as MenuIcon, X, ChevronRight } from 'lucide-react';
+import { Check, Loader2, BookOpen, Target, Lock, ChevronDown, Calendar, FileText, Menu as MenuIcon, X, ChevronRight, ClipboardCheck } from 'lucide-react';
 import { SEOHead } from '../components/SEOHead';
 import { useAuth } from '../lib/AuthContext';
 import { planejamentosService } from '../services/preparatoriosService';
@@ -91,6 +91,7 @@ export const EditalVerticalizadoView: React.FC = () => {
     // Links de navegação
     const navLinks = [
         { label: 'Calendário', path: `/planejador-semanal/${slug || 'prf'}/${id}`, icon: Calendar, active: false },
+        { label: 'Planner', path: `/planner/${slug || 'prf'}/${id}`, icon: ClipboardCheck, active: false },
         { label: 'Planejamento', path: `/planejamento/${slug || 'prf'}/${id}`, icon: Target, active: false },
         { label: 'Edital', path: `/edital-verticalizado/${slug || 'prf'}/${id}`, icon: FileText, active: true },
     ];
