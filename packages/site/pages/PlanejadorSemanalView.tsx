@@ -829,7 +829,7 @@ export const PlanejadorSemanalView: React.FC = () => {
         </div>
 
         {/* Botão Ver Planejamento */}
-        <div className="mt-10 mb-6">
+        <div className="mt-10 mb-6 flex flex-col items-center">
           <button
             onClick={() => navigate(`/planejamento/${slug}/${id}`)}
             className="w-full md:w-auto bg-brand-yellow text-brand-darker px-8 py-4 font-black uppercase tracking-wider text-sm hover:bg-yellow-400 transition-all flex items-center justify-center gap-3 rounded-lg shadow-lg shadow-brand-yellow/20 hover:shadow-brand-yellow/30 hover:scale-[1.02]"
@@ -838,7 +838,7 @@ export const PlanejadorSemanalView: React.FC = () => {
             Ver Planejamento
             <ChevronRight className="w-5 h-5" />
           </button>
-          <p className="text-gray-500 text-xs mt-2 text-center md:text-left">
+          <p className="text-gray-500 text-xs mt-2 text-center">
             Acesse suas missões e acompanhe seu progresso
           </p>
         </div>
