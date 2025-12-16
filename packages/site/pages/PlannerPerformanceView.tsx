@@ -381,7 +381,7 @@ export const PlannerPerformanceView: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-brand-card border border-white/5 rounded-lg p-4">
               <p className="text-xs text-green-400 uppercase font-bold flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full bg-green-500" /> Dias Verdes
+                <span className="w-2 h-2 rounded-full bg-green-500" /> Dias Verdes
               </p>
               <p className="text-2xl font-black text-white">{weekSummary.diasVerdes}</p>
             </div>
