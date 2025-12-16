@@ -1,0 +1,9 @@
+export { default as AuthPage } from './AuthPage';
+export { default as OnboardingPage } from './OnboardingPage';
+export { default as HomePage } from './HomePage';
+export { default as MissionPage } from './MissionPage';
+export { default as PracticePage } from './PracticePage';
+export { default as SimuladosPage } from './SimuladosPage';
+export { default as StatsPage } from './StatsPage';
+export { default as StorePage } from './StorePage';
+export { default as ProfilePage } from './ProfilePage';

@@ -1,0 +1,134 @@
+import { create } from 'zustand';
+import { ToastMessage, ToastType, GamificationModalType } from '../types';
+
+interface UIState {
+  // Toasts
+  toasts: ToastMessage[];
+  addToast: (type: ToastType, message: string) => void;
+  removeToast: (id: string) => void;
+  clearToasts: () => void;
+
+  // Modals
+  activeModal: GamificationModalType;
+  setActiveModal: (modal: GamificationModalType) => void;
+  closeModal: () => void;
+
+  // Mission Preview Modal
+  showMissionPreview: boolean;
+  setShowMissionPreview: (show: boolean) => void;
+
+  // Tutor Chat
+  isTutorOpen: boolean;
+  setTutorOpen: (open: boolean) => void;
+  toggleTutor: () => void;
+
+  // Sidebar (desktop)
+  isSidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+  toggleSidebar: () => void;
+
+  // Loading states
+  isPageLoading: boolean;
+  setPageLoading: (loading: boolean) => void;
+
+  // Theme
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
+
+  // Product Tour
+  isTourActive: boolean;
+  isTourCompleted: boolean;
+  startTour: () => void;
+  completeTour: () => void;
+  skipTour: () => void;
+  checkTourStatus: () => void;
+}
+
+let toastIdCounter = 0;
+
+export const useUIStore = create<UIState>()((set, get) => ({
+  // Toasts
+  toasts: [],
+
+  addToast: (type, message) => {
+    const id = `toast-${++toastIdCounter}`;
+    const newToast: ToastMessage = { id, type, message };
+
+    set((state) => ({
+      toasts: [...state.toasts, newToast],
+    }));
+
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+      get().removeToast(id);
+    }, 4000);
+  },
+
+  removeToast: (id) =>
+    set((state) => ({
+      toasts: state.toasts.filter((t) => t.id !== id),
+    })),
+
+  clearToasts: () => set({ toasts: [] }),
+
+  // Modals
+  activeModal: null,
+  setActiveModal: (activeModal) => set({ activeModal }),
+  closeModal: () => set({ activeModal: null }),
+
+  // Mission Preview
+  showMissionPreview: false,
+  setShowMissionPreview: (showMissionPreview) => set({ showMissionPreview }),
+
+  // Tutor
+  isTutorOpen: false,
+  setTutorOpen: (isTutorOpen) => set({ isTutorOpen }),
+  toggleTutor: () => set((state) => ({ isTutorOpen: !state.isTutorOpen })),
+
+  // Sidebar
+  isSidebarOpen: true,
+  setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
+  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+
+  // Loading
+  isPageLoading: false,
+  setPageLoading: (isPageLoading) => set({ isPageLoading }),
+
+  // Theme
+  isDarkMode: true,
+  toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
+
+  // Product Tour
+  isTourActive: false,
+  isTourCompleted: localStorage.getItem('ousepassar_tour_completed') === 'true',
+
+  startTour: () => {
+    set({ isTourActive: true });
+  },
+
+  completeTour: () => {
+    localStorage.setItem('ousepassar_tour_completed', 'true');
+    set({ isTourActive: false, isTourCompleted: true });
+  },
+
+  skipTour: () => {
+    localStorage.setItem('ousepassar_tour_completed', 'true');
+    set({ isTourActive: false, isTourCompleted: true });
+  },
+
+  checkTourStatus: () => {
+    const completed = localStorage.getItem('ousepassar_tour_completed') === 'true';
+    set({ isTourCompleted: completed });
+  },
+}));
+
+// Helper hooks for common toast patterns
+export const useToast = () => {
+  const addToast = useUIStore((state) => state.addToast);
+
+  return {
+    success: (message: string) => addToast('success', message),
+    error: (message: string) => addToast('error', message),
+    info: (message: string) => addToast('info', message),
+  };
+};

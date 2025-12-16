@@ -1,0 +1,72 @@
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Sparkles } from 'lucide-react';
+
+interface FloatingChatButtonProps {
+  isOpen: boolean;
+  onClick: () => void;
+  sidebarWidth: number;
+}
+
+export function FloatingChatButton({ isOpen, onClick, sidebarWidth = 0 }: FloatingChatButtonProps) {
+  return (
+    <motion.button
+      onClick={onClick}
+      className="fixed bottom-8 z-50"
+      animate={{ right: sidebarWidth + 32, scale: 1, opacity: 1 }}
+      exit={{ scale: 0, opacity: 0 }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      {/* Glow effect */}
+      <motion.div
+        className="absolute inset-0 bg-[#FFB800] rounded-full blur-lg opacity-30"
+        animate={{
+          scale: [1, 1.2, 1],
+          opacity: [0.3, 0.5, 0.3],
+        }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+
+      {/* Main button */}
+      <div className={`
+        relative w-14 h-14 rounded-full flex items-center justify-center shadow-lg
+        transition-all duration-300
+        ${isOpen
+          ? 'bg-[#3A3A3A] border-2 border-[#FFB800]'
+          : 'bg-gradient-to-br from-[#FFB800] to-[#FF9500] border-2 border-[#FFD700]'
+        }
+      `}>
+        <AnimatePresence mode="wait">
+          {isOpen ? (
+            <motion.div
+              key="close"
+              initial={{ rotate: -90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 90, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <X size={24} className="text-[#FFB800]" />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="open"
+              initial={{ rotate: 90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: -90, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Sparkles size={24} className="text-black" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.button>
+  );
+}
+
+export default FloatingChatButton;
