@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Printer,
   Presentation,
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   X,
@@ -14,7 +13,9 @@ import {
   Lock,
   Check,
   Loader2,
-  BarChart2
+  BarChart2,
+  Calendar,
+  Menu as MenuIcon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { planejamentoPRF, Rodada as RodadaStatic, Missao as MissaoStatic } from '../lib/planejamentoPRF';
@@ -427,6 +428,14 @@ export const PlanejamentoPRFView: React.FC = () => {
   const [selectedMission, setSelectedMission] = useState<{ rodadaNumero: number; missao: Missao } | null>(null);
   const [showMissionPopup, setShowMissionPopup] = useState(false);
   const [loadingMission, setLoadingMission] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Links de navegação
+  const navLinks = [
+    { label: 'Calendário', path: `/planejador-semanal/${slug || 'prf'}/${id}`, icon: Calendar, active: false },
+    { label: 'Planejamento', path: `/planejamento/${slug || 'prf'}/${id}`, icon: Target, active: true },
+    { label: 'Edital', path: `/edital-verticalizado/${slug || 'prf'}/${id}`, icon: FileText, active: false },
+  ];
 
   // Gerar slides para apresentacao
   const gerarSlides = () => {
@@ -1076,48 +1085,126 @@ export const PlanejamentoPRFView: React.FC = () => {
         }
       `}</style>
 
-      {/* Header com Botoes de Acao */}
-      <div className="no-print sticky top-0 z-40 bg-brand-darker/95 backdrop-blur-md border-b border-white/10 shadow-2xl">
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={() => navigate('/planejamento-prf')}
-            className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group"
-          >
-            <div className="p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
+      {/* Header com Menu de Navegação */}
+      <header className="no-print fixed top-0 left-0 right-0 bg-brand-dark/95 backdrop-blur-md border-b border-white/10 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            {/* Logo / Nome do Aluno */}
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <span className="text-brand-yellow font-black text-lg uppercase tracking-tight">
+                  {planejamento?.nome_aluno}
+                </span>
+              </div>
             </div>
-            <span className="hidden sm:inline font-medium uppercase tracking-wide text-sm">Voltar</span>
-          </button>
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => navigate(`/dashboard-aluno/${id}`)}
-              className="flex items-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-bold py-2 px-4 rounded border border-purple-500/30 transition-colors uppercase text-sm"
-            >
-              <BarChart2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Estatísticas</span>
-            </button>
+            {/* Desktop Menu */}
+            <nav className="hidden md:flex items-center space-x-1">
+              {navLinks.map((link) => {
+                const IconComponent = link.icon;
+                return (
+                  <button
+                    key={link.label}
+                    onClick={() => navigate(link.path)}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-lg ${
+                      link.active
+                        ? 'text-brand-yellow bg-brand-yellow/10'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <IconComponent className="w-4 h-4" />
+                    {link.label}
+                  </button>
+                );
+              })}
+            </nav>
 
-            <button
-              onClick={handleApresentar}
-              className="flex items-center gap-2 px-5 py-2.5 bg-brand-yellow/10 border border-brand-yellow/30 rounded-lg text-brand-yellow hover:bg-brand-yellow/20 transition-all font-bold uppercase tracking-wide text-xs"
-            >
-              <Presentation className="w-4 h-4" />
-              <span className="hidden sm:inline">APRESENTAÇÃO</span>
-            </button>
-            <button
-              onClick={() => navigate(`/edital-verticalizado/${slug || 'prf'}/${id}`)}
-              className="flex items-center gap-2 px-6 py-2.5 bg-brand-yellow text-brand-darker font-black uppercase tracking-wide text-xs rounded-lg hover:bg-yellow-400 transition-all shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/40 hover:-translate-y-0.5"
-            >
-              <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">EDITAL VERTICALIZADO</span>
-            </button>
+            {/* Botões de Ação (desktop) */}
+            <div className="hidden md:flex items-center gap-2">
+              <button
+                onClick={() => navigate(`/dashboard-aluno/${id}`)}
+                className="flex items-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-bold py-2 px-3 rounded-lg border border-purple-500/30 transition-colors uppercase text-xs"
+              >
+                <BarChart2 className="w-4 h-4" />
+                <span className="hidden lg:inline">Estatísticas</span>
+              </button>
+              <button
+                onClick={handleApresentar}
+                className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all font-bold uppercase tracking-wide text-xs"
+              >
+                <Presentation className="w-4 h-4" />
+                <span className="hidden lg:inline">Apresentar</span>
+              </button>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="text-white hover:text-brand-yellow focus:outline-none p-2"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+
+        {/* Mobile Menu Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-brand-card border-b border-white/10">
+            <div className="px-4 pt-2 pb-4 space-y-1">
+              {navLinks.map((link) => {
+                const IconComponent = link.icon;
+                return (
+                  <button
+                    key={link.label}
+                    onClick={() => {
+                      navigate(link.path);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 transition-all ${
+                      link.active
+                        ? 'border-brand-yellow text-brand-yellow bg-white/5'
+                        : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <IconComponent className="w-4 h-4" />
+                    {link.label}
+                    {link.active && <ChevronRight className="w-4 h-4 ml-auto" />}
+                  </button>
+                );
+              })}
+
+              {/* Ações no mobile */}
+              <div className="pt-3 mt-2 border-t border-white/10 space-y-2">
+                <button
+                  onClick={() => {
+                    navigate(`/dashboard-aluno/${id}`);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase text-purple-400 hover:bg-purple-500/10 transition-all"
+                >
+                  <BarChart2 className="w-4 h-4" />
+                  Estatísticas
+                </button>
+                <button
+                  onClick={() => {
+                    handleApresentar();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+                >
+                  <Presentation className="w-4 h-4" />
+                  Modo Apresentação
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </header>
 
       {/* Conteudo para Impressao e Visualizacao */}
-      <div ref={printRef} className="max-w-[1600px] mx-auto px-6 py-12 print-content">
+      <div ref={printRef} className="max-w-[1600px] mx-auto px-6 pt-24 pb-12 print-content">
         {/* Header do Planejamento */}
         {/* Header do Planejamento */}
         {/* Header do Planejamento */}

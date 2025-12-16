@@ -43,6 +43,7 @@ import { PlanejamentoVendas } from './pages/PlanejamentoVendas';
 import { Obrigado } from './pages/Obrigado';
 import { EditalVerticalizadoView } from './pages/EditalVerticalizadoView';
 import { StudentDashboardView } from './pages/StudentDashboardView';
+import { PlanejadorSemanalView } from './pages/PlanejadorSemanalView';
 import { Users } from './pages/admin/Users';
 import { Planejamentos as PlanejamentosAdmin } from './pages/admin/Planejamentos';
 import { Leads } from './pages/admin/Leads';
@@ -153,6 +154,9 @@ const App: React.FC = () => {
 
             {/* Edital Verticalizado View */}
             <Route path="/edital-verticalizado/:slug/:id" element={<EditalVerticalizadoView />} />
+
+            {/* Planejador Semanal View */}
+            <Route path="/planejador-semanal/:slug/:id" element={<PlanejadorSemanalView />} />
 
             {/* Página de Obrigado (pós-compra com agendamento) */}
             <Route path="/obrigado" element={<Obrigado />} />

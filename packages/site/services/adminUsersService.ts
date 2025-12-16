@@ -157,6 +157,8 @@ export interface CreateLeadInput {
   minutos_quinta?: number;
   minutos_sexta?: number;
   minutos_sabado?: number;
+  hora_acordar?: string;
+  hora_dormir?: string;
   principais_dificuldades?: LeadDifficulty[];
   dificuldade_outros?: string;
   vendedor_id?: string;
@@ -236,6 +238,8 @@ export const leadsService = {
         minutos_quinta: input.minutos_quinta ?? 0,
         minutos_sexta: input.minutos_sexta ?? 0,
         minutos_sabado: input.minutos_sabado ?? 0,
+        hora_acordar: input.hora_acordar || '06:00',
+        hora_dormir: input.hora_dormir || '22:00',
         principais_dificuldades: input.principais_dificuldades ?? [],
         dificuldade_outros: input.dificuldade_outros,
         vendedor_id: input.vendedor_id,

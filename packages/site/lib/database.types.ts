@@ -467,6 +467,8 @@ export interface Database {
           minutos_quinta: number
           minutos_sexta: number
           minutos_sabado: number
+          hora_acordar: string | null
+          hora_dormir: string | null
           principal_dificuldade: 'tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros' | null
           principais_dificuldades: ('tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros')[]
           dificuldade_outros: string | null
@@ -498,6 +500,8 @@ export interface Database {
           minutos_quinta?: number
           minutos_sexta?: number
           minutos_sabado?: number
+          hora_acordar?: string | null
+          hora_dormir?: string | null
           principal_dificuldade?: 'tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros' | null
           principais_dificuldades?: ('tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros')[]
           dificuldade_outros?: string | null
@@ -529,6 +533,8 @@ export interface Database {
           minutos_quinta?: number
           minutos_sexta?: number
           minutos_sabado?: number
+          hora_acordar?: string | null
+          hora_dormir?: string | null
           principal_dificuldade?: 'tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros' | null
           principais_dificuldades?: ('tempo' | 'nao_saber_por_onde_comecar' | 'organizacao' | 'falta_de_material' | 'outros')[]
           dificuldade_outros?: string | null
@@ -755,25 +761,34 @@ export interface Database {
         Row: {
           id: string
           preparatorio_id: string
+          lead_id: string | null
           nome_aluno: string
           email: string | null
           mensagem_incentivo: string | null
+          hora_acordar: string | null
+          hora_dormir: string | null
           created_at: string
         }
         Insert: {
           id?: string
           preparatorio_id: string
+          lead_id?: string | null
           nome_aluno: string
           email?: string | null
           mensagem_incentivo?: string | null
+          hora_acordar?: string | null
+          hora_dormir?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           preparatorio_id?: string
+          lead_id?: string | null
           nome_aluno?: string
           email?: string | null
           mensagem_incentivo?: string | null
+          hora_acordar?: string | null
+          hora_dormir?: string | null
           created_at?: string
         }
         Relationships: [
@@ -781,6 +796,266 @@ export interface Database {
             foreignKeyName: "planejamentos_preparatorio_id_fkey"
             columns: ["preparatorio_id"]
             referencedRelation: "preparatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planejamentos_lead_id_fkey"
+            columns: ["lead_id"]
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      atividade_tipos: {
+        Row: {
+          id: string
+          nome: string
+          descricao: string | null
+          cor: string
+          icone: string | null
+          is_default: boolean
+          ordem: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          descricao?: string | null
+          cor: string
+          icone?: string | null
+          is_default?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          descricao?: string | null
+          cor?: string
+          icone?: string | null
+          is_default?: boolean
+          ordem?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      atividade_tipos_usuario: {
+        Row: {
+          id: string
+          planejamento_id: string
+          nome: string
+          descricao: string | null
+          cor: string
+          icone: string | null
+          ordem: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          planejamento_id: string
+          nome: string
+          descricao?: string | null
+          cor: string
+          icone?: string | null
+          ordem?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          planejamento_id?: string
+          nome?: string
+          descricao?: string | null
+          cor?: string
+          icone?: string | null
+          ordem?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atividade_tipos_usuario_planejamento_id_fkey"
+            columns: ["planejamento_id"]
+            referencedRelation: "planejamentos"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      planejador_semanal: {
+        Row: {
+          id: string
+          planejamento_id: string
+          dia_semana: number
+          hora_inicio: string
+          atividade_tipo_id: string | null
+          atividade_usuario_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          planejamento_id: string
+          dia_semana: number
+          hora_inicio: string
+          atividade_tipo_id?: string | null
+          atividade_usuario_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          planejamento_id?: string
+          dia_semana?: number
+          hora_inicio?: string
+          atividade_tipo_id?: string | null
+          atividade_usuario_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planejador_semanal_planejamento_id_fkey"
+            columns: ["planejamento_id"]
+            referencedRelation: "planejamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planejador_semanal_atividade_tipo_id_fkey"
+            columns: ["atividade_tipo_id"]
+            referencedRelation: "atividade_tipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planejador_semanal_atividade_usuario_id_fkey"
+            columns: ["atividade_usuario_id"]
+            referencedRelation: "atividade_tipos_usuario"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      edital_verticalizado_items: {
+        Row: {
+          id: string
+          preparatorio_id: string | null
+          tipo: 'bloco' | 'materia' | 'topico'
+          titulo: string
+          ordem: number
+          parent_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          preparatorio_id?: string | null
+          tipo: 'bloco' | 'materia' | 'topico'
+          titulo: string
+          ordem: number
+          parent_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          preparatorio_id?: string | null
+          tipo?: 'bloco' | 'materia' | 'topico'
+          titulo?: string
+          ordem?: number
+          parent_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edital_verticalizado_items_preparatorio_id_fkey"
+            columns: ["preparatorio_id"]
+            referencedRelation: "preparatorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edital_verticalizado_items_parent_id_fkey"
+            columns: ["parent_id"]
+            referencedRelation: "edital_verticalizado_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      edital_verticalizado_progress: {
+        Row: {
+          id: string
+          planejamento_id: string | null
+          item_id: string | null
+          missao: boolean
+          acao: boolean
+          revisao: boolean
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          planejamento_id?: string | null
+          item_id?: string | null
+          missao?: boolean
+          acao?: boolean
+          revisao?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          planejamento_id?: string | null
+          item_id?: string | null
+          missao?: boolean
+          acao?: boolean
+          revisao?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edital_verticalizado_progress_planejamento_id_fkey"
+            columns: ["planejamento_id"]
+            referencedRelation: "planejamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edital_verticalizado_progress_item_id_fkey"
+            columns: ["item_id"]
+            referencedRelation: "edital_verticalizado_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      missoes_executadas: {
+        Row: {
+          id: string
+          user_id: string
+          planejamento_id: string
+          rodada_numero: number
+          missao_numero: number
+          completed_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          planejamento_id: string
+          rodada_numero: number
+          missao_numero: number
+          completed_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          planejamento_id?: string
+          rodada_numero?: number
+          missao_numero?: number
+          completed_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missoes_executadas_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missoes_executadas_planejamento_id_fkey"
+            columns: ["planejamento_id"]
+            referencedRelation: "planejamentos"
             referencedColumns: ["id"]
           }
         ]
@@ -939,6 +1214,7 @@ export interface Database {
       education_level: 'fundamental_incompleto' | 'fundamental_completo' | 'medio_incompleto' | 'medio_completo' | 'superior_incompleto' | 'superior_completo' | 'pos_graduacao' | 'mestrado' | 'doutorado'
       missao_tipo: 'padrao' | 'revisao' | 'acao'
       agendamento_status: 'agendado' | 'confirmado' | 'realizado' | 'cancelado' | 'nao_compareceu'
+      edital_item_type: 'bloco' | 'materia' | 'topico'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -988,6 +1264,8 @@ export interface Lead {
   minutos_quinta: number
   minutos_sexta: number
   minutos_sabado: number
+  hora_acordar: string | null
+  hora_dormir: string | null
   principal_dificuldade: LeadDifficulty | null
   principais_dificuldades: LeadDifficulty[]
   dificuldade_outros: string | null
@@ -1067,6 +1345,8 @@ export interface Planejamento {
   nome_aluno: string
   email: string | null
   mensagem_incentivo: string | null
+  hora_acordar: string | null
+  hora_dormir: string | null
   created_at: string
 }
 
@@ -1146,3 +1426,42 @@ export interface MissaoExecutada {
   completed_at: string
   created_at: string
 }
+
+// Tipos para o Planejador Semanal
+export interface AtividadeTipo {
+  id: string
+  nome: string
+  descricao: string | null
+  cor: string
+  icone: string | null
+  is_default: boolean
+  ordem: number
+  created_at: string
+}
+
+export interface AtividadeUsuario {
+  id: string
+  planejamento_id: string
+  nome: string
+  descricao: string | null
+  cor: string
+  icone: string | null
+  ordem: number
+  created_at: string
+}
+
+export interface PlanejadorSlot {
+  id: string
+  planejamento_id: string
+  dia_semana: number // 0=Domingo, 1=Segunda, ..., 6=Sábado
+  hora_inicio: string // "HH:MM"
+  atividade_tipo_id: string | null
+  atividade_usuario_id: string | null
+  created_at: string
+}
+
+export interface PlanejadorSlotComAtividade extends PlanejadorSlot {
+  atividade?: AtividadeTipo | AtividadeUsuario
+}
+
+export type AtividadeUnificada = AtividadeTipo | AtividadeUsuario

@@ -46,7 +46,7 @@ const rodadaData = [
 export const StudentDashboardView: React.FC = () => {
     const { id: planejamentoId } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { user, signOut } = useAuth(); // Admin user context
+    const { user } = useAuth(); // Admin user context
     const [loading, setLoading] = useState(true);
     const [studentData, setStudentData] = useState<any>(null); // Aluno
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);

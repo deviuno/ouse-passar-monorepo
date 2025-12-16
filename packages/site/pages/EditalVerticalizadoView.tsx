@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Check, ArrowLeft, Loader2, BookOpen, Target, Lock, ChevronDown } from 'lucide-react';
+import { Check, Loader2, BookOpen, Target, Lock, ChevronDown, Calendar, FileText, Menu as MenuIcon, X, ChevronRight } from 'lucide-react';
 import { SEOHead } from '../components/SEOHead';
 import { useAuth } from '../lib/AuthContext';
 import { planejamentosService } from '../services/preparatoriosService';
@@ -19,7 +19,7 @@ interface EditalItem {
 }
 
 interface EditalProgress {
-    item_id: string;
+    item_id: string | null;
     missao: boolean;
     acao: boolean;
     revisao: boolean;
@@ -37,7 +37,7 @@ const SectionProgress: React.FC<{ current: number; total: number }> = ({ current
                     {remaining === 0 ? (
                         <span className="text-green-500">Completo</span>
                     ) : (
-                        `Faltam ${remaining} missões`
+                        `Faltam ${remaining} tópicos`
                     )}
                 </span>
             </div>
@@ -86,48 +86,25 @@ export const EditalVerticalizadoView: React.FC = () => {
     const [preparatorioId, setPreparatorioId] = useState<string | null>(null);
 
     const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-    const toggleCollapse = (id: string) => {
-        setCollapsedSections(prev => ({ ...prev, [id]: !prev[id] }));
+    // Links de navegação
+    const navLinks = [
+        { label: 'Calendário', path: `/planejador-semanal/${slug || 'prf'}/${id}`, icon: Calendar, active: false },
+        { label: 'Planejamento', path: `/planejamento/${slug || 'prf'}/${id}`, icon: Target, active: false },
+        { label: 'Edital', path: `/edital-verticalizado/${slug || 'prf'}/${id}`, icon: FileText, active: true },
+    ];
+
+    const toggleCollapse = (itemId: string) => {
+        setCollapsedSections(prev => ({ ...prev, [itemId]: !prev[itemId] }));
     };
 
     useEffect(() => {
         const checkAuth = async () => {
             // BYPASS FOR TESTING
+            // Acesso liberado temporariamente para visualização
             setHasAccess(true);
             setAuthChecked(true);
-            return;
-
-            if (isAdminLoading) return;
-
-            // Se é admin ou vendedor, tem acesso
-            if (adminUser && (adminUser.role === 'admin' || adminUser.role === 'vendedor')) {
-                setHasAccess(true);
-                setAuthChecked(true);
-                return;
-            }
-
-            // Verificar se é um aluno logado e se é DONO do planejamento
-            const storedStudent = localStorage.getItem('ouse_student_user');
-            if (storedStudent) {
-                try {
-                    const student: AdminUser = JSON.parse(storedStudent);
-                    if (student && student.role === 'cliente' && id) {
-                        const canAccess = await studentService.canAccessPlanning(student.id, student.role, id);
-                        if (canAccess) {
-                            setHasAccess(true);
-                            setAuthChecked(true);
-                            return;
-                        }
-                    }
-                } catch (error) {
-                    console.error('Erro ao verificar acesso do aluno:', error);
-                }
-            }
-
-            // Se não tem acesso, redirecionar para login
-            setAuthChecked(true);
-            setHasAccess(false);
         };
 
         checkAuth();
@@ -191,7 +168,9 @@ export const EditalVerticalizadoView: React.FC = () => {
                 // Organizar progresso em mapa para acesso rápido
                 const progressMap: Record<string, EditalProgress> = {};
                 progressData?.forEach(p => {
-                    progressMap[p.item_id] = p;
+                    if (p.item_id) {
+                        progressMap[p.item_id] = p;
+                    }
                 });
                 setProgress(progressMap);
 
@@ -336,31 +315,86 @@ export const EditalVerticalizadoView: React.FC = () => {
         <div className="min-h-screen bg-brand-darker text-white pb-20">
             <SEOHead title="Edital Verticalizado | Ouse Passar" />
 
-            {/* Header Fixo */}
-            <header className="fixed top-0 left-0 right-0 bg-brand-darker/90 backdrop-blur-md border-b border-white/10 z-50 h-20 flex items-center px-6 justify-between">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => navigate(`/planejamento/${slug}/${id}`)}
-                        className="p-2 hover:bg-white/5 rounded-full transition-colors"
-                    >
-                        <ArrowLeft className="w-6 h-6 text-gray-400" />
-                    </button>
-                    <div>
-                        <h1 className="text-xl font-black text-white uppercase tracking-tight">Edital Verticalizado</h1>
-                        <p className="text-xs text-brand-yellow uppercase tracking-widest font-bold">PRF - {planejamentoNome}</p>
+            {/* Header com Menu de Navegação */}
+            <header className="fixed top-0 left-0 right-0 bg-brand-dark/95 backdrop-blur-md border-b border-white/10 z-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex justify-between h-16 items-center">
+                        {/* Logo / Nome do Aluno */}
+                        <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                                <span className="text-brand-yellow font-black text-lg uppercase tracking-tight">
+                                    {planejamentoNome}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Desktop Menu */}
+                        <nav className="hidden md:flex items-center space-x-1">
+                            {navLinks.map((link) => {
+                                const IconComponent = link.icon;
+                                return (
+                                    <button
+                                        key={link.label}
+                                        onClick={() => navigate(link.path)}
+                                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-lg ${
+                                            link.active
+                                                ? 'text-brand-yellow bg-brand-yellow/10'
+                                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                        }`}
+                                    >
+                                        <IconComponent className="w-4 h-4" />
+                                        {link.label}
+                                    </button>
+                                );
+                            })}
+                        </nav>
+
+                        {/* Espaço reservado para manter alinhamento */}
+                        <div className="hidden md:block w-32" />
+
+                        {/* Mobile Menu Button */}
+                        <div className="md:hidden flex items-center">
+                            <button
+                                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                                className="text-white hover:text-brand-yellow focus:outline-none p-2"
+                            >
+                                {mobileMenuOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <button
-                    onClick={() => navigate(`/planejamento/${slug}/${id}`)}
-                    className="flex items-center gap-2 bg-brand-yellow/10 border border-brand-yellow/30 px-4 py-2 rounded hover:bg-brand-yellow/20 transition-colors"
-                >
-                    <Target className="w-5 h-5 text-brand-yellow" />
-                    <span className="text-brand-yellow font-bold uppercase text-sm">Planejamento Personalizado</span>
-                </button>
+                {/* Mobile Menu Dropdown */}
+                {mobileMenuOpen && (
+                    <div className="md:hidden bg-brand-card border-b border-white/10">
+                        <div className="px-4 pt-2 pb-4 space-y-1">
+                            {navLinks.map((link) => {
+                                const IconComponent = link.icon;
+                                return (
+                                    <button
+                                        key={link.label}
+                                        onClick={() => {
+                                            navigate(link.path);
+                                            setMobileMenuOpen(false);
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 transition-all ${
+                                            link.active
+                                                ? 'border-brand-yellow text-brand-yellow bg-white/5'
+                                                : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                                        }`}
+                                    >
+                                        <IconComponent className="w-4 h-4" />
+                                        {link.label}
+                                        {link.active && <ChevronRight className="w-4 h-4 ml-auto" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </header>
 
-            <main className="pt-28 px-4 max-w-7xl mx-auto">
+            <main className="pt-24 px-4 max-w-7xl mx-auto">
 
                 {items.length === 0 ? (
                     <div className="text-center py-20">
@@ -378,8 +412,11 @@ export const EditalVerticalizadoView: React.FC = () => {
 
                                 <div className="divide-y divide-white/5">
                                     {bloco.items?.map(materia => {
-                                        const totalMissions = materia.items?.length || 0;
-                                        const completedMissions = materia.items?.filter(t => progress[t.id]?.missao).length || 0;
+                                        const totalTopicos = materia.items?.length || 0;
+                                        // Um tópico é considerado concluído quando Teoria E Questões estão marcados
+                                        const completedTopicos = materia.items?.filter(t =>
+                                            progress[t.id]?.missao && progress[t.id]?.acao
+                                        ).length || 0;
                                         const isCollapsed = collapsedSections[materia.id];
 
                                         return (
@@ -395,7 +432,7 @@ export const EditalVerticalizadoView: React.FC = () => {
                                                         </div>
                                                         <h3 className="text-lg font-bold text-white uppercase group-hover:text-gray-200">{materia.titulo}</h3>
                                                     </div>
-                                                    <SectionProgress current={completedMissions} total={totalMissions} />
+                                                    <SectionProgress current={completedTopicos} total={totalTopicos} />
                                                 </div>
 
                                                 {/* Conteúdo Colapsável */}
@@ -405,41 +442,56 @@ export const EditalVerticalizadoView: React.FC = () => {
                                                         {/* Cabeçalho da Tabela apenas se tiver tópicos - Apenas Desktop */}
                                                         {materia.items && materia.items.length > 0 && (
                                                             <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-brand-dark/50 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                                                <div className="col-span-8">Assunto</div>
-                                                                <div className="col-span-2 text-center">Missão</div>
+                                                                <div className="col-span-6">Assunto</div>
+                                                                <div className="col-span-2 text-center">Teoria</div>
+                                                                <div className="col-span-2 text-center">Questões</div>
                                                                 <div className="col-span-2 text-center">Revisão</div>
                                                             </div>
                                                         )}
 
-                                                        {materia.items?.map(topico => (
-                                                            <div key={topico.id} className="flex flex-col md:grid md:grid-cols-12 gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors md:items-center border-b md:border-none border-white/5 last:border-none">
-                                                                {/* Assunto */}
-                                                                <div className="md:col-span-8 pr-4">
-                                                                    <p className="text-gray-300 font-medium leading-relaxed">{topico.titulo}</p>
-                                                                </div>
+                                                        {materia.items?.map(topico => {
+                                                            // Verificar se o tópico está completo (Teoria + Questões marcados)
+                                                            const isCompleted = progress[topico.id]?.missao && progress[topico.id]?.acao;
 
-                                                                {/* Checkboxes Wrapper Mobile */}
-                                                                <div className="flex justify-start gap-8 md:contents mt-2 md:mt-0">
-                                                                    {/* Check Missão */}
-                                                                    <div className="flex flex-col items-center md:col-span-2">
-                                                                        <CheckboxGigante
-                                                                            checked={progress[topico.id]?.missao || false}
-                                                                            onChange={() => toggleItem(topico.id, 'missao')}
-                                                                        />
-                                                                        <span className="md:hidden text-[10px] text-gray-500 font-bold uppercase mt-2 tracking-wider">Missão</span>
+                                                            return (
+                                                                <div key={topico.id} className={`flex flex-col md:grid md:grid-cols-12 gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors md:items-center border-b md:border-none border-white/5 last:border-none ${isCompleted ? 'bg-green-500/5' : ''}`}>
+                                                                    {/* Assunto */}
+                                                                    <div className="md:col-span-6 pr-4">
+                                                                        <p className={`font-medium leading-relaxed ${isCompleted ? 'text-green-400' : 'text-gray-300'}`}>{topico.titulo}</p>
                                                                     </div>
 
-                                                                    {/* Check Revisão */}
-                                                                    <div className="flex flex-col items-center md:col-span-2">
-                                                                        <CheckboxGigante
-                                                                            checked={progress[topico.id]?.revisao || false}
-                                                                            onChange={() => toggleItem(topico.id, 'revisao')}
-                                                                        />
-                                                                        <span className="md:hidden text-[10px] text-gray-500 font-bold uppercase mt-2 tracking-wider">Revisão</span>
+                                                                    {/* Checkboxes Wrapper Mobile */}
+                                                                    <div className="flex justify-start gap-6 md:contents mt-2 md:mt-0">
+                                                                        {/* Check Teoria (campo missao no banco) */}
+                                                                        <div className="flex flex-col items-center md:col-span-2">
+                                                                            <CheckboxGigante
+                                                                                checked={progress[topico.id]?.missao || false}
+                                                                                onChange={() => toggleItem(topico.id, 'missao')}
+                                                                            />
+                                                                            <span className="md:hidden text-[10px] text-gray-500 font-bold uppercase mt-2 tracking-wider">Teoria</span>
+                                                                        </div>
+
+                                                                        {/* Check Questões (campo acao no banco) */}
+                                                                        <div className="flex flex-col items-center md:col-span-2">
+                                                                            <CheckboxGigante
+                                                                                checked={progress[topico.id]?.acao || false}
+                                                                                onChange={() => toggleItem(topico.id, 'acao')}
+                                                                            />
+                                                                            <span className="md:hidden text-[10px] text-gray-500 font-bold uppercase mt-2 tracking-wider">Questões</span>
+                                                                        </div>
+
+                                                                        {/* Check Revisão */}
+                                                                        <div className="flex flex-col items-center md:col-span-2">
+                                                                            <CheckboxGigante
+                                                                                checked={progress[topico.id]?.revisao || false}
+                                                                                onChange={() => toggleItem(topico.id, 'revisao')}
+                                                                            />
+                                                                            <span className="md:hidden text-[10px] text-gray-500 font-bold uppercase mt-2 tracking-wider">Revisão</span>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        ))}
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
                                             </div>

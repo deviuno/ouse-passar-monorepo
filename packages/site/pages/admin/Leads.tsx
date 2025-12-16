@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Trash2, User, Calendar, List, LayoutGrid, ChevronLeft, ChevronRight, GripVertical, Phone, X, Clock, Briefcase, GraduationCap, Target, AlertCircle, Filter, Video, PlayCircle, UserCog, ChevronDown, Loader2, Copy, MessageCircle, Key } from 'lucide-react';
+import { Eye, Trash2, User, Calendar, List, LayoutGrid, ChevronLeft, ChevronRight, GripVertical, Phone, X, Clock, Briefcase, GraduationCap, Target, AlertCircle, Filter, Video, PlayCircle, UserCog, ChevronDown, Loader2, Copy, MessageCircle, Key, ExternalLink, FileText } from 'lucide-react';
 import { leadsService, LeadWithVendedor, adminUsersService } from '../../services/adminUsersService';
 import { LeadDifficulty, EducationLevel, LeadGender, AdminUser, AgendamentoWithDetails } from '../../lib/database.types';
 import { agendamentosService } from '../../services/schedulingService';
@@ -299,6 +299,35 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                         )}
                     </div>
 
+                    {/* Planejamento - aparece quando o lead já tem planejamento gerado */}
+                    {lead.planejamento_id && (
+                        <div>
+                            <h4 className="text-xs text-gray-500 uppercase font-bold mb-3 flex items-center">
+                                <FileText className="w-3 h-3 mr-2" />
+                                Planejamento
+                            </h4>
+                            <a
+                                href={`/planejamento-prf/${lead.planejamento_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full bg-brand-yellow/10 border border-brand-yellow/30 hover:border-brand-yellow/50 rounded-sm p-4 transition-all group"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-brand-yellow/20 rounded-full flex items-center justify-center">
+                                            <FileText className="w-5 h-5 text-brand-yellow" />
+                                        </div>
+                                        <div>
+                                            <p className="text-white font-bold text-sm">Ver Planejamento</p>
+                                            <p className="text-gray-500 text-xs">Abrir em nova aba</p>
+                                        </div>
+                                    </div>
+                                    <ExternalLink className="w-5 h-5 text-brand-yellow group-hover:translate-x-1 transition-transform" />
+                                </div>
+                            </a>
+                        </div>
+                    )}
+
                     {/* Agendamento */}
                     {agendamento && (
                         <div>
@@ -506,6 +535,19 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                             Rotina de Estudos
                         </h4>
                         <div className="bg-brand-dark/50 border border-white/5 rounded-sm p-4">
+                            {/* Horários de acordar/dormir */}
+                            {(lead.hora_acordar || lead.hora_dormir) && (
+                                <div className="flex justify-between mb-4 pb-3 border-b border-white/5">
+                                    <div className="text-center flex-1">
+                                        <span className="text-[10px] text-gray-600 uppercase block">Acorda</span>
+                                        <span className="text-brand-yellow font-bold text-sm">{lead.hora_acordar || '06:00'}</span>
+                                    </div>
+                                    <div className="text-center flex-1">
+                                        <span className="text-[10px] text-gray-600 uppercase block">Dorme</span>
+                                        <span className="text-brand-yellow font-bold text-sm">{lead.hora_dormir || '22:00'}</span>
+                                    </div>
+                                </div>
+                            )}
                             <div className="grid grid-cols-7 gap-1 mb-3">
                                 {weekDays.map((day) => {
                                     const minutes = (lead as any)[day.key] || 0;
@@ -525,6 +567,18 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                                 <span className="text-gray-500 text-xs">Total semanal: </span>
                                 <span className="text-brand-yellow font-bold">{formatMinutesToTime(totalMinutos)}</span>
                             </div>
+                            {/* Link para Planejador Semanal */}
+                            {lead.planejamento_id && (
+                                <a
+                                    href={`/planejador-semanal/prf/${lead.planejamento_id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-4 block w-full text-center bg-brand-yellow/10 border border-brand-yellow/30 hover:border-brand-yellow/50 rounded-sm py-2 px-3 text-brand-yellow text-xs font-bold uppercase transition-all"
+                                >
+                                    <Clock className="w-3 h-3 inline mr-2" />
+                                    Ver Planejador Semanal
+                                </a>
+                            )}
                         </div>
                     </div>
 

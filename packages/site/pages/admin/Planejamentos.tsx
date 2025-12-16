@@ -68,6 +68,12 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
     const [completedSteps, setCompletedSteps] = useState<number[]>([]);
     const [isComplete, setIsComplete] = useState(false);
 
+    // Usar ref para evitar reinício do useEffect quando onComplete muda
+    const onCompleteRef = React.useRef(onComplete);
+    React.useEffect(() => {
+        onCompleteRef.current = onComplete;
+    }, [onComplete]);
+
     const steps = [
         `Analisando necessidades de ${firstName}`,
         'Adequando metodologia Ouse Passar',
@@ -77,67 +83,62 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
     ];
 
     useEffect(() => {
-        // Durações variadas para cada etapa (2500ms a 4500ms)
-        const stepDurations = steps.map(() => 2500 + Math.random() * 2000);
+        // Gerar padrões aleatórios para cada etapa
+        const generateRandomPattern = () => {
+            const segments: { until: number; speed: number; pause?: number }[] = [];
+            let currentPos = 0;
 
-        // Padrões de velocidade ÚNICOS para cada etapa
-        // Cada padrão define como a velocidade varia ao longo do progresso (0-100%)
-        const speedPatterns = [
-            // Etapa 1: Começa rápido, fica lento no meio, para, continua lento, termina rápido
-            {
-                type: 'fast-slow-pause-slow-fast',
-                segments: [
-                    { until: 30, speed: 1.8 },   // 0-30%: rápido
-                    { until: 50, speed: 0.4 },   // 30-50%: lento
-                    { until: 55, speed: 0, pause: 800 }, // 50-55%: pausa
-                    { until: 80, speed: 0.5 },   // 55-80%: lento
-                    { until: 100, speed: 1.6 }   // 80-100%: rápido
-                ]
-            },
-            // Etapa 2: Velocidade constante alta (sem pausas)
-            {
-                type: 'constant-fast',
-                segments: [
-                    { until: 100, speed: 1.3 }
-                ]
-            },
-            // Etapa 3: Começa muito lento, acelera gradualmente
-            {
-                type: 'slow-to-fast',
-                segments: [
-                    { until: 20, speed: 0.3 },
-                    { until: 40, speed: 0.5 },
-                    { until: 60, speed: 0.8 },
-                    { until: 80, speed: 1.2 },
-                    { until: 100, speed: 2.0 }
-                ]
-            },
-            // Etapa 4: Rápido, lento, rápido (sem pausa)
-            {
-                type: 'fast-slow-fast',
-                segments: [
-                    { until: 35, speed: 1.6 },
-                    { until: 70, speed: 0.4 },
-                    { until: 100, speed: 1.8 }
-                ]
-            },
-            // Etapa 5: Médio com pausa longa no meio
-            {
-                type: 'medium-pause-medium',
-                segments: [
-                    { until: 45, speed: 1.0 },
-                    { until: 50, speed: 0, pause: 1200 },
-                    { until: 100, speed: 1.2 }
-                ]
+            while (currentPos < 100) {
+                // Tamanho do segmento: entre 8% e 25%
+                const segmentSize = 8 + Math.random() * 17;
+                const until = Math.min(100, currentPos + segmentSize);
+
+                // Decidir o tipo de segmento
+                const rand = Math.random();
+
+                if (rand < 0.08 && currentPos > 15 && currentPos < 85) {
+                    // 8% chance de pausa (travamento) - entre 400ms e 1200ms
+                    segments.push({
+                        until: Math.min(100, currentPos + 3),
+                        speed: 0,
+                        pause: 400 + Math.random() * 800
+                    });
+                    currentPos += 3;
+                } else if (rand < 0.25) {
+                    // 17% chance de velocidade muito lenta (quase travando)
+                    segments.push({ until, speed: 0.2 + Math.random() * 0.3 });
+                    currentPos = until;
+                } else if (rand < 0.45) {
+                    // 20% chance de velocidade lenta
+                    segments.push({ until, speed: 0.5 + Math.random() * 0.4 });
+                    currentPos = until;
+                } else if (rand < 0.75) {
+                    // 30% chance de velocidade média
+                    segments.push({ until, speed: 0.9 + Math.random() * 0.5 });
+                    currentPos = until;
+                } else {
+                    // 25% chance de velocidade rápida
+                    segments.push({ until, speed: 1.4 + Math.random() * 0.8 });
+                    currentPos = until;
+                }
             }
-        ];
+
+            return segments;
+        };
+
+        // Gerar padrões únicos para cada etapa
+        const stepPatterns = steps.map(() => generateRandomPattern());
+
+        // Durações base para cada etapa (3000ms a 5000ms)
+        const stepDurations = steps.map(() => 3000 + Math.random() * 2000);
 
         let currentStepIdx = 0;
         let stepStartTime = Date.now();
         let displayedProgress = 0;
         let isPaused = false;
         let pauseEndTime = 0;
-        let pauseTriggeredAt: number | null = null;
+        let lastPauseSegmentIdx = -1; // Índice do último segmento onde pausamos
+        let currentSegmentIdx = 0; // Índice do segmento atual
 
         const interval = setInterval(() => {
             const now = Date.now();
@@ -151,35 +152,30 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
             if (isPaused) {
                 if (now >= pauseEndTime) {
                     isPaused = false;
-                    pauseTriggeredAt = null;
                 }
                 return;
             }
 
-            const stepElapsed = now - stepStartTime;
+            const pattern = stepPatterns[currentStepIdx];
             const stepDuration = stepDurations[currentStepIdx];
-            const pattern = speedPatterns[currentStepIdx];
-
-            // Calcular progresso base (tempo decorrido / duração)
-            let baseProgress = (stepElapsed / stepDuration) * 100;
 
             // Encontrar o segmento atual baseado no progresso exibido
-            let currentSegment = pattern.segments[0];
-            let segmentStartProgress = 0;
-
-            for (const segment of pattern.segments) {
-                if (displayedProgress < segment.until) {
-                    currentSegment = segment;
+            let segmentIdx = 0;
+            for (let i = 0; i < pattern.length; i++) {
+                if (displayedProgress < pattern[i].until) {
+                    segmentIdx = i;
                     break;
                 }
-                segmentStartProgress = segment.until;
+                segmentIdx = i;
             }
 
-            // Verificar se deve pausar
-            if (currentSegment.speed === 0 && currentSegment.pause && pauseTriggeredAt !== segmentStartProgress) {
+            const currentSegment = pattern[segmentIdx];
+
+            // Verificar se deve pausar (apenas se mudou de segmento e é um segmento de pausa)
+            if (currentSegment.speed === 0 && currentSegment.pause && segmentIdx !== lastPauseSegmentIdx) {
                 isPaused = true;
                 pauseEndTime = now + currentSegment.pause;
-                pauseTriggeredAt = segmentStartProgress;
+                lastPauseSegmentIdx = segmentIdx;
                 return;
             }
 
@@ -188,13 +184,18 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
             const speedMultiplier = currentSegment.speed || 0.1;
             let increment = baseIncrement * speedMultiplier;
 
-            // Micro-variações naturais (±20% da velocidade, nunca negativo)
-            const variation = 0.8 + Math.random() * 0.4;
+            // Micro-variações naturais (±30% da velocidade)
+            const variation = 0.7 + Math.random() * 0.6;
             increment *= variation;
 
-            // Micro-pausas ocasionais (3% de chance de pular frame, exceto em velocidade alta)
-            if (speedMultiplier < 1.5 && Math.random() < 0.03) {
+            // Micro-pausas ocasionais (5% de chance de pular frame quando lento)
+            if (speedMultiplier < 0.8 && Math.random() < 0.05) {
                 return;
+            }
+
+            // Micro-hesitações ocasionais (3% de chance de reduzir muito o incremento)
+            if (Math.random() < 0.03) {
+                increment *= 0.1;
             }
 
             // Atualizar progresso (NUNCA retrocede)
@@ -209,24 +210,25 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
                 // Marcar etapa como completa
                 setCompletedSteps(prev => [...prev, currentStepIdx]);
 
-                // Avançar para próxima etapa
+                // Avançar para próxima etapa - RESETAR TODAS as variáveis de controle
                 currentStepIdx++;
                 displayedProgress = 0;
                 stepStartTime = now;
-                pauseTriggeredAt = null;
+                lastPauseSegmentIdx = -1; // Resetar para permitir pausas na nova etapa
+                currentSegmentIdx = 0;
 
                 // Se todas as etapas terminaram
                 if (currentStepIdx >= steps.length) {
                     clearInterval(interval);
                     setProgress(100);
                     setIsComplete(true);
-                    setTimeout(onComplete, 1000);
+                    setTimeout(() => onCompleteRef.current(), 1000);
                 }
             }
         }, 50);
 
         return () => clearInterval(interval);
-    }, [firstName, onComplete, steps.length]);
+    }, [firstName, steps.length]); // Removido onComplete - usando ref
 
     // Determinar o estado de cada barra
     const getStepState = (index: number) => {
@@ -474,6 +476,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
         minutos_quinta: existingLead?.minutos_quinta || 0,
         minutos_sexta: existingLead?.minutos_sexta || 0,
         minutos_sabado: existingLead?.minutos_sabado || 0,
+        hora_acordar: existingLead?.hora_acordar || '06:00',
+        hora_dormir: existingLead?.hora_dormir || '22:00',
         principais_dificuldades: existingLead?.principais_dificuldades || [],
         dificuldade_outros: existingLead?.dificuldade_outros || '',
         vendedor_id: existingLead?.vendedor_id || vendedorId
@@ -524,7 +528,9 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                     preparatorio_id: preparatorioId,
                     nome_aluno: createdLead.nome,
                     email: createdLead.email,
-                    lead_id: createdLead.id
+                    lead_id: createdLead.id,
+                    hora_acordar: createdLead.hora_acordar || '06:00',
+                    hora_dormir: createdLead.hora_dormir || '22:00'
                 });
                 planejamentoId = planejamento.id;
             } else {
@@ -862,6 +868,40 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                         {/* ETAPA 2 */}
                         {currentStep === 2 && (
                             <>
+                                {/* Horários de Sono */}
+                                <div>
+                                    <h4 className="text-brand-yellow text-xs font-bold uppercase mb-4 border-b border-white/10 pb-2">
+                                        Horários do Dia
+                                    </h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
+                                                Hora de Acordar
+                                            </label>
+                                            <input
+                                                type="time"
+                                                value={formData.hora_acordar || '06:00'}
+                                                onChange={(e) => setFormData({ ...formData, hora_acordar: e.target.value })}
+                                                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors text-lg font-mono"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
+                                                Hora de Dormir
+                                            </label>
+                                            <input
+                                                type="time"
+                                                value={formData.hora_dormir || '22:00'}
+                                                onChange={(e) => setFormData({ ...formData, hora_dormir: e.target.value })}
+                                                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors text-lg font-mono"
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-500 text-xs mt-2">
+                                        Esses horários serão usados para gerar o planejador semanal do aluno.
+                                    </p>
+                                </div>
+
                                 {/* Rotina de Estudos */}
                                 <div>
                                     <h4 className="text-brand-yellow text-xs font-bold uppercase mb-4 border-b border-white/10 pb-2">
