@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Trash2, User, Calendar, List, LayoutGrid, ChevronLeft, ChevronRight, GripVertical, Phone, X, Clock, Briefcase, GraduationCap, Target, AlertCircle, Filter, Video, PlayCircle, UserCog, ChevronDown, Loader2, Copy, MessageCircle, Key, ExternalLink, FileText } from 'lucide-react';
+import { Eye, Trash2, User, Calendar, List, LayoutGrid, ChevronLeft, ChevronRight, GripVertical, Phone, X, Clock, Briefcase, GraduationCap, Target, AlertCircle, Filter, Video, PlayCircle, UserCog, ChevronDown, Loader2, Copy, MessageCircle, Key } from 'lucide-react';
 import { leadsService, LeadWithVendedor, adminUsersService } from '../../services/adminUsersService';
 import { LeadDifficulty, EducationLevel, LeadGender, AdminUser, AgendamentoWithDetails } from '../../lib/database.types';
 import { agendamentosService } from '../../services/schedulingService';
@@ -298,35 +298,6 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                             </div>
                         )}
                     </div>
-
-                    {/* Planejamento - aparece quando o lead já tem planejamento gerado */}
-                    {lead.planejamento_id && (
-                        <div>
-                            <h4 className="text-xs text-gray-500 uppercase font-bold mb-3 flex items-center">
-                                <FileText className="w-3 h-3 mr-2" />
-                                Planejamento
-                            </h4>
-                            <a
-                                href={`/planejamento-prf/${lead.planejamento_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block w-full bg-brand-yellow/10 border border-brand-yellow/30 hover:border-brand-yellow/50 rounded-sm p-4 transition-all group"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-brand-yellow/20 rounded-full flex items-center justify-center">
-                                            <FileText className="w-5 h-5 text-brand-yellow" />
-                                        </div>
-                                        <div>
-                                            <p className="text-white font-bold text-sm">Ver Planejamento</p>
-                                            <p className="text-gray-500 text-xs">Abrir em nova aba</p>
-                                        </div>
-                                    </div>
-                                    <ExternalLink className="w-5 h-5 text-brand-yellow group-hover:translate-x-1 transition-transform" />
-                                </div>
-                            </a>
-                        </div>
-                    )}
 
                     {/* Agendamento */}
                     {agendamento && (
