@@ -44,6 +44,7 @@ import { Obrigado } from './pages/Obrigado';
 import { EditalVerticalizadoView } from './pages/EditalVerticalizadoView';
 import { StudentDashboardView } from './pages/StudentDashboardView';
 import { PlanejadorSemanalView } from './pages/PlanejadorSemanalView';
+import { PlannerPerformanceView } from './pages/PlannerPerformanceView';
 import { Users } from './pages/admin/Users';
 import { Planejamentos as PlanejamentosAdmin } from './pages/admin/Planejamentos';
 import { Leads } from './pages/admin/Leads';
@@ -157,6 +158,9 @@ const App: React.FC = () => {
 
             {/* Planejador Semanal View */}
             <Route path="/planejador-semanal/:slug/:id" element={<PlanejadorSemanalView />} />
+
+            {/* Planner de Performance View */}
+            <Route path="/planner/:slug/:id" element={<PlannerPerformanceView />} />
 
             {/* Página de Obrigado (pós-compra com agendamento) */}
             <Route path="/obrigado" element={<Obrigado />} />

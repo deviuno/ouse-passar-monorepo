@@ -1198,6 +1198,106 @@ export interface Database {
           }
         ]
       }
+      planner_diario: {
+        Row: {
+          id: string
+          planejamento_id: string
+          data: string
+          humor: number | null
+          energia: number | null
+          horas_planejadas: number
+          horas_estudadas: number
+          missoes_concluidas: number
+          questoes_feitas: number
+          percentual_acertos: number | null
+          materia_principal: string | null
+          fez_revisao: boolean
+          usou_tecnica_estudo: boolean
+          exercicio_fisico: boolean
+          litros_agua: number | null
+          horas_sono: number | null
+          sem_celular_antes: boolean
+          revisao_rapida: boolean
+          registrou_erro: boolean
+          oracao_devocional: boolean
+          gratidao: string | null
+          motivacao_dia: string | null
+          semaforo: 'verde' | 'amarelo' | 'vermelho' | null
+          semaforo_motivo: string | null
+          meta_minima_amanha: number | null
+          missao_prioritaria_amanha: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          planejamento_id: string
+          data: string
+          humor?: number | null
+          energia?: number | null
+          horas_planejadas?: number
+          horas_estudadas?: number
+          missoes_concluidas?: number
+          questoes_feitas?: number
+          percentual_acertos?: number | null
+          materia_principal?: string | null
+          fez_revisao?: boolean
+          usou_tecnica_estudo?: boolean
+          exercicio_fisico?: boolean
+          litros_agua?: number | null
+          horas_sono?: number | null
+          sem_celular_antes?: boolean
+          revisao_rapida?: boolean
+          registrou_erro?: boolean
+          oracao_devocional?: boolean
+          gratidao?: string | null
+          motivacao_dia?: string | null
+          semaforo?: 'verde' | 'amarelo' | 'vermelho' | null
+          semaforo_motivo?: string | null
+          meta_minima_amanha?: number | null
+          missao_prioritaria_amanha?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          planejamento_id?: string
+          data?: string
+          humor?: number | null
+          energia?: number | null
+          horas_planejadas?: number
+          horas_estudadas?: number
+          missoes_concluidas?: number
+          questoes_feitas?: number
+          percentual_acertos?: number | null
+          materia_principal?: string | null
+          fez_revisao?: boolean
+          usou_tecnica_estudo?: boolean
+          exercicio_fisico?: boolean
+          litros_agua?: number | null
+          horas_sono?: number | null
+          sem_celular_antes?: boolean
+          revisao_rapida?: boolean
+          registrou_erro?: boolean
+          oracao_devocional?: boolean
+          gratidao?: string | null
+          motivacao_dia?: string | null
+          semaforo?: 'verde' | 'amarelo' | 'vermelho' | null
+          semaforo_motivo?: string | null
+          meta_minima_amanha?: number | null
+          missao_prioritaria_amanha?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planner_diario_planejamento_id_fkey"
+            columns: ["planejamento_id"]
+            referencedRelation: "planejamentos"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1465,3 +1565,61 @@ export interface PlanejadorSlotComAtividade extends PlanejadorSlot {
 }
 
 export type AtividadeUnificada = AtividadeTipo | AtividadeUsuario
+
+// Tipos para o Planner de Performance
+export type SemaforoCor = 'verde' | 'amarelo' | 'vermelho'
+export type SemaforoMotivo = 'cansaco' | 'falta_tempo' | 'procrastinacao' | 'materia_dificil' | 'ansiedade' | 'trabalho'
+
+export interface PlannerDiario {
+  id: string
+  planejamento_id: string
+  data: string // YYYY-MM-DD
+
+  // Cabeçalho
+  humor: number | null // 1-5
+  energia: number | null // 1-5
+
+  // Execução de estudo
+  horas_planejadas: number
+  horas_estudadas: number
+  missoes_concluidas: number
+  questoes_feitas: number
+  percentual_acertos: number | null
+  materia_principal: string | null
+  fez_revisao: boolean
+  usou_tecnica_estudo: boolean
+
+  // Checklist Corpo
+  exercicio_fisico: boolean
+  litros_agua: number | null
+  horas_sono: number | null
+
+  // Checklist Mente
+  sem_celular_antes: boolean
+  revisao_rapida: boolean
+  registrou_erro: boolean
+
+  // Checklist Espírito
+  oracao_devocional: boolean
+  gratidao: string | null
+  motivacao_dia: string | null
+
+  // Semáforo
+  semaforo: SemaforoCor | null
+  semaforo_motivo: string | null
+
+  // Plano amanhã
+  meta_minima_amanha: number | null // 30, 60, 90
+  missao_prioritaria_amanha: string | null
+
+  created_at: string
+  updated_at: string
+}
+
+export interface PlannerSemanal {
+  diasVerdes: number
+  horasEstudadas: number
+  missoesTotal: number
+  questoesTotal: number
+  mediaAcertos: number | null
+}
