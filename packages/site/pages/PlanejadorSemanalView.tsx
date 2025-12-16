@@ -796,7 +796,7 @@ export const PlanejadorSemanalView: React.FC = () => {
                           }`}
                           style={{
                             backgroundColor: effectiveColor
-                              ? addAlpha(effectiveColor, 0.2)
+                              ? addAlpha(effectiveColor, 0.4)
                               : (isSelected ? 'rgba(10,10,10,0.5)' : 'rgba(10,10,10,0.3)')
                           }}
                         >
