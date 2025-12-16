@@ -796,26 +796,10 @@ export const PlanejadorSemanalView: React.FC = () => {
                           }`}
                           style={{
                             backgroundColor: effectiveColor
-                              ? addAlpha(effectiveColor, 0.6)
+                              ? addAlpha(effectiveColor, 0.2)
                               : (isSelected ? 'rgba(10,10,10,0.5)' : 'rgba(10,10,10,0.3)')
                           }}
                         >
-                          {/* Indicador visual para slots marcados */}
-                          {marked && (
-                            <>
-                              {/* Borda interna para destacar */}
-                              <div
-                                className="absolute inset-0 pointer-events-none border border-white/30"
-                              />
-                              {/* Gradiente de brilho no topo */}
-                              <div
-                                className="absolute inset-0 pointer-events-none"
-                                style={{
-                                  background: 'linear-gradient(to bottom, rgba(255,255,255,0.2) 0%, transparent 40%)'
-                                }}
-                              />
-                            </>
-                          )}
                         </div>
                       );
                     })}
