@@ -5,7 +5,15 @@ import type { Json } from '../lib/database.types';
 // TYPES
 // ============================================================================
 
+// Tipos de conteúdo disponíveis:
+// - 'plano': Aparece no app de planejamento
+// - 'questoes': Aparece no app Ouse Questões (antigo 'simulado')
+// - 'preparatorio': Aparecerá em portal futuro (bloqueado por enquanto)
+export type ContentType = 'plano' | 'questoes' | 'preparatorio';
+
+// Manter CourseType para compatibilidade temporária
 export type CourseType = 'simulado' | 'preparatorio';
+
 export type EditalStatus = 'pending' | 'processing' | 'completed' | 'error';
 
 export interface QuestionFilters {
@@ -74,7 +82,8 @@ export interface Course {
   image_url: string | null;
   price: number | null;
   is_active: boolean;
-  course_type: CourseType;
+  course_type: CourseType; // Legado - manter para compatibilidade
+  content_types: ContentType[]; // Novo - array de tipos de conteúdo
   question_filters: QuestionFilters;
   questions_count: number;
   block_size: number;
@@ -92,7 +101,8 @@ export interface CreateCourseInput {
   icon?: string;
   image_url?: string;
   price?: number;
-  course_type: CourseType;
+  course_type?: CourseType; // Legado - opcional
+  content_types: ContentType[]; // Novo - obrigatório
   question_filters?: QuestionFilters;
   questions_count?: number;
   block_size?: number;
@@ -115,7 +125,8 @@ export interface UpdateCourseInput extends Partial<CreateCourseInput> {
  * Get all courses with optional filtering
  */
 export async function getCourses(options?: {
-  type?: CourseType;
+  type?: CourseType; // Legado
+  contentType?: ContentType; // Novo - filtra por content_types array
   activeOnly?: boolean;
   includeEdital?: boolean;
 }): Promise<{ courses: Course[]; error?: string }> {
@@ -125,8 +136,14 @@ export async function getCourses(options?: {
       .select('*')
       .order('created_at', { ascending: false });
 
+    // Filtro legado por course_type
     if (options?.type) {
       query = query.eq('course_type', options.type);
+    }
+
+    // Novo filtro por content_types (usa contains para busca em array)
+    if (options?.contentType) {
+      query = query.contains('content_types', [options.contentType]);
     }
 
     if (options?.activeOnly) {
@@ -147,6 +164,7 @@ export async function getCourses(options?: {
       price: item.price,
       is_active: item.is_active,
       course_type: item.course_type,
+      content_types: item.content_types || ['questoes'], // Default para compatibilidade
       question_filters: item.question_filters as QuestionFilters,
       questions_count: item.questions_count,
       block_size: item.block_size || 20,
@@ -190,6 +208,7 @@ export async function getCourseById(id: string): Promise<{ course: Course | null
       price: data.price,
       is_active: data.is_active,
       course_type: data.course_type,
+      content_types: data.content_types || ['questoes'],
       question_filters: data.question_filters as QuestionFilters,
       questions_count: data.questions_count,
       block_size: data.block_size || 20,
@@ -216,6 +235,9 @@ export async function createCourse(input: CreateCourseInput): Promise<{ course: 
     // Default block_size to 20 if not provided
     const blockSize = input.block_size ?? 20;
 
+    // Determinar course_type legado baseado em content_types
+    const legacyCourseType = input.content_types.includes('questoes') ? 'simulado' : 'preparatorio';
+
     const { data, error } = await supabase
       .from('courses')
       .insert({
@@ -225,7 +247,8 @@ export async function createCourse(input: CreateCourseInput): Promise<{ course: 
         icon: input.icon || null,
         image_url: input.image_url || null,
         price: input.price || null,
-        course_type: input.course_type,
+        course_type: input.course_type || legacyCourseType,
+        content_types: input.content_types,
         is_active: input.is_active ?? false,
         question_filters: (input.question_filters || {}) as unknown as Json,
         questions_count: questionsCount,
@@ -250,6 +273,7 @@ export async function createCourse(input: CreateCourseInput): Promise<{ course: 
       price: data.price,
       is_active: data.is_active,
       course_type: data.course_type,
+      content_types: data.content_types || ['questoes'],
       question_filters: data.question_filters as QuestionFilters,
       questions_count: data.questions_count,
       block_size: data.block_size || 20,
@@ -282,6 +306,7 @@ export async function updateCourse(id: string, input: UpdateCourseInput): Promis
     if (input.image_url !== undefined) updateData.image_url = input.image_url;
     if (input.price !== undefined) updateData.price = input.price;
     if (input.course_type !== undefined) updateData.course_type = input.course_type;
+    if (input.content_types !== undefined) updateData.content_types = input.content_types;
     if (input.is_active !== undefined) updateData.is_active = input.is_active;
     if (input.question_filters !== undefined) updateData.question_filters = input.question_filters;
     if (input.questions_count !== undefined) updateData.questions_count = input.questions_count;
@@ -311,6 +336,7 @@ export async function updateCourse(id: string, input: UpdateCourseInput): Promis
       price: data.price,
       is_active: data.is_active,
       course_type: data.course_type,
+      content_types: data.content_types || ['questoes'],
       question_filters: data.question_filters as QuestionFilters,
       questions_count: data.questions_count,
       block_size: data.block_size || 20,

@@ -15,7 +15,7 @@ import {
   Eye,
   CheckSquare,
 } from 'lucide-react';
-import { getCourses, deleteCourse, Course, getCoursesStats } from '../../services/simuladoService';
+import { getCourses, deleteCourse, Course, getCoursesStats, ContentType } from '../../services/simuladoService';
 import { useToast } from '../../components/ui/Toast';
 
 export const Preparatorios: React.FC = () => {
@@ -24,7 +24,7 @@ export const Preparatorios: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'simulado' | 'preparatorio'>('all');
+  const [filterType, setFilterType] = useState<'all' | ContentType>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'pending'>('all');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [stats, setStats] = useState({
@@ -83,8 +83,8 @@ export const Preparatorios: React.FC = () => {
       return false;
     }
 
-    // Type filter
-    if (filterType !== 'all' && course.course_type !== filterType) {
+    // Type filter - verifica se o content_types array contém o tipo selecionado
+    if (filterType !== 'all' && !course.content_types?.includes(filterType)) {
       return false;
     }
 
@@ -171,7 +171,7 @@ export const Preparatorios: React.FC = () => {
           <p className="text-2xl font-black text-green-500">{stats.active}</p>
         </div>
         <div className="bg-brand-card border border-white/5 rounded-sm p-4">
-          <p className="text-gray-500 text-xs uppercase tracking-wider">Simulados</p>
+          <p className="text-gray-500 text-xs uppercase tracking-wider">Questões</p>
           <p className="text-2xl font-black text-brand-yellow">{stats.simulados}</p>
         </div>
         <div className="bg-brand-card border border-white/5 rounded-sm p-4">
@@ -203,7 +203,8 @@ export const Preparatorios: React.FC = () => {
           className="bg-brand-dark border border-white/10 rounded-sm py-2 px-4 text-white focus:outline-none focus:border-brand-yellow"
         >
           <option value="all">Todos os tipos</option>
-          <option value="simulado">Simulados</option>
+          <option value="plano">Plano</option>
+          <option value="questoes">Questões</option>
           <option value="preparatorio">Preparatórios</option>
         </select>
 
@@ -289,7 +290,7 @@ export const Preparatorios: React.FC = () => {
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-brand-yellow/10 rounded-sm flex items-center justify-center">
-                        {course.course_type === 'simulado' ? (
+                        {course.content_types?.includes('questoes') ? (
                           <CheckSquare className="w-5 h-5 text-brand-yellow" />
                         ) : (
                           <GraduationCap className="w-5 h-5 text-brand-yellow" />
@@ -306,9 +307,24 @@ export const Preparatorios: React.FC = () => {
                     </div>
                   </td>
                   <td className="py-4 px-6">
-                    <span className="px-2 py-0.5 bg-brand-yellow/20 text-brand-yellow text-xs font-bold uppercase rounded">
-                      {course.course_type}
-                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {course.content_types?.map((type) => {
+                        const typeConfig: Record<ContentType, { label: string; bgClass: string; textClass: string }> = {
+                          plano: { label: 'Plano', bgClass: 'bg-purple-500/20', textClass: 'text-purple-400' },
+                          questoes: { label: 'Questões', bgClass: 'bg-brand-yellow/20', textClass: 'text-brand-yellow' },
+                          preparatorio: { label: 'Prep.', bgClass: 'bg-blue-500/20', textClass: 'text-blue-400' },
+                        };
+                        const config = typeConfig[type];
+                        return (
+                          <span
+                            key={type}
+                            className={`px-2 py-0.5 ${config.bgClass} ${config.textClass} text-xs font-bold uppercase rounded`}
+                          >
+                            {config.label}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </td>
                   <td className="py-4 px-6">
                     {course.is_active ? (

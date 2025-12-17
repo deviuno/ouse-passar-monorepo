@@ -28,6 +28,21 @@ export interface CreatePreparatorioInput {
   descricao_vendas?: string;
 }
 
+// Input para criar preparatório via N8N (sem slug obrigatório)
+export interface CreatePreparatorioN8NInput {
+  nome: string;
+  descricao?: string;
+  imagem_url?: string;
+  preco?: number;
+  orgao: string;
+  banca: string;
+  nivel: 'fundamental' | 'medio' | 'superior';
+  cargo: string;
+  requisitos?: string;
+  areas_conhecimento?: string[];
+  data_prevista?: string;
+}
+
 export interface UpdatePreparatorioInput {
   nome?: string;
   slug?: string;
@@ -207,6 +222,68 @@ export const preparatoriosService = {
       missoes: missoesCount,
       mensagens: mensagensResult.count || 0
     };
+  },
+
+  /**
+   * Cria um preparatório via N8N (com campos específicos para geração automática)
+   */
+  async createPreparatorio(input: CreatePreparatorioN8NInput): Promise<{ preparatorio: Preparatorio | null; error: string | null }> {
+    try {
+      // Gerar slug a partir do nome
+      const slug = input.nome
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+        .replace(/[^a-z0-9\s-]/g, '') // Remove caracteres especiais
+        .replace(/\s+/g, '-') // Substitui espaços por hífens
+        .replace(/-+/g, '-') // Remove hífens duplicados
+        .trim();
+
+      // Verificar se slug já existe
+      const { data: existing } = await supabase
+        .from('preparatorios')
+        .select('id')
+        .eq('slug', slug)
+        .maybeSingle();
+
+      // Se já existir, adicionar timestamp
+      const finalSlug = existing ? `${slug}-${Date.now()}` : slug;
+
+      const { data, error } = await supabase
+        .from('preparatorios')
+        .insert({
+          nome: input.nome,
+          slug: finalSlug,
+          descricao: input.descricao,
+          imagem_capa: input.imagem_url,
+          preco: input.preco,
+          icone: 'sparkles',
+          cor: '#8B5CF6', // Roxo para indicar N8N
+          is_active: false, // Inicialmente inativo até processamento
+          ordem: 0,
+          // Campos N8N
+          orgao: input.orgao,
+          banca: input.banca,
+          nivel: input.nivel,
+          cargo: input.cargo,
+          requisitos: input.requisitos,
+          areas_conhecimento: input.areas_conhecimento,
+          data_prevista: input.data_prevista,
+          n8n_status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao criar preparatório:', error);
+        return { preparatorio: null, error: error.message };
+      }
+
+      return { preparatorio: data, error: null };
+    } catch (err: any) {
+      console.error('Erro ao criar preparatório:', err);
+      return { preparatorio: null, error: err.message };
+    }
   }
 };
 

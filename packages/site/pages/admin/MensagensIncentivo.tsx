@@ -67,7 +67,7 @@ export const MensagensIncentivoAdmin: React.FC = () => {
     return (
       <div className="text-center py-12">
         <p className="text-gray-400">Preparatorio nao encontrado</p>
-        <Link to="/admin/planos-preparatorios" className="text-brand-yellow hover:underline mt-4 inline-block">
+        <Link to="/admin/preparatorios" className="text-brand-yellow hover:underline mt-4 inline-block">
           Voltar
         </Link>
       </div>
@@ -79,7 +79,7 @@ export const MensagensIncentivoAdmin: React.FC = () => {
       {/* Header */}
       <div className="mb-8">
         <Link
-          to="/admin/planos-preparatorios"
+          to="/admin/preparatorios"
           className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-4"
         >
           <ArrowLeft className="w-4 h-4" />

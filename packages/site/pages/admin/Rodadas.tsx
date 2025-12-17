@@ -94,7 +94,7 @@ export const RodadasAdmin: React.FC = () => {
     <div>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-        <Link to="/admin/planos-preparatorios" className="hover:text-brand-yellow transition-colors">
+        <Link to="/admin/preparatorios" className="hover:text-brand-yellow transition-colors">
           Preparatorios
         </Link>
         <ChevronRight className="w-4 h-4" />
@@ -106,7 +106,7 @@ export const RodadasAdmin: React.FC = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <Link
-            to="/admin/planos-preparatorios"
+            to="/admin/preparatorios"
             className="inline-flex items-center gap-2 text-gray-500 hover:text-white mb-2 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -183,7 +183,7 @@ export const RodadasAdmin: React.FC = () => {
                   <td className="px-4 py-4">
                     <div className="flex items-center justify-end gap-2">
                       <Link
-                        to={`/admin/planos-preparatorios/${preparatorioId}/rodadas/${rodada.id}/missoes`}
+                        to={`/admin/preparatorios/${preparatorioId}/rodadas/${rodada.id}/missoes`}
                         className="p-2 text-gray-500 hover:text-brand-yellow hover:bg-brand-yellow/10 rounded transition-colors"
                         title="Ver Missoes"
                       >

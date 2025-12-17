@@ -79,6 +79,7 @@ import {
   LeaguesPage,
   XpActionsPage,
   AchievementsPage,
+  PlanejamentoAchievementsPage,
 } from './pages/admin/gamification';
 
 // Wrapper for Home Page components
@@ -164,10 +165,26 @@ const App: React.FC = () => {
             {/* Pagina de Vendas - Sem header, apenas footer */}
             <Route path="/planejamento/:slug" element={<PlanejamentoVendas />} />
 
-            {/* Planejamento PRF View (fora do Layout principal para ter layout proprio) */}
+            {/* Planejamento PRF View (legado - fora do Layout principal) */}
             <Route path="/planejamento-prf/:id" element={<PlanejamentoPRFView />} />
 
-            {/* Rotas do Planner com Layout Compartilhado (header persistente) */}
+            {/* ================================================== */}
+            {/* PORTAL DO PLANO - /plano/* */}
+            {/* ================================================== */}
+
+            {/* Login do Portal do Plano (público) */}
+            <Route path="/plano/login" element={<StudentLogin />} />
+
+            {/* Rotas do Portal do Plano com Layout Compartilhado */}
+            <Route path="/plano" element={<PlannerLayout />}>
+              <Route path=":slug/:id" element={<PlanejamentoPRFView />} />
+              <Route path=":slug/:id/edital" element={<EditalVerticalizadoView />} />
+              <Route path=":slug/:id/calendario" element={<PlanejadorSemanalView />} />
+              <Route path=":slug/:id/performance" element={<PlannerPerformanceView />} />
+              <Route path=":slug/:id/perfil" element={<PlannerPerfilView />} />
+            </Route>
+
+            {/* Rotas antigas (mantidas para compatibilidade - podem ser removidas depois) */}
             <Route element={<PlannerLayout />}>
               <Route path="/planejamento/:slug/:id" element={<PlanejamentoPRFView />} />
               <Route path="/edital-verticalizado/:slug/:id" element={<EditalVerticalizadoView />} />
@@ -182,7 +199,7 @@ const App: React.FC = () => {
             {/* Admin Login (Public) */}
             <Route path="/admin/login" element={<Login />} />
 
-            {/* Student Login (Public) */}
+            {/* Student Login (Public) - Login genérico */}
             <Route path="/login" element={<StudentLogin />} />
 
             {/* Documentation (Public - Direct access only, no menu links) */}
@@ -216,9 +233,20 @@ const App: React.FC = () => {
               <Route path="articles/new-ai" element={<AdminOnlyRoute><NewArticleAI /></AdminOnlyRoute>} />
               <Route path="articles/edit/:slug" element={<AdminOnlyRoute><ArticleEditor /></AdminOnlyRoute>} />
               <Route path="settings" element={<AdminOnlyRoute><Settings /></AdminOnlyRoute>} />
-              <Route path="preparatorios" element={<AdminOnlyRoute><Preparatorios /></AdminOnlyRoute>} />
-              <Route path="preparatorios/new" element={<AdminOnlyRoute><NewPreparatorio /></AdminOnlyRoute>} />
-              <Route path="preparatorios/edit/:id" element={<AdminOnlyRoute><EditarPreparatorio /></AdminOnlyRoute>} />
+              {/* Preparatórios - Sistema Unificado com Rodadas/Missões */}
+              <Route path="preparatorios" element={<AdminOnlyRoute><PreparatoriosPlanos /></AdminOnlyRoute>} />
+              <Route path="preparatorios/:preparatorioId/rodadas" element={<AdminOnlyRoute><RodadasAdmin /></AdminOnlyRoute>} />
+              <Route path="preparatorios/:preparatorioId/rodadas/:rodadaId/missoes" element={<AdminOnlyRoute><MissoesAdmin /></AdminOnlyRoute>} />
+              <Route path="preparatorios/:preparatorioId/mensagens" element={<AdminOnlyRoute><MensagensIncentivoAdmin /></AdminOnlyRoute>} />
+
+              {/* Courses (Simulados) - Sistema legado para app Ouse Questões */}
+              <Route path="courses" element={<AdminOnlyRoute><Preparatorios /></AdminOnlyRoute>} />
+              <Route path="courses/new" element={<AdminOnlyRoute><NewPreparatorio /></AdminOnlyRoute>} />
+              <Route path="courses/edit/:id" element={<AdminOnlyRoute><EditarPreparatorio /></AdminOnlyRoute>} />
+
+              {/* Rotas legadas - redirecionam para novas rotas */}
+              <Route path="planos-preparatorios" element={<Navigate to="/admin/preparatorios" replace />} />
+              <Route path="planos-preparatorios/:preparatorioId/rodadas" element={<Navigate to="/admin/preparatorios" replace />} />
 
               {/* Gamification Admin */}
               <Route path="gamification" element={<AdminOnlyRoute><GamificationSettingsPage /></AdminOnlyRoute>} />
@@ -226,12 +254,7 @@ const App: React.FC = () => {
               <Route path="gamification/leagues" element={<AdminOnlyRoute><LeaguesPage /></AdminOnlyRoute>} />
               <Route path="gamification/xp-actions" element={<AdminOnlyRoute><XpActionsPage /></AdminOnlyRoute>} />
               <Route path="gamification/achievements" element={<AdminOnlyRoute><AchievementsPage /></AdminOnlyRoute>} />
-
-              {/* Planejamentos - Sistema Dinâmico */}
-              <Route path="planos-preparatorios" element={<AdminOnlyRoute><PreparatoriosPlanos /></AdminOnlyRoute>} />
-              <Route path="planos-preparatorios/:preparatorioId/rodadas" element={<AdminOnlyRoute><RodadasAdmin /></AdminOnlyRoute>} />
-              <Route path="planos-preparatorios/:preparatorioId/rodadas/:rodadaId/missoes" element={<AdminOnlyRoute><MissoesAdmin /></AdminOnlyRoute>} />
-              <Route path="planos-preparatorios/:preparatorioId/mensagens" element={<AdminOnlyRoute><MensagensIncentivoAdmin /></AdminOnlyRoute>} />
+              <Route path="gamification/planejamento-conquistas" element={<AdminOnlyRoute><PlanejamentoAchievementsPage /></AdminOnlyRoute>} />
             </Route>
 
             {/* Fallback */}

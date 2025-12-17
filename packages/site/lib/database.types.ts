@@ -195,6 +195,7 @@ export interface Database {
           questions_count: number
           block_size: number
           edital_id: string | null
+          content_types: string[] | null
           created_at: string
           updated_at: string
         }
@@ -212,6 +213,7 @@ export interface Database {
           questions_count?: number
           block_size?: number
           edital_id?: string | null
+          content_types?: string[] | null
           created_at?: string
           updated_at?: string
         }
@@ -229,6 +231,7 @@ export interface Database {
           questions_count?: number
           block_size?: number
           edital_id?: string | null
+          content_types?: string[] | null
           created_at?: string
           updated_at?: string
         }
@@ -587,6 +590,7 @@ export interface Database {
           checkout_url: string | null
           descricao_curta: string | null
           descricao_vendas: string | null
+          content_types: string[] | null
           created_at: string
           updated_at: string
         }
@@ -605,6 +609,7 @@ export interface Database {
           checkout_url?: string | null
           descricao_curta?: string | null
           descricao_vendas?: string | null
+          content_types?: string[] | null
           created_at?: string
           updated_at?: string
         }
@@ -623,6 +628,7 @@ export interface Database {
           checkout_url?: string | null
           descricao_curta?: string | null
           descricao_vendas?: string | null
+          content_types?: string[] | null
           created_at?: string
           updated_at?: string
         }
@@ -1386,6 +1392,12 @@ export interface Lead {
 // Tipos auxiliares para o sistema de preparatorios
 export type MissaoTipo = Database['public']['Enums']['missao_tipo']
 
+// Tipos de conteúdo disponíveis para preparatórios
+// - 'plano': Aparece no app de planejamento
+// - 'questoes': Aparece no app Ouse Questões
+// - 'preparatorio': Aparecerá em portal futuro
+export type PreparatorioContentType = 'plano' | 'questoes' | 'preparatorio'
+
 export interface Preparatorio {
   id: string
   nome: string
@@ -1401,6 +1413,7 @@ export interface Preparatorio {
   checkout_url: string | null
   descricao_curta: string | null
   descricao_vendas: string | null
+  content_types: PreparatorioContentType[] // Onde o preparatório aparece
   created_at: string
   updated_at: string
 }
@@ -1626,4 +1639,230 @@ export interface PlannerSemanal {
   missoesTotal: number
   questoesTotal: number
   mediaAcertos: number | null
+}
+
+// =====================================================
+// Tipos para o Sistema de Conteúdo N8N
+// =====================================================
+
+// Status de processamento N8N
+export type N8NStatus = 'none' | 'pending' | 'processing' | 'completed' | 'error'
+
+// Nível de dificuldade do conteúdo
+export type NivelDificuldade = 'iniciante' | 'intermediario' | 'avancado'
+
+// Status de geração de conteúdo
+export type ConteudoStatus = 'pending' | 'generating' | 'completed' | 'error'
+
+// Campos extras do Preparatório para dados do edital (N8N)
+export interface PreparatorioN8NFields {
+  orgao: string | null
+  banca: string | null
+  nivel: string | null
+  cargo: string | null
+  requisitos: string | null
+  area_conhecimento_basico: string | null
+  area_conhecimento_especifico: string | null
+  data_prevista: string | null
+  n8n_status: N8NStatus
+  n8n_error_message: string | null
+  n8n_processed_at: string | null
+}
+
+// Preparatório com campos N8N (extensão do tipo existente)
+export interface PreparatorioComN8N extends Preparatorio, Partial<PreparatorioN8NFields> {}
+
+// Matéria do preparatório
+export interface PreparatorioMateria {
+  id: string
+  preparatorio_id: string
+  nome: string
+  descricao: string | null
+  ordem: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Assunto/tópico de uma matéria
+export interface Assunto {
+  id: string
+  materia_id: string
+  nome: string
+  descricao: string | null
+  sub_assuntos: string[] | null
+  ordem: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Conteúdo gerado (texto, áudio, imagem, mapa mental)
+export interface Conteudo {
+  id: string
+  assunto_id: string
+  nivel_dificuldade: NivelDificuldade
+
+  // Conteúdo textual
+  texto: string | null
+  texto_resumo: string | null
+
+  // Áudio (podcast)
+  audio_url: string | null
+  audio_duracao: number | null // Duração em segundos
+
+  // Imagem de capa
+  imagem_capa_url: string | null
+
+  // Mapa mental
+  mapa_mental_url: string | null
+  mapa_mental_data: Json | null
+
+  // Metadados de geração
+  status: ConteudoStatus
+  error_message: string | null
+  generation_started_at: string | null
+  generation_completed_at: string | null
+
+  // Timestamps
+  created_at: string
+  updated_at: string
+}
+
+// Matéria com seus assuntos
+export interface MateriaComAssuntos extends PreparatorioMateria {
+  assuntos: Assunto[]
+}
+
+// Preparatório com matérias e assuntos (estrutura completa N8N)
+export interface PreparatorioComMaterias extends PreparatorioComN8N {
+  materias: MateriaComAssuntos[]
+}
+
+// =====================================================
+// Tipos para Payloads e Respostas N8N
+// =====================================================
+
+// Payload interno para criar preparatório (interface simplificada)
+export interface CreatePreparatorioN8NPayload {
+  nome: string
+  orgao: string
+  banca: string
+  nivel: 'fundamental' | 'medio' | 'superior'
+  cargo: string
+  requisitos?: string
+  areas_conhecimento?: string[]
+  data_prevista?: string
+}
+
+// Payload formatado para envio ao webhook N8N (formato esperado pelo N8N)
+export interface N8NPreparatorioWebhookPayload {
+  preparatorio_id: string
+  nome: string
+  orgao: string
+  banca: string
+  nivel: string
+  cargo: string
+  requisitos: string
+  areas_conhecimento: string[]
+  data_prevista: string
+  submittedAt: string
+  formMode: 'production' | 'test'
+}
+
+// Payload para gerar conteúdo via N8N (Etapa 2)
+export interface GenerateContentN8NPayload {
+  nivel_dificuldade: NivelDificuldade
+  materia: string
+  assunto_principal: string
+  sub_assuntos: string[]
+  assunto_id: string
+}
+
+// Resposta do webhook de geração de conteúdo
+export interface ContentGenerationResponse {
+  success: boolean
+  message: string
+  id: string
+  nivel_dificuldade: NivelDificuldade
+}
+
+// Resposta genérica do N8N
+export interface N8NWebhookResponse {
+  success: boolean
+  message?: string
+  error?: {
+    code: string
+    message: string
+    details?: Record<string, unknown>
+  }
+}
+
+// =====================================================
+// Tipos para Conquistas do Sistema de Planejamento
+// =====================================================
+
+export type PlanejamentoConquistaRequisitoTipo =
+  | 'missoes_completadas'
+  | 'rodadas_completadas'
+  | 'dias_consecutivos'
+  | 'porcentagem_edital'
+  | 'missoes_por_dia'
+  | 'tempo_estudo'
+  | 'primeiro_acesso'
+  | 'semana_perfeita'
+  | 'mes_perfeito'
+  | 'custom'
+
+export interface PlanejamentoConquista {
+  id: string
+  nome: string
+  descricao: string
+  icone: string
+  requisito_tipo: PlanejamentoConquistaRequisitoTipo
+  requisito_valor: number
+  xp_recompensa: number
+  moedas_recompensa: number
+  is_active: boolean
+  is_hidden: boolean
+  ordem: number
+  mensagem_desbloqueio: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PlanejamentoConquistaUsuario {
+  id: string
+  planejamento_id: string
+  conquista_id: string
+  desbloqueada_em: string
+}
+
+export interface CreatePlanejamentoConquistaInput {
+  id: string
+  nome: string
+  descricao: string
+  icone?: string
+  requisito_tipo: PlanejamentoConquistaRequisitoTipo
+  requisito_valor: number
+  xp_recompensa?: number
+  moedas_recompensa?: number
+  is_active?: boolean
+  is_hidden?: boolean
+  ordem?: number
+  mensagem_desbloqueio?: string | null
+}
+
+export interface UpdatePlanejamentoConquistaInput {
+  nome?: string
+  descricao?: string
+  icone?: string
+  requisito_tipo?: PlanejamentoConquistaRequisitoTipo
+  requisito_valor?: number
+  xp_recompensa?: number
+  moedas_recompensa?: number
+  is_active?: boolean
+  is_hidden?: boolean
+  ordem?: number
+  mensagem_desbloqueio?: string | null
 }

@@ -32,6 +32,7 @@ import {
   Course,
   Edital,
   QuestionFilters,
+  ContentType,
 } from '../../services/simuladoService';
 
 export const EditarPreparatorio: React.FC = () => {
@@ -305,9 +306,23 @@ export const EditarPreparatorio: React.FC = () => {
                   Inativo
                 </span>
               )}
-              <span className="px-2 py-0.5 bg-brand-yellow/20 text-brand-yellow text-xs font-bold uppercase rounded">
-                {course?.course_type}
-              </span>
+              {/* Exibir content_types */}
+              {course?.content_types?.map((type) => {
+                const typeConfig: Record<ContentType, { label: string; bgClass: string; textClass: string }> = {
+                  plano: { label: 'Plano', bgClass: 'bg-purple-500/20', textClass: 'text-purple-400' },
+                  questoes: { label: 'Questões', bgClass: 'bg-brand-yellow/20', textClass: 'text-brand-yellow' },
+                  preparatorio: { label: 'Preparatório', bgClass: 'bg-blue-500/20', textClass: 'text-blue-400' },
+                };
+                const config = typeConfig[type];
+                return (
+                  <span
+                    key={type}
+                    className={`px-2 py-0.5 ${config.bgClass} ${config.textClass} text-xs font-bold uppercase rounded`}
+                  >
+                    {config.label}
+                  </span>
+                );
+              })}
             </div>
           </div>
           <div className="flex items-center gap-2">

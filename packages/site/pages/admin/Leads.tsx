@@ -71,6 +71,15 @@ interface LeadDetailsSidebarProps {
     vendedores?: AdminUser[];
 }
 
+// Helper para gerar URL do portal do aluno (novo padrão: /plano/:slug/:id)
+const getPlanejamentoUrl = (planejamentoId: string, preparatorioSlug?: string | null) => {
+    if (preparatorioSlug) {
+        return `/plano/${preparatorioSlug}/${planejamentoId}`;
+    }
+    // Fallback para página legada se não tiver slug
+    return `/planejamento-prf/${planejamentoId}`;
+};
+
 const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
     lead,
     agendamento,
@@ -650,7 +659,7 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                 <div className="p-4 border-t border-white/10 flex gap-3">
                     {lead.planejamento_id && (
                         <a
-                            href={`/planejamento-prf/${lead.planejamento_id}`}
+                            href={getPlanejamentoUrl(lead.planejamento_id, agendamento?.preparatorio?.slug)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex-1 bg-brand-yellow text-brand-darker py-3 font-bold uppercase text-xs text-center hover:bg-brand-yellow/90 transition-colors flex items-center justify-center gap-2"
@@ -795,7 +804,7 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, agendamento, onDragStart, onD
                 <div className="flex items-center gap-1">
                     {lead.planejamento_id && (
                         <a
-                            href={`/planejamento-prf/${lead.planejamento_id}`}
+                            href={getPlanejamentoUrl(lead.planejamento_id, agendamento?.preparatorio?.slug)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-1 text-gray-500 hover:text-brand-yellow transition-colors"
@@ -1493,7 +1502,7 @@ export const Leads: React.FC = () => {
                                             <div className="flex justify-end space-x-2">
                                                 {lead.planejamento_id && (
                                                     <a
-                                                        href={`/planejamento-prf/${lead.planejamento_id}`}
+                                                        href={getPlanejamentoUrl(lead.planejamento_id, lead.agendamento_id ? agendamentosMap[lead.agendamento_id]?.preparatorio?.slug : null)}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="p-2 text-gray-400 hover:text-brand-yellow transition-colors"

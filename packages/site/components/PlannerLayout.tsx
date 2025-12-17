@@ -44,9 +44,14 @@ export const PlannerLayout: React.FC = () => {
   // Verificar autenticação ao montar e ao voltar do cache do navegador
   const checkAuth = useCallback(() => {
     if (!isAuthenticated()) {
-      window.location.href = '/login';
+      // Redirecionar para login do plano se estiver nas rotas /plano/*
+      if (location.pathname.startsWith('/plano')) {
+        window.location.href = '/plano/login';
+      } else {
+        window.location.href = '/login';
+      }
     }
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     // Verificar na montagem
@@ -65,8 +70,23 @@ export const PlannerLayout: React.FC = () => {
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, [checkAuth]);
 
+  // Verificar se estamos no contexto /plano/*
+  const isPlanoContext = location.pathname.startsWith('/plano');
+
   // Determinar página ativa baseado na URL
   const getActiveRoute = () => {
+    // Novas rotas /plano/*
+    if (isPlanoContext) {
+      if (location.pathname.endsWith('/performance')) return 'cockpit';
+      if (location.pathname.endsWith('/calendario')) return 'calendario';
+      if (location.pathname.endsWith('/edital')) return 'edital';
+      if (location.pathname.endsWith('/perfil')) return 'perfil';
+      // Rota base /plano/:slug/:id = missões
+      const parts = location.pathname.split('/').filter(Boolean);
+      if (parts.length === 3) return 'missoes';
+      return '';
+    }
+    // Rotas legadas
     if (location.pathname.includes('/planner/')) return 'cockpit';
     if (location.pathname.includes('/planejador-semanal/')) return 'calendario';
     if (location.pathname.includes('/planejamento/') && !location.pathname.includes('/edital')) return 'missoes';
@@ -76,6 +96,29 @@ export const PlannerLayout: React.FC = () => {
   };
 
   const activeRoute = getActiveRoute();
+
+  // Gerar paths baseado no contexto (novas ou legadas)
+  const getNavPath = (route: string) => {
+    if (isPlanoContext) {
+      switch (route) {
+        case 'cockpit': return `/plano/${slug}/${id}/performance`;
+        case 'calendario': return `/plano/${slug}/${id}/calendario`;
+        case 'missoes': return `/plano/${slug}/${id}`;
+        case 'edital': return `/plano/${slug}/${id}/edital`;
+        case 'perfil': return `/plano/${slug}/${id}/perfil`;
+        default: return `/plano/${slug}/${id}`;
+      }
+    }
+    // Rotas legadas
+    switch (route) {
+      case 'cockpit': return `/planner/${slug}/${id}`;
+      case 'calendario': return `/planejador-semanal/${slug}/${id}`;
+      case 'missoes': return `/planejamento/${slug}/${id}`;
+      case 'edital': return `/edital-verticalizado/${slug}/${id}`;
+      case 'perfil': return `/perfil/${slug}/${id}`;
+      default: return `/planejamento/${slug}/${id}`;
+    }
+  };
 
   // Marcar calendário como visitado quando o usuário está na página do calendário
   useEffect(() => {
@@ -93,17 +136,17 @@ export const PlannerLayout: React.FC = () => {
     // Se está tentando acessar cockpit, missões ou edital mas calendário não foi configurado
     // Redirecionar para calendário
     if (!calendarConfigured && ['cockpit', 'missoes', 'edital'].includes(activeRoute)) {
-      navigate(`/planejador-semanal/${slug}/${id}`, { replace: true });
+      navigate(getNavPath('calendario'), { replace: true });
     }
 
     setRedirectChecked(true);
-  }, [id, slug, activeRoute, navigate, redirectChecked]);
+  }, [id, slug, activeRoute, navigate, redirectChecked, isPlanoContext]);
 
   const navLinks = [
-    { id: 'cockpit', label: 'Cockpit', path: `/planner/${slug}/${id}`, icon: Gauge },
-    { id: 'calendario', label: 'Calendário', path: `/planejador-semanal/${slug}/${id}`, icon: Calendar },
-    { id: 'missoes', label: 'Missões', path: `/planejamento/${slug}/${id}`, icon: Target },
-    { id: 'edital', label: 'Edital', path: `/edital-verticalizado/${slug}/${id}`, icon: FileText },
+    { id: 'cockpit', label: 'Cockpit', path: getNavPath('cockpit'), icon: Gauge },
+    { id: 'calendario', label: 'Calendário', path: getNavPath('calendario'), icon: Calendar },
+    { id: 'missoes', label: 'Missões', path: getNavPath('missoes'), icon: Target },
+    { id: 'edital', label: 'Edital', path: getNavPath('edital'), icon: FileText },
   ];
 
   // Buscar dados do planejamento quando mudar de página ou id
@@ -183,7 +226,7 @@ export const PlannerLayout: React.FC = () => {
 
             {/* Botão Perfil (desktop) */}
             <button
-              onClick={() => navigate(`/perfil/${slug}/${id}`)}
+              onClick={() => navigate(getNavPath('perfil'))}
               className={`hidden md:flex items-center justify-center w-9 h-9 border border-white/10 rounded-lg transition-all ${
                 activeRoute === 'perfil'
                   ? 'bg-brand-yellow/10 text-brand-yellow border-brand-yellow/30'
@@ -237,7 +280,7 @@ export const PlannerLayout: React.FC = () => {
                 })}
                 {/* Perfil no mobile */}
                 <button
-                  onClick={() => navigate(`/perfil/${slug}/${id}`)}
+                  onClick={() => navigate(getNavPath('perfil'))}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 transition-all ${
                     activeRoute === 'perfil'
                       ? 'border-brand-yellow text-brand-yellow bg-white/5'

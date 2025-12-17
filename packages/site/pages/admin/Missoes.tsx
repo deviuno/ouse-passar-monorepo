@@ -27,7 +27,7 @@ export const MissoesAdmin: React.FC = () => {
       ]);
 
       if (!prep || !rod) {
-        navigate('/admin/planos-preparatorios');
+        navigate('/admin/preparatorios');
         return;
       }
 
@@ -127,11 +127,11 @@ export const MissoesAdmin: React.FC = () => {
     <div>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-6 flex-wrap">
-        <Link to="/admin/planos-preparatorios" className="hover:text-brand-yellow transition-colors">
+        <Link to="/admin/preparatorios" className="hover:text-brand-yellow transition-colors">
           Preparatorios
         </Link>
         <ChevronRight className="w-4 h-4" />
-        <Link to={`/admin/planos-preparatorios/${preparatorioId}/rodadas`} className="hover:text-brand-yellow transition-colors">
+        <Link to={`/admin/preparatorios/${preparatorioId}/rodadas`} className="hover:text-brand-yellow transition-colors">
           {preparatorio.nome}
         </Link>
         <ChevronRight className="w-4 h-4" />
@@ -143,7 +143,7 @@ export const MissoesAdmin: React.FC = () => {
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
         <div>
           <Link
-            to={`/admin/planos-preparatorios/${preparatorioId}/rodadas`}
+            to={`/admin/preparatorios/${preparatorioId}/rodadas`}
             className="inline-flex items-center gap-2 text-gray-500 hover:text-white mb-2 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />

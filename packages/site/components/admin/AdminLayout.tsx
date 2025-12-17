@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, Gamepad2, Zap, Trophy, Medal, Star, ClipboardList, UserCheck, Plus, List } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, Gamepad2, Zap, Trophy, Medal, Star, ClipboardList, UserCheck, Plus, Calendar } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 export const AdminLayout: React.FC = () => {
@@ -68,7 +68,7 @@ export const AdminLayout: React.FC = () => {
                     <div className="space-y-1">
                         <button
                             onClick={() => setPlanejamentosOpen(!planejamentosOpen)}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/planejamentos') || location.pathname.includes('/admin/planos-preparatorios') || location.pathname.includes('/admin/leads') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/planejamentos') || location.pathname.includes('/admin/leads') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                         >
                             <div className="flex items-center">
                                 <ClipboardList className="w-5 h-5 mr-3" />
@@ -87,17 +87,6 @@ export const AdminLayout: React.FC = () => {
                                     <Plus className="w-4 h-4 mr-3" />
                                     Gerar Novo
                                 </Link>
-
-                                {/* Gerenciar Planejamentos - Admin only */}
-                                {isAdmin && (
-                                    <Link
-                                        to="/admin/planos-preparatorios"
-                                        className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/planos-preparatorios')}`}
-                                    >
-                                        <List className="w-4 h-4 mr-3" />
-                                        Gerenciar
-                                    </Link>
-                                )}
 
                                 {/* Alunos - Admin e Vendedor */}
                                 <Link
@@ -235,6 +224,14 @@ export const AdminLayout: React.FC = () => {
                                         >
                                             <Trophy className="w-4 h-4 mr-3" />
                                             Conquistas
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/gamification/planejamento-conquistas"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/planejamento-conquistas')}`}
+                                        >
+                                            <Calendar className="w-4 h-4 mr-3" />
+                                            Conquistas Planejamento
                                         </Link>
                                     </div>
                                 )}
