@@ -62,7 +62,17 @@ export const Preparatorios: React.FC = () => {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este preparatório?')) return;
+    const confirmMessage = `⚠️ ATENÇÃO: Ao excluir este preparatório, serão excluídos PERMANENTEMENTE:
+
+• Todas as rodadas e missões
+• Todo o edital verticalizado (blocos, matérias, tópicos)
+• Todas as configurações e vínculos
+
+As questões do banco NÃO serão afetadas.
+
+Esta ação NÃO pode ser desfeita. Deseja continuar?`;
+
+    if (!confirm(confirmMessage)) return;
 
     try {
       const { error } = await deleteCourse(id);

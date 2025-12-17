@@ -1414,6 +1414,26 @@ export interface Preparatorio {
   descricao_curta: string | null
   descricao_vendas: string | null
   content_types: PreparatorioContentType[] // Onde o preparatório aparece
+  // Campos técnicos do concurso
+  banca: string | null
+  orgao: string | null
+  cargo: string | null
+  nivel: 'fundamental' | 'medio' | 'superior' | null
+  escolaridade: string | null
+  modalidade: 'presencial' | 'remoto' | 'hibrido' | null
+  regiao: string | null
+  // Detalhes do concurso
+  salario: number | null
+  carga_horaria: string | null
+  vagas: number | null
+  taxa_inscricao: number | null
+  inscricoes_inicio: string | null
+  inscricoes_fim: string | null
+  data_prevista: string | null
+  ano_previsto: number | null
+  edital_url: string | null
+  raio_x: Record<string, unknown> | null
+  // Timestamps
   created_at: string
   updated_at: string
 }

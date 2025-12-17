@@ -35,6 +35,7 @@ export interface QuestionFilters {
   bancas?: string[];
   anos?: number[];
   orgaos?: string[];
+  cargos?: string[];
   assuntos?: string[];
   excludeIds?: number[];
   limit?: number;
@@ -111,6 +112,10 @@ export async function getQuestionsForFilters(
       query = query.in('orgao', filters.orgaos);
     }
 
+    if (filters.cargos && filters.cargos.length > 0) {
+      query = query.in('cargo_area_especialidade_edicao', filters.cargos);
+    }
+
     if (filters.assuntos && filters.assuntos.length > 0) {
       query = query.in('assunto', filters.assuntos);
     }
@@ -180,6 +185,10 @@ export async function countQuestionsForFilters(
       query = query.in('orgao', filters.orgaos);
     }
 
+    if (filters.cargos && filters.cargos.length > 0) {
+      query = query.in('cargo_area_especialidade_edicao', filters.cargos);
+    }
+
     if (filters.assuntos && filters.assuntos.length > 0) {
       query = query.in('assunto', filters.assuntos);
     }
@@ -236,12 +245,14 @@ export async function previewQuestions(
 /**
  * Get available filter options (unique values)
  * This returns ALL options without considering current selections
+ * Uses RPC functions for efficient DISTINCT queries
  */
 export async function getFilterOptions(): Promise<{
   materias: string[];
   bancas: string[];
   anos: number[];
   orgaos: string[];
+  cargos: string[];
   error?: string;
 }> {
   if (!questionsDb) {
@@ -250,46 +261,28 @@ export async function getFilterOptions(): Promise<{
       bancas: [],
       anos: [],
       orgaos: [],
+      cargos: [],
       error: 'Banco de questões não configurado.'
     };
   }
 
   try {
-    // Get unique materias
-    const { data: materiasData } = await questionsDb
-      .from('questoes_concurso')
-      .select('materia')
-      .not('materia', 'is', null)
-      .limit(1000);
+    // Use RPC functions for efficient DISTINCT queries
+    const [materiasResult, bancasResult, anosResult, orgaosResult, cargosResult] = await Promise.all([
+      questionsDb.rpc('get_distinct_materias'),
+      questionsDb.rpc('get_distinct_bancas'),
+      questionsDb.rpc('get_distinct_anos'),
+      questionsDb.rpc('get_distinct_orgaos'),
+      questionsDb.rpc('get_distinct_cargos'),
+    ]);
 
-    // Get unique bancas
-    const { data: bancasData } = await questionsDb
-      .from('questoes_concurso')
-      .select('banca')
-      .not('banca', 'is', null)
-      .limit(1000);
+    const materias = (materiasResult.data || []).map((d: { materia: string }) => d.materia);
+    const bancas = (bancasResult.data || []).map((d: { banca: string }) => d.banca);
+    const anos = (anosResult.data || []).map((d: { ano: number }) => d.ano);
+    const orgaos = (orgaosResult.data || []).map((d: { orgao: string }) => d.orgao);
+    const cargos = (cargosResult.data || []).map((d: { cargo: string }) => d.cargo);
 
-    // Get unique anos
-    const { data: anosData } = await questionsDb
-      .from('questoes_concurso')
-      .select('ano')
-      .not('ano', 'is', null)
-      .limit(1000);
-
-    // Get unique orgaos
-    const { data: orgaosData } = await questionsDb
-      .from('questoes_concurso')
-      .select('orgao')
-      .not('orgao', 'is', null)
-      .limit(1000);
-
-    // Extract unique values
-    const materias = [...new Set((materiasData || []).map(d => d.materia))].sort();
-    const bancas = [...new Set((bancasData || []).map(d => d.banca))].sort();
-    const anos = [...new Set((anosData || []).map(d => d.ano))].sort((a, b) => b - a);
-    const orgaos = [...new Set((orgaosData || []).map(d => d.orgao))].sort();
-
-    return { materias, bancas, anos, orgaos };
+    return { materias, bancas, anos, orgaos, cargos };
   } catch (error: any) {
     console.error('Error fetching filter options:', error);
     return {
@@ -297,6 +290,7 @@ export async function getFilterOptions(): Promise<{
       bancas: [],
       anos: [],
       orgaos: [],
+      cargos: [],
       error: error.message
     };
   }
@@ -305,12 +299,14 @@ export async function getFilterOptions(): Promise<{
 /**
  * Get dynamic filter options based on current selections
  * Returns only options that have matching questions considering all other filters
+ * Uses RPC functions for efficient DISTINCT queries with filters
  */
 export async function getDynamicFilterOptions(currentFilters: QuestionFilters): Promise<{
   materias: string[];
   bancas: string[];
   anos: number[];
   orgaos: string[];
+  cargos: string[];
   error?: string;
 }> {
   if (!questionsDb) {
@@ -319,65 +315,60 @@ export async function getDynamicFilterOptions(currentFilters: QuestionFilters): 
       bancas: [],
       anos: [],
       orgaos: [],
+      cargos: [],
       error: 'Banco de questões não configurado.'
     };
   }
 
   try {
-    // Helper function to build query with filters except one
-    const buildFilteredQuery = (excludeFilter: 'materias' | 'bancas' | 'anos' | 'orgaos', selectField: string) => {
-      let query = questionsDb!
-        .from('questoes_concurso')
-        .select(selectField)
-        .not(selectField, 'is', null);
+    // Prepare filter arrays (null if empty to trigger default in RPC)
+    const materiasFilter = currentFilters.materias && currentFilters.materias.length > 0 ? currentFilters.materias : null;
+    const bancasFilter = currentFilters.bancas && currentFilters.bancas.length > 0 ? currentFilters.bancas : null;
+    const anosFilter = currentFilters.anos && currentFilters.anos.length > 0 ? currentFilters.anos : null;
+    const orgaosFilter = currentFilters.orgaos && currentFilters.orgaos.length > 0 ? currentFilters.orgaos : null;
+    const cargosFilter = currentFilters.cargos && currentFilters.cargos.length > 0 ? currentFilters.cargos : null;
 
-      // Apply all filters except the one we're getting options for
-      if (excludeFilter !== 'materias' && currentFilters.materias && currentFilters.materias.length > 0) {
-        query = query.in('materia', currentFilters.materias);
-      }
-      if (excludeFilter !== 'bancas' && currentFilters.bancas && currentFilters.bancas.length > 0) {
-        query = query.in('banca', currentFilters.bancas);
-      }
-      if (excludeFilter !== 'anos' && currentFilters.anos && currentFilters.anos.length > 0) {
-        query = query.in('ano', currentFilters.anos);
-      }
-      if (excludeFilter !== 'orgaos' && currentFilters.orgaos && currentFilters.orgaos.length > 0) {
-        query = query.in('orgao', currentFilters.orgaos);
-      }
-
-      return query.limit(5000);
-    };
-
-    // Get options considering other filters
-    const [materiasResult, bancasResult, anosResult, orgaosResult] = await Promise.all([
-      buildFilteredQuery('materias', 'materia'),
-      buildFilteredQuery('bancas', 'banca'),
-      buildFilteredQuery('anos', 'ano'),
-      buildFilteredQuery('orgaos', 'orgao'),
+    // Use RPC functions with filters for efficient DISTINCT queries
+    const [materiasResult, bancasResult, anosResult, orgaosResult, cargosResult] = await Promise.all([
+      questionsDb.rpc('get_filtered_materias', {
+        p_bancas: bancasFilter,
+        p_anos: anosFilter,
+        p_orgaos: orgaosFilter,
+        p_cargos: cargosFilter
+      }),
+      questionsDb.rpc('get_filtered_bancas', {
+        p_materias: materiasFilter,
+        p_anos: anosFilter,
+        p_orgaos: orgaosFilter,
+        p_cargos: cargosFilter
+      }),
+      questionsDb.rpc('get_filtered_anos', {
+        p_materias: materiasFilter,
+        p_bancas: bancasFilter,
+        p_orgaos: orgaosFilter,
+        p_cargos: cargosFilter
+      }),
+      questionsDb.rpc('get_filtered_orgaos', {
+        p_materias: materiasFilter,
+        p_bancas: bancasFilter,
+        p_anos: anosFilter,
+        p_cargos: cargosFilter
+      }),
+      questionsDb.rpc('get_filtered_cargos', {
+        p_materias: materiasFilter,
+        p_bancas: bancasFilter,
+        p_anos: anosFilter,
+        p_orgaos: orgaosFilter
+      }),
     ]);
 
-    // Extract unique values, filtering out nulls and empty strings
-    const materias = [...new Set((materiasResult.data || [])
-      .map((d: any) => d.materia)
-      .filter((v: any): v is string => v != null && v !== ''))]
-      .sort();
+    const materias = (materiasResult.data || []).map((d: { materia: string }) => d.materia);
+    const bancas = (bancasResult.data || []).map((d: { banca: string }) => d.banca);
+    const anos = (anosResult.data || []).map((d: { ano: number }) => d.ano);
+    const orgaos = (orgaosResult.data || []).map((d: { orgao: string }) => d.orgao);
+    const cargos = (cargosResult.data || []).map((d: { cargo: string }) => d.cargo);
 
-    const bancas = [...new Set((bancasResult.data || [])
-      .map((d: any) => d.banca)
-      .filter((v: any): v is string => v != null && v !== ''))]
-      .sort();
-
-    const anos = [...new Set((anosResult.data || [])
-      .map((d: any) => d.ano)
-      .filter((v: any): v is number => v != null))]
-      .sort((a, b) => b - a);
-
-    const orgaos = [...new Set((orgaosResult.data || [])
-      .map((d: any) => d.orgao)
-      .filter((v: any): v is string => v != null && v !== ''))]
-      .sort();
-
-    return { materias, bancas, anos, orgaos };
+    return { materias, bancas, anos, orgaos, cargos };
   } catch (error: any) {
     console.error('Error fetching dynamic filter options:', error);
     return {
@@ -385,6 +376,7 @@ export async function getDynamicFilterOptions(currentFilters: QuestionFilters): 
       bancas: [],
       anos: [],
       orgaos: [],
+      cargos: [],
       error: error.message
     };
   }
