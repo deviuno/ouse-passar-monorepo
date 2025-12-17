@@ -119,6 +119,18 @@ export const adminUsersService = {
   },
 
   async delete(id: string): Promise<void> {
+    // Primeiro, remove a referência do vendedor nos leads
+    const { error: leadsError } = await supabase
+      .from('leads')
+      .update({ vendedor_id: null })
+      .eq('vendedor_id', id);
+
+    if (leadsError) {
+      console.error('Erro ao limpar referências nos leads:', leadsError);
+      throw leadsError;
+    }
+
+    // Agora pode deletar o usuário
     const { error } = await supabase
       .from('admin_users')
       .delete()
