@@ -600,6 +600,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
             concurso_almejado: concursoDefault || lead.concurso_almejado || 'PRF - Policia Rodoviaria Federal',
             nivel_escolaridade: lead.nivel_escolaridade || undefined,
             trabalha: lead.trabalha || false,
+            profissao: (lead as any).profissao || '',
             e_concursado: lead.e_concursado || false,
             possui_curso_concurso: lead.possui_curso_concurso || false,
             qual_curso: lead.qual_curso || '',
@@ -634,7 +635,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
     };
 
     // Se tiver lead existente (vindo de agendamento), preencher com os dados dele
-    const [formData, setFormData] = useState<CreateLeadInput>({
+    const [formData, setFormData] = useState<CreateLeadInput & { profissao?: string }>({
         nome: existingLead?.nome || '',
         sexo: existingLead?.sexo || undefined,
         email: existingLead?.email || '',
@@ -642,6 +643,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
         concurso_almejado: existingLead?.concurso_almejado || concursoDefault || 'PRF - Policia Rodoviaria Federal',
         nivel_escolaridade: existingLead?.nivel_escolaridade || undefined,
         trabalha: existingLead?.trabalha || false,
+        profissao: (existingLead as any)?.profissao || '',
         e_concursado: existingLead?.e_concursado || false,
         possui_curso_concurso: existingLead?.possui_curso_concurso || false,
         qual_curso: existingLead?.qual_curso || '',
@@ -996,7 +998,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                                 {/* Situação Atual */}
                                 <div>
                                     <h4 className="text-brand-yellow text-xs font-bold uppercase mb-4 border-b border-white/10 pb-2">
-                                        Situação Atual
+                                        2. Há quanto tempo você está se preparando para o concurso? Que materiais ou cursos você já utilizou anteriormente na sua preparação?
                                     </h4>
                                     <div className="space-y-4">
                                         <div className="space-y-2">
@@ -1007,7 +1009,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                                                     onChange={(e) => setFormData({
                                                         ...formData,
                                                         trabalha: e.target.checked,
-                                                        e_concursado: e.target.checked ? formData.e_concursado : false
+                                                        e_concursado: e.target.checked ? formData.e_concursado : false,
+                                                        profissao: e.target.checked ? formData.profissao : ''
                                                     })}
                                                     className="w-5 h-5 bg-brand-dark border border-white/10 rounded text-brand-yellow focus:ring-brand-yellow"
                                                 />
@@ -1015,15 +1018,27 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                                             </label>
 
                                             {formData.trabalha && (
-                                                <label className="flex items-center gap-2 cursor-pointer ml-7">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={formData.e_concursado}
-                                                        onChange={(e) => setFormData({ ...formData, e_concursado: e.target.checked })}
-                                                        className="w-5 h-5 bg-brand-dark border border-white/10 rounded text-brand-yellow focus:ring-brand-yellow"
-                                                    />
-                                                    <span className="text-white text-sm">É concursado?</span>
-                                                </label>
+                                                <>
+                                                    <div className="ml-7">
+                                                        <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Com o que trabalha?</label>
+                                                        <input
+                                                            type="text"
+                                                            value={formData.profissao || ''}
+                                                            onChange={(e) => setFormData({ ...formData, profissao: e.target.value })}
+                                                            className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                                                            placeholder="Ex: Professor, Analista, Vendedor..."
+                                                        />
+                                                    </div>
+                                                    <label className="flex items-center gap-2 cursor-pointer ml-7">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={formData.e_concursado}
+                                                            onChange={(e) => setFormData({ ...formData, e_concursado: e.target.checked })}
+                                                            className="w-5 h-5 bg-brand-dark border border-white/10 rounded text-brand-yellow focus:ring-brand-yellow"
+                                                        />
+                                                        <span className="text-white text-sm">É concursado?</span>
+                                                    </label>
+                                                </>
                                             )}
                                         </div>
 

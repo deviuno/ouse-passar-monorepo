@@ -614,7 +614,7 @@ export const Obrigado: React.FC = () => {
 
         {/* Footer */}
         <p className="text-center text-gray-600 text-xs mt-6">
-          {preparatorio?.nome ? `© ${new Date().getFullYear()} ${preparatorio.nome}` : '© Ouse Passar'}
+          Copyright© Ouse Passar {new Date().getFullYear()}
         </p>
       </div>
     </div>
