@@ -6,6 +6,13 @@ import { mastra } from './mastra/index.js';
 import { ousePassarMcpServer } from './mastra/mcp/mcpServer.js';
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
+import {
+    gerarRodadas,
+    persistirRodadas,
+    buscarMateriasComTopicos,
+    MateriaOrdenada,
+    ConfiguracaoGeracao,
+} from './mastra/agents/rodadasGeneratorAgent.js';
 
 // Load environment variables
 import path from 'path';
@@ -113,6 +120,79 @@ ${question.isPegadinha ? `\n⚠️ **Esta questão é uma pegadinha!** ${questio
     } catch (error: any) {
         console.error("Error in Tutor Agent:", error);
         res.status(500).json({ success: false, error: error.message || "Internal Server Error" });
+    }
+});
+
+// Endpoint para parsing de edital via IA
+app.post('/api/edital/parse', async (req, res) => {
+    try {
+        const { texto } = req.body;
+
+        if (!texto || texto.trim().length < 50) {
+            res.status(400).json({
+                success: false,
+                error: "Texto do edital muito curto ou vazio. Minimo de 50 caracteres."
+            });
+            return;
+        }
+
+        console.log(`[Edital] Parsing edital with ${texto.length} characters...`);
+
+        const agent = mastra.getAgent("editalParserAgent");
+
+        if (!agent) {
+            res.status(500).json({ success: false, error: "Agente de parsing nao encontrado" });
+            return;
+        }
+
+        const result = await agent.generate([
+            {
+                role: "user",
+                content: `Analise o seguinte texto de edital e extraia a estrutura hierarquica em JSON:\n\n${texto}`,
+            },
+        ]);
+
+        console.log(`[Edital] Agent response received, extracting JSON...`);
+
+        // Extrair JSON da resposta
+        const responseText = result.text || '';
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+
+        if (!jsonMatch) {
+            console.error('[Edital] Could not extract JSON from response:', responseText.substring(0, 200));
+            res.status(500).json({
+                success: false,
+                error: "Nao foi possivel extrair a estrutura do edital. Tente novamente."
+            });
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(jsonMatch[0]);
+
+            // Validar estrutura basica
+            if (!parsed.blocos || !Array.isArray(parsed.blocos)) {
+                throw new Error("Estrutura invalida: 'blocos' nao encontrado");
+            }
+
+            console.log(`[Edital] Successfully parsed: ${parsed.blocos.length} blocos found`);
+
+            res.json({ success: true, data: parsed });
+
+        } catch (parseError: any) {
+            console.error('[Edital] JSON parse error:', parseError.message);
+            res.status(500).json({
+                success: false,
+                error: "Erro ao processar resposta da IA. Tente novamente."
+            });
+        }
+
+    } catch (error: any) {
+        console.error("[Edital] Error parsing edital:", error);
+        res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno ao processar edital"
+        });
     }
 });
 
@@ -397,6 +477,207 @@ Ana: Exatamente! Vamos explicar de forma simples...`
     } catch (error: any) {
         console.error("[Podcast] Error generating podcast:", error);
         res.status(500).json({ success: false, error: error.message || "Internal Server Error" });
+    }
+});
+
+// ==================== ENDPOINTS DE GERAÇÃO DE RODADAS ====================
+
+// Endpoint para analisar prioridade das matérias via IA
+app.post('/api/preparatorio/analisar-prioridade', async (req, res) => {
+    try {
+        const { preparatorio_id } = req.body;
+
+        if (!preparatorio_id) {
+            res.status(400).json({
+                success: false,
+                error: "preparatorio_id é obrigatório"
+            });
+            return;
+        }
+
+        console.log(`[Prioridade] Analisando prioridade para preparatório ${preparatorio_id}...`);
+
+        const agent = mastra.getAgent("materiaPriorityAgent");
+
+        if (!agent) {
+            res.status(500).json({ success: false, error: "Agente não encontrado" });
+            return;
+        }
+
+        const result = await agent.generate([
+            {
+                role: "user",
+                content: `Analise as matérias do preparatório ${preparatorio_id} e sugira a ordem de prioridade para estudo.
+
+Use as ferramentas disponíveis para:
+1. Buscar informações do preparatório
+2. Buscar estatísticas da banca (se disponível)
+
+Retorne a lista de matérias ordenada por prioridade com justificativas.`,
+            },
+        ]);
+
+        // Extrair JSON da resposta
+        const responseText = result.text || '';
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+
+        if (!jsonMatch) {
+            console.error('[Prioridade] Não foi possível extrair JSON:', responseText.substring(0, 200));
+            res.status(500).json({
+                success: false,
+                error: "Não foi possível processar a análise. Tente novamente."
+            });
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            console.log(`[Prioridade] Análise concluída: ${parsed.materias?.length || 0} matérias`);
+            res.json({ success: true, data: parsed });
+        } catch (parseError) {
+            console.error('[Prioridade] Erro ao parsear JSON:', parseError);
+            res.status(500).json({
+                success: false,
+                error: "Erro ao processar resposta da IA"
+            });
+        }
+
+    } catch (error: any) {
+        console.error("[Prioridade] Erro:", error);
+        res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Endpoint para gerar rodadas e missões
+app.post('/api/preparatorio/gerar-rodadas', async (req, res) => {
+    try {
+        const {
+            preparatorio_id,
+            materias_ordenadas,
+            config,
+            substituir_existentes = true,
+            persistir = true,
+            banca
+        } = req.body;
+
+        if (!preparatorio_id) {
+            res.status(400).json({
+                success: false,
+                error: "preparatorio_id é obrigatório"
+            });
+            return;
+        }
+
+        console.log(`[Rodadas] Gerando rodadas para preparatório ${preparatorio_id}...`);
+
+        // Configuração padrão
+        const configuracao: ConfiguracaoGeracao = {
+            missoes_por_rodada: config?.missoes_por_rodada || 5,
+            max_topicos_por_missao: config?.max_topicos_por_missao || 3,
+            incluir_revisoes: config?.incluir_revisoes !== false,
+            incluir_simulado: config?.incluir_simulado !== false,
+            gerar_filtros_questoes: config?.gerar_filtros_questoes !== false,
+        };
+
+        // Se não foram fornecidas matérias ordenadas, buscar do banco
+        let materias: MateriaOrdenada[];
+
+        if (materias_ordenadas && materias_ordenadas.length > 0) {
+            materias = materias_ordenadas;
+        } else {
+            materias = await buscarMateriasComTopicos(preparatorio_id);
+        }
+
+        if (materias.length === 0) {
+            res.status(400).json({
+                success: false,
+                error: "Nenhuma matéria com tópicos encontrada no edital"
+            });
+            return;
+        }
+
+        console.log(`[Rodadas] ${materias.length} matérias encontradas, gerando...`);
+
+        // Gerar rodadas
+        const resultado = gerarRodadas(materias, configuracao);
+
+        if (!resultado.success) {
+            res.status(500).json({
+                success: false,
+                error: resultado.error || "Erro ao gerar rodadas"
+            });
+            return;
+        }
+
+        console.log(`[Rodadas] Geradas ${resultado.estatisticas.total_rodadas} rodadas com ${resultado.estatisticas.total_missoes} missões`);
+
+        // Persistir se solicitado
+        if (persistir) {
+            console.log(`[Rodadas] Persistindo no banco de dados...`);
+
+            const resultadoPersistencia = await persistirRodadas(
+                preparatorio_id,
+                resultado.rodadas,
+                substituir_existentes,
+                configuracao.gerar_filtros_questoes,
+                banca
+            );
+
+            if (!resultadoPersistencia.success) {
+                res.status(500).json({
+                    success: false,
+                    error: resultadoPersistencia.error || "Erro ao salvar rodadas"
+                });
+                return;
+            }
+
+            console.log(`[Rodadas] Persistido: ${resultadoPersistencia.rodadas_criadas} rodadas, ${resultadoPersistencia.missoes_criadas} missões`);
+
+            res.json({
+                success: true,
+                data: {
+                    ...resultado,
+                    persistencia: resultadoPersistencia,
+                }
+            });
+        } else {
+            // Apenas retornar preview
+            res.json({
+                success: true,
+                data: resultado,
+            });
+        }
+
+    } catch (error: any) {
+        console.error("[Rodadas] Erro:", error);
+        res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Endpoint para buscar matérias com tópicos (para o frontend)
+app.get('/api/preparatorio/:id/materias', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const materias = await buscarMateriasComTopicos(id);
+
+        res.json({
+            success: true,
+            data: materias,
+        });
+
+    } catch (error: any) {
+        console.error("[Materias] Erro:", error);
+        res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
     }
 });
 
