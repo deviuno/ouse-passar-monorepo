@@ -130,6 +130,17 @@ export const adminUsersService = {
       throw leadsError;
     }
 
+    // Remove a referência do vendedor nos agendamentos
+    const { error: agendamentosError } = await supabase
+      .from('agendamentos')
+      .update({ vendedor_id: null })
+      .eq('vendedor_id', id);
+
+    if (agendamentosError) {
+      console.error('Erro ao limpar referências nos agendamentos:', agendamentosError);
+      throw agendamentosError;
+    }
+
     // Agora pode deletar o usuário
     const { error } = await supabase
       .from('admin_users')
