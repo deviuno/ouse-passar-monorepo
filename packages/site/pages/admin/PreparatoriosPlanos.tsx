@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, EyeOff, List, MoreVertical, Book, ChevronRight, MessageSquare, DollarSign, LayoutGrid, LayoutList } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, List, MoreVertical, Book, ChevronRight, MessageSquare, DollarSign, LayoutGrid, LayoutList, FileText } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { preparatoriosService } from '../../services/preparatoriosService';
@@ -487,6 +487,16 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
           </div>
           <ChevronRight className="w-4 h-4" />
         </Link>
+        <Link
+          to={`/admin/preparatorios/${prep.id}/edital`}
+          className="flex items-center justify-between w-full p-3 bg-brand-dark/50 border border-white/10 text-sm text-gray-300 hover:border-brand-yellow/30 hover:text-white transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            <span>Edital Verticalizado</span>
+          </div>
+          <ChevronRight className="w-4 h-4" />
+        </Link>
       </div>
     </div>
   </div>
@@ -572,6 +582,13 @@ const PreparatorioListRow: React.FC<PreparatorioListRowProps> = ({
           title="Mensagens de Incentivo"
         >
           <MessageSquare className="w-4 h-4" />
+        </Link>
+        <Link
+          to={`/admin/preparatorios/${prep.id}/edital`}
+          className="p-2 text-gray-500 hover:text-brand-yellow hover:bg-brand-yellow/10 rounded transition-colors"
+          title="Edital Verticalizado"
+        >
+          <FileText className="w-4 h-4" />
         </Link>
         <div className="relative">
           <button
