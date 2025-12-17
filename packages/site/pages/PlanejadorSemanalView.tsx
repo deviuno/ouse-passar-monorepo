@@ -1261,7 +1261,16 @@ export const PlanejadorSemanalView: React.FC = () => {
                             style={{
                               backgroundColor: effectiveColor ? addAlpha(effectiveColor, 0.4) : undefined,
                             }}
-                          />
+                          >
+                            {marked && activityName && (
+                              <span
+                                className="absolute inset-0 flex items-center justify-center text-[8px] font-medium uppercase tracking-wider truncate px-0.5 pointer-events-none"
+                                style={{ color: effectiveColor ? effectiveColor : undefined, opacity: 0.7 }}
+                              >
+                                {activityName}
+                              </span>
+                            )}
+                          </div>
                         );
 
                         // Se slot está marcado, envolve com tooltip

@@ -381,18 +381,11 @@ const SuccessCard: React.FC<SuccessCardProps> = ({ lead, planejamentoId, slug, o
                             <span className="text-gray-400">Concurso:</span>
                             <span className="text-white ml-2">{lead.concurso_almejado}</span>
                         </div>
-                        <div className="flex items-center text-sm">
-                            <Clock className="w-4 h-4 text-brand-yellow mr-2" />
-                            <span className="text-gray-400">Tempo/semana:</span>
-                            <span className="text-white ml-2">
-                                {Math.floor(totalMinutos / 60)}h {totalMinutos % 60}min
-                            </span>
-                        </div>
                     </div>
                 </div>
 
                 <a
-                    href={`/planejador-semanal/${slug}/${planejamentoId}`}
+                    href={`/plano/${slug}/${planejamentoId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full bg-brand-yellow text-brand-darker py-4 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
