@@ -64,8 +64,7 @@ interface LoadingStepsProps {
 
 const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) => {
     const [currentStep, setCurrentStep] = useState(0);
-    const [progress, setProgress] = useState(0);
-    const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+    const [stepProgresses, setStepProgresses] = useState<number[]>([0, 0, 0, 0, 0]);
     const [isComplete, setIsComplete] = useState(false);
 
     // Usar ref para evitar reinício do useEffect quando onComplete muda
@@ -132,13 +131,12 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
         // Durações base para cada etapa (3000ms a 5000ms)
         const stepDurations = steps.map(() => 3000 + Math.random() * 2000);
 
+        // Array para armazenar o progresso de cada etapa
+        const progressValues = [0, 0, 0, 0, 0];
         let currentStepIdx = 0;
-        let stepStartTime = Date.now();
-        let displayedProgress = 0;
         let isPaused = false;
         let pauseEndTime = 0;
-        let lastPauseSegmentIdx = -1; // Índice do último segmento onde pausamos
-        let currentSegmentIdx = 0; // Índice do segmento atual
+        let lastPauseSegmentIdx = -1;
 
         const interval = setInterval(() => {
             const now = Date.now();
@@ -158,6 +156,7 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
 
             const pattern = stepPatterns[currentStepIdx];
             const stepDuration = stepDurations[currentStepIdx];
+            const displayedProgress = progressValues[currentStepIdx];
 
             // Encontrar o segmento atual baseado no progresso exibido
             let segmentIdx = 0;
@@ -200,27 +199,21 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
 
             // Atualizar progresso (NUNCA retrocede)
             const newProgress = Math.min(100, displayedProgress + increment);
-            displayedProgress = newProgress;
+            progressValues[currentStepIdx] = newProgress;
 
+            // Atualizar estados React
             setCurrentStep(currentStepIdx);
-            setProgress(Math.round(newProgress * 10) / 10);
+            setStepProgresses([...progressValues]);
 
             // Verificar se a etapa atual terminou
             if (newProgress >= 100) {
-                // Marcar etapa como completa
-                setCompletedSteps(prev => [...prev, currentStepIdx]);
-
-                // Avançar para próxima etapa - RESETAR TODAS as variáveis de controle
+                // Avançar para próxima etapa
                 currentStepIdx++;
-                displayedProgress = 0;
-                stepStartTime = now;
-                lastPauseSegmentIdx = -1; // Resetar para permitir pausas na nova etapa
-                currentSegmentIdx = 0;
+                lastPauseSegmentIdx = -1;
 
                 // Se todas as etapas terminaram
                 if (currentStepIdx >= steps.length) {
                     clearInterval(interval);
-                    setProgress(100);
                     setIsComplete(true);
                     setTimeout(() => onCompleteRef.current(), 1000);
                 }
@@ -232,7 +225,8 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
 
     // Determinar o estado de cada barra
     const getStepState = (index: number) => {
-        if (isComplete || completedSteps.includes(index)) {
+        const progress = stepProgresses[index];
+        if (isComplete || progress >= 100) {
             return 'completed';
         }
         if (index === currentStep) {
@@ -278,11 +272,11 @@ const LoadingSteps: React.FC<LoadingStepsProps> = ({ firstName, onComplete }) =>
                                         <div className="h-2 bg-brand-dark rounded-full overflow-hidden">
                                             <div
                                                 className="h-full bg-brand-yellow transition-all duration-75 ease-linear"
-                                                style={{ width: `${progress}%` }}
+                                                style={{ width: `${stepProgresses[index]}%` }}
                                             />
                                         </div>
                                         <span className="absolute right-0 top-3 text-xs text-gray-500">
-                                            {Math.round(progress)}%
+                                            {Math.round(stepProgresses[index])}%
                                         </span>
                                     </div>
                                 )}
@@ -367,7 +361,7 @@ const SuccessCard: React.FC<SuccessCardProps> = ({ lead, planejamentoId, slug, o
                 </div>
 
                 <a
-                    href={`/planejamento/${slug}/${planejamentoId}`}
+                    href={`/planejador-semanal/${slug}/${planejamentoId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full bg-brand-yellow text-brand-darker py-4 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
@@ -900,28 +894,6 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                                     <p className="text-gray-500 text-xs mt-2">
                                         Esses horários serão usados para gerar o planejador semanal do aluno.
                                     </p>
-                                </div>
-
-                                {/* Rotina de Estudos */}
-                                <div>
-                                    <h4 className="text-brand-yellow text-xs font-bold uppercase mb-4 border-b border-white/10 pb-2">
-                                        Rotina de Estudos (tempo disponível por dia)
-                                    </h4>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                        {weekDays.map(day => (
-                                            <MinutesInput
-                                                key={day.key}
-                                                label={day.label}
-                                                value={formData[day.key] || 0}
-                                                onChange={(value) => setFormData({ ...formData, [day.key]: value })}
-                                            />
-                                        ))}
-                                    </div>
-                                    <div className="mt-4 p-3 bg-brand-yellow/10 border border-brand-yellow/30 rounded-sm">
-                                        <p className="text-brand-yellow text-sm font-bold text-center">
-                                            Total semanal: {Math.floor(totalMinutos / 60)}h {totalMinutos % 60}min
-                                        </p>
-                                    </div>
                                 </div>
 
                                 {/* Dificuldades */}

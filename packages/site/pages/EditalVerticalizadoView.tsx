@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Check, Loader2, BookOpen, Target, Lock, ChevronDown, Calendar, FileText, Menu as MenuIcon, X, ChevronRight, ClipboardCheck, User } from 'lucide-react';
+import { Check, Loader2, BookOpen, Lock, ChevronDown } from 'lucide-react';
 import { SEOHead } from '../components/SEOHead';
 import { useAuth } from '../lib/AuthContext';
 import { planejamentosService } from '../services/preparatoriosService';
@@ -72,7 +72,7 @@ const CheckboxGigante: React.FC<{
 );
 
 export const EditalVerticalizadoView: React.FC = () => {
-    const { id, slug } = useParams<{ id: string; slug?: string }>();
+    const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user: adminUser, isLoading: isAdminLoading } = useAuth();
 
@@ -82,19 +82,9 @@ export const EditalVerticalizadoView: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [items, setItems] = useState<EditalItem[]>([]);
     const [progress, setProgress] = useState<Record<string, EditalProgress>>({});
-    const [planejamentoNome, setPlanejamentoNome] = useState('');
     const [preparatorioId, setPreparatorioId] = useState<string | null>(null);
 
     const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-    // Links de navegação
-    const navLinks = [
-        { label: 'Calendário', path: `/planejador-semanal/${slug || 'prf'}/${id}`, icon: Calendar, active: false },
-        { label: 'Planner', path: `/planner/${slug || 'prf'}/${id}`, icon: ClipboardCheck, active: false },
-        { label: 'Missões', path: `/planejamento/${slug || 'prf'}/${id}`, icon: Target, active: false },
-        { label: 'Edital', path: `/edital-verticalizado/${slug || 'prf'}/${id}`, icon: FileText, active: true },
-    ];
 
     const toggleCollapse = (itemId: string) => {
         setCollapsedSections(prev => ({ ...prev, [itemId]: !prev[itemId] }));
@@ -146,7 +136,6 @@ export const EditalVerticalizadoView: React.FC = () => {
 
                 if (!prepId) throw new Error('Planejamento não encontrado');
 
-                setPlanejamentoNome(nomeAluno);
                 setPreparatorioId(prepId);
 
                 // 2. Buscar itens do edital
@@ -316,104 +305,7 @@ export const EditalVerticalizadoView: React.FC = () => {
         <div className="min-h-screen bg-brand-darker text-white pb-20">
             <SEOHead title="Edital Verticalizado | Ouse Passar" />
 
-            {/* Header com Menu de Navegação */}
-            <header className="fixed top-0 left-0 right-0 bg-brand-dark/95 backdrop-blur-md border-b border-white/10 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between h-16 items-center">
-                        {/* Logo / Nome do Aluno */}
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                                <span className="text-brand-yellow font-black text-lg uppercase tracking-tight">
-                                    {planejamentoNome}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Desktop Menu */}
-                        <nav className="hidden md:flex items-center space-x-1">
-                            {navLinks.map((link) => {
-                                const IconComponent = link.icon;
-                                return (
-                                    <button
-                                        key={link.label}
-                                        onClick={() => navigate(link.path)}
-                                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-lg ${
-                                            link.active
-                                                ? 'text-brand-yellow bg-brand-yellow/10'
-                                                : 'text-gray-400 hover:text-white hover:bg-white/5'
-                                        }`}
-                                    >
-                                        <IconComponent className="w-4 h-4" />
-                                        {link.label}
-                                    </button>
-                                );
-                            })}
-                        </nav>
-
-                        {/* Botão Perfil (desktop) */}
-                        <button
-                            onClick={() => navigate(`/perfil/${slug || 'prf'}/${id}`)}
-                            className="hidden md:flex items-center justify-center w-9 h-9 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-                            title="Perfil"
-                        >
-                            <User className="w-5 h-5" />
-                        </button>
-
-                        {/* Mobile Menu Button */}
-                        <div className="md:hidden flex items-center">
-                            <button
-                                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                                className="text-white hover:text-brand-yellow focus:outline-none p-2"
-                            >
-                                {mobileMenuOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Mobile Menu Dropdown */}
-                {mobileMenuOpen && (
-                    <div className="md:hidden bg-brand-card border-b border-white/10">
-                        <div className="px-4 pt-2 pb-4 space-y-1">
-                            {navLinks.map((link) => {
-                                const IconComponent = link.icon;
-                                return (
-                                    <button
-                                        key={link.label}
-                                        onClick={() => {
-                                            navigate(link.path);
-                                            setMobileMenuOpen(false);
-                                        }}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 transition-all ${
-                                            link.active
-                                                ? 'border-brand-yellow text-brand-yellow bg-white/5'
-                                                : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'
-                                        }`}
-                                    >
-                                        <IconComponent className="w-4 h-4" />
-                                        {link.label}
-                                        {link.active && <ChevronRight className="w-4 h-4 ml-auto" />}
-                                    </button>
-                                );
-                            })}
-
-                            {/* Perfil no mobile */}
-                            <button
-                                onClick={() => {
-                                    navigate(`/perfil/${slug || 'prf'}/${id}`);
-                                    setMobileMenuOpen(false);
-                                }}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 border-transparent text-gray-400 hover:text-white hover:bg-white/5 transition-all mt-2 border-t border-white/10"
-                            >
-                                <User className="w-4 h-4" />
-                                Perfil
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </header>
-
-            <main className="pt-24 px-4 max-w-7xl mx-auto">
+            <main className="pt-20 px-4 max-w-7xl mx-auto">
 
                 {items.length === 0 ? (
                     <div className="text-center py-20">

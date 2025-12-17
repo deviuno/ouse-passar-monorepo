@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import {
   Printer,
   Presentation,
@@ -16,17 +16,24 @@ import {
   BarChart2,
   Calendar,
   Menu as MenuIcon,
-  ClipboardCheck,
+  Gauge,
   User
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { planejamentoPRF, Rodada as RodadaStatic, Missao as MissaoStatic } from '../lib/planejamentoPRF';
 import { SEOHead } from '../components/SEOHead';
 import { preparatoriosService, planejamentosService } from '../services/preparatoriosService';
-import { PreparatorioCompleto, RodadaComMissoes, Missao as MissaoDB, AdminUser } from '../lib/database.types';
+import { PreparatorioCompleto, RodadaComMissoes, Missao as MissaoDB, AdminUser, Planejamento } from '../lib/database.types';
 import { useAuth } from '../lib/AuthContext';
 import { studentService } from '../services/studentService';
 import { missaoService } from '../services/missaoService';
+
+// Tipo do contexto do layout
+interface PlannerContext {
+  planejamento: Planejamento | null;
+  slug: string;
+  id: string;
+}
 
 // Interface unificada para rodada (compatível com estático e dinâmico)
 interface Rodada {
@@ -414,6 +421,9 @@ export const PlanejamentoPRFView: React.FC = () => {
   const printRef = useRef<HTMLDivElement>(null);
   const { user: adminUser, isLoading: isAdminLoading } = useAuth();
 
+  // Obter dados do layout compartilhado
+  const context = useOutletContext<PlannerContext>();
+
   const [planejamento, setPlanejamento] = useState<PlanejamentoData | null>(null);
   const [rodadas, setRodadas] = useState<Rodada[]>([]);
   const [loading, setLoading] = useState(true);
@@ -421,8 +431,6 @@ export const PlanejamentoPRFView: React.FC = () => {
   const [apresentacaoAtiva, setApresentacaoAtiva] = useState(false);
   const [slideAtual, setSlideAtual] = useState(0);
   const [isDynamic, setIsDynamic] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [hasAccess, setHasAccess] = useState(false);
 
   // Estado para marcação de missões executadas
   const [currentStudent, setCurrentStudent] = useState<AdminUser | null>(null);
@@ -430,15 +438,6 @@ export const PlanejamentoPRFView: React.FC = () => {
   const [selectedMission, setSelectedMission] = useState<{ rodadaNumero: number; missao: Missao } | null>(null);
   const [showMissionPopup, setShowMissionPopup] = useState(false);
   const [loadingMission, setLoadingMission] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Links de navegação
-  const navLinks = [
-    { label: 'Calendário', path: `/planejador-semanal/${slug || 'prf'}/${id}`, icon: Calendar, active: false },
-    { label: 'Planner', path: `/planner/${slug || 'prf'}/${id}`, icon: ClipboardCheck, active: false },
-    { label: 'Missões', path: `/planejamento/${slug || 'prf'}/${id}`, icon: Target, active: true },
-    { label: 'Edital', path: `/edital-verticalizado/${slug || 'prf'}/${id}`, icon: FileText, active: false },
-  ];
 
   // Gerar slides para apresentacao
   const gerarSlides = () => {
@@ -464,15 +463,11 @@ export const PlanejamentoPRFView: React.FC = () => {
   const totalRodadas = rodadas.length;
   const totalMissoes = rodadas.reduce((acc, r) => acc + r.missoes.length, 0);
 
-  // Verificar autenticação
+  // Verificar se usuário pode marcar missões (admin/vendedor ou aluno logado)
   useEffect(() => {
-    const checkAuth = async () => {
-      if (isAdminLoading) return;
-
-      // Se é admin ou vendedor, tem acesso
+    const checkStudent = async () => {
+      // Se é admin ou vendedor, pode interagir
       if (adminUser && (adminUser.role === 'admin' || adminUser.role === 'vendedor')) {
-        setHasAccess(true);
-        setAuthChecked(true);
         return;
       }
 
@@ -485,22 +480,17 @@ export const PlanejamentoPRFView: React.FC = () => {
             const canAccess = await studentService.canAccessPlanning(student.id, student.role, id);
             if (canAccess) {
               setCurrentStudent(student); // Salvar o estudante para uso posterior
-              setHasAccess(true);
-              setAuthChecked(true);
-              return;
             }
           }
         } catch (error) {
           console.error('Erro ao verificar acesso do aluno:', error);
         }
       }
-
-      // Se não tem acesso, redirecionar para login
-      setAuthChecked(true);
-      setHasAccess(false);
     };
 
-    checkAuth();
+    if (!isAdminLoading) {
+      checkStudent();
+    }
   }, [adminUser, isAdminLoading, id]);
 
   // Carregar missões executadas quando o estudante e planejamento estiverem disponíveis
@@ -576,9 +566,6 @@ export const PlanejamentoPRFView: React.FC = () => {
 
   useEffect(() => {
     const fetchPlanejamento = async () => {
-      // Aguardar verificação de auth
-      if (!authChecked || !hasAccess) return;
-
       if (!id) {
         setError('ID do planejamento não encontrado');
         setLoading(false);
@@ -713,7 +700,7 @@ export const PlanejamentoPRFView: React.FC = () => {
     };
 
     fetchPlanejamento();
-  }, [id, slug, authChecked, hasAccess]);
+  }, [id, slug]);
 
   // Handler de teclas para apresentacao
   useEffect(() => {
@@ -748,61 +735,6 @@ export const PlanejamentoPRFView: React.FC = () => {
     setApresentacaoAtiva(false);
     document.exitFullscreen?.().catch(() => { });
   };
-
-  // Aguardando verificação de auth
-  if (!authChecked || isAdminLoading) {
-    return (
-      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-brand-yellow border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-[0_0_30px_rgba(255,184,0,0.2)]" />
-          <p className="text-gray-400 font-medium uppercase tracking-widest text-sm">Verificando acesso...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Sem acesso - mostrar tela de login
-  if (!hasAccess) {
-    const currentPath = window.location.pathname;
-    return (
-      <div className="min-h-screen bg-brand-darker flex items-center justify-center p-4">
-        <div className="text-center max-w-md mx-auto">
-          {/* Logo */}
-          <div className="mb-8">
-            <img
-              src="https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp"
-              alt="Ouse Passar"
-              className="h-12 mx-auto mb-4"
-            />
-          </div>
-
-          <div className="bg-brand-card border border-white/10 rounded-sm p-8">
-            <div className="w-16 h-16 rounded-full bg-brand-yellow/10 border border-brand-yellow/30 flex items-center justify-center mx-auto mb-6">
-              <Lock className="w-8 h-8 text-brand-yellow" />
-            </div>
-
-            <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">
-              Acesso Restrito
-            </h2>
-            <p className="text-gray-400 mb-8">
-              Para visualizar este planejamento, você precisa fazer login com os dados de acesso que recebeu.
-            </p>
-
-            <button
-              onClick={() => navigate(`/login?redirect=${encodeURIComponent(currentPath)}`)}
-              className="w-full bg-brand-yellow text-brand-darker py-4 font-bold uppercase tracking-wide hover:bg-brand-yellow/90 transition-colors"
-            >
-              Fazer Login
-            </button>
-          </div>
-
-          <p className="text-gray-600 text-sm mt-6">
-            Ainda não tem acesso? Entre em contato com seu consultor.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
@@ -1087,124 +1019,6 @@ export const PlanejamentoPRFView: React.FC = () => {
           .print-header { display: none; }
         }
       `}</style>
-
-      {/* Header com Menu de Navegação */}
-      <header className="no-print fixed top-0 left-0 right-0 bg-brand-dark/95 backdrop-blur-md border-b border-white/10 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            {/* Logo / Nome do Aluno */}
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="text-brand-yellow font-black text-lg uppercase tracking-tight">
-                  {planejamento?.nome_aluno}
-                </span>
-              </div>
-            </div>
-
-            {/* Desktop Menu */}
-            <nav className="hidden md:flex items-center space-x-1">
-              {navLinks.map((link) => {
-                const IconComponent = link.icon;
-                return (
-                  <button
-                    key={link.label}
-                    onClick={() => navigate(link.path)}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-lg ${
-                      link.active
-                        ? 'text-brand-yellow bg-brand-yellow/10'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <IconComponent className="w-4 h-4" />
-                    {link.label}
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* Botões de Ação (desktop) */}
-            <div className="hidden md:flex items-center gap-2">
-              <button
-                onClick={handleApresentar}
-                className="flex items-center justify-center w-9 h-9 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-                title="Modo Apresentação"
-              >
-                <Presentation className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => navigate(`/perfil/${slug || 'prf'}/${id}`)}
-                className="flex items-center justify-center w-9 h-9 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-                title="Perfil"
-              >
-                <User className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex items-center">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-white hover:text-brand-yellow focus:outline-none p-2"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu Dropdown */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-brand-card border-b border-white/10">
-            <div className="px-4 pt-2 pb-4 space-y-1">
-              {navLinks.map((link) => {
-                const IconComponent = link.icon;
-                return (
-                  <button
-                    key={link.label}
-                    onClick={() => {
-                      navigate(link.path);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 transition-all ${
-                      link.active
-                        ? 'border-brand-yellow text-brand-yellow bg-white/5'
-                        : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <IconComponent className="w-4 h-4" />
-                    {link.label}
-                    {link.active && <ChevronRight className="w-4 h-4 ml-auto" />}
-                  </button>
-                );
-              })}
-
-              {/* Ações no mobile */}
-              <div className="pt-3 mt-2 border-t border-white/10 space-y-2">
-                <button
-                  onClick={() => {
-                    handleApresentar();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <Presentation className="w-4 h-4" />
-                  Modo Apresentação
-                </button>
-                <button
-                  onClick={() => {
-                    navigate(`/perfil/${slug || 'prf'}/${id}`);
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <User className="w-4 h-4" />
-                  Perfil
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </header>
 
       {/* Conteudo para Impressao e Visualizacao */}
       <div ref={printRef} className="max-w-[1600px] mx-auto px-6 pt-24 pb-12 print-content">

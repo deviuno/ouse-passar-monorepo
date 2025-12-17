@@ -1,14 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2,
-  Calendar,
-  Target,
-  FileText,
-  ClipboardCheck,
-  Menu as MenuIcon,
-  X,
   User,
   Camera,
   BookOpen,
@@ -18,25 +12,44 @@ import {
   Award,
   Zap,
   Flame,
-  Moon
+  Moon,
+  Edit3,
+  Save,
+  Sun,
+  Sunrise,
+  Target,
+  X,
+  LogOut
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SEOHead } from '../components/SEOHead';
 import { plannerService } from '../services/plannerService';
 import { Planejamento } from '../lib/database.types';
 
+// Tipo do contexto do layout
+interface PlannerContext {
+  planejamento: Planejamento | null;
+  slug: string;
+  id: string;
+}
+
 // Componente Principal
 export const PlannerPerfilView: React.FC = () => {
-  const { id, slug } = useParams<{ id: string; slug?: string }>();
-  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const context = useOutletContext<PlannerContext>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
   const [planejamento, setPlanejamento] = useState<Planejamento | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [horasSono, setHorasSono] = useState(8);
+
+  // Estado para edição das horas de sono
+  const [showSleepModal, setShowSleepModal] = useState(false);
+  const [horaAcordar, setHoraAcordar] = useState('06:00');
+  const [horaDormir, setHoraDormir] = useState('22:00');
+  const [savingSleep, setSavingSleep] = useState(false);
 
   // Estatísticas
   const [stats, setStats] = useState({
@@ -50,13 +63,6 @@ export const PlannerPerfilView: React.FC = () => {
   });
 
   // Links de navegação padrão
-  const navLinks = [
-    { label: 'Calendário', path: `/planejador-semanal/${slug}/${id}`, icon: Calendar, active: false },
-    { label: 'Planner', path: `/planner/${slug}/${id}`, icon: ClipboardCheck, active: false },
-    { label: 'Missões', path: `/planejamento/${slug}/${id}`, icon: Target, active: false },
-    { label: 'Edital', path: `/edital-verticalizado/${slug}/${id}`, icon: FileText, active: false },
-  ];
-
   // Carregar dados
   useEffect(() => {
     const fetchData = async () => {
@@ -73,15 +79,19 @@ export const PlannerPerfilView: React.FC = () => {
         if (planData) {
           setPlanejamento(planData);
 
+          // Definir horários para edição
+          if (planData.hora_acordar) {
+            setHoraAcordar(planData.hora_acordar.substring(0, 5));
+          }
+          if (planData.hora_dormir) {
+            setHoraDormir(planData.hora_dormir.substring(0, 5));
+          }
+
           // Calcular horas de sono
           if (planData.hora_acordar && planData.hora_dormir) {
-            const [acordarH, acordarM] = planData.hora_acordar.split(':').map(Number);
-            const [dormirH, dormirM] = planData.hora_dormir.split(':').map(Number);
-            const acordarMin = acordarH * 60 + acordarM;
-            const dormirMin = dormirH * 60 + dormirM;
-            let sonoMin = acordarMin - dormirMin;
-            if (sonoMin < 0) sonoMin += 24 * 60; // Se passa da meia-noite
-            setHorasSono(Math.round(sonoMin / 60 * 10) / 10);
+            const acordar = planData.hora_acordar.substring(0, 5);
+            const dormir = planData.hora_dormir.substring(0, 5);
+            setHorasSono(calcularHorasSono(acordar, dormir));
           }
         }
 
@@ -169,6 +179,55 @@ export const PlannerPerfilView: React.FC = () => {
     fetchData();
   }, [id]);
 
+  // Calcular horas de sono
+  const calcularHorasSono = (acordar: string, dormir: string): number => {
+    const [acordarH, acordarM] = acordar.split(':').map(Number);
+    const [dormirH, dormirM] = dormir.split(':').map(Number);
+    const acordarMin = acordarH * 60 + acordarM;
+    const dormirMin = dormirH * 60 + dormirM;
+    let sonoMin = acordarMin - dormirMin;
+    if (sonoMin < 0) sonoMin += 24 * 60; // Se passa da meia-noite
+    return Math.round(sonoMin / 60 * 10) / 10;
+  };
+
+  // Salvar horários de sono
+  const handleSaveSleep = async () => {
+    if (!id) return;
+
+    setSavingSleep(true);
+    try {
+      // Atualizar planejamento
+      const { error } = await supabase
+        .from('planejamentos')
+        .update({
+          hora_acordar: horaAcordar,
+          hora_dormir: horaDormir
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Atualizar estado local
+      const novasHorasSono = calcularHorasSono(horaAcordar, horaDormir);
+      setHorasSono(novasHorasSono);
+      setShowSleepModal(false);
+    } catch (error) {
+      console.error('Erro ao salvar horários:', error);
+    } finally {
+      setSavingSleep(false);
+    }
+  };
+
+  // Handler de logout
+  const handleLogout = () => {
+    // Limpar sessão de estudante
+    localStorage.removeItem('ouse_student_user');
+    // Limpar sessão de admin (caso exista)
+    localStorage.removeItem('ouse_admin_user');
+    // Forçar reload completo para limpar todo o estado
+    window.location.href = '/login';
+  };
+
   // Upload de avatar
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -222,97 +281,6 @@ export const PlannerPerfilView: React.FC = () => {
     <div className="min-h-screen bg-brand-darker text-white pb-8">
       <SEOHead title="Perfil | Ouse Passar" />
 
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 bg-brand-dark/95 backdrop-blur-md border-b border-white/10 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center">
-              <span className="text-brand-yellow font-black text-lg uppercase tracking-tight">
-                {planejamento?.nome_aluno}
-              </span>
-            </div>
-
-            {/* Desktop Menu */}
-            <nav className="hidden md:flex items-center space-x-1">
-              {navLinks.map((link) => {
-                const IconComponent = link.icon;
-                return (
-                  <button
-                    key={link.label}
-                    onClick={() => navigate(link.path)}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-lg ${
-                      link.active
-                        ? 'text-brand-yellow bg-brand-yellow/10'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <IconComponent className="w-4 h-4" />
-                    {link.label}
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* Botão Perfil (desktop) - Active */}
-            <div className="hidden md:flex items-center justify-center w-9 h-9 bg-brand-yellow/20 border border-brand-yellow/50 rounded-lg text-brand-yellow">
-              <User className="w-5 h-5" />
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-white hover:text-brand-yellow p-2"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="md:hidden bg-brand-card border-b border-white/10"
-            >
-              <div className="px-4 pt-2 pb-4 space-y-1">
-                {navLinks.map((link) => {
-                  const IconComponent = link.icon;
-                  return (
-                    <button
-                      key={link.label}
-                      onClick={() => {
-                        navigate(link.path);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 transition-all ${
-                        link.active
-                          ? 'border-brand-yellow text-brand-yellow bg-white/5'
-                          : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      <IconComponent className="w-4 h-4" />
-                      {link.label}
-                    </button>
-                  );
-                })}
-                {/* Perfil (ativo) */}
-                <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 transition-all border-brand-yellow text-brand-yellow bg-white/5"
-                >
-                  <User className="w-4 h-4" />
-                  Perfil
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </header>
-
       <main className="pt-20 px-4 max-w-4xl mx-auto space-y-6">
         {/* Seção do Avatar */}
         <div className="bg-brand-card border border-white/5 rounded-xl p-6">
@@ -361,13 +329,104 @@ export const PlannerPerfilView: React.FC = () => {
               {planejamento?.email}
             </p>
 
-            {/* Horas de Sono */}
-            <div className="mt-4 flex items-center gap-2 bg-indigo-500/20 border border-indigo-500/30 rounded-full px-4 py-2">
+            {/* Horas de Sono - Clicável */}
+            <button
+              onClick={() => setShowSleepModal(true)}
+              className="mt-4 flex items-center gap-2 bg-indigo-500/20 border border-indigo-500/30 rounded-full px-4 py-2 hover:bg-indigo-500/30 hover:border-indigo-500/50 transition-all group"
+            >
               <Moon className="w-4 h-4 text-indigo-400" />
               <span className="text-sm font-medium text-indigo-300">{horasSono}h de sono</span>
-            </div>
+              <Edit3 className="w-3 h-3 text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
           </div>
         </div>
+
+        {/* Modal de Edição de Horários de Sono */}
+        <AnimatePresence>
+          {showSleepModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-brand-card border border-white/10 rounded-xl p-6 w-full max-w-sm shadow-2xl"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Moon className="w-5 h-5 text-indigo-400" />
+                    Horários de Sono
+                  </h3>
+                  <button
+                    onClick={() => setShowSleepModal(false)}
+                    className="text-gray-500 hover:text-white transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Hora de Dormir */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                      <Moon className="w-4 h-4 text-indigo-400" />
+                      Hora de dormir
+                    </label>
+                    <input
+                      type="time"
+                      value={horaDormir}
+                      onChange={(e) => setHoraDormir(e.target.value)}
+                      className="w-full bg-brand-dark border border-white/10 rounded-lg px-4 py-3 text-white text-center text-lg font-mono focus:outline-none focus:border-indigo-500/50"
+                    />
+                  </div>
+
+                  {/* Hora de Acordar */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                      <Sunrise className="w-4 h-4 text-yellow-400" />
+                      Hora de acordar
+                    </label>
+                    <input
+                      type="time"
+                      value={horaAcordar}
+                      onChange={(e) => setHoraAcordar(e.target.value)}
+                      className="w-full bg-brand-dark border border-white/10 rounded-lg px-4 py-3 text-white text-center text-lg font-mono focus:outline-none focus:border-yellow-500/50"
+                    />
+                  </div>
+
+                  {/* Preview das horas de sono */}
+                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 text-center">
+                    <p className="text-xs text-indigo-400 uppercase font-bold mb-1">Horas de sono</p>
+                    <p className="text-3xl font-black text-white">
+                      {calcularHorasSono(horaAcordar, horaDormir)}h
+                    </p>
+                  </div>
+
+                  {/* Botões */}
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setShowSleepModal(false)}
+                      className="flex-1 py-3 border border-white/20 text-gray-400 font-bold uppercase text-sm rounded-lg hover:bg-white/5 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleSaveSleep}
+                      disabled={savingSleep}
+                      className="flex-1 py-3 bg-indigo-500 text-white font-bold uppercase text-sm rounded-lg hover:bg-indigo-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {savingSleep ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Sequência de Dias */}
         <div className="grid grid-cols-2 gap-4">
@@ -503,6 +562,17 @@ export const PlannerPerfilView: React.FC = () => {
               <span className="text-[10px] text-center text-gray-400 font-medium">100 Questões</span>
             </div>
           </div>
+        </div>
+
+        {/* Botão Sair */}
+        <div className="pt-4">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-3 py-4 bg-red-500/10 border border-red-500/20 text-red-400 font-bold uppercase text-sm rounded-xl hover:bg-red-500/20 hover:border-red-500/30 transition-all"
+          >
+            <LogOut className="w-5 h-5" />
+            Sair da Conta
+          </button>
         </div>
       </main>
     </div>

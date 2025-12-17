@@ -95,6 +95,33 @@ export const planejadorService = {
   },
 
   /**
+   * Atualiza uma atividade personalizada
+   */
+  async updateUserActivity(
+    atividadeId: string,
+    input: { nome: string; descricao?: string; cor: string; icone?: string }
+  ): Promise<AtividadeUsuario> {
+    const { data, error } = await supabase
+      .from('atividade_tipos_usuario')
+      .update({
+        nome: input.nome,
+        descricao: input.descricao || null,
+        cor: input.cor,
+        icone: input.icone || null
+      })
+      .eq('id', atividadeId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Erro ao atualizar atividade:', error);
+      throw error;
+    }
+
+    return data;
+  },
+
+  /**
    * Deleta uma atividade personalizada
    */
   async deleteUserActivity(atividadeId: string): Promise<void> {

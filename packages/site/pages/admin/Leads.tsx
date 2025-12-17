@@ -157,13 +157,16 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
 
     const formatAgendamentoDate = (dataHora: string) => {
         const date = new Date(dataHora);
-        return date.toLocaleDateString('pt-BR', {
-            weekday: 'long',
-            day: '2-digit',
-            month: 'long',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${day}/${month} - ${hours}:${minutes}`;
+    };
+
+    const formatTimeHHMM = (time: string | null | undefined) => {
+        if (!time) return '';
+        return time.slice(0, 5);
     };
 
     const formatMinutesToTime = (minutos: number) => {
@@ -511,11 +514,11 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                                 <div className="flex justify-between mb-4 pb-3 border-b border-white/5">
                                     <div className="text-center flex-1">
                                         <span className="text-[10px] text-gray-600 uppercase block">Acorda</span>
-                                        <span className="text-brand-yellow font-bold text-sm">{lead.hora_acordar || '06:00'}</span>
+                                        <span className="text-brand-yellow font-bold text-sm">{formatTimeHHMM(lead.hora_acordar) || '06:00'}</span>
                                     </div>
                                     <div className="text-center flex-1">
                                         <span className="text-[10px] text-gray-600 uppercase block">Dorme</span>
-                                        <span className="text-brand-yellow font-bold text-sm">{lead.hora_dormir || '22:00'}</span>
+                                        <span className="text-brand-yellow font-bold text-sm">{formatTimeHHMM(lead.hora_dormir) || '22:00'}</span>
                                     </div>
                                 </div>
                             )}
@@ -621,8 +624,8 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                                 <button
                                     onClick={handleCopyAccess}
                                     className={`flex-1 py-2 px-3 text-xs font-bold uppercase rounded-sm flex items-center justify-center gap-2 transition-all ${copied
-                                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                            : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
+                                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                        : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
                                         }`}
                                 >
                                     <Copy className="w-4 h-4" />

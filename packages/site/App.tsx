@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './components/Layout';
 import { SalesLayout } from './components/SalesLayout';
 import { Hero } from './components/Hero';
@@ -21,6 +22,19 @@ import { StudentProtectedRoute } from './components/StudentProtectedRoute';
 
 // UI
 import { ToastProvider } from './components/ui/Toast';
+
+// React Query Client - Cache de dados para navegação rápida
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutos - dados ficam "fresh"
+      gcTime: 1000 * 60 * 30, // 30 minutos - cache mantido
+      refetchOnWindowFocus: false, // Não refetch ao focar janela
+      refetchOnMount: false, // Não refetch ao montar (usa cache)
+      retry: 1,
+    },
+  },
+});
 
 // Admin Imports
 import { AdminLayout } from './components/admin/AdminLayout';
@@ -46,6 +60,7 @@ import { StudentDashboardView } from './pages/StudentDashboardView';
 import { PlanejadorSemanalView } from './pages/PlanejadorSemanalView';
 import { PlannerPerformanceView } from './pages/PlannerPerformanceView';
 import { PlannerPerfilView } from './pages/PlannerPerfilView';
+import { PlannerLayout } from './components/PlannerLayout';
 import { Users } from './pages/admin/Users';
 import { Planejamentos as PlanejamentosAdmin } from './pages/admin/Planejamentos';
 import { Leads } from './pages/admin/Leads';
@@ -127,10 +142,11 @@ const Mentorship = () => (
 
 const App: React.FC = () => {
   return (
-    <Router>
-      <AuthProvider>
-        <ToastProvider>
-          <Routes>
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <AuthProvider>
+          <ToastProvider>
+            <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Layout />}>
               <Route index element={<Home />} />
@@ -151,20 +167,14 @@ const App: React.FC = () => {
             {/* Planejamento PRF View (fora do Layout principal para ter layout proprio) */}
             <Route path="/planejamento-prf/:id" element={<PlanejamentoPRFView />} />
 
-            {/* Planejamento Dinâmico View */}
-            <Route path="/planejamento/:slug/:id" element={<PlanejamentoPRFView />} />
-
-            {/* Edital Verticalizado View */}
-            <Route path="/edital-verticalizado/:slug/:id" element={<EditalVerticalizadoView />} />
-
-            {/* Planejador Semanal View */}
-            <Route path="/planejador-semanal/:slug/:id" element={<PlanejadorSemanalView />} />
-
-            {/* Planner de Performance View */}
-            <Route path="/planner/:slug/:id" element={<PlannerPerformanceView />} />
-
-            {/* Perfil do Aluno View */}
-            <Route path="/perfil/:slug/:id" element={<PlannerPerfilView />} />
+            {/* Rotas do Planner com Layout Compartilhado (header persistente) */}
+            <Route element={<PlannerLayout />}>
+              <Route path="/planejamento/:slug/:id" element={<PlanejamentoPRFView />} />
+              <Route path="/edital-verticalizado/:slug/:id" element={<EditalVerticalizadoView />} />
+              <Route path="/planejador-semanal/:slug/:id" element={<PlanejadorSemanalView />} />
+              <Route path="/planner/:slug/:id" element={<PlannerPerformanceView />} />
+              <Route path="/perfil/:slug/:id" element={<PlannerPerfilView />} />
+            </Route>
 
             {/* Página de Obrigado (pós-compra com agendamento) */}
             <Route path="/obrigado" element={<Obrigado />} />
@@ -226,10 +236,11 @@ const App: React.FC = () => {
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </ToastProvider>
-      </AuthProvider>
-    </Router>
+            </Routes>
+          </ToastProvider>
+        </AuthProvider>
+      </Router>
+    </QueryClientProvider>
   );
 };
 
