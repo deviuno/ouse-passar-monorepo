@@ -49,6 +49,7 @@ import { Login } from './pages/admin/Login';
 import { Preparatorios } from './pages/admin/Preparatorios';
 import { NewPreparatorio } from './pages/admin/NewPreparatorio';
 import { EditarPreparatorio } from './pages/admin/EditarPreparatorio';
+import { EditPreparatorioNew } from './pages/admin/EditPreparatorioNew';
 import { DocsIntegracao } from './pages/DocsIntegracao';
 import { PlanejamentoPRFForm } from './pages/PlanejamentoPRF';
 import { PlanejamentoPRFView } from './pages/PlanejamentoPRFView';
@@ -236,6 +237,8 @@ const App: React.FC = () => {
               <Route path="settings" element={<AdminOnlyRoute><Settings /></AdminOnlyRoute>} />
               {/* Preparatórios - Sistema Unificado com Rodadas/Missões */}
               <Route path="preparatorios" element={<AdminOnlyRoute><PreparatoriosPlanos /></AdminOnlyRoute>} />
+              <Route path="preparatorios/new" element={<AdminOnlyRoute><NewPreparatorio /></AdminOnlyRoute>} />
+              <Route path="preparatorios/edit/:id" element={<AdminOnlyRoute><EditPreparatorioNew /></AdminOnlyRoute>} />
               <Route path="preparatorios/:preparatorioId/rodadas" element={<AdminOnlyRoute><RodadasAdmin /></AdminOnlyRoute>} />
               <Route path="preparatorios/:preparatorioId/rodadas/:rodadaId/missoes" element={<AdminOnlyRoute><MissoesAdmin /></AdminOnlyRoute>} />
               <Route path="preparatorios/:preparatorioId/mensagens" element={<AdminOnlyRoute><MensagensIncentivoAdmin /></AdminOnlyRoute>} />

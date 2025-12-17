@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, MoreVertical, Copy, BookOpen, RotateCcw, Zap, GripVertical } from 'lucide-react';
-import { preparatoriosService, rodadasService, missoesService } from '../../services/preparatoriosService';
+import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, MoreVertical, Copy, BookOpen, RotateCcw, Zap, GripVertical, FileText, X, Filter, ArrowRight, ArrowLeft, Check } from 'lucide-react';
+import { preparatoriosService, rodadasService, missoesService, QuestaoFiltrosData, MissaoQuestaoFiltros } from '../../services/preparatoriosService';
+import { editalService, EditalItem } from '../../services/editalService';
 import { Preparatorio, Rodada, Missao, MissaoTipo } from '../../lib/database.types';
+import { EditalTopicSelector } from '../../components/admin/EditalTopicSelector';
+import { QuestionFilterSelector } from '../../components/admin/QuestionFilterSelector';
+import { QuestionFilters } from '../../services/externalQuestionsService';
 
 export const MissoesAdmin: React.FC = () => {
   const { preparatorioId, rodadaId } = useParams<{ preparatorioId: string; rodadaId: string }>();
@@ -342,8 +346,9 @@ export const MissoesAdmin: React.FC = () => {
       )}
 
       {/* Modal */}
-      {showModal && rodadaId && (
+      {showModal && rodadaId && preparatorioId && (
         <MissaoModal
+          preparatorioId={preparatorioId}
           rodadaId={rodadaId}
           missao={editingMissao}
           nextNumero={missoes.length > 0 ? String(Math.max(...missoes.map(m => parseInt(m.numero) || 0)) + 1) : '1'}
@@ -362,8 +367,9 @@ export const MissoesAdmin: React.FC = () => {
   );
 };
 
-// Modal de Criar/Editar Missao
+// Modal de Criar/Editar Missao (Wizard de 2 etapas)
 interface MissaoModalProps {
+  preparatorioId: string;
   rodadaId: string;
   missao: Missao | null;
   nextNumero: string;
@@ -371,8 +377,12 @@ interface MissaoModalProps {
   onSave: () => void;
 }
 
-const MissaoModal: React.FC<MissaoModalProps> = ({ rodadaId, missao, nextNumero, onClose, onSave }) => {
+const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, missao, nextNumero, onClose, onSave }) => {
+  // Etapa do wizard (1 = dados da missao, 2 = filtros de questoes)
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [savedMissaoId, setSavedMissaoId] = useState<string | null>(missao?.id || null);
+
   const [formData, setFormData] = useState({
     numero: missao?.numero ?? nextNumero,
     tipo: missao?.tipo ?? 'padrao' as MissaoTipo,
@@ -388,7 +398,79 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ rodadaId, missao, nextNumero,
 
   const [newExtra, setNewExtra] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Estado para topicos do edital
+  const [showTopicSelector, setShowTopicSelector] = useState(false);
+  const [selectedEditalItemIds, setSelectedEditalItemIds] = useState<string[]>([]);
+  const [selectedEditalItems, setSelectedEditalItems] = useState<EditalItem[]>([]);
+  const [usedEditalItemIds, setUsedEditalItemIds] = useState<string[]>([]);
+  const [loadingTopics, setLoadingTopics] = useState(false);
+
+  // Estado para filtros de questoes
+  const [existingFiltros, setExistingFiltros] = useState<MissaoQuestaoFiltros | null>(null);
+  const [questoesCount, setQuestoesCount] = useState<number>(0);
+
+  // Carregar topicos ja vinculados a esta missao e topicos ja usados
+  useEffect(() => {
+    const loadTopics = async () => {
+      if (!preparatorioId) return;
+      setLoadingTopics(true);
+      try {
+        // Carregar topicos ja usados em outras missoes
+        const usedIds = await missoesService.getUsedEditalItemIds(preparatorioId);
+        setUsedEditalItemIds(usedIds);
+
+        // Se estiver editando, carregar topicos desta missao
+        if (missao) {
+          const itemIds = await missoesService.getEditalItems(missao.id);
+          setSelectedEditalItemIds(itemIds);
+
+          // Carregar detalhes dos itens selecionados
+          if (itemIds.length > 0) {
+            const items = await Promise.all(
+              itemIds.map(id => editalService.getById(id))
+            );
+            setSelectedEditalItems(items.filter((i): i is EditalItem => i !== null));
+          }
+
+          // Carregar filtros de questoes existentes
+          const filtros = await missoesService.getQuestaoFiltros(missao.id);
+          if (filtros) {
+            setExistingFiltros(filtros);
+            setQuestoesCount(filtros.questoes_count);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar topicos:', error);
+      } finally {
+        setLoadingTopics(false);
+      }
+    };
+
+    loadTopics();
+  }, [preparatorioId, missao]);
+
+  const handleTopicsConfirm = async (ids: string[]) => {
+    setSelectedEditalItemIds(ids);
+    setShowTopicSelector(false);
+
+    // Carregar detalhes dos itens selecionados
+    if (ids.length > 0) {
+      const items = await Promise.all(
+        ids.map(id => editalService.getById(id))
+      );
+      setSelectedEditalItems(items.filter((i): i is EditalItem => i !== null));
+    } else {
+      setSelectedEditalItems([]);
+    }
+  };
+
+  const removeEditalItem = (id: string) => {
+    setSelectedEditalItemIds(prev => prev.filter(i => i !== id));
+    setSelectedEditalItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  // Salvar dados da missao e avancar para etapa 2
+  const handleSaveAndNext = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -406,21 +488,65 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ rodadaId, missao, nextNumero,
         ordem: formData.ordem
       };
 
+      let missaoId = savedMissaoId;
+
       if (missao) {
         await missoesService.update(missao.id, data);
+        missaoId = missao.id;
       } else {
-        await missoesService.create({
+        const created = await missoesService.create({
           rodada_id: rodadaId,
           ...data
         });
+        missaoId = created.id;
       }
-      onSave();
+
+      setSavedMissaoId(missaoId);
+
+      // Salvar vinculos com topicos do edital
+      if (missaoId && formData.tipo === 'padrao') {
+        await missoesService.setEditalItems(missaoId, selectedEditalItemIds);
+      }
+
+      // Se for tipo padrao, avancar para etapa 2 (filtros de questoes)
+      if (formData.tipo === 'padrao') {
+        setStep(2);
+      } else {
+        // Se nao for padrao, finalizar
+        onSave();
+      }
     } catch (error) {
       console.error('Erro ao salvar:', error);
       alert('Erro ao salvar missao');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Salvar filtros de questoes
+  const handleSaveFilters = async (filters: QuestionFilters, count: number) => {
+    if (!savedMissaoId) return;
+
+    try {
+      const filtrosData: QuestaoFiltrosData = {
+        materias: filters.materias,
+        assuntos: filters.assuntos,
+        bancas: filters.bancas,
+        orgaos: filters.orgaos,
+        anos: filters.anos,
+      };
+
+      await missoesService.setQuestaoFiltros(savedMissaoId, filtrosData, count);
+      onSave();
+    } catch (error) {
+      console.error('Erro ao salvar filtros:', error);
+      alert('Erro ao salvar filtros de questoes');
+    }
+  };
+
+  // Pular etapa de filtros
+  const handleSkipFilters = () => {
+    onSave();
   };
 
   const addExtra = () => {
@@ -440,178 +566,299 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ rodadaId, missao, nextNumero,
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-brand-card border border-white/10 w-full max-w-2xl rounded-sm my-8">
+        {/* Header com indicador de etapa */}
         <div className="flex justify-between items-center p-6 border-b border-white/10">
-          <h3 className="text-xl font-bold text-white uppercase">
-            {missao ? 'Editar Missao' : 'Nova Missao'}
-          </h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-white">
-            <span className="text-2xl">&times;</span>
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Numero *</label>
-              <input
-                type="text"
-                value={formData.numero}
-                onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-                placeholder="Ex: 1, 10, 10,20"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Tipo *</label>
-              <select
-                value={formData.tipo}
-                onChange={(e) => setFormData({ ...formData, tipo: e.target.value as MissaoTipo })}
-                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-              >
-                <option value="padrao">Padrao (Estudo)</option>
-                <option value="revisao">Revisao</option>
-                <option value="acao">Acao</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Campos para tipo PADRAO */}
-          {formData.tipo === 'padrao' && (
-            <>
-              <div>
-                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Materia</label>
-                <input
-                  type="text"
-                  value={formData.materia}
-                  onChange={(e) => setFormData({ ...formData, materia: e.target.value })}
-                  className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-                  placeholder="Ex: Direito Constitucional"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Assunto</label>
-                <textarea
-                  value={formData.assunto}
-                  onChange={(e) => setFormData({ ...formData, assunto: e.target.value })}
-                  className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors resize-none"
-                  rows={3}
-                  placeholder="Ex: Direitos e deveres individuais e coletivos"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Instrucoes</label>
-                <textarea
-                  value={formData.instrucoes}
-                  onChange={(e) => setFormData({ ...formData, instrucoes: e.target.value })}
-                  className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors resize-none"
-                  rows={2}
-                  placeholder="Ex: Estudar a teoria pontual e resolver a lista de questoes."
-                />
-              </div>
-            </>
-          )}
-
-          {/* Campo para tipo REVISAO ou adicional do PADRAO */}
-          {(formData.tipo === 'revisao' || formData.tipo === 'padrao') && (
-            <div>
-              <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
-                {formData.tipo === 'revisao' ? 'Tema da Revisao *' : 'Tema de Revisao (opcional)'}
-              </label>
-              <input
-                type="text"
-                value={formData.tema}
-                onChange={(e) => setFormData({ ...formData, tema: e.target.value })}
-                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-                placeholder="Ex: REVISAO OUSE PASSAR"
-                required={formData.tipo === 'revisao'}
-              />
-            </div>
-          )}
-
-          {/* Campo para tipo ACAO */}
-          {formData.tipo === 'acao' && (
-            <div>
-              <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Acao *</label>
-              <textarea
-                value={formData.acao}
-                onChange={(e) => setFormData({ ...formData, acao: e.target.value })}
-                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors resize-none"
-                rows={2}
-                placeholder="Ex: SIMULADO COM ASSUNTOS DA RODADA e CORRECAO DO SIMULADO"
-                required
-              />
-            </div>
-          )}
-
-          {/* Extras */}
           <div>
-            <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Extras (opcional)</label>
-            <div className="flex gap-2 mb-2">
-              <input
-                type="text"
-                value={newExtra}
-                onChange={(e) => setNewExtra(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addExtra())}
-                className="flex-1 bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-                placeholder="Ex: Revisao: Parte 1 - Direito Constitucional"
-              />
-              <button
-                type="button"
-                onClick={addExtra}
-                className="px-4 bg-white/10 text-white hover:bg-white/20 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-            {formData.extra.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {formData.extra.map((item, i) => (
-                  <span key={i} className="flex items-center gap-1 px-2 py-1 bg-brand-dark/50 text-gray-300 text-sm rounded">
-                    {item}
-                    <button
-                      type="button"
-                      onClick={() => removeExtra(i)}
-                      className="text-gray-500 hover:text-red-400"
-                    >
-                      &times;
-                    </button>
-                  </span>
-                ))}
+            <h3 className="text-xl font-bold text-white uppercase">
+              {missao ? 'Editar Missao' : 'Nova Missao'}
+            </h3>
+            {formData.tipo === 'padrao' && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className={`flex items-center gap-1 text-xs ${step === 1 ? 'text-brand-yellow' : 'text-gray-500'}`}>
+                  <span className={`w-5 h-5 flex items-center justify-center rounded-full border ${step === 1 ? 'border-brand-yellow bg-brand-yellow/20' : 'border-gray-600'}`}>1</span>
+                  <span>Dados</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-600" />
+                <div className={`flex items-center gap-1 text-xs ${step === 2 ? 'text-brand-yellow' : 'text-gray-500'}`}>
+                  <span className={`w-5 h-5 flex items-center justify-center rounded-full border ${step === 2 ? 'border-brand-yellow bg-brand-yellow/20' : 'border-gray-600'}`}>2</span>
+                  <span>Questoes</span>
+                </div>
               </div>
             )}
           </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
 
-          {/* Observacao */}
-          <div>
-            <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Observacao (opcional)</label>
-            <input
-              type="text"
-              value={formData.obs}
-              onChange={(e) => setFormData({ ...formData, obs: e.target.value })}
-              className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-              placeholder="Ex: o aluno deve escolher entre Ingles ou Espanhol."
+        {/* Etapa 1: Dados da Missao */}
+        {step === 1 && (
+          <form onSubmit={handleSaveAndNext} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Numero *</label>
+                <input
+                  type="text"
+                  value={formData.numero}
+                  onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                  className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                  placeholder="Ex: 1, 10, 10,20"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Tipo *</label>
+                <select
+                  value={formData.tipo}
+                  onChange={(e) => setFormData({ ...formData, tipo: e.target.value as MissaoTipo })}
+                  className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                >
+                  <option value="padrao">Padrao (Estudo)</option>
+                  <option value="revisao">Revisao</option>
+                  <option value="acao">Acao</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Campos para tipo PADRAO */}
+            {formData.tipo === 'padrao' && (
+              <>
+                {/* Topicos do Edital */}
+                <div>
+                  <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
+                    Topicos do Edital
+                  </label>
+                  <div className="bg-brand-dark border border-white/10 p-3">
+                    {loadingTopics ? (
+                      <p className="text-gray-500 text-sm">Carregando...</p>
+                    ) : selectedEditalItems.length === 0 ? (
+                      <p className="text-gray-500 text-sm mb-3">Nenhum topico selecionado</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {selectedEditalItems.map(item => (
+                          <span
+                            key={item.id}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-brand-yellow/20 text-brand-yellow text-sm rounded border border-brand-yellow/30"
+                          >
+                            <FileText className="w-3 h-3" />
+                            {item.titulo}
+                            <button
+                              type="button"
+                              onClick={() => removeEditalItem(item.id)}
+                              className="ml-1 text-brand-yellow/70 hover:text-brand-yellow"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowTopicSelector(true)}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 text-gray-300 text-sm hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Selecionar Topicos do Edital
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Materia</label>
+                  <input
+                    type="text"
+                    value={formData.materia}
+                    onChange={(e) => setFormData({ ...formData, materia: e.target.value })}
+                    className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                    placeholder="Ex: Direito Constitucional"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Assunto</label>
+                  <textarea
+                    value={formData.assunto}
+                    onChange={(e) => setFormData({ ...formData, assunto: e.target.value })}
+                    className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors resize-none"
+                    rows={3}
+                    placeholder="Ex: Direitos e deveres individuais e coletivos"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Instrucoes</label>
+                  <textarea
+                    value={formData.instrucoes}
+                    onChange={(e) => setFormData({ ...formData, instrucoes: e.target.value })}
+                    className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors resize-none"
+                    rows={2}
+                    placeholder="Ex: Estudar a teoria pontual e resolver a lista de questoes."
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Campo para tipo REVISAO ou adicional do PADRAO */}
+            {(formData.tipo === 'revisao' || formData.tipo === 'padrao') && (
+              <div>
+                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
+                  {formData.tipo === 'revisao' ? 'Tema da Revisao *' : 'Tema de Revisao (opcional)'}
+                </label>
+                <input
+                  type="text"
+                  value={formData.tema}
+                  onChange={(e) => setFormData({ ...formData, tema: e.target.value })}
+                  className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                  placeholder="Ex: REVISAO OUSE PASSAR"
+                  required={formData.tipo === 'revisao'}
+                />
+              </div>
+            )}
+
+            {/* Campo para tipo ACAO */}
+            {formData.tipo === 'acao' && (
+              <div>
+                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Acao *</label>
+                <textarea
+                  value={formData.acao}
+                  onChange={(e) => setFormData({ ...formData, acao: e.target.value })}
+                  className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors resize-none"
+                  rows={2}
+                  placeholder="Ex: SIMULADO COM ASSUNTOS DA RODADA e CORRECAO DO SIMULADO"
+                  required
+                />
+              </div>
+            )}
+
+            {/* Extras */}
+            <div>
+              <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Extras (opcional)</label>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={newExtra}
+                  onChange={(e) => setNewExtra(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addExtra())}
+                  className="flex-1 bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                  placeholder="Ex: Revisao: Parte 1 - Direito Constitucional"
+                />
+                <button
+                  type="button"
+                  onClick={addExtra}
+                  className="px-4 bg-white/10 text-white hover:bg-white/20 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+              {formData.extra.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {formData.extra.map((item, i) => (
+                    <span key={i} className="flex items-center gap-1 px-2 py-1 bg-brand-dark/50 text-gray-300 text-sm rounded">
+                      {item}
+                      <button
+                        type="button"
+                        onClick={() => removeExtra(i)}
+                        className="text-gray-500 hover:text-red-400"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Observacao */}
+            <div>
+              <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Observacao (opcional)</label>
+              <input
+                type="text"
+                value={formData.obs}
+                onChange={(e) => setFormData({ ...formData, obs: e.target.value })}
+                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                placeholder="Ex: o aluno deve escolher entre Ingles ou Espanhol."
+              />
+            </div>
+
+            {/* Indicador de filtros existentes */}
+            {existingFiltros && questoesCount > 0 && (
+              <div className="bg-blue-500/10 border border-blue-500/30 p-3 flex items-center gap-3">
+                <Filter className="w-5 h-5 text-blue-400" />
+                <div>
+                  <p className="text-blue-400 text-sm font-medium">
+                    Filtros de questoes configurados
+                  </p>
+                  <p className="text-blue-400/70 text-xs">
+                    {questoesCount} questoes vinculadas a esta missao
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2 text-gray-400 font-bold uppercase text-sm hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center gap-2 bg-brand-yellow text-brand-darker px-6 py-2 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors disabled:opacity-50"
+              >
+                {loading ? (
+                  'Salvando...'
+                ) : formData.tipo === 'padrao' ? (
+                  <>
+                    Proximo
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    {missao ? 'Salvar' : 'Criar'}
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Etapa 2: Filtros de Questoes */}
+        {step === 2 && (
+          <div className="flex flex-col">
+            {/* Botao de voltar */}
+            <div className="px-6 pt-4">
+              <button
+                onClick={() => setStep(1)}
+                className="flex items-center gap-1 text-gray-500 hover:text-white text-sm transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Voltar para dados da missao
+              </button>
+            </div>
+
+            <QuestionFilterSelector
+              initialFilters={existingFiltros?.filtros as QuestionFilters}
+              onSave={handleSaveFilters}
+              onCancel={handleSkipFilters}
             />
           </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 text-gray-400 font-bold uppercase text-sm hover:text-white transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-brand-yellow text-brand-darker px-6 py-2 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors disabled:opacity-50"
-            >
-              {loading ? 'Salvando...' : missao ? 'Salvar' : 'Criar'}
-            </button>
-          </div>
-        </form>
+        )}
       </div>
+
+      {/* Modal de Selecao de Topicos */}
+      {showTopicSelector && (
+        <EditalTopicSelector
+          preparatorioId={preparatorioId}
+          selectedIds={selectedEditalItemIds}
+          usedIds={usedEditalItemIds}
+          currentMissaoId={missao?.id}
+          onClose={() => setShowTopicSelector(false)}
+          onConfirm={handleTopicsConfirm}
+        />
+      )}
     </div>
   );
 };
