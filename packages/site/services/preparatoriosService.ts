@@ -26,6 +26,7 @@ export interface CreatePreparatorioInput {
   checkout_url?: string;
   descricao_curta?: string;
   descricao_vendas?: string;
+  content_types?: string[];
 }
 
 // Input para criar preparatório via N8N (sem slug obrigatório)
@@ -107,13 +108,20 @@ export const preparatoriosService = {
         icone: input.icone || 'book',
         cor: input.cor || '#3B82F6',
         is_active: input.is_active ?? true,
-        ordem: input.ordem ?? 0
+        ordem: input.ordem ?? 0,
+        imagem_capa: input.imagem_capa,
+        preco: input.preco,
+        preco_desconto: input.preco_desconto,
+        checkout_url: input.checkout_url,
+        descricao_curta: input.descricao_curta,
+        descricao_vendas: input.descricao_vendas,
+        content_types: input.content_types || ['plano']
       })
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Preparatorio;
   },
 
   async update(id: string, input: UpdatePreparatorioInput): Promise<Preparatorio> {

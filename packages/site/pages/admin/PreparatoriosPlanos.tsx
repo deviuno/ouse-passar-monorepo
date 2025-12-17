@@ -298,10 +298,15 @@ export const PreparatoriosPlanos: React.FC = () => {
             setShowCreateModal(false);
             setEditingPreparatorio(null);
           }}
-          onSave={async () => {
-            await loadPreparatorios();
+          onSave={async (createdId?: string) => {
             setShowCreateModal(false);
             setEditingPreparatorio(null);
+            // Se foi criação (não edição), redirecionar para rodadas
+            if (createdId) {
+              navigate(`/admin/preparatorios/${createdId}/rodadas`);
+            } else {
+              await loadPreparatorios();
+            }
           }}
         />
       )}
@@ -634,7 +639,7 @@ const PreparatorioListRow: React.FC<PreparatorioListRowProps> = ({
 interface PreparatorioModalProps {
   preparatorio: Preparatorio | null;
   onClose: () => void;
-  onSave: () => void;
+  onSave: (createdId?: string) => void;
 }
 
 const PreparatorioModal: React.FC<PreparatorioModalProps> = ({ preparatorio, onClose, onSave }) => {
@@ -677,10 +682,11 @@ const PreparatorioModal: React.FC<PreparatorioModalProps> = ({ preparatorio, onC
     try {
       if (preparatorio) {
         await preparatoriosService.update(preparatorio.id, formData);
+        onSave(); // Edição: não passa ID
       } else {
-        await preparatoriosService.create(formData);
+        const created = await preparatoriosService.create(formData);
+        onSave(created.id); // Criação: passa ID para redirecionar
       }
-      onSave();
     } catch (error) {
       console.error('Erro ao salvar:', error);
       alert('Erro ao salvar preparatorio');
