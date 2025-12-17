@@ -27,6 +27,23 @@ export interface CreatePreparatorioInput {
   descricao_curta?: string;
   descricao_vendas?: string;
   content_types?: string[];
+  // Campos técnicos
+  banca?: string;
+  orgao?: string;
+  cargo?: string;
+  nivel?: 'fundamental' | 'medio' | 'superior';
+  escolaridade?: string;
+  modalidade?: 'presencial' | 'remoto' | 'hibrido';
+  regiao?: string;
+  // Detalhes do concurso
+  salario?: number | null;
+  carga_horaria?: string;
+  vagas?: number | null;
+  taxa_inscricao?: number | null;
+  inscricoes_inicio?: string | null;
+  inscricoes_fim?: string | null;
+  data_prevista?: string | null;
+  ano_previsto?: number | null;
 }
 
 // Input para criar preparatório via N8N (sem slug obrigatório)
@@ -58,6 +75,24 @@ export interface UpdatePreparatorioInput {
   checkout_url?: string;
   descricao_curta?: string;
   descricao_vendas?: string;
+  content_types?: string[];
+  // Campos técnicos
+  banca?: string;
+  orgao?: string;
+  cargo?: string;
+  nivel?: 'fundamental' | 'medio' | 'superior';
+  escolaridade?: string;
+  modalidade?: 'presencial' | 'remoto' | 'hibrido';
+  regiao?: string;
+  // Detalhes do concurso
+  salario?: number | null;
+  carga_horaria?: string;
+  vagas?: number | null;
+  taxa_inscricao?: number | null;
+  inscricoes_inicio?: string | null;
+  inscricoes_fim?: string | null;
+  data_prevista?: string | null;
+  ano_previsto?: number | null;
 }
 
 export const preparatoriosService = {
@@ -115,7 +150,24 @@ export const preparatoriosService = {
         checkout_url: input.checkout_url,
         descricao_curta: input.descricao_curta,
         descricao_vendas: input.descricao_vendas,
-        content_types: input.content_types || ['plano']
+        content_types: input.content_types || ['plano'],
+        // Campos técnicos
+        banca: input.banca,
+        orgao: input.orgao,
+        cargo: input.cargo,
+        nivel: input.nivel,
+        escolaridade: input.escolaridade,
+        modalidade: input.modalidade,
+        regiao: input.regiao,
+        // Detalhes do concurso
+        salario: input.salario,
+        carga_horaria: input.carga_horaria,
+        vagas: input.vagas,
+        taxa_inscricao: input.taxa_inscricao,
+        inscricoes_inicio: input.inscricoes_inicio,
+        inscricoes_fim: input.inscricoes_fim,
+        data_prevista: input.data_prevista,
+        ano_previsto: input.ano_previsto,
       })
       .select()
       .single();
@@ -186,12 +238,12 @@ export const preparatoriosService = {
     const preparatorio = await this.getById(id);
     if (!preparatorio) return null;
 
-    // Buscar rodadas com missoes
+    // Buscar rodadas com missoes (incluindo tópicos do edital)
     const rodadas = await rodadasService.getByPreparatorio(preparatorio.id);
     const rodadasComMissoes: RodadaComMissoes[] = [];
 
     for (const rodada of rodadas) {
-      const missoes = await missoesService.getByRodada(rodada.id);
+      const missoes = await missoesService.getByRodadaWithEditalTopics(rodada.id);
       rodadasComMissoes.push({
         ...rodada,
         missoes
@@ -208,10 +260,11 @@ export const preparatoriosService = {
     };
   },
 
-  async getStats(id: string): Promise<{ rodadas: number; missoes: number; mensagens: number }> {
-    const [rodadasResult, mensagensResult] = await Promise.all([
+  async getStats(id: string): Promise<{ rodadas: number; missoes: number; mensagens: number; edital_items: number }> {
+    const [rodadasResult, mensagensResult, editalResult] = await Promise.all([
       supabase.from('rodadas').select('id', { count: 'exact' }).eq('preparatorio_id', id),
-      supabase.from('mensagens_incentivo').select('id', { count: 'exact' }).eq('preparatorio_id', id)
+      supabase.from('mensagens_incentivo').select('id', { count: 'exact' }).eq('preparatorio_id', id),
+      supabase.from('edital_verticalizado_items').select('id', { count: 'exact', head: true }).eq('preparatorio_id', id)
     ]);
 
     const rodadasIds = rodadasResult.data?.map(r => r.id) || [];
@@ -228,7 +281,8 @@ export const preparatoriosService = {
     return {
       rodadas: rodadasResult.count || 0,
       missoes: missoesCount,
-      mensagens: mensagensResult.count || 0
+      mensagens: mensagensResult.count || 0,
+      edital_items: editalResult.count || 0
     };
   },
 
@@ -431,6 +485,63 @@ export const missoesService = {
     return data || [];
   },
 
+  async getByRodadaWithEditalTopics(rodadaId: string): Promise<(Missao & { edital_topicos?: string[] })[]> {
+    const { data: missoes, error } = await supabase
+      .from('missoes')
+      .select('*')
+      .eq('rodada_id', rodadaId)
+      .order('ordem', { ascending: true });
+
+    if (error) throw error;
+    if (!missoes || missoes.length === 0) return [];
+
+    // Buscar os tópicos do edital para cada missão
+    const missoesIds = missoes.map(m => m.id);
+
+    // Query direta para buscar os vínculos e tópicos
+    const { data: editalLinks } = await (supabase as any)
+      .from('missao_edital_items')
+      .select('missao_id, edital_item_id')
+      .in('missao_id', missoesIds) as { data: { missao_id: string; edital_item_id: string }[] | null };
+
+    if (!editalLinks || editalLinks.length === 0) {
+      return missoes;
+    }
+
+    // Buscar os títulos dos tópicos
+    const editalItemIds = [...new Set(editalLinks.map(l => l.edital_item_id))];
+    const { data: editalItems } = await supabase
+      .from('edital_verticalizado_items')
+      .select('id, titulo')
+      .in('id', editalItemIds);
+
+    // Criar mapa de id -> titulo
+    const tituloMap: Record<string, string> = {};
+    if (editalItems) {
+      for (const item of editalItems) {
+        tituloMap[item.id] = item.titulo;
+      }
+    }
+
+    // Agrupar tópicos por missão
+    const topicosPerMissao: Record<string, string[]> = {};
+    for (const link of editalLinks) {
+      if (!topicosPerMissao[link.missao_id]) {
+        topicosPerMissao[link.missao_id] = [];
+      }
+      const titulo = tituloMap[link.edital_item_id];
+      if (titulo) {
+        topicosPerMissao[link.missao_id].push(titulo);
+      }
+    }
+
+    // Combinar missões com seus tópicos
+    return missoes.map(m => ({
+      ...m,
+      edital_topicos: topicosPerMissao[m.id] || []
+    }));
+  },
+
   async getById(id: string): Promise<Missao | null> {
     const { data, error } = await supabase
       .from('missoes')
@@ -521,8 +632,160 @@ export const missoesService = {
 
     if (error) throw error;
     return data;
+  },
+
+  // ==================== TOPICOS DO EDITAL ====================
+
+  // Buscar topicos vinculados a uma missao
+  async getEditalItems(missaoId: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('missao_edital_items')
+      .select('edital_item_id')
+      .eq('missao_id', missaoId);
+
+    if (error) throw error;
+    return (data || []).map(d => d.edital_item_id);
+  },
+
+  // Vincular topicos a uma missao
+  async setEditalItems(missaoId: string, editalItemIds: string[]): Promise<void> {
+    // Primeiro remove todos os vinculos existentes
+    await supabase
+      .from('missao_edital_items')
+      .delete()
+      .eq('missao_id', missaoId);
+
+    // Se nao houver novos itens, encerra
+    if (editalItemIds.length === 0) return;
+
+    // Insere os novos vinculos
+    const inserts = editalItemIds.map(editalItemId => ({
+      missao_id: missaoId,
+      edital_item_id: editalItemId
+    }));
+
+    const { error } = await supabase
+      .from('missao_edital_items')
+      .insert(inserts);
+
+    if (error) throw error;
+  },
+
+  // Buscar todos os topicos ja usados em missoes de um preparatorio
+  async getUsedEditalItemIds(preparatorioId: string): Promise<string[]> {
+    // Buscar todas as rodadas do preparatorio
+    const { data: rodadas } = await supabase
+      .from('rodadas')
+      .select('id')
+      .eq('preparatorio_id', preparatorioId);
+
+    if (!rodadas || rodadas.length === 0) return [];
+
+    const rodadaIds = rodadas.map(r => r.id);
+
+    // Buscar todas as missoes dessas rodadas
+    const { data: missoes } = await supabase
+      .from('missoes')
+      .select('id')
+      .in('rodada_id', rodadaIds);
+
+    if (!missoes || missoes.length === 0) return [];
+
+    const missaoIds = missoes.map(m => m.id);
+
+    // Buscar todos os edital_item_ids usados
+    const { data: usedItems } = await supabase
+      .from('missao_edital_items')
+      .select('edital_item_id')
+      .in('missao_id', missaoIds);
+
+    return (usedItems || []).map(u => u.edital_item_id);
+  },
+
+  // ==================== FILTROS DE QUESTOES ====================
+
+  // Buscar filtros de questoes de uma missao
+  async getQuestaoFiltros(missaoId: string): Promise<MissaoQuestaoFiltros | null> {
+    const { data, error } = await supabase
+      .from('missao_questao_filtros')
+      .select('*')
+      .eq('missao_id', missaoId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Salvar/atualizar filtros de questoes de uma missao
+  async setQuestaoFiltros(
+    missaoId: string,
+    filtros: QuestaoFiltrosData,
+    questoesCount: number
+  ): Promise<MissaoQuestaoFiltros> {
+    // Verificar se ja existe
+    const existing = await this.getQuestaoFiltros(missaoId);
+
+    if (existing) {
+      // Atualizar
+      const { data, error } = await supabase
+        .from('missao_questao_filtros')
+        .update({
+          filtros,
+          questoes_count: questoesCount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('missao_id', missaoId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } else {
+      // Inserir
+      const { data, error } = await supabase
+        .from('missao_questao_filtros')
+        .insert({
+          missao_id: missaoId,
+          filtros,
+          questoes_count: questoesCount
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    }
+  },
+
+  // Remover filtros de questoes de uma missao
+  async removeQuestaoFiltros(missaoId: string): Promise<void> {
+    const { error } = await supabase
+      .from('missao_questao_filtros')
+      .delete()
+      .eq('missao_id', missaoId);
+
+    if (error) throw error;
   }
 };
+
+// Tipos para filtros de questoes
+export interface QuestaoFiltrosData {
+  materias?: string[];
+  assuntos?: string[];
+  bancas?: string[];
+  orgaos?: string[];
+  anos?: number[];
+  questao_revisada?: boolean;
+}
+
+export interface MissaoQuestaoFiltros {
+  id: string;
+  missao_id: string;
+  filtros: QuestaoFiltrosData;
+  questoes_count: number;
+  created_at: string;
+  updated_at: string;
+}
 
 // ==================== MENSAGENS DE INCENTIVO ====================
 

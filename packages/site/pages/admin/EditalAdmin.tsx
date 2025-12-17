@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Edit, Trash2,
-  MoreVertical, Book, FileText, List, GripVertical, Copy, FolderOpen, Folder
+  MoreVertical, Book, FileText, List, GripVertical, Copy, FolderOpen, Folder, Sparkles
 } from 'lucide-react';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { editalService, EditalItem, EditalItemWithChildren, EditalItemTipo } from '../../services/editalService';
 import { Preparatorio } from '../../lib/database.types';
+import { ImportEditalModal } from '../../components/admin/ImportEditalModal';
+import { ParsedEdital, EditalExistsAction } from '../../services/editalAIService';
 
 export const EditalAdmin: React.FC = () => {
   const { preparatorioId } = useParams<{ preparatorioId: string }>();
@@ -25,6 +27,9 @@ export const EditalAdmin: React.FC = () => {
 
   // Menu state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // Import modal state
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const loadData = async () => {
     if (!preparatorioId) return;
@@ -119,6 +124,71 @@ export const EditalAdmin: React.FC = () => {
     setModalParentId(item.parent_id);
     setModalTipo(item.tipo);
     setShowModal(true);
+  };
+
+  // Funcao para salvar edital importado via IA
+  const handleImportEdital = async (parsed: ParsedEdital, action: EditalExistsAction) => {
+    if (!preparatorioId) return;
+
+    // Se action === 'clear', deletar todos os itens existentes
+    if (action === 'clear') {
+      const rootItems = items.filter(i => !i.parent_id);
+      for (const item of rootItems) {
+        await editalService.delete(item.id);
+      }
+    }
+
+    // Criar itens recursivamente
+    for (let blocoIdx = 0; blocoIdx < parsed.blocos.length; blocoIdx++) {
+      const bloco = parsed.blocos[blocoIdx];
+
+      const blocoItem = await editalService.create({
+        preparatorio_id: preparatorioId,
+        tipo: 'bloco',
+        titulo: bloco.titulo,
+        ordem: blocoIdx,
+      });
+
+      for (let matIdx = 0; matIdx < bloco.materias.length; matIdx++) {
+        const materia = bloco.materias[matIdx];
+
+        const materiaItem = await editalService.create({
+          preparatorio_id: preparatorioId,
+          tipo: 'materia',
+          titulo: materia.titulo,
+          ordem: matIdx,
+          parent_id: blocoItem.id,
+        });
+
+        for (let topIdx = 0; topIdx < materia.topicos.length; topIdx++) {
+          const topico = materia.topicos[topIdx];
+
+          const topicoItem = await editalService.create({
+            preparatorio_id: preparatorioId,
+            tipo: 'topico',
+            titulo: topico.titulo,
+            ordem: topIdx,
+            parent_id: materiaItem.id,
+          });
+
+          // Subtopicos (sao do tipo 'topico' tambem)
+          for (let subIdx = 0; subIdx < topico.subtopicos.length; subIdx++) {
+            const subtopico = topico.subtopicos[subIdx];
+
+            await editalService.create({
+              preparatorio_id: preparatorioId,
+              tipo: 'topico',
+              titulo: subtopico.titulo,
+              ordem: subIdx,
+              parent_id: topicoItem.id,
+            });
+          }
+        }
+      }
+    }
+
+    // Recarregar lista
+    await loadData();
   };
 
   const getItemIcon = (tipo: EditalItemTipo, isExpanded: boolean) => {
@@ -308,11 +378,11 @@ export const EditalAdmin: React.FC = () => {
       <div className="flex justify-between items-start mb-8">
         <div>
           <Link
-            to={`/admin/preparatorios/${preparatorioId}/rodadas`}
+            to={`/admin/preparatorios/edit/${preparatorioId}`}
             className="inline-flex items-center gap-2 text-gray-500 hover:text-white mb-2 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
-            Voltar para Rodadas
+            Voltar ao Preparatório
           </Link>
           <h2 className="text-3xl font-black text-white font-display uppercase">Edital Verticalizado</h2>
           <p className="text-gray-500 mt-1">
@@ -336,6 +406,13 @@ export const EditalAdmin: React.FC = () => {
 
           {/* Add Buttons */}
           <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 bg-purple-600/20 text-purple-400 border border-purple-500/30 px-3 py-2 font-bold uppercase text-xs hover:bg-purple-600/30 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            Importar via IA
+          </button>
+          <button
             onClick={() => openAddModal(null, 'bloco')}
             className="flex items-center gap-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 px-3 py-2 font-bold uppercase text-xs hover:bg-purple-500/30 transition-colors"
           >
@@ -358,8 +435,20 @@ export const EditalAdmin: React.FC = () => {
           <List className="w-12 h-12 text-gray-600 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-white mb-2">Edital vazio</h3>
           <p className="text-gray-500 mb-6">
-            Comece adicionando as matérias do edital. Você pode organizar por blocos (ex: Conhecimentos Básicos, Específicos).
+            Comece adicionando as materias do edital manualmente ou importe automaticamente via IA.
           </p>
+
+          {/* Importar via IA - Destaque */}
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="inline-flex items-center gap-2 bg-purple-600 text-white px-6 py-3 font-bold uppercase text-sm hover:bg-purple-700 transition-colors mb-6"
+          >
+            <Sparkles className="w-5 h-5" />
+            Importar Edital via IA
+          </button>
+
+          <p className="text-gray-600 text-xs uppercase mb-4">ou adicione manualmente</p>
+
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={() => openAddModal(null, 'bloco')}
@@ -373,7 +462,7 @@ export const EditalAdmin: React.FC = () => {
               className="inline-flex items-center gap-2 bg-brand-yellow text-brand-darker px-6 py-3 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Criar Matéria
+              Criar Materia
             </button>
           </div>
         </div>
@@ -417,7 +506,7 @@ export const EditalAdmin: React.FC = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal de adicionar/editar item */}
       {showModal && preparatorioId && (
         <EditalItemModal
           preparatorioId={preparatorioId}
@@ -433,6 +522,15 @@ export const EditalAdmin: React.FC = () => {
             setShowModal(false);
             setEditingItem(null);
           }}
+        />
+      )}
+
+      {/* Modal de importacao via IA */}
+      {showImportModal && (
+        <ImportEditalModal
+          onClose={() => setShowImportModal(false)}
+          onImport={handleImportEdital}
+          hasExistingItems={items.length > 0}
         />
       )}
     </div>

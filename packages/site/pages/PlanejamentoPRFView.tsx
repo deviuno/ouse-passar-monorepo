@@ -54,6 +54,7 @@ interface Missao {
   acao?: string;
   extra?: string[];
   obs?: string;
+  edital_topicos?: string[];
 }
 
 interface PlanejamentoData {
@@ -161,10 +162,20 @@ const MissaoCard: React.FC<MissaoCardProps> = ({
           <p className="text-white font-bold leading-tight">{missao.materia}</p>
         </div>
 
-        {/* Assunto */}
+        {/* Tópicos do Edital / Assunto */}
         <div className="flex-1">
-          <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 opacity-80 ${isCompleted ? 'text-green-500' : 'text-brand-yellow'}`}>Assunto</p>
-          <p className="text-gray-300 text-sm leading-snug font-medium">{missao.assunto}</p>
+          <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 opacity-80 ${isCompleted ? 'text-green-500' : 'text-brand-yellow'}`}>
+            {missao.edital_topicos && missao.edital_topicos.length > 0 ? 'Tópicos do Edital' : 'Assunto'}
+          </p>
+          {missao.edital_topicos && missao.edital_topicos.length > 0 ? (
+            <ul className="text-gray-300 text-sm leading-snug font-medium list-disc list-inside space-y-0.5">
+              {missao.edital_topicos.map((topico, idx) => (
+                <li key={idx} className="text-gray-300">{topico}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-300 text-sm leading-snug font-medium">{missao.assunto}</p>
+          )}
         </div>
 
         {/* Instruções */}
@@ -590,7 +601,7 @@ export const PlanejamentoPRFView: React.FC = () => {
             numero: r.numero,
             titulo: r.titulo,
             nota: r.nota || undefined,
-            missoes: r.missoes.map((m: MissaoDB) => ({
+            missoes: r.missoes.map((m: any) => ({
               numero: m.numero,
               tipo: m.tipo,
               materia: m.materia || undefined,
@@ -599,7 +610,8 @@ export const PlanejamentoPRFView: React.FC = () => {
               tema: m.tema || undefined,
               acao: m.acao || undefined,
               extra: m.extra || undefined,
-              obs: m.obs || undefined
+              obs: m.obs || undefined,
+              edital_topicos: m.edital_topicos || undefined
             }))
           }));
 
@@ -633,7 +645,7 @@ export const PlanejamentoPRFView: React.FC = () => {
               numero: r.numero,
               titulo: r.titulo,
               nota: r.nota || undefined,
-              missoes: r.missoes.map((m: MissaoDB) => ({
+              missoes: r.missoes.map((m: any) => ({
                 numero: m.numero,
                 tipo: m.tipo,
                 materia: m.materia || undefined,
@@ -642,7 +654,8 @@ export const PlanejamentoPRFView: React.FC = () => {
                 tema: m.tema || undefined,
                 acao: m.acao || undefined,
                 extra: m.extra || undefined,
-                obs: m.obs || undefined
+                obs: m.obs || undefined,
+                edital_topicos: m.edital_topicos || undefined
               }))
             }));
 

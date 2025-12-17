@@ -284,11 +284,12 @@ const TIMER_DURACOES = [
 
 // Componente: Timer Pomodoro
 const PomodoroTimer: React.FC<{
+  duracao: number;
+  onDuracaoChange: (minutos: number) => void;
   onComplete: (minutos: number) => void;
-}> = ({ onComplete }) => {
+}> = ({ duracao, onDuracaoChange, onComplete }) => {
   const [status, setStatus] = useState<TimerStatus>('idle');
-  const [duracaoMinutos, setDuracaoMinutos] = useState(25);
-  const [tempoRestante, setTempoRestante] = useState(25 * 60);
+  const [tempoRestante, setTempoRestante] = useState(duracao * 60);
   const [tempoTotal, setTempoTotal] = useState(0);
   const [sessaoAtual, setSessaoAtual] = useState(1);
   const [showConfig, setShowConfig] = useState(false);
@@ -301,10 +302,10 @@ const PomodoroTimer: React.FC<{
           if (prev <= 1) {
             // Sessão completa
             setStatus('idle');
-            setTempoTotal(t => t + duracaoMinutos);
-            onComplete(duracaoMinutos);
+            setTempoTotal(t => t + duracao);
+            onComplete(duracao);
             setSessaoAtual(s => s + 1);
-            return duracaoMinutos * 60;
+            return duracao * 60;
           }
           return prev - 1;
         });
@@ -316,7 +317,7 @@ const PomodoroTimer: React.FC<{
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [status, duracaoMinutos, onComplete]);
+  }, [status, duracao, onComplete]);
 
   const formatTime = (seconds: number): string => {
     const m = Math.floor(seconds / 60);
@@ -328,18 +329,18 @@ const PomodoroTimer: React.FC<{
   const handlePause = () => setStatus('paused');
   const handleReset = () => {
     setStatus('idle');
-    setTempoRestante(duracaoMinutos * 60);
+    setTempoRestante(duracao * 60);
   };
 
   const handleChangeDuracao = (minutos: number) => {
-    setDuracaoMinutos(minutos);
+    onDuracaoChange(minutos);
     if (status === 'idle') {
       setTempoRestante(minutos * 60);
     }
     setShowConfig(false);
   };
 
-  const progresso = ((duracaoMinutos * 60 - tempoRestante) / (duracaoMinutos * 60)) * 100;
+  const progresso = ((duracao * 60 - tempoRestante) / (duracao * 60)) * 100;
 
   return (
     <div className="bg-brand-card border border-white/5 rounded-xl p-6 relative">
@@ -421,7 +422,7 @@ const PomodoroTimer: React.FC<{
                 <button
                   key={opt.value}
                   onClick={() => handleChangeDuracao(opt.value)}
-                  className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${duracaoMinutos === opt.value
+                  className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${duracao === opt.value
                     ? 'bg-cyan-500 text-white'
                     : 'bg-white/5 text-gray-400 hover:bg-white/10'
                     }`}
@@ -616,9 +617,16 @@ const SEMAFORO_MOTIVOS = [
 // Componente Principal
 // Tipo do contexto do layout
 interface PlannerContext {
-  planejamento: Planejamento | null;
+  planejamento: (Planejamento & {
+    preparatorio?: { id: string; nome: string; cor: string } | null;
+  }) | null;
   slug: string;
   id: string;
+}
+
+interface MensagemIncentivo {
+  id: string;
+  mensagem: string;
 }
 
 export const PlannerPerformanceView: React.FC = () => {
@@ -631,6 +639,7 @@ export const PlannerPerformanceView: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [planner, setPlanner] = useState<Partial<PlannerDiario>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [timerDuration, setTimerDuration] = useState(25);
 
   // Helper: Determina o modo baseado na hora
   const getModoByHora = (): ModoPlanner => {
@@ -646,6 +655,33 @@ export const PlannerPerformanceView: React.FC = () => {
   const [weekSummary, setWeekSummary] = useState<PlannerSemanal | null>(null);
   const [horasPlanejadas, setHorasPlanejadas] = useState(0);
   const [showPessoaMelhor, setShowPessoaMelhor] = useState(true);
+  const [mensagemIncentivo, setMensagemIncentivo] = useState<string | null>(null);
+
+  // Buscar mensagem de incentivo aleatória
+  useEffect(() => {
+    const fetchMensagemIncentivo = async () => {
+      const preparatorioId = planejamento?.preparatorio_id;
+      if (!preparatorioId) return;
+
+      try {
+        const { data } = await supabase
+          .from('mensagens_incentivo')
+          .select('id, mensagem')
+          .eq('preparatorio_id', preparatorioId)
+          .eq('is_active', true);
+
+        if (data && data.length > 0) {
+          // Selecionar uma mensagem aleatória
+          const randomIndex = Math.floor(Math.random() * data.length);
+          setMensagemIncentivo(data[randomIndex].mensagem);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar mensagem de incentivo:', error);
+      }
+    };
+
+    fetchMensagemIncentivo();
+  }, [planejamento?.preparatorio_id]);
 
   const today = new Date();
   const dayInfo = plannerService.formatDayInfo(today);
@@ -802,12 +838,14 @@ export const PlannerPerformanceView: React.FC = () => {
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h1 className="text-2xl lg:text-3xl font-black text-white mb-1 leading-tight tracking-tight">
-                      {modo === 'manha' ? '☀️ Bom dia' : '🌙 Boa noite'},<br />
+                      {modo === 'manha' ? '☀️ Bom dia' : '🌙 Boa noite'},{' '}
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-yellow to-yellow-500">
-                        {planejamento?.nome_aluno?.split(' ')[0]}
+                        {planejamento?.nome_aluno?.split(' ')[0]}!
                       </span>
                     </h1>
-                    <p className="text-gray-400 text-sm font-medium">{dayInfo.diaSemana}, {dayInfo.dataFormatada}</p>
+                    {mensagemIncentivo && (
+                      <p className="text-gray-300 text-sm italic">"{mensagemIncentivo}"</p>
+                    )}
                   </div>
 
                   {/* Toggle Mobile */}
@@ -895,22 +933,20 @@ export const PlannerPerformanceView: React.FC = () => {
                       <span className="text-2xl font-black text-white leading-none">{streak.atual}</span>
                       <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">dias seguidos</span>
                     </div>
+                    <p className="text-[10px] text-gray-500 font-medium mt-0.5">{dayInfo.diaSemana}, {dayInfo.dataFormatada}</p>
                   </div>
                 </div>
 
-                {/* Progresso Diário Mini */}
-                <div className="hidden sm:block text-right">
-                  <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Meta Hoje</p>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-1.5 bg-brand-darker rounded-full overflow-hidden">
-                      <motion.div
-                        className={`h-full rounded-full ${percentualPlanejado >= 100 ? 'bg-green-500' : 'bg-brand-yellow'}`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(percentualPlanejado, 100)}%` }}
-                      />
+                {/* Cargo / Preparatório */}
+                <div className="hidden sm:flex items-center gap-2">
+                  {(planejamento as any)?.preparatorio?.nome && (
+                    <div className="flex items-center gap-2 bg-gradient-to-r from-brand-yellow/10 to-transparent pl-3 pr-4 py-1.5 rounded-full border border-brand-yellow/20">
+                      <Target className="w-4 h-4 text-brand-yellow" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wide">
+                        {(planejamento as any).preparatorio.nome}
+                      </span>
                     </div>
-                    <span className="text-xs font-bold text-white">{percentualPlanejado}%</span>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -1039,7 +1075,7 @@ export const PlannerPerformanceView: React.FC = () => {
               {modo === 'manha' && (
                 <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
                   <p className="text-sm text-yellow-400">
-                    💡 <strong>Dica:</strong> Use o timer para estudar em blocos de 25 minutos. Ao final do dia, registre seu progresso no modo Noite.
+                    💡 <strong>Dica:</strong> Use o timer para estudar em blocos de {timerDuration} minutos. Ao final do dia, registre seu progresso no modo Noite.
                   </p>
                 </div>
               )}
@@ -1167,7 +1203,7 @@ export const PlannerPerformanceView: React.FC = () => {
           {/* Coluna Direita: Insights */}
           <div className="space-y-6">
             {/* Timer Pomodoro */}
-            <PomodoroTimer onComplete={handleTimerComplete} />
+            <PomodoroTimer duracao={timerDuration} onDuracaoChange={setTimerDuration} onComplete={handleTimerComplete} />
 
 
             {/* Insights */}

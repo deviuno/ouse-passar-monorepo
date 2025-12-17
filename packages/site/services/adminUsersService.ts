@@ -283,5 +283,21 @@ export const leadsService = {
       .eq('id', leadId);
 
     if (error) throw error;
+  },
+
+  async search(query: string, limit: number = 10): Promise<Lead[]> {
+    if (!query || query.length < 2) return [];
+
+    const searchTerm = `%${query}%`;
+
+    const { data, error } = await supabase
+      .from('leads')
+      .select('*')
+      .or(`nome.ilike.${searchTerm},email.ilike.${searchTerm},telefone.ilike.${searchTerm}`)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data || [];
   }
 };

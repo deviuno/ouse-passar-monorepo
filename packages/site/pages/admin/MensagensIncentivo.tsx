@@ -1,16 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, EyeOff, GripVertical, ArrowLeft, MessageSquare } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, GripVertical, ArrowLeft, MessageSquare, Sparkles, Loader2, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import { preparatoriosService, mensagensIncentivoService } from '../../services/preparatoriosService';
+import { mensagensIncentivoService as mensagensAIService } from '../../services/mensagensIncentivoService';
 import { Preparatorio, MensagemIncentivo } from '../../lib/database.types';
+import { useToast } from '../../components/ui/Toast';
 
 export const MensagensIncentivoAdmin: React.FC = () => {
   const { preparatorioId } = useParams<{ preparatorioId: string }>();
+  const toast = useToast();
   const [preparatorio, setPreparatorio] = useState<Preparatorio | null>(null);
   const [mensagens, setMensagens] = useState<MensagemIncentivo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingMensagem, setEditingMensagem] = useState<MensagemIncentivo | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Modal de geração com IA
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [cargoInput, setCargoInput] = useState('');
+
+  // Modal de confirmação de exclusão
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadData = async () => {
     if (!preparatorioId) return;
@@ -43,15 +55,60 @@ export const MensagensIncentivoAdmin: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta mensagem?')) return;
+  const handleDeleteClick = (id: string) => {
+    setDeletingId(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingId) return;
 
     try {
-      await mensagensIncentivoService.delete(id);
+      await mensagensIncentivoService.delete(deletingId);
       await loadData();
+      toast.success('Mensagem excluída com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir:', error);
-      alert('Erro ao excluir mensagem');
+      toast.error('Erro ao excluir mensagem');
+    } finally {
+      setShowDeleteModal(false);
+      setDeletingId(null);
+    }
+  };
+
+  const handleGenerateClick = () => {
+    // Inicializar o cargo com o valor do preparatório ou vazio
+    setCargoInput(preparatorio?.cargo || '');
+    setShowGenerateModal(true);
+  };
+
+  const handleGenerateConfirm = async () => {
+    if (!preparatorioId || !preparatorio) return;
+
+    // Se não tem cargo no preparatório e não foi informado, não permite continuar
+    const cargoFinal = cargoInput.trim() || preparatorio.cargo || preparatorio.nome;
+
+    setIsGenerating(true);
+    try {
+      const result = await mensagensAIService.regenerate(
+        preparatorioId,
+        cargoFinal,
+        preparatorio.orgao || undefined
+      );
+
+      if (result.success) {
+        await loadData();
+        toast.success(`${result.count} mensagens de incentivo geradas com sucesso!`);
+        setShowGenerateModal(false);
+        setCargoInput('');
+      } else {
+        throw new Error(result.error || 'Erro ao gerar mensagens');
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar mensagens:', error);
+      toast.error(error.message || 'Erro ao gerar mensagens');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -79,11 +136,11 @@ export const MensagensIncentivoAdmin: React.FC = () => {
       {/* Header */}
       <div className="mb-8">
         <Link
-          to="/admin/preparatorios"
+          to={`/admin/preparatorios/edit/${preparatorioId}`}
           className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          Voltar aos Preparatorios
+          Voltar ao Preparatório
         </Link>
 
         <div className="flex justify-between items-center">
@@ -93,16 +150,37 @@ export const MensagensIncentivoAdmin: React.FC = () => {
               <span style={{ color: preparatorio.cor }}>{preparatorio.nome}</span> - Gerencie as mensagens de incentivo
             </p>
           </div>
-          <button
-            onClick={() => {
-              setEditingMensagem(null);
-              setShowModal(true);
-            }}
-            className="flex items-center gap-2 bg-brand-yellow text-brand-darker px-4 py-2 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Nova Mensagem
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Botão IA - Gerar ou Atualizar */}
+            <button
+              onClick={handleGenerateClick}
+              disabled={isGenerating}
+              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 font-bold uppercase text-sm hover:from-purple-500 hover:to-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-sm"
+            >
+              {mensagens.length > 0 ? (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  <Sparkles className="w-3 h-3" />
+                  Atualizar
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Gerar
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setEditingMensagem(null);
+                setShowModal(true);
+              }}
+              className="flex items-center gap-2 bg-brand-yellow text-brand-darker px-4 py-2 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Nova Mensagem
+            </button>
+          </div>
         </div>
       </div>
 
@@ -111,14 +189,25 @@ export const MensagensIncentivoAdmin: React.FC = () => {
         <div className="bg-brand-card border border-white/10 p-12 text-center">
           <MessageSquare className="w-12 h-12 text-gray-600 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-white mb-2">Nenhuma mensagem cadastrada</h3>
-          <p className="text-gray-500 mb-6">Crie mensagens de incentivo para motivar os alunos.</p>
-          <button
-            onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-2 bg-brand-yellow text-brand-darker px-6 py-3 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Criar Mensagem
-          </button>
+          <p className="text-gray-500 mb-6">Gere mensagens de incentivo personalizadas automaticamente ou crie manualmente.</p>
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={handleGenerateClick}
+              disabled={isGenerating}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 font-bold uppercase text-sm hover:from-purple-500 hover:to-blue-500 transition-all disabled:opacity-50 rounded-sm"
+            >
+              <Sparkles className="w-4 h-4" />
+              Gerar com IA
+            </button>
+            <span className="text-gray-600">ou</span>
+            <button
+              onClick={() => setShowModal(true)}
+              className="inline-flex items-center gap-2 border border-white/20 text-white px-6 py-3 font-bold uppercase text-sm hover:bg-white/5 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Criar Manual
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -166,7 +255,7 @@ export const MensagensIncentivoAdmin: React.FC = () => {
                   <Edit className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => handleDelete(mensagem.id)}
+                  onClick={() => handleDeleteClick(mensagem.id)}
                   className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                   title="Excluir"
                 >
@@ -178,7 +267,7 @@ export const MensagensIncentivoAdmin: React.FC = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal de Edição/Criação */}
       {showModal && (
         <MensagemModal
           preparatorioId={preparatorioId!}
@@ -193,6 +282,134 @@ export const MensagensIncentivoAdmin: React.FC = () => {
             setEditingMensagem(null);
           }}
         />
+      )}
+
+      {/* Modal de Geração com IA */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-card border border-white/10 w-full max-w-lg rounded-sm">
+            <div className="flex justify-between items-center p-6 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white uppercase">
+                  {mensagens.length > 0 ? 'Atualizar Mensagens' : 'Gerar Mensagens'}
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowGenerateModal(false);
+                  setCargoInput('');
+                }}
+                className="text-gray-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {mensagens.length > 0 && (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-sm flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-yellow-200 text-sm">
+                    Esta ação irá <strong>substituir todas as {mensagens.length} mensagens atuais</strong> por novas mensagens personalizadas.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
+                  Cargo para personalização {!preparatorio?.cargo && <span className="text-red-400">*</span>}
+                </label>
+                <input
+                  type="text"
+                  value={cargoInput}
+                  onChange={(e) => setCargoInput(e.target.value)}
+                  placeholder={preparatorio?.cargo || 'Ex: Policial Rodoviário Federal, Juiz Federal, Auditor Fiscal...'}
+                  className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                />
+                <p className="text-gray-600 text-xs mt-2">
+                  As mensagens serão personalizadas para este cargo. Ex: "Futuro PRF, as estradas esperam por você!"
+                </p>
+              </div>
+
+              {preparatorio?.orgao && (
+                <div className="bg-white/5 border border-white/10 p-3 rounded-sm">
+                  <p className="text-gray-400 text-xs">
+                    <span className="font-bold text-gray-300">Órgão:</span> {preparatorio.orgao}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 p-6 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGenerateModal(false);
+                  setCargoInput('');
+                }}
+                disabled={isGenerating}
+                className="px-6 py-2 text-gray-400 font-bold uppercase text-sm hover:text-white transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleGenerateConfirm}
+                disabled={isGenerating || (!cargoInput.trim() && !preparatorio?.cargo)}
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 font-bold uppercase text-sm hover:from-purple-500 hover:to-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-sm"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    {mensagens.length > 0 ? 'Atualizar' : 'Gerar'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-card border border-white/10 w-full max-w-md rounded-sm">
+            <div className="p-6">
+              <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white text-center mb-2">Excluir Mensagem</h3>
+              <p className="text-gray-400 text-center">
+                Tem certeza que deseja excluir esta mensagem de incentivo? Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <div className="flex gap-3 p-6 border-t border-white/10">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingId(null);
+                }}
+                className="flex-1 px-6 py-2 border border-white/20 text-gray-400 font-bold uppercase text-sm hover:text-white hover:border-white/40 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="flex-1 px-6 py-2 bg-red-500 text-white font-bold uppercase text-sm hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

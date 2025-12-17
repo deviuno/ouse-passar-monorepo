@@ -1,8 +1,39 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, X, Check, User, Clock, Target, Minus, Shield, Award, Book, Loader2 } from 'lucide-react';
+import { Plus, X, Check, User, Clock, Target, Minus, Shield, Award, Book, Loader2, Search } from 'lucide-react';
 import { leadsService, CreateLeadInput } from '../../services/adminUsersService';
 import { LeadDifficulty, LeadGender, EducationLevel, Lead, Preparatorio } from '../../lib/database.types';
+
+// Utilitário para máscara de telefone brasileiro
+const formatPhoneBR = (value: string): string => {
+  // Remove tudo que não é número
+  const numbers = value.replace(/\D/g, '');
+
+  // Limita a 11 dígitos
+  const limited = numbers.slice(0, 11);
+
+  // Aplica a máscara
+  if (limited.length <= 2) {
+    return limited.length > 0 ? `(${limited}` : '';
+  } else if (limited.length <= 7) {
+    return `(${limited.slice(0, 2)}) ${limited.slice(2)}`;
+  } else if (limited.length <= 11) {
+    // Celular: (XX) XXXXX-XXXX
+    if (limited.length > 10) {
+      return `(${limited.slice(0, 2)}) ${limited.slice(2, 7)}-${limited.slice(7)}`;
+    }
+    // Fixo: (XX) XXXX-XXXX
+    return `(${limited.slice(0, 2)}) ${limited.slice(2, 6)}-${limited.slice(6)}`;
+  }
+  return value;
+};
+
+// Validação de telefone brasileiro
+const isValidPhoneBR = (phone: string): boolean => {
+  const numbers = phone.replace(/\D/g, '');
+  // Deve ter 10 ou 11 dígitos
+  return numbers.length === 10 || numbers.length === 11;
+};
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { preparatoriosService, planejamentosService } from '../../services/preparatoriosService';
@@ -434,6 +465,119 @@ const MinutesInput: React.FC<MinutesInputProps> = ({ label, value, onChange }) =
     );
 };
 
+// Popup de Busca de Usuários
+interface UserSearchPopupProps {
+    onSelect: (lead: Lead) => void;
+    onClose: () => void;
+}
+
+const UserSearchPopup: React.FC<UserSearchPopupProps> = ({ onSelect, onClose }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [results, setResults] = useState<Lead[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const search = async () => {
+            if (searchTerm.length < 2) {
+                setResults([]);
+                return;
+            }
+
+            setLoading(true);
+            try {
+                const data = await leadsService.search(searchTerm);
+                setResults(data);
+            } catch (error) {
+                console.error('Erro ao buscar:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const debounce = setTimeout(search, 300);
+        return () => clearTimeout(debounce);
+    }, [searchTerm]);
+
+    return (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4" onClick={onClose}>
+            <div
+                className="bg-brand-card border border-white/10 w-full max-w-md rounded-sm shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="p-4 border-b border-white/10">
+                    <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-bold text-white uppercase">Buscar Usuário Existente</h4>
+                        <button onClick={onClose} className="text-gray-500 hover:text-white">
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Digite nome, email ou telefone..."
+                            className="w-full bg-brand-dark border border-white/10 pl-10 pr-4 py-2.5 text-white text-sm focus:border-brand-yellow outline-none transition-colors"
+                            autoFocus
+                        />
+                    </div>
+                </div>
+
+                {/* Results */}
+                <div className="max-h-64 overflow-y-auto">
+                    {loading ? (
+                        <div className="p-4 text-center">
+                            <Loader2 className="w-5 h-5 animate-spin text-brand-yellow mx-auto" />
+                        </div>
+                    ) : results.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500 text-sm">
+                            {searchTerm.length < 2
+                                ? 'Digite ao menos 2 caracteres para buscar'
+                                : 'Nenhum usuário encontrado'}
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-white/5">
+                            {results.map((lead) => (
+                                <button
+                                    key={lead.id}
+                                    onClick={() => onSelect(lead)}
+                                    className="w-full p-3 text-left hover:bg-white/5 transition-colors flex items-center gap-3"
+                                >
+                                    <div className="w-8 h-8 bg-brand-yellow/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <User className="w-4 h-4 text-brand-yellow" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-white font-medium truncate">{lead.nome}</p>
+                                        <p className="text-gray-500 text-xs truncate">
+                                            {lead.email || lead.telefone || 'Sem contato'}
+                                        </p>
+                                    </div>
+                                    {lead.concurso_almejado && (
+                                        <span className="text-xs text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded flex-shrink-0">
+                                            {lead.concurso_almejado.length > 15
+                                                ? lead.concurso_almejado.slice(0, 15) + '...'
+                                                : lead.concurso_almejado}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-3 border-t border-white/10 text-center">
+                    <p className="text-gray-600 text-xs">
+                        Selecione um usuário para preencher automaticamente os dados
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // Formulário de Geração de Planejamento Personalizado
 interface LeadFormProps {
     onClose: () => void;
@@ -450,6 +594,51 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
     const [showLoading, setShowLoading] = useState(false);
     const [createdLead, setCreatedLead] = useState<Lead | null>(null);
     const [currentStep, setCurrentStep] = useState(1);
+    const [showUserSearch, setShowUserSearch] = useState(false);
+    const [phoneError, setPhoneError] = useState<string | null>(null);
+
+    // Handler para selecionar usuário da busca
+    const handleUserSelect = (lead: Lead) => {
+        setFormData({
+            nome: lead.nome,
+            sexo: lead.sexo || undefined,
+            email: lead.email || '',
+            telefone: lead.telefone ? formatPhoneBR(lead.telefone) : '',
+            concurso_almejado: concursoDefault || lead.concurso_almejado || 'PRF - Policia Rodoviaria Federal',
+            nivel_escolaridade: lead.nivel_escolaridade || undefined,
+            trabalha: lead.trabalha || false,
+            e_concursado: lead.e_concursado || false,
+            possui_curso_concurso: lead.possui_curso_concurso || false,
+            qual_curso: lead.qual_curso || '',
+            minutos_domingo: lead.minutos_domingo || 0,
+            minutos_segunda: lead.minutos_segunda || 0,
+            minutos_terca: lead.minutos_terca || 0,
+            minutos_quarta: lead.minutos_quarta || 0,
+            minutos_quinta: lead.minutos_quinta || 0,
+            minutos_sexta: lead.minutos_sexta || 0,
+            minutos_sabado: lead.minutos_sabado || 0,
+            hora_acordar: lead.hora_acordar || '06:00',
+            hora_dormir: lead.hora_dormir || '22:00',
+            principais_dificuldades: lead.principais_dificuldades || [],
+            dificuldade_outros: lead.dificuldade_outros || '',
+            vendedor_id: vendedorId
+        });
+        setShowUserSearch(false);
+        setPhoneError(null);
+    };
+
+    // Handler para mudança de telefone com máscara
+    const handlePhoneChange = (value: string) => {
+        const formatted = formatPhoneBR(value);
+        setFormData({ ...formData, telefone: formatted });
+
+        // Validação
+        if (formatted && !isValidPhoneBR(formatted)) {
+            setPhoneError('Formato inválido');
+        } else {
+            setPhoneError(null);
+        }
+    };
 
     // Se tiver lead existente (vindo de agendamento), preencher com os dados dele
     const [formData, setFormData] = useState<CreateLeadInput>({
@@ -718,13 +907,23 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Nome *</label>
-                                            <input
-                                                type="text"
-                                                value={formData.nome}
-                                                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                                                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-                                                required
-                                            />
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={formData.nome}
+                                                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                                                    className="flex-1 bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                                                    required
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowUserSearch(true)}
+                                                    className="px-3 bg-brand-dark border border-white/10 text-gray-400 hover:text-brand-yellow hover:border-brand-yellow transition-colors flex items-center gap-1.5"
+                                                    title="Buscar usuário existente"
+                                                >
+                                                    <Search className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Sexo</label>
@@ -755,11 +954,16 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                                             <input
                                                 type="tel"
                                                 value={formData.telefone || ''}
-                                                onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                                                onChange={(e) => handlePhoneChange(e.target.value)}
                                                 placeholder="(00) 00000-0000"
-                                                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors placeholder:text-gray-600"
+                                                className={`w-full bg-brand-dark border p-3 text-white focus:border-brand-yellow outline-none transition-colors placeholder:text-gray-600 ${
+                                                    phoneError ? 'border-red-500' : 'border-white/10'
+                                                }`}
                                                 required
                                             />
+                                            {phoneError && (
+                                                <p className="text-red-400 text-xs mt-1">{phoneError}</p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -986,6 +1190,14 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                     )}
                 </div>
             </div>
+
+            {/* Popup de Busca de Usuários */}
+            {showUserSearch && (
+                <UserSearchPopup
+                    onSelect={handleUserSelect}
+                    onClose={() => setShowUserSearch(false)}
+                />
+            )}
         </div>
     );
 };

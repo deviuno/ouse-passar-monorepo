@@ -21,12 +21,19 @@ const isAuthenticated = (): boolean => {
   return !!(studentUser || adminUser);
 };
 
+interface Preparatorio {
+  id: string;
+  nome: string;
+  cor: string;
+}
+
 interface Planejamento {
   id: string;
   nome_aluno: string;
   hora_acordar: string | null;
   hora_dormir: string | null;
   preparatorio_id: string | null;
+  preparatorio?: Preparatorio | null;
 }
 
 // Chave localStorage para rastrear se o calendário foi configurado
@@ -157,12 +164,30 @@ export const PlannerLayout: React.FC = () => {
       try {
         const { data } = await supabase
           .from('planejamentos')
-          .select('id, nome_aluno, hora_acordar, hora_dormir, preparatorio_id')
+          .select(`
+            id,
+            nome_aluno,
+            hora_acordar,
+            hora_dormir,
+            preparatorio_id,
+            preparatorio:preparatorios (
+              id,
+              nome,
+              cor
+            )
+          `)
           .eq('id', id)
           .single();
 
         if (data) {
-          setPlanejamento(data);
+          // Transform preparatorio from array to single object
+          const preparatorioData = Array.isArray(data.preparatorio)
+            ? data.preparatorio[0]
+            : data.preparatorio;
+          setPlanejamento({
+            ...data,
+            preparatorio: preparatorioData || null
+          });
         }
       } catch (error) {
         console.error('Erro ao carregar planejamento:', error);
@@ -193,13 +218,13 @@ export const PlannerLayout: React.FC = () => {
       <header className="fixed top-0 left-0 right-0 bg-brand-dark/95 backdrop-blur-md border-b border-white/10 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            {/* Logo / Nome do Aluno */}
+            {/* Logo */}
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="text-brand-yellow font-black text-lg uppercase tracking-tight">
-                  {planejamento?.nome_aluno}
-                </span>
-              </div>
+              <img
+                src="https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp"
+                alt="Ouse Passar"
+                className="h-8 w-auto"
+              />
             </div>
 
             {/* Desktop Menu */}

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, ChevronLeft, List, MoreVertical, ChevronRight, GripVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronLeft, List, MoreVertical, ChevronRight, GripVertical, Sparkles } from 'lucide-react';
 import { preparatoriosService, rodadasService } from '../../services/preparatoriosService';
-import { Preparatorio, Rodada } from '../../lib/database.types';
+import { PreparatorioComN8N, Rodada } from '../../lib/database.types';
+import { GerarRodadasModal } from '../../components/admin/GerarRodadasModal';
 
 interface RodadaWithCount extends Rodada {
   missoesCount: number;
@@ -11,19 +12,20 @@ interface RodadaWithCount extends Rodada {
 export const RodadasAdmin: React.FC = () => {
   const { preparatorioId } = useParams<{ preparatorioId: string }>();
   const navigate = useNavigate();
-  const [preparatorio, setPreparatorio] = useState<Preparatorio | null>(null);
+  const [preparatorio, setPreparatorio] = useState<PreparatorioComN8N | null>(null);
   const [rodadas, setRodadas] = useState<RodadaWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingRodada, setEditingRodada] = useState<Rodada | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showGerarModal, setShowGerarModal] = useState(false);
 
   const loadData = async () => {
     if (!preparatorioId) return;
 
     try {
       setLoading(true);
-      const prep = await preparatoriosService.getById(preparatorioId);
+      const prep = await preparatoriosService.getById(preparatorioId) as PreparatorioComN8N | null;
       if (!prep) {
         navigate('/admin/preparatorios');
         return;
@@ -106,24 +108,33 @@ export const RodadasAdmin: React.FC = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <Link
-            to="/admin/preparatorios"
+            to={`/admin/preparatorios/edit/${preparatorioId}`}
             className="inline-flex items-center gap-2 text-gray-500 hover:text-white mb-2 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
-            Voltar
+            Voltar ao Preparatório
           </Link>
           <h2 className="text-3xl font-black text-white font-display uppercase">Rodadas</h2>
           <p className="text-gray-500 mt-1">
             Gerencie as rodadas de <span style={{ color: preparatorio.cor }}>{preparatorio.nome}</span>
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-brand-yellow text-brand-darker px-4 py-2 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Rodada
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowGerarModal(true)}
+            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 font-bold uppercase text-sm hover:bg-purple-700 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            Gerar com IA
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-brand-yellow text-brand-darker px-4 py-2 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Rodada
+          </button>
+        </div>
       </div>
 
       {rodadas.length === 0 ? (
@@ -236,7 +247,7 @@ export const RodadasAdmin: React.FC = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal Nova/Editar Rodada */}
       {showModal && preparatorioId && (
         <RodadaModal
           preparatorioId={preparatorioId}
@@ -250,6 +261,20 @@ export const RodadasAdmin: React.FC = () => {
             await loadData();
             setShowModal(false);
             setEditingRodada(null);
+          }}
+        />
+      )}
+
+      {/* Modal Gerar com IA */}
+      {showGerarModal && preparatorioId && preparatorio && (
+        <GerarRodadasModal
+          preparatorioId={preparatorioId}
+          preparatorioNome={preparatorio.nome}
+          banca={preparatorio.banca || undefined}
+          onClose={() => setShowGerarModal(false)}
+          onSuccess={async () => {
+            await loadData();
+            setShowGerarModal(false);
           }}
         />
       )}
