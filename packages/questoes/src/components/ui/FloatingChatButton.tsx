@@ -13,24 +13,12 @@ export function FloatingChatButton({ isOpen, onClick, sidebarWidth = 0 }: Floati
     <motion.button
       onClick={onClick}
       className="fixed bottom-8 z-50"
-      animate={{ right: sidebarWidth + 32, scale: 1, opacity: 1 }}
-      exit={{ scale: 0, opacity: 0 }}
+      initial={{ y: 100, opacity: 0, right: sidebarWidth + 32 }}
+      animate={{ y: 0, opacity: 1, right: sidebarWidth + 32 }}
+      exit={{ y: 100, opacity: 0 }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
-      {/* Glow effect */}
-      <motion.div
-        className="absolute inset-0 bg-[#FFB800] rounded-full blur-lg opacity-30"
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.3, 0.5, 0.3],
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
 
       {/* Main button */}
       <div className={`
