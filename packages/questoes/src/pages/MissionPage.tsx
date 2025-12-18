@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import {
   ChevronLeft,
   ChevronRight,
-  Book,
   Volume2,
   RefreshCw,
   Home,
@@ -47,20 +46,217 @@ import {
 // URL do servidor Mastra para chamadas de background
 const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_SERVER_URL || 'http://localhost:4000';
 
+// Questions Loading Skeleton Component
+function QuestionsSkeleton() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="flex flex-col h-full p-4"
+    >
+      {/* Progress bar skeleton */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-10 h-10 rounded-full bg-[#2A2A2A] animate-pulse" />
+        <div className="flex-1 h-3 bg-[#2A2A2A] rounded-full animate-pulse" />
+        <div className="w-12 h-5 bg-[#2A2A2A] rounded animate-pulse" />
+      </div>
+
+      {/* Question card skeleton */}
+      <div className="bg-[#252525] rounded-xl p-6 border border-[#3A3A3A] flex-1">
+        {/* Question header */}
+        <div className="flex items-center gap-2 mb-4">
+          <div className="h-5 w-24 bg-[#3A3A3A] rounded animate-pulse" />
+          <div className="h-5 w-16 bg-[#3A3A3A] rounded animate-pulse" />
+        </div>
+
+        {/* Question text */}
+        <div className="space-y-2 mb-6">
+          <div className="h-4 bg-[#3A3A3A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-[#3A3A3A] rounded animate-pulse w-11/12" />
+          <div className="h-4 bg-[#3A3A3A] rounded animate-pulse w-4/5" />
+        </div>
+
+        {/* Options skeleton */}
+        <div className="space-y-3">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 p-4 bg-[#1A1A1A] rounded-xl border border-[#3A3A3A]"
+            >
+              <div className="w-8 h-8 rounded-full bg-[#3A3A3A] animate-pulse flex-shrink-0" />
+              <div className="flex-1 h-4 bg-[#3A3A3A] rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Content Skeleton Component
+function ContentSkeleton() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="flex flex-col h-full p-4"
+    >
+      {/* Header skeleton */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-lg bg-[#2A2A2A] animate-pulse" />
+        <div className="flex-1">
+          <div className="h-5 w-48 bg-[#2A2A2A] rounded animate-pulse mb-2" />
+          <div className="h-4 w-64 bg-[#2A2A2A] rounded animate-pulse" />
+        </div>
+      </div>
+
+      {/* Audio player skeleton */}
+      <div className="bg-[#252525] rounded-xl p-4 mb-6 border border-[#3A3A3A]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#3A3A3A] animate-pulse" />
+          <div className="flex-1">
+            <div className="h-2 bg-[#3A3A3A] rounded-full animate-pulse" />
+          </div>
+          <div className="w-12 h-4 bg-[#3A3A3A] rounded animate-pulse" />
+        </div>
+      </div>
+
+      {/* Content skeleton - multiple paragraphs */}
+      <div className="space-y-4 flex-1">
+        <div className="space-y-2">
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-11/12" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-4/5" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-10/12" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-3/4" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-5/6" />
+        </div>
+      </div>
+
+      {/* Button skeleton */}
+      <div className="mt-6 pt-4 border-t border-[#3A3A3A]">
+        <div className="h-12 bg-[#3A3A3A] rounded-xl animate-pulse w-full" />
+      </div>
+    </motion.div>
+  );
+}
+
+// Study Mode Selection Modal
+function StudyModeModal({
+  isOpen,
+  onClose,
+  onSelectMode,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectMode: (mode: 'zen' | 'hard') => void;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          className="bg-[#1A1A1A] border border-[#3A3A3A] rounded-2xl p-6 max-w-md w-full shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="text-xl font-bold text-white mb-2 text-center">
+            Escolha o modo de estudo
+          </h2>
+          <p className="text-[#A0A0A0] text-sm text-center mb-6">
+            Como voce quer praticar as questoes?
+          </p>
+
+          <div className="space-y-3">
+            {/* Modo Zen */}
+            <button
+              onClick={() => onSelectMode('zen')}
+              className="w-full p-4 bg-[#252525] hover:bg-[#2D2D2D] border border-[#3A3A3A] hover:border-[#4CAF50] rounded-xl transition-all group text-left"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[#4CAF50]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#4CAF50]/30 transition-colors">
+                  <span className="text-2xl">🧘</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-white group-hover:text-[#4CAF50] transition-colors">
+                    Modo Zen
+                  </h3>
+                  <p className="text-[#A0A0A0] text-sm mt-1">
+                    Veja o gabarito e comentario apos cada questao. Ideal para aprender com calma.
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            {/* Modo Simulado (internamente 'hard') */}
+            <button
+              onClick={() => onSelectMode('hard')}
+              className="w-full p-4 bg-[#252525] hover:bg-[#2D2D2D] border border-[#3A3A3A] hover:border-[#FFB800] rounded-xl transition-all group text-left"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[#FFB800]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#FFB800]/30 transition-colors">
+                  <span className="text-2xl">⏱️</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-white group-hover:text-[#FFB800] transition-colors">
+                    Modo Simulado
+                  </h3>
+                  <p className="text-[#A0A0A0] text-sm mt-1">
+                    Responda todas as questoes primeiro. Gabarito e comentarios so no final.
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="w-full mt-4 py-2 text-[#6E6E6E] hover:text-white transition-colors text-sm"
+          >
+            Cancelar
+          </button>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 // Content Phase Component
 function ContentPhase({
   content,
+  isLoading,
   isGenerating,
   generationStatus,
   onContinue,
   onBack,
 }: {
   content: { texto_content?: string; audio_url?: string; title?: string } | null;
+  isLoading: boolean;
   isGenerating: boolean;
   generationStatus: 'idle' | 'generating' | 'completed' | 'failed';
-  onContinue: () => void;
+  onContinue: (mode: 'zen' | 'hard') => void;
   onBack: () => void;
 }) {
+  const [showModeModal, setShowModeModal] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
@@ -182,7 +378,12 @@ function ContentPhase({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Loading/Generating state
+  // Loading state - fetching existing content from database
+  if (isLoading) {
+    return <ContentSkeleton />;
+  }
+
+  // Generating state - AI is creating new content
   if (isGenerating || generationStatus === 'generating') {
     return (
       <motion.div
@@ -235,7 +436,7 @@ function ContentPhase({
         <p className="text-[#A0A0A0] mb-6 max-w-xs">
           Nao foi possivel gerar o conteudo. Voce ainda pode praticar com as questoes!
         </p>
-        <Button onClick={onContinue} rightIcon={<ChevronRight size={20} />}>
+        <Button onClick={() => onContinue('zen')} rightIcon={<ChevronRight size={20} />}>
           Ir para as questoes
         </Button>
       </motion.div>
@@ -326,9 +527,6 @@ function ContentPhase({
           >
             <ChevronLeft size={20} />
           </Button>
-          <div className="w-10 h-10 rounded-full bg-[#3498DB]/20 flex items-center justify-center">
-            <Book size={20} className="text-[#3498DB]" />
-          </div>
           <div>
             <h2 className="text-white font-semibold">{content?.title || 'Conteudo Teorico'}</h2>
             <p className="text-[#6E6E6E] text-sm">Leia com atencao antes de praticar</p>
@@ -454,12 +652,22 @@ function ContentPhase({
         <Button
           fullWidth
           size="lg"
-          onClick={onContinue}
+          onClick={() => setShowModeModal(true)}
           rightIcon={<ChevronRight size={20} />}
         >
           Entendi, vamos praticar!
         </Button>
       </div>
+
+      {/* Study Mode Selection Modal */}
+      <StudyModeModal
+        isOpen={showModeModal}
+        onClose={() => setShowModeModal(false)}
+        onSelectMode={(mode) => {
+          setShowModeModal(false);
+          onContinue(mode);
+        }}
+      />
     </motion.div>
   );
 }
@@ -712,12 +920,45 @@ const DEMO_ROUNDS = [
 ];
 
 export default function MissionPage() {
-  const { missionId } = useParams<{ missionId: string }>();
+  const { missionId, prepSlug, roundNum, missionNum } = useParams<{
+    missionId?: string;
+    prepSlug?: string;
+    roundNum?: string;
+    missionNum?: string;
+  }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
   const { addToast } = useUIStore();
   const { incrementStats, stats } = useUserStore();
-  const { completeMission, rounds, setSelectedMissionId, viewingRoundIndex, setViewingRoundIndex, getSelectedPreparatorio } = useTrailStore();
+  const {
+    completeMission,
+    rounds,
+    setSelectedMissionId,
+    viewingRoundIndex,
+    setViewingRoundIndex,
+    getSelectedPreparatorio,
+    getMissionUrl,
+    getMissionByUrlParams,
+  } = useTrailStore();
+
+  // Resolve mission ID from URL params (supports both old and new URL formats)
+  const resolvedMissionId = useMemo(() => {
+    // Old format: /missao/:missionId
+    if (missionId) return missionId;
+
+    // New format: /trilha/:prepSlug/r/:roundNum/m/:missionNum
+    if (prepSlug && roundNum && missionNum) {
+      const mission = getMissionByUrlParams({
+        prepSlug,
+        roundNum: parseInt(roundNum, 10),
+        missionNum: parseInt(missionNum, 10),
+      });
+      return mission?.id || null;
+    }
+
+    return null;
+  }, [missionId, prepSlug, roundNum, missionNum, getMissionByUrlParams]);
 
   // Trail Logic
   const displayRounds = rounds.length > 0 ? rounds : DEMO_ROUNDS;
@@ -739,10 +980,11 @@ export default function MissionPage() {
 
   const handleMissionClick = (mission: TrailMission) => {
     if (mission.status === 'locked') return;
-    if (mission.id === missionId) return; // Já estamos aqui
+    if (mission.id === resolvedMissionId) return; // Já estamos aqui
 
     setSelectedMissionId(mission.id);
-    navigate(`/missao/${mission.id}`);
+    const url = getMissionUrl(mission);
+    navigate(url);
   };
 
   // Local state for this page
@@ -756,16 +998,18 @@ export default function MissionPage() {
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [isCreatingMassificacao, setIsCreatingMassificacao] = useState(false);
   const [massificacaoId, setMassificacaoId] = useState<string | null>(null);
+  const [selectedStudyMode, setSelectedStudyMode] = useState<'zen' | 'hard'>('zen');
 
   // Content generation state
   const [missaoConteudo, setMissaoConteudo] = useState<MissaoConteudo | null>(null);
+  const [isLoadingContent, setIsLoadingContent] = useState(true); // Loading existing content from DB
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [contentStatus, setContentStatus] = useState<'idle' | 'generating' | 'completed' | 'failed'>('idle');
 
   // Retrieve current mission info for display (moved up to be available earlier)
   const currentMission = useMemo(() => {
-    return allMissions.find(m => m.id === missionId);
-  }, [allMissions, missionId]);
+    return allMissions.find(m => m.id === resolvedMissionId);
+  }, [allMissions, resolvedMissionId]);
 
   // Verificar se a missão atual é uma massificação
   const isMissaoMassificacao = currentMission ? isMassificacao(currentMission) : false;
@@ -779,25 +1023,43 @@ export default function MissionPage() {
     setShowCelebration(false);
     setShowMentorChat(false);
     setMissaoConteudo(null);
+    setIsLoadingContent(true);
     setIsGeneratingContent(false);
     setContentStatus('idle');
-  }, [missionId]);
+    setSelectedStudyMode('zen');
+    // Clear phase from URL
+    setSearchParams({}, { replace: true });
+  }, [resolvedMissionId, setSearchParams]);
+
+  // Update URL when phase changes to questions
+  React.useEffect(() => {
+    if (phase === 'questions') {
+      setSearchParams({ fase: 'questoes' }, { replace: true });
+    } else {
+      // Remove fase param when not in questions phase
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('fase');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [phase, setSearchParams]);
 
   // Load or generate content for the mission
   useEffect(() => {
     async function loadOrGenerateContent() {
-      if (!missionId || !user?.id) return;
+      if (!resolvedMissionId || !user?.id) return;
 
-      console.log('[MissionPage] Verificando conteudo para missao:', missionId);
+      console.log('[MissionPage] Verificando conteudo para missao:', resolvedMissionId);
+      setIsLoadingContent(true);
 
       try {
         // 1. Check if content already exists
-        const existingContent = await getMissaoConteudo(missionId);
+        const existingContent = await getMissaoConteudo(resolvedMissionId);
 
         if (existingContent) {
           console.log('[MissionPage] Conteudo encontrado:', existingContent.status);
           setMissaoConteudo(existingContent);
           setContentStatus(existingContent.status as 'generating' | 'completed' | 'failed');
+          setIsLoadingContent(false);
 
           // Se o conteúdo já está pronto, disparar geração da próxima missão em background (silencioso)
           if (existingContent.status === 'completed') {
@@ -805,7 +1067,7 @@ export default function MissionPage() {
             fetch(`${MASTRA_SERVER_URL}/api/missao/trigger-proxima`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ missaoAtualId: missionId }),
+              body: JSON.stringify({ missao_id: resolvedMissionId }),
             }).catch(() => {
               // Silencioso - ignora erros
             });
@@ -814,7 +1076,7 @@ export default function MissionPage() {
           // If still generating, poll for updates
           if (existingContent.status === 'generating') {
             const pollInterval = setInterval(async () => {
-              const updated = await getMissaoConteudo(missionId);
+              const updated = await getMissaoConteudo(resolvedMissionId);
               if (updated && updated.status !== 'generating') {
                 setMissaoConteudo(updated);
                 setContentStatus(updated.status as 'completed' | 'failed');
@@ -830,6 +1092,7 @@ export default function MissionPage() {
 
         // 2. No content exists - generate it
         console.log('[MissionPage] Iniciando geracao de conteudo...');
+        setIsLoadingContent(false);
         setIsGeneratingContent(true);
         setContentStatus('generating');
 
@@ -838,7 +1101,7 @@ export default function MissionPage() {
         const questoesPorMissao = preparatorio?.questoes_por_missao || 20;
 
         const generatedContent = await gerarConteudoMissao({
-          missaoId: missionId,
+          missaoId: resolvedMissionId,
           userId: user.id,
           questoesPorMissao,
         });
@@ -854,18 +1117,19 @@ export default function MissionPage() {
       } catch (error) {
         console.error('[MissionPage] Erro ao carregar/gerar conteudo:', error);
         setContentStatus('failed');
+        setIsLoadingContent(false);
       } finally {
         setIsGeneratingContent(false);
       }
     }
 
     loadOrGenerateContent();
-  }, [missionId, user?.id, getSelectedPreparatorio]);
+  }, [resolvedMissionId, user?.id, getSelectedPreparatorio]);
 
   // Load questions for this mission
   useEffect(() => {
     async function loadQuestions() {
-      if (!missionId) {
+      if (!resolvedMissionId) {
         setQuestions(DEMO_QUESTIONS);
         setIsLoadingQuestions(false);
         return;
@@ -877,8 +1141,8 @@ export default function MissionPage() {
         const preparatorio = getSelectedPreparatorio();
         const questoesPorMissao = preparatorio?.questoes_por_missao || 20;
 
-        console.log('[MissionPage] Carregando questoes para missao:', missionId, '- Quantidade:', questoesPorMissao);
-        const fetchedQuestions = await getQuestoesParaMissao(missionId, questoesPorMissao);
+        console.log('[MissionPage] Carregando questoes para missao:', resolvedMissionId, '- Quantidade:', questoesPorMissao);
+        const fetchedQuestions = await getQuestoesParaMissao(resolvedMissionId, questoesPorMissao);
 
         if (fetchedQuestions.length > 0) {
           console.log('[MissionPage] Questoes carregadas:', fetchedQuestions.length);
@@ -898,7 +1162,7 @@ export default function MissionPage() {
     }
 
     loadQuestions();
-  }, [missionId, getSelectedPreparatorio]);
+  }, [resolvedMissionId, getSelectedPreparatorio]);
 
   const currentQuestion = questions[currentQuestionIndex];
 
@@ -955,8 +1219,8 @@ export default function MissionPage() {
           });
 
           // Completar a massificação
-          if (missionId) {
-            await completarMassificacao(missionId, score);
+          if (resolvedMissionId) {
+            await completarMassificacao(resolvedMissionId, score);
 
             // Desbloquear próxima missão
             if (currentMission?.round_id) {
@@ -1031,10 +1295,10 @@ export default function MissionPage() {
   };
 
   const handleContinue = () => {
-    if (missionId) {
+    if (resolvedMissionId) {
       const correctCount = Array.from(answers.values()).filter(a => a.correct).length;
       const score = (correctCount / questions.length) * 100;
-      completeMission(missionId, score);
+      completeMission(resolvedMissionId, score);
     }
     navigate('/');
     addToast('success', 'Missão concluída! Próxima missão desbloqueada.');
@@ -1103,34 +1367,25 @@ export default function MissionPage() {
             {/* Content */}
             <div className="flex-1 overflow-hidden">
               <AnimatePresence mode="wait">
-                {/* Loading state */}
-                {isLoadingQuestions && phase === 'content' && (
-                  <motion.div
-                    key="loading"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex flex-col items-center justify-center h-full p-6"
-                  >
-                    <Loader2 className="w-12 h-12 animate-spin text-[#FFB800] mb-4" />
-                    <p className="text-[#A0A0A0]">Carregando questoes...</p>
-                  </motion.div>
-                )}
-
-                {phase === 'content' && !isLoadingQuestions && (
+                {/* Fase de conteúdo - ContentPhase já lida com loading internamente */}
+                {phase === 'content' && (
                   <ContentPhase
                     key="content"
                     content={missaoConteudo ? {
-                      title: currentMission?.assunto?.nome ? `📖 ${currentMission.assunto.nome}` : 'Conteudo Teorico',
+                      title: currentMission?.assunto?.nome || 'Conteudo Teorico',
                       texto_content: missaoConteudo.texto_content,
                       audio_url: missaoConteudo.audio_url || undefined,
                     } : {
-                      title: currentMission?.assunto?.nome ? `📖 ${currentMission.assunto.nome}` : 'Conteudo Teorico',
+                      title: currentMission?.assunto?.nome || 'Conteudo Teorico',
                       texto_content: undefined,
                     }}
+                    isLoading={isLoadingContent || isLoadingQuestions}
                     isGenerating={isGeneratingContent}
                     generationStatus={contentStatus}
-                    onContinue={() => setPhase('questions')}
+                    onContinue={(mode) => {
+                      setSelectedStudyMode(mode);
+                      setPhase('questions');
+                    }}
                     onBack={() => navigate('/')}
                   />
                 )}
@@ -1170,7 +1425,7 @@ export default function MissionPage() {
                       onOpenTutor={() => setShowMentorChat(true)}
                       onAnswer={handleAnswer}
                       onRateDifficulty={handleRateDifficulty}
-                      studyMode="zen"
+                      studyMode={selectedStudyMode}
                       userId={user?.id}
                       onShowToast={handleShowToast}
                     />
@@ -1300,8 +1555,8 @@ export default function MissionPage() {
             )}
           </div>
 
-          {/* Map Content - with padding to ensure visibility */}
-          <div className={isMapExpanded ? 'pt-4 pb-20' : 'pt-2 pb-20'}>
+          {/* Map Content - with top margin to account for sticky header (h-14 = 56px) */}
+          <div className={isMapExpanded ? 'mt-14 pb-20' : 'mt-14 pb-20'}>
             <AnimatePresence mode="wait">
               {isMapExpanded ? (
                 <motion.div

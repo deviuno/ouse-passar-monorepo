@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Play, Loader2 } from 'lucide-react';
+import { Play } from 'lucide-react';
 import { useTrailStore, useAuthStore, useUIStore } from '../stores';
 import { Button, FadeIn } from '../components/ui';
 import { TrailMission } from '../types';
@@ -77,8 +77,7 @@ function TrailSkeleton() {
       })}
 
       {/* Loading text */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[#6E6E6E] text-sm">
-        <Loader2 className="w-4 h-4 animate-spin" />
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[#6E6E6E] text-sm">
         <span>Carregando trilha...</span>
       </div>
     </div>
@@ -155,6 +154,7 @@ export default function HomePage() {
     setLoading,
     viewingRoundIndex,
     setViewingRoundIndex,
+    getMissionUrl,
   } = useTrailStore();
   const { user } = useAuthStore();
   const { addToast, isSidebarOpen } = useUIStore();
@@ -263,37 +263,26 @@ export default function HomePage() {
   const handleMissionClick = (mission: TrailMission) => {
     if (mission.status === 'locked') return;
     setSelectedMissionId(mission.id);
-    navigate(`/missao/${mission.id}`);
+    const url = getMissionUrl(mission);
+    navigate(url);
   };
 
   const handleAddNewPreparatorio = useCallback(() => {
     navigate('/loja/preparatorios');
   }, [navigate]);
 
-  // Loading state
-  if (isLoading && userPreparatorios.length === 0) {
-    return (
-      <div className="min-h-full flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-[#FFB800] mx-auto mb-4" />
-          <p className="text-[#A0A0A0]">Carregando seus preparatorios...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // No preparatorios state
+  // No preparatorios state (só mostra quando terminou de carregar e não tem nenhum)
   if (!isLoading && userPreparatorios.length === 0) {
     return <NoPreparatoriosState onAddNew={handleAddNewPreparatorio} />;
   }
 
-  // Check if we're loading trail data (not initial preparatorios load)
-  const isLoadingTrail = isLoading && userPreparatorios.length > 0 && selectedPreparatorioId;
+  // Qualquer estado de loading mostra o skeleton de trilha
+  const isLoadingAnything = isLoading;
 
   return (
     <div className="min-h-full pb-20">
       {/* Trail Map - Centralizado */}
-      {isLoadingTrail ? (
+      {isLoadingAnything ? (
         <TrailSkeleton />
       ) : displayRounds.length === 0 ? (
         <EmptyTrailState />
@@ -324,7 +313,8 @@ export default function HomePage() {
               onClick={() => {
                 const nextMission = allMissions.find((m) => m.status === 'available' || m.status === 'in_progress');
                 if (nextMission) {
-                  navigate(`/missao/${nextMission.id}`);
+                  const url = getMissionUrl(nextMission);
+                  navigate(url);
                 }
               }}
               leftIcon={<Play size={20} />}

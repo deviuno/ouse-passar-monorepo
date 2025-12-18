@@ -13,6 +13,13 @@ import {
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
 
+// Helper type for mission URL params
+export interface MissionUrlParams {
+  prepSlug: string;
+  roundNum: number;
+  missionNum: number;
+}
+
 interface TrailState {
   // User's preparatorios
   userPreparatorios: UserPreparatorio[];
@@ -28,6 +35,9 @@ interface TrailState {
   isLoading: boolean;
   currentMissionId: string | null;
   selectedMissionId: string | null;
+
+  // Round navigation state
+  viewingRoundIndex: number;
 
   // Actions - Preparatorios
   setUserPreparatorios: (preparatorios: UserPreparatorio[]) => void;
@@ -51,6 +61,10 @@ interface TrailState {
 
   // Round actions
   updateRoundStatus: (roundId: string, status: 'locked' | 'active' | 'completed') => void;
+  setViewingRoundIndex: (index: number) => void;
+  goToPreviousRound: () => void;
+  goToNextRound: () => void;
+  getCurrentActiveRoundIndex: () => number;
 
   // Computed
   getMapData: () => TrailMapData | null;
@@ -58,6 +72,11 @@ interface TrailState {
   getNextAvailableMission: () => TrailMission | null;
   getMissionById: (id: string) => TrailMission | null;
   getRoundById: (id: string) => TrailRoundWithMissions | null;
+
+  // URL helpers
+  getMissionUrl: (mission: TrailMission) => string;
+  getMissionByUrlParams: (params: MissionUrlParams) => TrailMission | null;
+  getMissionUrlParams: (mission: TrailMission) => MissionUrlParams | null;
 
   // Reset
   reset: () => void;
@@ -78,6 +97,9 @@ export const useTrailStore = create<TrailState>()(
       isLoading: false,
       currentMissionId: null,
       selectedMissionId: null,
+
+      // Round navigation
+      viewingRoundIndex: 0,
 
       // Actions - Preparatorios
       setUserPreparatorios: (userPreparatorios) => set({ userPreparatorios }),
@@ -169,6 +191,33 @@ export const useTrailStore = create<TrailState>()(
           ),
         })),
 
+      setViewingRoundIndex: (viewingRoundIndex) => set({ viewingRoundIndex }),
+
+      goToPreviousRound: () => {
+        const { viewingRoundIndex } = get();
+        if (viewingRoundIndex > 0) {
+          set({ viewingRoundIndex: viewingRoundIndex - 1 });
+        }
+      },
+
+      goToNextRound: () => {
+        const { viewingRoundIndex, rounds } = get();
+        if (viewingRoundIndex < rounds.length - 1) {
+          set({ viewingRoundIndex: viewingRoundIndex + 1 });
+        }
+      },
+
+      getCurrentActiveRoundIndex: () => {
+        const { rounds } = get();
+        let lastActiveIndex = 0;
+        for (let i = 0; i < rounds.length; i++) {
+          if (rounds[i].status !== 'locked') {
+            lastActiveIndex = i;
+          }
+        }
+        return lastActiveIndex;
+      },
+
       getMapData: () => {
         const { currentTrail, rounds, currentMissionId } = get();
         if (!currentTrail) return null;
@@ -215,6 +264,49 @@ export const useTrailStore = create<TrailState>()(
         return rounds.find((r) => r.id === id) || null;
       },
 
+      // URL helpers
+      getMissionUrl: (mission) => {
+        const { rounds, preparatorio } = get();
+        if (!preparatorio?.slug) return `/missao/${mission.id}`;
+
+        const round = rounds.find((r) => r.id === mission.round_id);
+        if (!round) return `/missao/${mission.id}`;
+
+        return `/${preparatorio.slug}/r/${round.round_number}/m/${mission.ordem}`;
+      },
+
+      getMissionByUrlParams: (params) => {
+        const { rounds, userPreparatorios } = get();
+
+        // Find preparatorio by slug
+        const userPrep = userPreparatorios.find(
+          (up) => up.preparatorio?.slug === params.prepSlug
+        );
+        if (!userPrep) return null;
+
+        // Find round by number
+        const round = rounds.find((r) => r.round_number === params.roundNum);
+        if (!round) return null;
+
+        // Find mission by ordem
+        const mission = round.missions.find((m) => m.ordem === params.missionNum);
+        return mission || null;
+      },
+
+      getMissionUrlParams: (mission) => {
+        const { rounds, preparatorio } = get();
+        if (!preparatorio?.slug) return null;
+
+        const round = rounds.find((r) => r.id === mission.round_id);
+        if (!round) return null;
+
+        return {
+          prepSlug: preparatorio.slug,
+          roundNum: round.round_number,
+          missionNum: mission.ordem,
+        };
+      },
+
       reset: () =>
         set({
           userPreparatorios: [],
@@ -226,6 +318,7 @@ export const useTrailStore = create<TrailState>()(
           isLoading: false,
           currentMissionId: null,
           selectedMissionId: null,
+          viewingRoundIndex: 0,
         }),
     }),
     {
@@ -234,6 +327,9 @@ export const useTrailStore = create<TrailState>()(
         currentTrail: state.currentTrail,
         currentMissionId: state.currentMissionId,
         selectedPreparatorioId: state.selectedPreparatorioId,
+        rounds: state.rounds,
+        preparatorio: state.preparatorio,
+        viewingRoundIndex: state.viewingRoundIndex,
       }),
     }
   )

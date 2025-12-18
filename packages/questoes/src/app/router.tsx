@@ -71,6 +71,10 @@ export const router = createBrowserRouter([
         element: <MissionPage />,
       },
       {
+        path: ':prepSlug/r/:roundNum/m/:missionNum',
+        element: <MissionPage />,
+      },
+      {
         path: 'praticar',
         element: <PracticePage />,
       },
