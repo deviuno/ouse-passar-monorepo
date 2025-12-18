@@ -4,9 +4,86 @@ import { motion } from 'framer-motion';
 import { Play, Loader2 } from 'lucide-react';
 import { useTrailStore, useAuthStore, useUIStore } from '../stores';
 import { Button, FadeIn } from '../components/ui';
-import { TrailMission, MissionStatus } from '../types';
+import { TrailMission } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
-import { userPreparatoriosService, trailService } from '../services';
+import {
+  userPreparatoriosService,
+  getRodadasComProgresso,
+  rodadasToTrailRounds,
+  countMissoesProgress,
+} from '../services';
+
+// Skeleton Loading Component for Trail
+function TrailSkeleton() {
+  const skeletonNodes = [0, 1, 2, 3, 4];
+  const CONFIG = {
+    ITEM_HEIGHT: 140,
+    WAVE_AMPLITUDE: 86,
+    START_Y: 80,
+  };
+
+  const getPosition = (index: number) => {
+    const side = index % 2 === 0 ? -1 : 1;
+    const xOffset = side * CONFIG.WAVE_AMPLITUDE;
+    const y = CONFIG.START_Y + index * CONFIG.ITEM_HEIGHT;
+    return { x: xOffset, y };
+  };
+
+  return (
+    <div className="relative w-full pt-20" style={{ height: getPosition(skeletonNodes.length - 1).y + 150 }}>
+      {/* Skeleton path line */}
+      <div className="absolute left-1/2 top-0 w-1 h-full">
+        <div className="w-full h-full bg-gradient-to-b from-[#2A2A2A] via-[#3A3A3A] to-[#2A2A2A] opacity-30 rounded-full" />
+      </div>
+
+      {/* Skeleton nodes */}
+      {skeletonNodes.map((_, index) => {
+        const pos = getPosition(index);
+        return (
+          <div
+            key={index}
+            className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
+            style={{
+              top: pos.y,
+              left: `calc(50% + ${pos.x}px)`
+            }}
+          >
+            {/* Skeleton button */}
+            <motion.div
+              animate={{
+                opacity: [0.3, 0.6, 0.3],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                delay: index * 0.1,
+              }}
+              className="w-16 h-16 rounded-2xl bg-[#2A2A2A] border-2 border-[#3A3A3A] rotate-45"
+            />
+            {/* Skeleton label */}
+            <motion.div
+              animate={{
+                opacity: [0.3, 0.5, 0.3],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                delay: index * 0.1 + 0.2,
+              }}
+              className="mt-8 w-20 h-6 rounded-lg bg-[#2A2A2A]"
+            />
+          </div>
+        );
+      })}
+
+      {/* Loading text */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[#6E6E6E] text-sm">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        <span>Carregando trilha...</span>
+      </div>
+    </div>
+  );
+}
 
 // Empty State Component
 function EmptyTrailState() {
@@ -61,36 +138,6 @@ function NoPreparatoriosState({ onAddNew }: { onAddNew: () => void }) {
   );
 }
 
-// Demo Trail Data (fallback when no real data)
-const DEMO_ROUNDS = [
-  {
-    id: 'round-1',
-    trail_id: 'demo',
-    round_number: 1,
-    status: 'active' as const,
-    tipo: 'normal' as const,
-    created_at: new Date().toISOString(),
-    missions: [
-      { id: 'm1', round_id: 'round-1', materia_id: '1', ordem: 1, status: 'completed' as MissionStatus, tipo: 'normal' as const, score: 85, attempts: 1, created_at: '', assunto: { id: '1', materia_id: '1', nome: 'Concordancia Verbal', ordem: 1, nivel_dificuldade: 'intermediario' as const, created_at: '' } },
-      { id: 'm2', round_id: 'round-1', materia_id: '2', ordem: 2, status: 'completed' as MissionStatus, tipo: 'normal' as const, score: 72, attempts: 1, created_at: '', assunto: { id: '2', materia_id: '2', nome: 'Numeros Naturais', ordem: 1, nivel_dificuldade: 'iniciante' as const, created_at: '' } },
-      { id: 'm3', round_id: 'round-1', materia_id: '1', ordem: 3, status: 'available' as MissionStatus, tipo: 'normal' as const, attempts: 0, created_at: '', assunto: { id: '3', materia_id: '1', nome: 'Regencia Verbal', ordem: 2, nivel_dificuldade: 'intermediario' as const, created_at: '' } },
-      { id: 'm4', round_id: 'round-1', materia_id: '2', ordem: 4, status: 'locked' as MissionStatus, tipo: 'normal' as const, attempts: 0, created_at: '', assunto: { id: '4', materia_id: '2', nome: 'Fracoes', ordem: 2, nivel_dificuldade: 'intermediario' as const, created_at: '' } },
-      { id: 'm5', round_id: 'round-1', materia_id: '1', ordem: 5, status: 'locked' as MissionStatus, tipo: 'normal' as const, attempts: 0, created_at: '', assunto: { id: '5', materia_id: '1', nome: 'Crase', ordem: 3, nivel_dificuldade: 'avancado' as const, created_at: '' } },
-    ],
-  },
-  {
-    id: 'round-2',
-    trail_id: 'demo',
-    round_number: 2,
-    status: 'locked' as const,
-    tipo: 'normal' as const,
-    created_at: new Date().toISOString(),
-    missions: [
-      { id: 'm6', round_id: 'round-2', materia_id: '1', ordem: 1, status: 'locked' as MissionStatus, tipo: 'revisao' as const, attempts: 0, created_at: '', assunto: { id: '6', materia_id: '1', nome: 'Revisao Geral', ordem: 1, nivel_dificuldade: 'intermediario' as const, created_at: '' } },
-      { id: 'm7', round_id: 'round-2', materia_id: '1', ordem: 2, status: 'locked' as MissionStatus, tipo: 'revisao' as const, attempts: 0, created_at: '', assunto: { id: '7', materia_id: '1', nome: 'Simulado Final', ordem: 2, nivel_dificuldade: 'avancado' as const, created_at: '' } },
-    ],
-  },
-];
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -106,6 +153,8 @@ export default function HomePage() {
     setPreparatorio,
     isLoading,
     setLoading,
+    viewingRoundIndex,
+    setViewingRoundIndex,
   } = useTrailStore();
   const { user } = useAuthStore();
   const { addToast, isSidebarOpen } = useUIStore();
@@ -119,10 +168,11 @@ export default function HomePage() {
       try {
         const preparatorios = await userPreparatoriosService.getUserPreparatorios(user.id);
 
-        // Calcular progresso para cada preparatório
+        // Calcular progresso para cada preparatório usando o novo serviço
         const preparatoriosWithProgress = await Promise.all(
           preparatorios.map(async (prep) => {
-            const progress = await userPreparatoriosService.calculateProgress(prep.id);
+            // Usar o novo serviço que busca das tabelas rodadas/missoes
+            const progress = await countMissoesProgress(user.id, prep.preparatorio_id);
             return {
               ...prep,
               totalMissions: progress.total,
@@ -158,8 +208,14 @@ export default function HomePage() {
 
       setLoading(true);
       try {
-        // Buscar rodadas com missões
-        const roundsData = await trailService.fetchRoundsWithMissions(selectedPrep.id);
+        // Buscar rodadas com missões do sistema de planejamento
+        const rodadasComProgresso = await getRodadasComProgresso(
+          user.id,
+          selectedPrep.preparatorio_id
+        );
+
+        // Converter para o formato usado pela trilha
+        const roundsData = rodadasToTrailRounds(rodadasComProgresso);
         setRounds(roundsData);
 
         // Atualizar dados do preparatório atual
@@ -174,8 +230,8 @@ export default function HomePage() {
         });
       } catch (err) {
         console.error('Erro ao carregar trilha:', err);
-        // Usar dados demo como fallback
-        setRounds(DEMO_ROUNDS);
+        // Não usar fallback - deixar vazio para mostrar estado empty
+        setRounds([]);
       } finally {
         setLoading(false);
       }
@@ -184,8 +240,8 @@ export default function HomePage() {
     loadTrailData();
   }, [selectedPreparatorioId, userPreparatorios]);
 
-  // Use demo data if no real data
-  const displayRounds = rounds.length > 0 ? rounds : (userPreparatorios.length > 0 ? DEMO_ROUNDS : []);
+  // Use real data only - no demo fallback
+  const displayRounds = rounds;
 
   // Flatten missions for the new TrailMap
   const allMissions = useMemo(() => {
@@ -231,19 +287,25 @@ export default function HomePage() {
     return <NoPreparatoriosState onAddNew={handleAddNewPreparatorio} />;
   }
 
+  // Check if we're loading trail data (not initial preparatorios load)
+  const isLoadingTrail = isLoading && userPreparatorios.length > 0 && selectedPreparatorioId;
+
   return (
     <div className="min-h-full pb-20">
-      {/* Trail Map */}
-      {displayRounds.length === 0 ? (
+      {/* Trail Map - Centralizado */}
+      {isLoadingTrail ? (
+        <TrailSkeleton />
+      ) : displayRounds.length === 0 ? (
         <EmptyTrailState />
       ) : (
         <FadeIn>
-          <div className="pt-8 relative overflow-hidden" data-tour="trail-map">
+          <div className="relative overflow-hidden pt-16" data-tour="trail-map">
             <TrailMap
-              missions={allMissions}
-              currentMissionIndex={currentMissionIndex}
+              rounds={displayRounds}
               onMissionClick={handleMissionClick}
               userAvatar={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop"}
+              viewingRoundIndex={viewingRoundIndex}
+              onViewingRoundChange={setViewingRoundIndex}
             />
           </div>
         </FadeIn>

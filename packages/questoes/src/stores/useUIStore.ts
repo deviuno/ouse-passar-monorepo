@@ -27,6 +27,11 @@ interface UIState {
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
 
+  // Right Sidebar (trail)
+  isRightSidebarOpen: boolean;
+  setRightSidebarOpen: (open: boolean) => void;
+  toggleRightSidebar: () => void;
+
   // Loading states
   isPageLoading: boolean;
   setPageLoading: (loading: boolean) => void;
@@ -89,6 +94,11 @@ export const useUIStore = create<UIState>()((set, get) => ({
   isSidebarOpen: true,
   setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
   toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+
+  // Right Sidebar (trail)
+  isRightSidebarOpen: true,
+  setRightSidebarOpen: (isRightSidebarOpen) => set({ isRightSidebarOpen }),
+  toggleRightSidebar: () => set((state) => ({ isRightSidebarOpen: !state.isRightSidebarOpen })),
 
   // Loading
   isPageLoading: false,

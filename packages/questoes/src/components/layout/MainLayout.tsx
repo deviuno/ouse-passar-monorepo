@@ -26,7 +26,7 @@ export function MainLayout() {
 
   return (
     <div className="min-h-screen bg-[#1A1A1A] text-white">
-      {/* Desktop Sidebar */}
+      {/* Desktop Left Sidebar */}
       <aside
         className={`
           hidden lg:block fixed left-0 top-0 bottom-0

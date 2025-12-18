@@ -9,10 +9,11 @@ import {
   ShoppingBag,
   User,
   LogOut,
-  Settings,
   HelpCircle,
+  Bell,
+  ChevronLeft,
 } from 'lucide-react';
-import { useAuthStore, useUserStore } from '../../stores';
+import { useAuthStore, useUserStore, useUIStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
 import { CircularProgress } from '../ui/Progress';
 import { calculateXPProgress } from '../../constants/levelConfig';
@@ -35,6 +36,7 @@ export function Sidebar() {
   const navigate = useNavigate();
   const { profile, logout } = useAuthStore();
   const { stats } = useUserStore();
+  const { toggleSidebar } = useUIStore();
   const xpProgress = calculateXPProgress(stats.xp);
 
   const handleLogout = async () => {
@@ -44,23 +46,48 @@ export function Sidebar() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Logo - altura igual ao Header (h-14 = 56px) */}
-      <div className="h-14 px-4 flex items-center border-b border-[#3A3A3A]">
+      {/* Header - Logo + Collapse */}
+      <div className="h-14 px-4 flex items-center justify-between border-b border-[#3A3A3A]">
         <img src={LOGO_URL} alt="Ouse Passar" className="h-7 object-contain" />
+        <button
+          onClick={toggleSidebar}
+          className="p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors"
+          title="Retrair menu"
+        >
+          <ChevronLeft size={18} className="text-[#A0A0A0]" />
+        </button>
       </div>
 
       {/* User Info */}
       <div className="p-4 border-b border-[#3A3A3A]">
         <div className="flex items-center gap-3">
-          <CircularProgress
-            value={xpProgress.percentage}
-            size={50}
-            strokeWidth={4}
-            color="brand"
-            showLabel={false}
+          {/* Profile Photo with Progress Ring */}
+          <button
+            onClick={() => navigate('/perfil')}
+            className="relative group"
           >
-            <span className="text-white text-sm font-bold">{stats.level}</span>
-          </CircularProgress>
+            <CircularProgress
+              value={xpProgress.percentage}
+              size={50}
+              strokeWidth={4}
+              color="brand"
+              showLabel={false}
+            >
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Profile"
+                  className="w-9 h-9 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-[#3A3A3A] flex items-center justify-center">
+                  <User size={18} className="text-[#A0A0A0]" />
+                </div>
+              )}
+            </CircularProgress>
+            <div className="absolute inset-0 rounded-full bg-[#FFB800]/0 group-hover:bg-[#FFB800]/10 transition-colors" />
+          </button>
+
           <div className="flex-1 min-w-0">
             <p className="text-white font-medium truncate">
               {profile?.name || 'Estudante'}
@@ -69,6 +96,12 @@ export function Sidebar() {
               {stats.xp} XP
             </p>
           </div>
+
+          {/* Notification Icon */}
+          <button className="relative p-2 rounded-lg hover:bg-[#3A3A3A] transition-colors">
+            <Bell size={18} className="text-[#A0A0A0]" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#E74C3C] rounded-full"></span>
+          </button>
         </div>
 
         {/* Stats Row */}

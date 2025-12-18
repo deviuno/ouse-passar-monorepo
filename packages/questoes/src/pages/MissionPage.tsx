@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,10 +9,12 @@ import {
   Volume2,
   RefreshCw,
   Home,
-  Star,
   Play,
   Check,
-  Lock
+  Lock,
+  Loader2,
+  Pause,
+  Sparkles
 } from 'lucide-react';
 import { useMissionStore, useTrailStore, useUserStore, useUIStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -21,31 +24,298 @@ import { ParsedQuestion, TrailMission, MissionStatus } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
 import { CompactTrailMap } from '../components/trail/CompactTrailMap';
 import { MentorChat } from '../components/question/MentorChat';
-import { XP_PER_CORRECT, COINS_PER_MISSION, PASSING_SCORE } from '../constants';
+import { XP_PER_CORRECT, COINS_PER_MISSION, PASSING_SCORE
+} from '../constants';
 import {
   saveUserAnswer,
   saveDifficultyRating,
   DifficultyRating,
 } from '../services/questionFeedbackService';
+import {
+  createMassificacao,
+  isMassificacao,
+  completarMassificacao,
+  desbloquearProximaMissao,
+} from '../services/massificacaoService';
+import { getQuestoesParaMissao } from '../services/missaoQuestoesService';
+import {
+  getMissaoConteudo,
+  gerarConteudoMissao,
+  MissaoConteudo,
+} from '../services/missaoConteudoService';
+
+// URL do servidor Mastra para chamadas de background
+const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_SERVER_URL || 'http://localhost:4000';
 
 // Content Phase Component
 function ContentPhase({
   content,
+  isGenerating,
+  generationStatus,
   onContinue,
   onBack,
 }: {
-  content: { texto_content?: string; audio_url?: string; title?: string };
+  content: { texto_content?: string; audio_url?: string; title?: string } | null;
+  isGenerating: boolean;
+  generationStatus: 'idle' | 'generating' | 'completed' | 'failed';
   onContinue: () => void;
   onBack: () => void;
 }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const playerRef = useRef<HTMLDivElement>(null);
+  const contentContainerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [containerLeft, setContainerLeft] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [audioLoading, setAudioLoading] = useState(true);
+  const [audioError, setAudioError] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [showStickyPlayer, setShowStickyPlayer] = useState(false);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showStickySpeedMenu, setShowStickySpeedMenu] = useState(false);
+
+  const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+
+  // Handle scroll to show/hide sticky player and measure container
+  useEffect(() => {
+    const playerElement = playerRef.current;
+    const containerElement = contentContainerRef.current;
+
+    const updateContainerDimensions = () => {
+      if (containerElement) {
+        const rect = containerElement.getBoundingClientRect();
+        setContainerWidth(rect.width);
+        setContainerLeft(rect.left);
+      }
+    };
+
+    const handleScroll = () => {
+      if (!isPlaying || !playerElement) {
+        setShowStickyPlayer(false);
+        return;
+      }
+
+      updateContainerDimensions();
+
+      const playerRect = playerElement.getBoundingClientRect();
+      // Show sticky player when original player is scrolled above the header (top-14 = 56px)
+      const isOutOfView = playerRect.bottom < 70;
+      setShowStickyPlayer(isOutOfView);
+    };
+
+    // Initial measurement
+    updateContainerDimensions();
+
+    // Listen to scroll on window and any scrollable parent
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', updateContainerDimensions);
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', updateContainerDimensions);
+    };
+  }, [isPlaying]);
+
+  // Update playback rate when changed
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackRate;
+    }
+  }, [playbackRate]);
+
+  // Close speed menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowSpeedMenu(false);
+      setShowStickySpeedMenu(false);
+    };
+
+    if (showSpeedMenu || showStickySpeedMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showSpeedMenu, showStickySpeedMenu]);
+
+  const handleSpeedSelect = (speed: number) => {
+    setPlaybackRate(speed);
+    setShowSpeedMenu(false);
+    setShowStickySpeedMenu(false);
+  };
+
+  const handlePlayPause = async () => {
+    if (!audioRef.current) {
+      console.error('[Audio] audioRef not available');
+      return;
+    }
+
+    console.log('[Audio] handlePlayPause called, isPlaying:', isPlaying, 'src:', audioRef.current.src);
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      try {
+        await audioRef.current.play();
+        setIsPlaying(true);
+      } catch (error) {
+        console.error('[Audio] Error playing:', error);
+      }
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (!audioRef.current) return;
+    const progress = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+    setAudioProgress(progress);
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setAudioDuration(audioRef.current.duration);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Loading/Generating state
+  if (isGenerating || generationStatus === 'generating') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="flex flex-col items-center justify-center h-full p-6 text-center"
+      >
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          className="mb-6"
+        >
+          <Sparkles size={48} className="text-[#FFB800]" />
+        </motion.div>
+        <h2 className="text-xl font-bold text-white mb-2">
+          Gerando conteudo personalizado...
+        </h2>
+        <p className="text-[#A0A0A0] mb-4 max-w-xs">
+          Nossa IA esta preparando uma aula especial baseada nas questoes desta missao. Isso pode levar alguns segundos.
+        </p>
+        <div className="w-48 h-2 bg-[#3A3A3A] rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-[#FFB800]"
+            initial={{ width: '0%' }}
+            animate={{ width: '100%' }}
+            transition={{ duration: 30, ease: 'linear' }}
+          />
+        </div>
+        <p className="text-[#6E6E6E] text-xs mt-4">
+          Voce e o primeiro a acessar esta missao!
+        </p>
+      </motion.div>
+    );
+  }
+
+  // Error state
+  if (generationStatus === 'failed') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="flex flex-col items-center justify-center h-full p-6 text-center"
+      >
+        <div className="text-6xl mb-6">⚠️</div>
+        <h2 className="text-xl font-bold text-white mb-2">
+          Ops! Algo deu errado
+        </h2>
+        <p className="text-[#A0A0A0] mb-6 max-w-xs">
+          Nao foi possivel gerar o conteudo. Voce ainda pode praticar com as questoes!
+        </p>
+        <Button onClick={onContinue} rightIcon={<ChevronRight size={20} />}>
+          Ir para as questoes
+        </Button>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="flex flex-col h-full"
+      className="flex flex-col h-full relative"
     >
-      <div className="flex-1 overflow-y-auto p-4">
+      {/* Sticky Mini Player - fixed with same width as content container */}
+      {showStickyPlayer && content?.audio_url && containerWidth > 0 && (
+        <div
+          className="fixed top-14 z-[100] bg-[#252525] border-b border-[#3A3A3A] py-2 px-4"
+          style={{
+            width: containerWidth,
+            left: containerLeft,
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handlePlayPause}
+              className="w-8 h-8 rounded-full bg-[#FFB800] hover:bg-[#E5A600] flex items-center justify-center flex-shrink-0 transition-colors"
+            >
+              {isPlaying ? (
+                <Pause size={16} className="text-black" />
+              ) : (
+                <Play size={16} className="text-black ml-0.5" />
+              )}
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="h-1.5 bg-[#3A3A3A] rounded-full">
+                <div
+                  className="h-full rounded-full bg-[#FFB800] transition-all"
+                  style={{ width: `${audioProgress}%` }}
+                />
+              </div>
+            </div>
+            <span className="text-[#A0A0A0] text-xs flex-shrink-0 text-right">
+              {formatTime(audioRef.current?.currentTime || 0)}
+            </span>
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowStickySpeedMenu(!showStickySpeedMenu);
+                }}
+                className="px-2 py-1 bg-[#3A3A3A] hover:bg-[#4A4A4A] rounded text-xs font-bold text-[#FFB800] flex-shrink-0 transition-colors min-w-[40px]"
+              >
+                {playbackRate}x
+              </button>
+              {showStickySpeedMenu && (
+                <div className="absolute top-full right-0 mt-1 bg-[#2D2D2D] border border-[#3A3A3A] rounded-lg shadow-xl overflow-hidden z-[110]">
+                  {PLAYBACK_SPEEDS.map((speed) => (
+                    <button
+                      key={speed}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSpeedSelect(speed);
+                      }}
+                      className={`block w-full px-4 py-2 text-xs font-medium text-left transition-colors whitespace-nowrap ${
+                        playbackRate === speed
+                          ? 'bg-[#FFB800] text-black'
+                          : 'text-white hover:bg-[#3A3A3A]'
+                      }`}
+                    >
+                      {speed}x {speed === 1 && '(Normal)'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div ref={contentContainerRef} className="flex-1 overflow-y-auto p-4">
         {/* Header with Back Button */}
         <div className="flex items-center gap-3 mb-6">
           <Button
@@ -60,37 +330,121 @@ function ContentPhase({
             <Book size={20} className="text-[#3498DB]" />
           </div>
           <div>
-            <h2 className="text-white font-semibold">{content.title || 'Conteúdo Teórico'}</h2>
-            <p className="text-[#6E6E6E] text-sm">Leia com atenção antes de praticar</p>
+            <h2 className="text-white font-semibold">{content?.title || 'Conteudo Teorico'}</h2>
+            <p className="text-[#6E6E6E] text-sm">Leia com atencao antes de praticar</p>
           </div>
         </div>
 
         {/* Audio Player */}
-        {content.audio_url && (
+        {content?.audio_url && (
+          <div ref={playerRef}>
           <Card className="mb-4">
+            <audio
+              ref={audioRef}
+              src={content.audio_url}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={() => {
+                handleLoadedMetadata();
+                setAudioLoading(false);
+                setAudioError(false);
+              }}
+              onEnded={() => setIsPlaying(false)}
+              onError={(e) => {
+                console.error('[Audio] Error loading audio:', e, content.audio_url);
+                setAudioError(true);
+                setAudioLoading(false);
+              }}
+              onCanPlay={() => {
+                console.log('[Audio] Can play:', content.audio_url);
+                setAudioLoading(false);
+              }}
+              onLoadStart={() => setAudioLoading(true)}
+              preload="auto"
+            />
             <div className="flex items-center gap-3">
-              <button className="w-10 h-10 rounded-full bg-[#FFB800] flex items-center justify-center">
-                <Volume2 size={20} className="text-black" />
+              <button
+                onClick={handlePlayPause}
+                disabled={audioLoading || audioError}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
+                  audioLoading || audioError
+                    ? 'bg-[#3A3A3A] cursor-not-allowed'
+                    : 'bg-[#FFB800] hover:bg-[#E5A600]'
+                }`}
+              >
+                {audioLoading ? (
+                  <Loader2 size={20} className="text-[#A0A0A0] animate-spin" />
+                ) : audioError ? (
+                  <Volume2 size={20} className="text-[#E74C3C]" />
+                ) : isPlaying ? (
+                  <Pause size={20} className="text-black" />
+                ) : (
+                  <Play size={20} className="text-black ml-0.5" />
+                )}
               </button>
-              <div className="flex-1">
-                <p className="text-white text-sm">Ouvir conteúdo</p>
-                <div className="h-1 bg-[#3A3A3A] rounded-full mt-1">
-                  <div className="h-full w-0 bg-[#FFB800] rounded-full" />
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-white text-sm">
+                    {audioLoading ? 'Carregando audio...' : audioError ? 'Erro ao carregar' : 'Ouvir conteudo'}
+                  </p>
+                  {audioDuration > 0 && !audioError && (
+                    <span className="text-[#6E6E6E] text-xs">
+                      {formatTime(audioRef.current?.currentTime || 0)} / {formatTime(audioDuration)}
+                    </span>
+                  )}
+                </div>
+                <div className="h-1 bg-[#3A3A3A] rounded-full">
+                  <div
+                    className={`h-full rounded-full transition-all ${audioError ? 'bg-[#E74C3C]' : 'bg-[#FFB800]'}`}
+                    style={{ width: audioError ? '100%' : `${audioProgress}%` }}
+                  />
                 </div>
               </div>
+              {/* Speed Control Dropdown */}
+              {!audioLoading && !audioError && (
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSpeedMenu(!showSpeedMenu);
+                    }}
+                    className="px-2 py-1.5 bg-[#3A3A3A] hover:bg-[#4A4A4A] rounded text-xs font-bold text-[#FFB800] flex-shrink-0 transition-colors min-w-[44px]"
+                    title="Velocidade de reproducao"
+                  >
+                    {playbackRate}x
+                  </button>
+                  {showSpeedMenu && (
+                    <div className="absolute top-full right-0 mt-1 bg-[#2D2D2D] border border-[#3A3A3A] rounded-lg shadow-xl overflow-hidden z-50">
+                      {PLAYBACK_SPEEDS.map((speed) => (
+                        <button
+                          key={speed}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSpeedSelect(speed);
+                          }}
+                          className={`block w-full px-4 py-2 text-xs font-medium text-left transition-colors whitespace-nowrap ${
+                            playbackRate === speed
+                              ? 'bg-[#FFB800] text-black'
+                              : 'text-white hover:bg-[#3A3A3A]'
+                          }`}
+                        >
+                          {speed}x {speed === 1 && '(Normal)'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
+          </div>
         )}
 
-        {/* Text Content */}
-        <Card>
-          <div className="prose prose-invert max-w-none">
-            <div
-              className="text-[#E0E0E0] leading-relaxed whitespace-pre-wrap"
-              dangerouslySetInnerHTML={{
-                __html: content.texto_content || 'Conteúdo não disponível para esta missão.',
-              }}
-            />
+        {/* Text Content with Markdown */}
+        <Card className="p-0 overflow-hidden">
+          <div className="mission-content p-6">
+            <ReactMarkdown>
+              {content?.texto_content || 'Conteudo nao disponivel para esta missao.'}
+            </ReactMarkdown>
           </div>
         </Card>
       </div>
@@ -116,12 +470,14 @@ function ResultPhase({
   correct,
   total,
   xpEarned,
+  isMassificacao,
   onContinue,
 }: {
   score: number;
   correct: number;
   total: number;
   xpEarned: number;
+  isMassificacao?: boolean;
   onContinue: () => void;
 }) {
   const passed = score >= PASSING_SCORE;
@@ -156,13 +512,14 @@ function ResultPhase({
         transition={{ delay: 0.4 }}
       >
         <h2 className="text-2xl font-bold text-white mb-2">
-          {passed ? 'Parabéns!' : 'Quase lá!'}
+          {isMassificacao ? 'Massificação Concluída!' : (passed ? 'Parabéns!' : 'Quase lá!')}
         </h2>
         <p className="text-[#A0A0A0] mb-6">
           Você acertou {correct} de {total} questões
         </p>
 
-        {passed && (
+        {/* Só mostra recompensas se NÃO for massificação */}
+        {passed && !isMassificacao && (
           <div className="flex items-center justify-center gap-6 mb-8">
             <div className="text-center">
               <p className="text-2xl font-bold text-[#FFB800]">+{xpEarned}</p>
@@ -172,6 +529,15 @@ function ResultPhase({
               <p className="text-2xl font-bold text-[#FFB800]">+{COINS_PER_MISSION}</p>
               <p className="text-[#6E6E6E] text-sm">Moedas</p>
             </div>
+          </div>
+        )}
+
+        {/* Mensagem especial para massificação */}
+        {isMassificacao && passed && (
+          <div className="bg-[#2ECC71]/10 border border-[#2ECC71]/30 rounded-lg p-4 mb-6 max-w-xs mx-auto">
+            <p className="text-[#2ECC71] text-sm">
+              Você fixou o conteúdo! Agora pode continuar sua jornada.
+            </p>
           </div>
         )}
 
@@ -191,10 +557,14 @@ function ResultPhase({
 // Massification Phase Component
 function MassificationPhase({
   score,
+  tentativa,
+  isCreating,
   onRetry,
   onGoHome,
 }: {
   score: number;
+  tentativa?: number;
+  isCreating?: boolean;
   onRetry: () => void;
   onGoHome: () => void;
 }) {
@@ -210,27 +580,46 @@ function MassificationPhase({
         transition={{ type: 'spring' }}
         className="text-6xl mb-6"
       >
-        📚
+        🔄
       </motion.div>
 
       <h2 className="text-2xl font-bold text-white mb-2">
-        Você precisa revisar!
+        Massificação Ativada!
       </h2>
       <p className="text-[#A0A0A0] mb-2">
         Seu score foi <span className="text-[#E74C3C] font-bold">{Math.round(score)}%</span>
       </p>
-      <p className="text-[#6E6E6E] text-sm mb-8 max-w-xs">
-        Para desbloquear a próxima missão, você precisa atingir pelo menos {PASSING_SCORE}% de acerto.
+      {tentativa && tentativa > 1 && (
+        <p className="text-[#FFB800] text-sm mb-2">
+          Tentativa #{tentativa}
+        </p>
+      )}
+      <p className="text-[#6E6E6E] text-sm mb-4 max-w-xs">
+        Você precisará refazer <strong>todas</strong> as questões desta missão para fixar o conteúdo.
       </p>
+
+      {/* Info box */}
+      <div className="bg-[#2A2A2A] border border-[#3A3A3A] rounded-lg p-4 mb-6 max-w-xs">
+        <p className="text-[#A0A0A0] text-xs mb-2">
+          📌 <strong>Regras da Massificação:</strong>
+        </p>
+        <ul className="text-[#6E6E6E] text-xs text-left space-y-1">
+          <li>• Refaça todas as questões</li>
+          <li>• Revise o conteúdo antes</li>
+          <li>• Atinja pelo menos {PASSING_SCORE}% para continuar</li>
+          <li>• Sem recompensas (XP/moedas)</li>
+        </ul>
+      </div>
 
       <div className="space-y-3 w-full max-w-xs">
         <Button
           size="lg"
           fullWidth
           onClick={onRetry}
-          leftIcon={<RefreshCw size={20} />}
+          leftIcon={isCreating ? undefined : <RefreshCw size={20} />}
+          disabled={isCreating}
         >
-          Refazer Missão
+          {isCreating ? 'Preparando...' : 'Iniciar Massificação'}
         </Button>
         <Button
           size="lg"
@@ -238,6 +627,7 @@ function MassificationPhase({
           variant="ghost"
           onClick={onGoHome}
           leftIcon={<Home size={20} />}
+          disabled={isCreating}
         >
           Voltar para Trilha
         </Button>
@@ -327,7 +717,7 @@ export default function MissionPage() {
   const { user } = useAuthStore();
   const { addToast } = useUIStore();
   const { incrementStats, stats } = useUserStore();
-  const { completeMission, rounds, setSelectedMissionId } = useTrailStore();
+  const { completeMission, rounds, setSelectedMissionId, viewingRoundIndex, setViewingRoundIndex, getSelectedPreparatorio } = useTrailStore();
 
   // Trail Logic
   const displayRounds = rounds.length > 0 ? rounds : DEMO_ROUNDS;
@@ -357,12 +747,29 @@ export default function MissionPage() {
 
   // Local state for this page
   const [phase, setPhase] = useState<'content' | 'questions' | 'result' | 'massification'>('content');
-  const [questions] = useState<ParsedQuestion[]>(DEMO_QUESTIONS);
+  const [questions, setQuestions] = useState<ParsedQuestion[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Map<number, { letter: string; correct: boolean }>>(new Map());
   const [showCelebration, setShowCelebration] = useState(false);
   const [showMentorChat, setShowMentorChat] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [isCreatingMassificacao, setIsCreatingMassificacao] = useState(false);
+  const [massificacaoId, setMassificacaoId] = useState<string | null>(null);
+
+  // Content generation state
+  const [missaoConteudo, setMissaoConteudo] = useState<MissaoConteudo | null>(null);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [contentStatus, setContentStatus] = useState<'idle' | 'generating' | 'completed' | 'failed'>('idle');
+
+  // Retrieve current mission info for display (moved up to be available earlier)
+  const currentMission = useMemo(() => {
+    return allMissions.find(m => m.id === missionId);
+  }, [allMissions, missionId]);
+
+  // Verificar se a missão atual é uma massificação
+  const isMissaoMassificacao = currentMission ? isMassificacao(currentMission) : false;
+  const tentativaMassificacao = currentMission?.tentativa_massificacao || 0;
 
   // Reset state when mission changes
   React.useEffect(() => {
@@ -371,7 +778,127 @@ export default function MissionPage() {
     setAnswers(new Map());
     setShowCelebration(false);
     setShowMentorChat(false);
+    setMissaoConteudo(null);
+    setIsGeneratingContent(false);
+    setContentStatus('idle');
   }, [missionId]);
+
+  // Load or generate content for the mission
+  useEffect(() => {
+    async function loadOrGenerateContent() {
+      if (!missionId || !user?.id) return;
+
+      console.log('[MissionPage] Verificando conteudo para missao:', missionId);
+
+      try {
+        // 1. Check if content already exists
+        const existingContent = await getMissaoConteudo(missionId);
+
+        if (existingContent) {
+          console.log('[MissionPage] Conteudo encontrado:', existingContent.status);
+          setMissaoConteudo(existingContent);
+          setContentStatus(existingContent.status as 'generating' | 'completed' | 'failed');
+
+          // Se o conteúdo já está pronto, disparar geração da próxima missão em background (silencioso)
+          if (existingContent.status === 'completed') {
+            // Fire-and-forget: não esperamos resposta nem mostramos erro
+            fetch(`${MASTRA_SERVER_URL}/api/missao/trigger-proxima`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ missaoAtualId: missionId }),
+            }).catch(() => {
+              // Silencioso - ignora erros
+            });
+          }
+
+          // If still generating, poll for updates
+          if (existingContent.status === 'generating') {
+            const pollInterval = setInterval(async () => {
+              const updated = await getMissaoConteudo(missionId);
+              if (updated && updated.status !== 'generating') {
+                setMissaoConteudo(updated);
+                setContentStatus(updated.status as 'completed' | 'failed');
+                clearInterval(pollInterval);
+              }
+            }, 3000);
+
+            // Cleanup on unmount
+            return () => clearInterval(pollInterval);
+          }
+          return;
+        }
+
+        // 2. No content exists - generate it
+        console.log('[MissionPage] Iniciando geracao de conteudo...');
+        setIsGeneratingContent(true);
+        setContentStatus('generating');
+
+        // Get questions count from preparatorio
+        const preparatorio = getSelectedPreparatorio();
+        const questoesPorMissao = preparatorio?.questoes_por_missao || 20;
+
+        const generatedContent = await gerarConteudoMissao({
+          missaoId: missionId,
+          userId: user.id,
+          questoesPorMissao,
+        });
+
+        if (generatedContent) {
+          console.log('[MissionPage] Conteudo gerado com sucesso!');
+          setMissaoConteudo(generatedContent);
+          setContentStatus(generatedContent.status as 'completed' | 'failed');
+        } else {
+          console.error('[MissionPage] Falha na geracao de conteudo');
+          setContentStatus('failed');
+        }
+      } catch (error) {
+        console.error('[MissionPage] Erro ao carregar/gerar conteudo:', error);
+        setContentStatus('failed');
+      } finally {
+        setIsGeneratingContent(false);
+      }
+    }
+
+    loadOrGenerateContent();
+  }, [missionId, user?.id, getSelectedPreparatorio]);
+
+  // Load questions for this mission
+  useEffect(() => {
+    async function loadQuestions() {
+      if (!missionId) {
+        setQuestions(DEMO_QUESTIONS);
+        setIsLoadingQuestions(false);
+        return;
+      }
+
+      setIsLoadingQuestions(true);
+      try {
+        // Obter quantidade de questões do preparatório selecionado
+        const preparatorio = getSelectedPreparatorio();
+        const questoesPorMissao = preparatorio?.questoes_por_missao || 20;
+
+        console.log('[MissionPage] Carregando questoes para missao:', missionId, '- Quantidade:', questoesPorMissao);
+        const fetchedQuestions = await getQuestoesParaMissao(missionId, questoesPorMissao);
+
+        if (fetchedQuestions.length > 0) {
+          console.log('[MissionPage] Questoes carregadas:', fetchedQuestions.length);
+          setQuestions(fetchedQuestions);
+        } else {
+          console.warn('[MissionPage] Nenhuma questao encontrada, usando demo');
+          setQuestions(DEMO_QUESTIONS);
+          addToast('info', 'Usando questoes de demonstracao');
+        }
+      } catch (error) {
+        console.error('[MissionPage] Erro ao carregar questoes:', error);
+        setQuestions(DEMO_QUESTIONS);
+        addToast('error', 'Erro ao carregar questoes');
+      } finally {
+        setIsLoadingQuestions(false);
+      }
+    }
+
+    loadQuestions();
+  }, [missionId, getSelectedPreparatorio]);
 
   const currentQuestion = questions[currentQuestionIndex];
 
@@ -398,7 +925,7 @@ export default function MissionPage() {
   };
 
   // Handler para próxima questão ou finalizar
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
@@ -408,27 +935,95 @@ export default function MissionPage() {
 
       if (score >= PASSING_SCORE) {
         setShowCelebration(true);
-        const xpEarned = correctCount * XP_PER_CORRECT;
-        incrementStats({
-          xp: xpEarned,
-          coins: COINS_PER_MISSION,
-          correctAnswers: correctCount,
-          totalAnswered: questions.length,
-        });
+
+        // Se for massificação, não dá recompensas
+        if (!isMissaoMassificacao) {
+          const xpEarned = correctCount * XP_PER_CORRECT;
+          incrementStats({
+            xp: xpEarned,
+            coins: COINS_PER_MISSION,
+            correctAnswers: correctCount,
+            totalAnswered: questions.length,
+          });
+        } else {
+          // Apenas registrar as respostas, sem XP/moedas
+          incrementStats({
+            xp: 0,
+            coins: 0,
+            correctAnswers: correctCount,
+            totalAnswered: questions.length,
+          });
+
+          // Completar a massificação
+          if (missionId) {
+            await completarMassificacao(missionId, score);
+
+            // Desbloquear próxima missão
+            if (currentMission?.round_id) {
+              await desbloquearProximaMissao(currentMission.round_id, currentMission.ordem);
+            }
+          }
+        }
+
         setTimeout(() => {
           setShowCelebration(false);
           setPhase('result');
         }, 2000);
       } else {
+        // Score abaixo de PASSING_SCORE - precisa de massificação
         setPhase('massification');
       }
     }
   };
 
-  const handleRetry = () => {
-    setPhase('content');
-    setCurrentQuestionIndex(0);
-    setAnswers(new Map());
+  const handleRetry = async () => {
+    if (!currentMission || !user?.id) {
+      // Fallback para refazer localmente se não tiver dados
+      setPhase('content');
+      setCurrentQuestionIndex(0);
+      setAnswers(new Map());
+      return;
+    }
+
+    setIsCreatingMassificacao(true);
+
+    try {
+      // Calcular score atual
+      const correctCount = Array.from(answers.values()).filter(a => a.correct).length;
+      const score = (correctCount / questions.length) * 100;
+
+      // Coletar IDs das questões atuais
+      const questoesIds = questions.map(q => String(q.id));
+
+      // Criar missão de massificação
+      const novaMissao = await createMassificacao(
+        user.id,
+        currentMission,
+        score,
+        questoesIds
+      );
+
+      if (novaMissao) {
+        setMassificacaoId(novaMissao.id);
+        addToast('info', `Massificação criada - Tentativa #${novaMissao.tentativa_massificacao}`);
+        // Navegar para a nova missão de massificação
+        navigate(`/missao/${novaMissao.id}`);
+      } else {
+        // Fallback: refazer localmente se falhar a criação
+        addToast('error', 'Não foi possível criar massificação. Refazendo localmente...');
+        setPhase('content');
+        setCurrentQuestionIndex(0);
+        setAnswers(new Map());
+      }
+    } catch (error) {
+      console.error('[MissionPage] Erro ao criar massificação:', error);
+      addToast('error', 'Erro ao criar massificação');
+      setPhase('content');
+      setCurrentQuestionIndex(0);
+      setAnswers(new Map());
+    } finally {
+      setIsCreatingMassificacao(false);
+    }
   };
 
   const handleGoHome = () => {
@@ -450,17 +1045,12 @@ export default function MissionPage() {
   };
 
   // Calcular score atual
-  // Retrieve current mission info for display
-  const currentMission = useMemo(() => {
-    return allMissions.find(m => m.id === missionId);
-  }, [allMissions, missionId]);
-
   const correctCount = Array.from(answers.values()).filter(a => a.correct).length;
   const currentScore = questions.length > 0 ? (correctCount / questions.length) * 100 : 0;
 
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-[#1A1A1A]">
-      <div className="flex-1 flex flex-col min-w-0 relative">
+    <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A]">
+      <div className={`flex flex-col min-w-0 relative transition-all duration-300 ${isMapExpanded ? 'xl:mr-[400px]' : 'xl:mr-[72px]'}`}>
         <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-zinc-800">
           <div className="w-full max-w-[800px] mx-auto flex flex-col min-h-full">
             {/* Celebration */}
@@ -469,6 +1059,15 @@ export default function MissionPage() {
             {/* Header - só aparece na fase de questões */}
             {phase === 'questions' && (
               <div className="p-4 border-b border-[#3A3A3A] bg-[#1A1A1A]">
+                {/* Badge de massificação */}
+                {isMissaoMassificacao && (
+                  <div className="flex justify-center mb-2">
+                    <span className="bg-[#E74C3C]/20 text-[#E74C3C] text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                      <RefreshCw size={12} />
+                      Massificação #{tentativaMassificacao}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => {
@@ -504,34 +1103,59 @@ export default function MissionPage() {
             {/* Content */}
             <div className="flex-1 overflow-hidden">
               <AnimatePresence mode="wait">
-                {phase === 'content' && (
+                {/* Loading state */}
+                {isLoadingQuestions && phase === 'content' && (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center justify-center h-full p-6"
+                  >
+                    <Loader2 className="w-12 h-12 animate-spin text-[#FFB800] mb-4" />
+                    <p className="text-[#A0A0A0]">Carregando questoes...</p>
+                  </motion.div>
+                )}
+
+                {phase === 'content' && !isLoadingQuestions && (
                   <ContentPhase
                     key="content"
-                    content={{
-                      title: currentMission?.assunto?.nome ? `📖 ${currentMission.assunto.nome}` : undefined,
-                      texto_content: `<h3 style="color: #FFB800; margin-bottom: 12px;">${currentMission?.assunto?.nome || 'Conteúdo'}</h3>
-
-<p>A <strong>${currentMission?.assunto?.nome || 'matéria'}</strong> é fundamental para seu aprendizado. Estude com atenção!</p>
-
-<h4 style="color: #3498DB; margin-top: 16px;">Conceitos fundamentais:</h4>
-<ul>
-  <li>Conceito A: definição importante.</li>
-  <li>Conceito B: aplicação prática.</li>
-</ul>
-
-<h4 style="color: #E74C3C; margin-top: 16px;">⚠️ Pontos de atenção:</h4>
-<p>Fique atento às exceções e regras especiais deste tópico.</p>
-
-<p style="margin-top: 16px; padding: 12px; background: rgba(255,184,0,0.1); border-radius: 8px; border-left: 3px solid #FFB800;">
-  💡 <strong>Dica:</strong> Revise este conteúdo periodicamente.
-</p>`
+                    content={missaoConteudo ? {
+                      title: currentMission?.assunto?.nome ? `📖 ${currentMission.assunto.nome}` : 'Conteudo Teorico',
+                      texto_content: missaoConteudo.texto_content,
+                      audio_url: missaoConteudo.audio_url || undefined,
+                    } : {
+                      title: currentMission?.assunto?.nome ? `📖 ${currentMission.assunto.nome}` : 'Conteudo Teorico',
+                      texto_content: undefined,
                     }}
+                    isGenerating={isGeneratingContent}
+                    generationStatus={contentStatus}
                     onContinue={() => setPhase('questions')}
                     onBack={() => navigate('/')}
                   />
                 )}
 
-                {phase === 'questions' && currentQuestion && (
+                {phase === 'questions' && questions.length === 0 && (
+                  <motion.div
+                    key="no-questions"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center h-full p-6 text-center"
+                  >
+                    <div className="text-6xl mb-4">📚</div>
+                    <h2 className="text-xl font-bold text-white mb-2">
+                      Sem questoes disponiveis
+                    </h2>
+                    <p className="text-[#A0A0A0] mb-6 max-w-xs">
+                      Nao foram encontradas questoes para esta missao. Tente novamente mais tarde.
+                    </p>
+                    <Button onClick={() => navigate('/')}>
+                      Voltar para Trilha
+                    </Button>
+                  </motion.div>
+                )}
+
+                {phase === 'questions' && questions.length > 0 && currentQuestion && (
                   <motion.div
                     key={`question-${currentQuestionIndex}`}
                     initial={{ opacity: 0, x: 50 }}
@@ -560,6 +1184,7 @@ export default function MissionPage() {
                     correct={correctCount}
                     total={questions.length}
                     xpEarned={correctCount * XP_PER_CORRECT}
+                    isMassificacao={isMissaoMassificacao}
                     onContinue={handleContinue}
                   />
                 )}
@@ -568,6 +1193,8 @@ export default function MissionPage() {
                   <MassificationPhase
                     key="massification"
                     score={currentScore}
+                    tentativa={tentativaMassificacao}
+                    isCreating={isCreatingMassificacao}
                     onRetry={handleRetry}
                     onGoHome={handleGoHome}
                   />
@@ -602,40 +1229,79 @@ export default function MissionPage() {
         />
       </div>
 
-      {/* Right Column: Map Sidebar */}
+      {/* Right Column: Map Sidebar - Fixed positioning like left sidebar */}
       <motion.div
         initial={{ width: 0, opacity: 0 }}
         animate={{ width: isMapExpanded ? 400 : 72, opacity: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 25 }}
-        className="hidden xl:block h-full bg-[#252525] border-l border-[#3A3A3A] relative z-20 shadow-2xl overflow-hidden"
+        className="hidden xl:block fixed right-0 top-0 bottom-0 bg-[#252525] border-l border-[#3A3A3A] z-40 shadow-2xl overflow-hidden"
       >
         {/* Toggle Button */}
 
 
-        <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar pb-20">
-          {/* Header */}
-          {/* Header */}
+        <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          {/* Header - same height as main header (h-14 = 56px) */}
           <div
-            onClick={() => setIsMapExpanded(!isMapExpanded)}
-            className={`sticky top-0 bg-[#252525]/95 backdrop-blur-sm z-30 border-b border-[#3A3A3A] mb-2 ${isMapExpanded ? 'p-4' : 'p-3'} cursor-pointer hover:bg-[#2A2A2A] transition-colors`}
+            className="sticky top-0 bg-[#252525]/95 backdrop-blur-sm z-30 border-b border-[#3A3A3A] h-14 flex items-center px-3"
           >
             {isMapExpanded ? (
-              <div className="flex items-center justify-between">
-                <h3 className="text-white font-semibold flex items-center gap-2">
-                  <Star size={18} className="text-[#FFB800]" />
-                  Sua Jornada
-                </h3>
-                <ChevronRight size={20} className="text-[#A0A0A0]" />
+              <div className="flex items-center w-full">
+                {/* Collapse button */}
+                <button
+                  onClick={() => setIsMapExpanded(false)}
+                  className="p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors flex-shrink-0"
+                  title="Recolher trilha"
+                >
+                  <ChevronRight size={18} className="text-[#A0A0A0]" />
+                </button>
+                {/* Round navigation - centered */}
+                <div className="flex-1 flex items-center justify-center gap-1">
+                  <button
+                    onClick={() => {
+                      if (viewingRoundIndex > 0) setViewingRoundIndex(viewingRoundIndex - 1);
+                    }}
+                    disabled={viewingRoundIndex === 0}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      viewingRoundIndex > 0
+                        ? 'hover:bg-[#3A3A3A] text-[#A0A0A0]'
+                        : 'text-[#3A3A3A] cursor-not-allowed'
+                    }`}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="text-sm font-medium text-white px-2 min-w-[80px] text-center">
+                    Rodada {viewingRoundIndex + 1}
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (viewingRoundIndex < displayRounds.length - 1) setViewingRoundIndex(viewingRoundIndex + 1);
+                    }}
+                    disabled={viewingRoundIndex >= displayRounds.length - 1}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      viewingRoundIndex < displayRounds.length - 1
+                        ? 'hover:bg-[#3A3A3A] text-[#A0A0A0]'
+                        : 'text-[#3A3A3A] cursor-not-allowed'
+                    }`}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                {/* Spacer to balance the collapse button */}
+                <div className="w-[30px] flex-shrink-0" />
               </div>
             ) : (
-              <div className="flex justify-center" title="Expandir Jornada">
-                <ChevronLeft size={20} className="text-[#A0A0A0]" />
-              </div>
+              <button
+                onClick={() => setIsMapExpanded(true)}
+                className="w-full flex justify-center p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors"
+                title="Expandir Trilha"
+              >
+                <ChevronLeft size={18} className="text-[#A0A0A0]" />
+              </button>
             )}
           </div>
 
-          {/* Map Content */}
-          <div className={isMapExpanded ? 'pt-2' : 'pt-0'}>
+          {/* Map Content - with padding to ensure visibility */}
+          <div className={isMapExpanded ? 'pt-4 pb-20' : 'pt-2 pb-20'}>
             <AnimatePresence mode="wait">
               {isMapExpanded ? (
                 <motion.div
@@ -646,10 +1312,11 @@ export default function MissionPage() {
                   transition={{ duration: 0.2 }}
                 >
                   <TrailMap
-                    missions={allMissions}
-                    currentMissionIndex={currentMissionIndex}
+                    rounds={displayRounds}
                     onMissionClick={handleMissionClick}
                     userAvatar={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop"}
+                    viewingRoundIndex={viewingRoundIndex}
+                    onViewingRoundChange={setViewingRoundIndex}
                   />
                 </motion.div>
               ) : (
@@ -661,9 +1328,9 @@ export default function MissionPage() {
                   transition={{ duration: 0.2 }}
                 >
                   <CompactTrailMap
-                    missions={allMissions}
-                    currentMissionIndex={currentMissionIndex}
+                    rounds={displayRounds}
                     onMissionClick={handleMissionClick}
+                    viewingRoundIndex={viewingRoundIndex}
                   />
                 </motion.div>
               )}
