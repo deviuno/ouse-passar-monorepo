@@ -25,6 +25,7 @@ import {
 } from '../constants';
 import { UserLevel, WeeklySchedule, DAYS_OF_WEEK, Preparatorio } from '../types';
 import { getPreparatorios, userPreparatoriosService } from '../services';
+import { calcularQuestoesPorSchedule, descreverCalculoQuestoes } from '../lib';
 
 // ============================================
 // PASSO 0: INÍCIO (Já tem conta? ou Criar conta)
@@ -854,11 +855,28 @@ export default function OnboardingPage() {
       // Criar o primeiro preparatório do usuário (user_trail)
       if (user?.id && preferences?.target_contest_id) {
         try {
+          // Calcular quantidade de questões por missão baseado na disponibilidade
+          const questoesPorMissao = preferences?.schedule
+            ? calcularQuestoesPorSchedule(preferences.schedule)
+            : 20;
+
+          // Log para debug
+          if (preferences?.schedule) {
+            const calculo = descreverCalculoQuestoes(
+              Object.values(preferences.schedule).reduce((a, b) => a + b, 0),
+              Object.values(preferences.schedule).filter(m => m > 0).length
+            );
+            console.log('[Onboarding] Cálculo de questões:', calculo);
+          }
+
           await userPreparatoriosService.addPreparatorioToUser(
             user.id,
             preferences.target_contest_id,
-            (preferences.proficiency_level as UserLevel) || 'iniciante'
+            (preferences.proficiency_level as UserLevel) || 'iniciante',
+            questoesPorMissao
           );
+
+          console.log('[Onboarding] Preparatório criado com', questoesPorMissao, 'questões por missão');
         } catch (prepErr) {
           console.warn('Erro ao criar preparatório inicial:', prepErr);
           // Não bloquear o fluxo se falhar

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, EyeOff, List, MoreVertical, Book, ChevronRight, MessageSquare, LayoutGrid, LayoutList, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, List, MoreVertical, Book, ChevronRight, MessageSquare, LayoutGrid, LayoutList, FileText, Sparkles } from 'lucide-react';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { Preparatorio } from '../../lib/database.types';
+import { QuickCreatePreparatorioModal } from '../../components/admin/QuickCreatePreparatorioModal';
+import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
 
 interface PreparatorioWithStats extends Preparatorio {
   stats: {
@@ -21,6 +23,10 @@ export const PreparatoriosPlanos: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PreparatorioWithStats | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadPreparatorios = async () => {
     try {
@@ -56,17 +62,25 @@ export const PreparatoriosPlanos: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este preparatorio? Esta acao ira excluir todas as rodadas e missoes associadas.')) {
-      return;
-    }
+  const handleDelete = (prep: PreparatorioWithStats) => {
+    setDeleteTarget(prep);
+    setDeleteModalOpen(true);
+    setOpenMenuId(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
 
     try {
-      await preparatoriosService.delete(id);
+      setIsDeleting(true);
+      await preparatoriosService.delete(deleteTarget.id);
       await loadPreparatorios();
+      setDeleteModalOpen(false);
+      setDeleteTarget(null);
     } catch (error) {
       console.error('Erro ao excluir:', error);
-      alert('Erro ao excluir preparatorio');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -137,12 +151,19 @@ export const PreparatoriosPlanos: React.FC = () => {
               <LayoutList className="w-5 h-5" />
             </button>
           </div>
+          <button
+            onClick={() => setShowQuickCreate(true)}
+            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 font-bold uppercase text-sm hover:bg-purple-500 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            Criar com IA
+          </button>
           <Link
             to="/admin/preparatorios/new"
             className="flex items-center gap-2 bg-brand-yellow text-brand-darker px-4 py-2 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Novo Preparatorio
+            Manual
           </Link>
         </div>
       </div>
@@ -209,7 +230,7 @@ export const PreparatoriosPlanos: React.FC = () => {
         <div className="space-y-6">
           {/* Tabela de Ativos */}
           {activePreparatorios.length > 0 && (
-            <div className="bg-brand-card border border-white/10 rounded-sm overflow-hidden">
+            <div className="bg-brand-card border border-white/10 rounded-sm">
               <table className="w-full">
                 <thead className="bg-brand-dark/50 border-b border-white/10">
                   <tr>
@@ -247,7 +268,7 @@ export const PreparatoriosPlanos: React.FC = () => {
                 <span className="text-gray-500 text-sm uppercase font-bold">Inativos ({inactivePreparatorios.length})</span>
                 <div className="flex-1 border-t border-white/10"></div>
               </div>
-              <div className="bg-brand-card border border-white/10 rounded-sm overflow-hidden opacity-60">
+              <div className="bg-brand-card border border-white/10 rounded-sm opacity-60">
                 <table className="w-full">
                   <thead className="bg-brand-dark/50 border-b border-white/10">
                     <tr>
@@ -280,6 +301,31 @@ export const PreparatoriosPlanos: React.FC = () => {
         </div>
       )}
 
+      {/* Modal de Criação Rápida com IA */}
+      <QuickCreatePreparatorioModal
+        isOpen={showQuickCreate}
+        onClose={() => setShowQuickCreate(false)}
+        onSuccess={(preparatorioId) => {
+          setShowQuickCreate(false);
+          loadPreparatorios();
+          // Navegar diretamente para a aba de Vendas (step 4)
+          navigate(`/admin/preparatorios/edit/${preparatorioId}?step=4`);
+        }}
+      />
+
+      {/* Modal de Confirmação de Exclusão */}
+      <ConfirmDeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Excluir Preparatório"
+        itemName={deleteTarget?.nome}
+        message={`Ao excluir "${deleteTarget?.nome || 'este preparatório'}", serão excluídos permanentemente: todas as rodadas e missões, todo o edital verticalizado, todas as configurações e vínculos.`}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };
@@ -291,7 +337,7 @@ interface PreparatorioCardProps {
   toggleMenu: (id: string) => void;
   setOpenMenuId: (id: string | null) => void;
   handleToggleActive: (id: string, isActive: boolean) => void;
-  handleDelete: (id: string) => void;
+  handleDelete: (prep: PreparatorioWithStats) => void;
 }
 
 const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
@@ -303,7 +349,7 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
   handleDelete
 }) => (
   <div
-    className={`bg-brand-card border rounded-sm overflow-hidden transition-all duration-300 ${
+    className={`bg-brand-card border rounded-sm transition-all duration-300 ${
       prep.is_active ? 'border-white/10 hover:border-brand-yellow/30' : 'border-white/5 opacity-60'
     }`}
   >
@@ -336,7 +382,7 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
         </button>
 
         {openMenuId === prep.id && (
-          <div className="absolute right-0 top-full mt-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl z-10 min-w-[160px]">
+          <div className="absolute right-0 top-full mt-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl z-50 min-w-[160px]">
             <Link
               to={`/admin/preparatorios/edit/${prep.id}`}
               onClick={() => setOpenMenuId(null)}
@@ -367,7 +413,7 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
             <hr className="border-white/10 my-1" />
             <button
               onClick={() => {
-                handleDelete(prep.id);
+                handleDelete(prep);
                 setOpenMenuId(null);
               }}
               className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
@@ -484,7 +530,7 @@ interface PreparatorioListRowProps {
   toggleMenu: (id: string) => void;
   setOpenMenuId: (id: string | null) => void;
   handleToggleActive: (id: string, isActive: boolean) => void;
-  handleDelete: (id: string) => void;
+  handleDelete: (prep: PreparatorioWithStats) => void;
 }
 
 const PreparatorioListRow: React.FC<PreparatorioListRowProps> = ({
@@ -617,7 +663,7 @@ const PreparatorioListRow: React.FC<PreparatorioListRowProps> = ({
               <hr className="border-white/10" />
               <button
                 onClick={() => {
-                  handleDelete(prep.id);
+                  handleDelete(prep);
                   setOpenMenuId(null);
                 }}
                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"

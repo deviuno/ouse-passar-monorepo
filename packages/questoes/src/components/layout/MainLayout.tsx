@@ -30,13 +30,13 @@ export function MainLayout() {
       <aside
         className={`
           hidden lg:block fixed left-0 top-0 bottom-0
-          w-64 bg-[#252525] border-r border-[#3A3A3A]
-          transform transition-transform duration-300
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          bg-[#252525] border-r border-[#3A3A3A]
+          transition-all duration-300
           z-40
+          ${isSidebarOpen ? 'w-64' : 'w-[72px]'}
         `}
       >
-        <Sidebar />
+        <Sidebar isCollapsed={!isSidebarOpen} />
       </aside>
 
       {/* Main Content */}
@@ -44,7 +44,7 @@ export function MainLayout() {
         className={`
           min-h-screen flex flex-col
           transition-all duration-300
-          ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-0'}
+          ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-[72px]'}
         `}
       >
         {/* Header */}

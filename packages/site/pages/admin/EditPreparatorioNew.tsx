@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, Loader2, AlertCircle, Trash2, List, MessageSquare, FileText } from 'lucide-react';
 import { PreparatorioWizard, PreparatorioWizardData } from '../../components/admin/PreparatorioWizard';
 import { useToast } from '../../components/ui/Toast';
@@ -11,7 +11,11 @@ import { Preparatorio } from '../../lib/database.types';
 export const EditPreparatorioNew: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const toast = useToast();
+
+  // Ler step inicial da URL (ex: ?step=4 para ir direto para Vendas)
+  const initialStep = parseInt(searchParams.get('step') || '1', 10);
 
   const [preparatorio, setPreparatorio] = useState<Preparatorio | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,6 +26,7 @@ export const EditPreparatorioNew: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [messagesCount, setMessagesCount] = useState(0);
   const [editalItemsCount, setEditalItemsCount] = useState(0);
+  const [isTogglingPublish, setIsTogglingPublish] = useState(false);
 
   // Load preparatorio data
   useEffect(() => {
@@ -137,6 +142,23 @@ export const EditPreparatorioNew: React.FC = () => {
     }
   };
 
+  const handleTogglePublish = async () => {
+    if (!id || !preparatorio) return;
+
+    setIsTogglingPublish(true);
+    try {
+      const newStatus = !preparatorio.is_active;
+      await preparatoriosService.toggleActive(id, newStatus);
+      setPreparatorio({ ...preparatorio, is_active: newStatus });
+      toast.success(newStatus ? 'Preparatório publicado!' : 'Preparatório despublicado!');
+    } catch (err: any) {
+      setError(err.message);
+      toast.error('Erro ao alterar status');
+    } finally {
+      setIsTogglingPublish(false);
+    }
+  };
+
   // Convert preparatorio to wizard data format
   const getInitialData = (): Partial<PreparatorioWizardData> | undefined => {
     if (!preparatorio) return undefined;
@@ -210,7 +232,40 @@ export const EditPreparatorioNew: React.FC = () => {
           </p>
         </div>
         {/* Menu de ações - linha separada */}
-        <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-white/5">
+        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5">
+          {/* Publish Toggle - minimalista */}
+          {preparatorio && (
+            <button
+              onClick={handleTogglePublish}
+              disabled={isTogglingPublish}
+              className={`
+                inline-flex items-center gap-2 mr-auto
+                ${isTogglingPublish ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+              `}
+              title={preparatorio.is_active ? 'Clique para despublicar' : 'Clique para publicar'}
+            >
+              <span
+                className={`
+                  w-9 h-5 rounded-full relative transition-colors duration-200
+                  ${preparatorio.is_active ? 'bg-green-500' : 'bg-gray-600'}
+                `}
+              >
+                <span
+                  className={`
+                    absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200
+                    ${preparatorio.is_active ? 'translate-x-4' : 'translate-x-0'}
+                  `}
+                />
+              </span>
+              {isTogglingPublish ? (
+                <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
+              ) : (
+                <span className={`text-sm ${preparatorio.is_active ? 'text-green-400' : 'text-gray-500'}`}>
+                  {preparatorio.is_active ? 'Publicado' : 'Despublicado'}
+                </span>
+              )}
+            </button>
+          )}
           <Link
             to={`/admin/preparatorios/${id}/edital`}
             className={`px-4 py-2 rounded-sm transition-colors flex items-center gap-2 ${
@@ -268,18 +323,9 @@ export const EditPreparatorioNew: React.FC = () => {
         </div>
       )}
 
-      {/* Status Badge */}
+      {/* Status Badges */}
       {preparatorio && (
         <div className="mb-6 flex flex-wrap items-center gap-3">
-          {preparatorio.is_active ? (
-            <span className="px-3 py-1 bg-green-500/20 text-green-500 text-sm font-bold uppercase rounded">
-              Ativo
-            </span>
-          ) : (
-            <span className="px-3 py-1 bg-gray-500/20 text-gray-500 text-sm font-bold uppercase rounded">
-              Inativo
-            </span>
-          )}
           {/* Edital Status Badge */}
           {editalItemsCount > 0 ? (
             <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-500/20 text-green-400 text-sm font-bold uppercase rounded">
@@ -316,6 +362,7 @@ export const EditPreparatorioNew: React.FC = () => {
           onCancel={handleCancel}
           isSubmitting={isSubmitting}
           submitLabel="Salvar Alterações"
+          initialStep={initialStep}
         />
       )}
 

@@ -4,9 +4,14 @@ export { questionsDb } from './questionsDbClient';
 export { trailService } from './trailService';
 export { preparatoriosService, getPreparatorios } from './preparatoriosService';
 export { userPreparatoriosService } from './userPreparatoriosService';
+export * from './rodadasService';
 
 // Question-related services
 export * from './commentsService';
 export * from './geminiService';
 export * from './questionsService';
 export * from './questionFeedbackService';
+export * from './missaoQuestoesService';
+
+// Content generation services
+export * from './missaoConteudoService';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,9 +9,10 @@ import {
   Loader2,
   Search,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { getFilterOptions } from '../../services/externalQuestionsService';
-import { PreparatorioImageUpload } from './PreparatorioImageUpload';
+import { PreparatorioImageUpload, PreparatorioImageUploadRef } from './PreparatorioImageUpload';
 
 // Types
 export interface PreparatorioWizardData {
@@ -53,6 +54,7 @@ interface PreparatorioWizardProps {
   onCancel: () => void;
   isSubmitting?: boolean;
   submitLabel?: string;
+  initialStep?: number;
 }
 
 interface StepConfig {
@@ -262,9 +264,11 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
   onCancel,
   isSubmitting = false,
   submitLabel = 'Criar Preparatório',
+  initialStep = 1,
 }) => {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const imageUploadRef = useRef<PreparatorioImageUploadRef>(null);
   const [filterOptions, setFilterOptions] = useState<{
     bancas: string[];
     orgaos: string[];
@@ -437,12 +441,25 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
       </div>
 
       <div>
-        <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-          Imagem de Capa
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+            Imagem de Capa
+          </label>
+          <button
+            type="button"
+            onClick={() => imageUploadRef.current?.openAiModal()}
+            className="flex items-center gap-1 text-brand-yellow hover:text-white text-xs font-bold uppercase tracking-wide transition-colors"
+          >
+            <Sparkles className="w-3 h-3" />
+            Gerar com IA
+          </button>
+        </div>
         <PreparatorioImageUpload
+          ref={imageUploadRef}
           value={formData.imagemCapa}
           onChange={(url) => updateField('imagemCapa', url)}
+          cargo={formData.cargo}
+          orgao={formData.orgao}
         />
       </div>
     </div>

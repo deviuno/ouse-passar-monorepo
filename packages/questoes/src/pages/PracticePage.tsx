@@ -612,6 +612,7 @@ export default function PracticePage() {
         <FloatingChatButton
           isOpen={showMentorChat}
           onClick={() => setShowMentorChat(!showMentorChat)}
+          sidebarWidth={0}
         />
       </div>
     );

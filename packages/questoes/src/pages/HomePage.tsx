@@ -150,11 +150,14 @@ export default function HomePage() {
     setRounds,
     setCurrentTrail,
     setPreparatorio,
+    preparatorio,
     isLoading,
     setLoading,
     viewingRoundIndex,
     setViewingRoundIndex,
     getMissionUrl,
+    justCompletedMissionId,
+    clearJustCompletedMission,
   } = useTrailStore();
   const { user } = useAuthStore();
   const { addToast, isSidebarOpen } = useUIStore();
@@ -164,6 +167,13 @@ export default function HomePage() {
     async function loadUserPreparatorios() {
       if (!user?.id) return;
 
+      // Se já tem preparatórios carregados, não recarregar (evita loading desnecessário)
+      if (userPreparatorios.length > 0) {
+        console.log('[HomePage] Preparatórios já carregados, pulando fetch');
+        return;
+      }
+
+      console.log('[HomePage] Carregando preparatórios...');
       setLoading(true);
       try {
         const preparatorios = await userPreparatoriosService.getUserPreparatorios(user.id);
@@ -206,6 +216,15 @@ export default function HomePage() {
       const selectedPrep = userPreparatorios.find((p) => p.id === selectedPreparatorioId);
       if (!selectedPrep) return;
 
+      // Se já tem rounds carregados para este preparatório e não acabou de completar missão, não recarregar
+      // Se acabou de completar uma missão (justCompletedMissionId), precisa recarregar para atualizar status
+      if (rounds.length > 0 && preparatorio?.id === selectedPrep.preparatorio_id && !justCompletedMissionId) {
+        console.log('[HomePage] Trilha já carregada, pulando fetch');
+        setLoading(false);
+        return;
+      }
+
+      console.log('[HomePage] Carregando trilha...');
       setLoading(true);
       try {
         // Buscar rodadas com missões do sistema de planejamento
@@ -238,7 +257,7 @@ export default function HomePage() {
     }
 
     loadTrailData();
-  }, [selectedPreparatorioId, userPreparatorios]);
+  }, [selectedPreparatorioId, userPreparatorios, justCompletedMissionId]);
 
   // Use real data only - no demo fallback
   const displayRounds = rounds;
@@ -276,8 +295,9 @@ export default function HomePage() {
     return <NoPreparatoriosState onAddNew={handleAddNewPreparatorio} />;
   }
 
-  // Qualquer estado de loading mostra o skeleton de trilha
-  const isLoadingAnything = isLoading;
+  // Só mostra skeleton se está carregando E não tem dados já carregados
+  // Isso evita mostrar skeleton ao voltar da missão quando dados já estão no store
+  const isLoadingAnything = isLoading && displayRounds.length === 0;
 
   return (
     <div className="min-h-full pb-20">
@@ -295,6 +315,8 @@ export default function HomePage() {
               userAvatar={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop"}
               viewingRoundIndex={viewingRoundIndex}
               onViewingRoundChange={setViewingRoundIndex}
+              justCompletedMissionId={justCompletedMissionId}
+              onAnimationComplete={clearJustCompletedMission}
             />
           </div>
         </FadeIn>

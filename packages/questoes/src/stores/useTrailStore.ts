@@ -36,6 +36,9 @@ interface TrailState {
   currentMissionId: string | null;
   selectedMissionId: string | null;
 
+  // Animation state - para animar avatar após completar missão
+  justCompletedMissionId: string | null;
+
   // Round navigation state
   viewingRoundIndex: number;
 
@@ -58,6 +61,7 @@ interface TrailState {
   updateMissionStatus: (missionId: string, status: MissionStatus, score?: number) => void;
   completeMission: (missionId: string, score: number) => void;
   unlockNextMission: (currentMissionId: string) => void;
+  clearJustCompletedMission: () => void;
 
   // Round actions
   updateRoundStatus: (roundId: string, status: 'locked' | 'active' | 'completed') => void;
@@ -97,6 +101,9 @@ export const useTrailStore = create<TrailState>()(
       isLoading: false,
       currentMissionId: null,
       selectedMissionId: null,
+
+      // Animation state
+      justCompletedMissionId: null,
 
       // Round navigation
       viewingRoundIndex: 0,
@@ -143,7 +150,11 @@ export const useTrailStore = create<TrailState>()(
         const { updateMissionStatus, unlockNextMission } = get();
         updateMissionStatus(missionId, 'completed', score);
         unlockNextMission(missionId);
+        // Salvar qual missão foi completada para animar na trilha
+        set({ justCompletedMissionId: missionId });
       },
+
+      clearJustCompletedMission: () => set({ justCompletedMissionId: null }),
 
       unlockNextMission: (currentMissionId) => {
         const { rounds } = get();
@@ -244,7 +255,10 @@ export const useTrailStore = create<TrailState>()(
         const { rounds } = get();
 
         for (const round of rounds) {
-          const availableMission = round.missions.find((m) => m.status === 'available');
+          // needs_massificacao também é considerada disponível - o aluno precisa refazer
+          const availableMission = round.missions.find(
+            (m) => m.status === 'available' || m.status === 'needs_massificacao'
+          );
           if (availableMission) return availableMission;
         }
         return null;
@@ -318,6 +332,7 @@ export const useTrailStore = create<TrailState>()(
           isLoading: false,
           currentMissionId: null,
           selectedMissionId: null,
+          justCompletedMissionId: null,
           viewingRoundIndex: 0,
         }),
     }),
@@ -330,6 +345,7 @@ export const useTrailStore = create<TrailState>()(
         rounds: state.rounds,
         preparatorio: state.preparatorio,
         viewingRoundIndex: state.viewingRoundIndex,
+        userPreparatorios: state.userPreparatorios, // Persistir para evitar recarregar ao voltar para trilha
       }),
     }
   )

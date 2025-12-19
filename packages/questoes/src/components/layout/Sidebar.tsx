@@ -10,8 +10,8 @@ import {
   User,
   LogOut,
   HelpCircle,
-  Bell,
   ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useAuthStore, useUserStore, useUIStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
@@ -31,7 +31,11 @@ const secondaryNavItems = [
   { path: '/ajuda', icon: HelpCircle, label: 'Ajuda' },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isCollapsed?: boolean;
+}
+
+export function Sidebar({ isCollapsed = false }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, logout } = useAuthStore();
@@ -45,30 +49,43 @@ export function Sidebar() {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header - Logo + Collapse */}
-      <div className="h-14 px-4 flex items-center justify-between border-b border-[#3A3A3A]">
-        <img src={LOGO_URL} alt="Ouse Passar" className="h-7 object-contain" />
-        <button
-          onClick={toggleSidebar}
-          className="p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors"
-          title="Retrair menu"
-        >
-          <ChevronLeft size={18} className="text-[#A0A0A0]" />
-        </button>
+      <div className="h-14 px-3 flex items-center justify-between border-b border-[#3A3A3A]">
+        {isCollapsed ? (
+          <button
+            onClick={toggleSidebar}
+            className="w-full flex justify-center p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors"
+            title="Expandir menu"
+          >
+            <ChevronRight size={18} className="text-[#A0A0A0]" />
+          </button>
+        ) : (
+          <>
+            <img src={LOGO_URL} alt="Ouse Passar" className="h-7 object-contain" />
+            <button
+              onClick={toggleSidebar}
+              className="p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors"
+              title="Retrair menu"
+            >
+              <ChevronLeft size={18} className="text-[#A0A0A0]" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* User Info */}
-      <div className="p-4 border-b border-[#3A3A3A]">
-        <div className="flex items-center gap-3">
+      <div className={`border-b border-[#3A3A3A] ${isCollapsed ? 'p-3' : 'p-4'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
           {/* Profile Photo with Progress Ring */}
           <button
             onClick={() => navigate('/perfil')}
-            className="relative group"
+            className="relative group flex-shrink-0"
+            title={isCollapsed ? `${profile?.name || 'Estudante'} - ${stats.xp} XP` : undefined}
           >
             <CircularProgress
               value={xpProgress.percentage}
-              size={50}
+              size={isCollapsed ? 44 : 50}
               strokeWidth={4}
               color="brand"
               showLabel={false}
@@ -77,48 +94,48 @@ export function Sidebar() {
                 <img
                   src={profile.avatar_url}
                   alt="Profile"
-                  className="w-9 h-9 rounded-full object-cover"
+                  className={`rounded-full object-cover ${isCollapsed ? 'w-8 h-8' : 'w-9 h-9'}`}
                 />
               ) : (
-                <div className="w-9 h-9 rounded-full bg-[#3A3A3A] flex items-center justify-center">
-                  <User size={18} className="text-[#A0A0A0]" />
+                <div className={`rounded-full bg-[#3A3A3A] flex items-center justify-center ${isCollapsed ? 'w-8 h-8' : 'w-9 h-9'}`}>
+                  <User size={isCollapsed ? 16 : 18} className="text-[#A0A0A0]" />
                 </div>
               )}
             </CircularProgress>
             <div className="absolute inset-0 rounded-full bg-[#FFB800]/0 group-hover:bg-[#FFB800]/10 transition-colors" />
           </button>
 
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-medium truncate">
-              {profile?.name || 'Estudante'}
-            </p>
-            <p className="text-[#A0A0A0] text-sm">
-              {stats.xp} XP
-            </p>
-          </div>
-
-          {/* Notification Icon */}
-          <button className="relative p-2 rounded-lg hover:bg-[#3A3A3A] transition-colors">
-            <Bell size={18} className="text-[#A0A0A0]" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#E74C3C] rounded-full"></span>
-          </button>
+          {!isCollapsed && (
+            <>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium truncate">
+                  {profile?.name || 'Estudante'}
+                </p>
+                <p className="text-[#A0A0A0] text-sm">
+                  {stats.xp} XP
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Stats Row */}
-        <div className="flex items-center justify-between mt-3 text-sm">
-          <div className="flex items-center gap-1">
-            <span className="text-xl">🔥</span>
-            <span className="text-white font-medium">{stats.streak}</span>
+        {/* Stats Row - Only show when expanded */}
+        {!isCollapsed && (
+          <div className="flex items-center justify-between mt-3 text-sm">
+            <div className="flex items-center gap-1">
+              <span className="text-xl">🔥</span>
+              <span className="text-white font-medium">{stats.streak}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xl">💰</span>
+              <span className="text-[#FFB800] font-medium">{stats.coins}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xl">⭐</span>
+              <span className="text-white font-medium">{stats.correctAnswers}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xl">💰</span>
-            <span className="text-[#FFB800] font-medium">{stats.coins}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xl">⭐</span>
-            <span className="text-white font-medium">{stats.correctAnswers}</span>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Main Navigation */}
@@ -133,9 +150,11 @@ export function Sidebar() {
               <li key={item.path}>
                 <NavLink
                   to={item.path}
+                  title={isCollapsed ? item.label : undefined}
                   className={`
-                    relative flex items-center gap-3 px-3 py-2.5 rounded-xl
+                    relative flex items-center rounded-xl
                     transition-colors duration-200
+                    ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
                     ${isActive
                       ? 'bg-[#FFB800]/10 text-[#FFB800]'
                       : 'text-[#A0A0A0] hover:bg-[#3A3A3A] hover:text-white'
@@ -150,7 +169,7 @@ export function Sidebar() {
                     />
                   )}
                   <Icon size={20} />
-                  <span className="font-medium">{item.label}</span>
+                  {!isCollapsed && <span className="font-medium">{item.label}</span>}
                 </NavLink>
               </li>
             );
@@ -170,9 +189,11 @@ export function Sidebar() {
               <li key={item.path}>
                 <NavLink
                   to={item.path}
+                  title={isCollapsed ? item.label : undefined}
                   className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-xl
+                    flex items-center rounded-xl
                     transition-colors duration-200
+                    ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
                     ${isActive
                       ? 'bg-[#3A3A3A] text-white'
                       : 'text-[#6E6E6E] hover:bg-[#3A3A3A] hover:text-white'
@@ -180,7 +201,7 @@ export function Sidebar() {
                   `}
                 >
                   <Icon size={20} />
-                  <span>{item.label}</span>
+                  {!isCollapsed && <span>{item.label}</span>}
                 </NavLink>
               </li>
             );
@@ -192,11 +213,15 @@ export function Sidebar() {
       <div className="p-3 border-t border-[#3A3A3A]">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl
-            text-[#E74C3C] hover:bg-[#E74C3C]/10 transition-colors"
+          title={isCollapsed ? 'Sair' : undefined}
+          className={`
+            flex items-center w-full rounded-xl
+            text-[#E74C3C] hover:bg-[#E74C3C]/10 transition-colors
+            ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
+          `}
         >
           <LogOut size={20} />
-          <span>Sair</span>
+          {!isCollapsed && <span>Sair</span>}
         </button>
       </div>
     </div>

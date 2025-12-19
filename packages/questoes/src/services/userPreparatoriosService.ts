@@ -11,7 +11,8 @@ export const userPreparatoriosService = {
   async getUserPreparatorios(userId: string): Promise<UserPreparatorio[]> {
     console.log('[userPreparatoriosService] getUserPreparatorios - userId:', userId);
     try {
-      const { data, error } = await supabase
+      // Buscar user_trails
+      const { data: trails, error } = await supabase
         .from('user_trails')
         .select(`
           id,
@@ -19,28 +20,41 @@ export const userPreparatoriosService = {
           preparatorio_id,
           nivel_usuario,
           current_round,
-          created_at,
-          preparatorio:preparatorios(*)
+          questoes_por_missao,
+          created_at
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
-
-      console.log('[userPreparatoriosService] Resultado:', { data, error });
 
       if (error) {
         console.error('[userPreparatoriosService] Erro ao buscar preparatórios do usuário:', error.message, error.code);
         return [];
       }
 
+      if (!trails || trails.length === 0) {
+        console.log('[userPreparatoriosService] Nenhum preparatório encontrado');
+        return [];
+      }
+
+      // Buscar preparatórios separadamente
+      const prepIds = trails.map(t => t.preparatorio_id);
+      const { data: preparatorios } = await supabase
+        .from('preparatorios')
+        .select('*')
+        .in('id', prepIds);
+
+      const prepMap = new Map((preparatorios || []).map(p => [p.id, p]));
+
       // Mapear para o tipo UserPreparatorio
-      const result = (data || []).map((item: any) => ({
+      const result = trails.map((item: any) => ({
         id: item.id,
         user_id: item.user_id,
         preparatorio_id: item.preparatorio_id,
         nivel_usuario: item.nivel_usuario,
         current_round: item.current_round,
+        questoes_por_missao: item.questoes_por_missao || 20,
         created_at: item.created_at,
-        preparatorio: item.preparatorio,
+        preparatorio: prepMap.get(item.preparatorio_id) || ({} as Preparatorio),
       }));
 
       console.log('[userPreparatoriosService] Preparatórios encontrados:', result.length);
@@ -56,6 +70,7 @@ export const userPreparatoriosService = {
    */
   async getUserPreparatorio(userId: string, preparatorioId: string): Promise<UserPreparatorio | null> {
     try {
+      // Buscar user_trail
       const { data, error } = await supabase
         .from('user_trails')
         .select(`
@@ -64,8 +79,8 @@ export const userPreparatoriosService = {
           preparatorio_id,
           nivel_usuario,
           current_round,
-          created_at,
-          preparatorio:preparatorios(*)
+          questoes_por_missao,
+          created_at
         `)
         .eq('user_id', userId)
         .eq('preparatorio_id', preparatorioId)
@@ -78,14 +93,22 @@ export const userPreparatoriosService = {
         return null;
       }
 
+      // Buscar preparatório separadamente
+      const { data: prepData } = await supabase
+        .from('preparatorios')
+        .select('*')
+        .eq('id', preparatorioId)
+        .single();
+
       return {
         id: data.id,
         user_id: data.user_id,
         preparatorio_id: data.preparatorio_id,
         nivel_usuario: data.nivel_usuario,
         current_round: data.current_round,
+        questoes_por_missao: data.questoes_por_missao || 20,
         created_at: data.created_at,
-        preparatorio: data.preparatorio,
+        preparatorio: prepData || ({} as Preparatorio),
       };
     } catch (err) {
       console.error('Erro ao buscar preparatório:', err);
@@ -135,11 +158,13 @@ export const userPreparatoriosService = {
 
   /**
    * Adiciona um novo preparatório ao usuário (compra/matrícula)
+   * @param questoesPorMissao - Número de questões por missão (20-60), calculado via calcularQuestoesPorMissao()
    */
   async addPreparatorioToUser(
     userId: string,
     preparatorioId: string,
-    nivelUsuario: UserLevel = 'iniciante'
+    nivelUsuario: UserLevel = 'iniciante',
+    questoesPorMissao: number = 20
   ): Promise<UserPreparatorio | null> {
     try {
       // Verificar se já possui
@@ -149,30 +174,53 @@ export const userPreparatoriosService = {
         return existing;
       }
 
-      // Criar nova trilha para o usuário
-      const { data, error } = await supabase
+      // Garantir que questoesPorMissao está dentro dos limites
+      const questoesValidadas = Math.min(60, Math.max(20, questoesPorMissao));
+
+      // Criar nova trilha para o usuário (insert simples)
+      const { data: insertData, error: insertError } = await supabase
         .from('user_trails')
         .insert({
           user_id: userId,
           preparatorio_id: preparatorioId,
           nivel_usuario: nivelUsuario,
           current_round: 1,
+          questoes_por_missao: questoesValidadas,
         })
+        .select('id')
+        .single();
+
+      if (insertError) {
+        console.error('Erro ao adicionar preparatório:', insertError.message);
+        return null;
+      }
+
+      // Buscar o registro completo com o join
+      const { data, error } = await supabase
+        .from('user_trails')
         .select(`
           id,
           user_id,
           preparatorio_id,
           nivel_usuario,
           current_round,
-          created_at,
-          preparatorio:preparatorios(*)
+          questoes_por_missao,
+          created_at
         `)
+        .eq('id', insertData.id)
         .single();
 
       if (error) {
-        console.error('Erro ao adicionar preparatório:', error.message);
+        console.error('Erro ao buscar preparatório criado:', error.message);
         return null;
       }
+
+      // Buscar o preparatório separadamente
+      const { data: prepData } = await supabase
+        .from('preparatorios')
+        .select('*')
+        .eq('id', preparatorioId)
+        .single();
 
       return {
         id: data.id,
@@ -180,8 +228,9 @@ export const userPreparatoriosService = {
         preparatorio_id: data.preparatorio_id,
         nivel_usuario: data.nivel_usuario,
         current_round: data.current_round,
+        questoes_por_missao: data.questoes_por_missao || questoesValidadas,
         created_at: data.created_at,
-        preparatorio: data.preparatorio,
+        preparatorio: prepData || ({} as Preparatorio),
       };
     } catch (err) {
       console.error('Erro ao adicionar preparatório:', err);

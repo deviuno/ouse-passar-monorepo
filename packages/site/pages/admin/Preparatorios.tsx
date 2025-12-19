@@ -1,56 +1,75 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
   GraduationCap,
   Search,
   Loader2,
   CheckCircle,
-  Clock,
   AlertCircle,
   FileText,
   MoreVertical,
   Edit,
   Trash2,
   Eye,
-  CheckSquare,
+  Sparkles,
 } from 'lucide-react';
-import { getCourses, deleteCourse, Course, getCoursesStats, ContentType } from '../../services/simuladoService';
+import { preparatoriosService } from '../../services/preparatoriosService';
+import { editalService } from '../../services/editalService';
+import { Preparatorio, PreparatorioContentType } from '../../lib/database.types';
 import { useToast } from '../../components/ui/Toast';
+import { QuickCreatePreparatorioModal } from '../../components/admin/QuickCreatePreparatorioModal';
+
+// Tipo estendido com contagem de edital
+interface PreparatorioWithStats extends Preparatorio {
+  editalCount?: number;
+}
 
 export const Preparatorios: React.FC = () => {
   const toast = useToast();
-  const [courses, setCourses] = useState<Course[]>([]);
+  const navigate = useNavigate();
+  const [preparatorios, setPreparatorios] = useState<PreparatorioWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | ContentType>('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'pending'>('all');
+  const [filterType, setFilterType] = useState<'all' | PreparatorioContentType>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
-    simulados: 0,
-    preparatorios: 0,
-    pendingEditais: 0,
+    plano: 0,
+    questoes: 0,
   });
 
-  // Load courses
+  // Load preparatorios
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       setError(null);
 
       try {
-        const [coursesResult, statsResult] = await Promise.all([
-          getCourses({ includeEdital: true }),
-          getCoursesStats(),
-        ]);
+        // Buscar todos os preparatórios (incluindo inativos para admin)
+        const data = await preparatoriosService.getAll(true);
 
-        if (coursesResult.error) throw new Error(coursesResult.error);
+        // Buscar contagem de edital para cada preparatório
+        const preparatoriosWithStats = await Promise.all(
+          data.map(async (prep) => {
+            const editalItems = await editalService.getByPreparatorio(prep.id);
+            return { ...prep, editalCount: editalItems.length };
+          })
+        );
 
-        setCourses(coursesResult.courses);
-        setStats(statsResult);
+        setPreparatorios(preparatoriosWithStats);
+
+        // Calcular stats
+        setStats({
+          total: data.length,
+          active: data.filter(p => p.is_active).length,
+          plano: data.filter(p => p.content_types?.includes('plano')).length,
+          questoes: data.filter(p => p.content_types?.includes('questoes')).length,
+        });
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -68,17 +87,13 @@ export const Preparatorios: React.FC = () => {
 • Todo o edital verticalizado (blocos, matérias, tópicos)
 • Todas as configurações e vínculos
 
-As questões do banco NÃO serão afetadas.
-
 Esta ação NÃO pode ser desfeita. Deseja continuar?`;
 
     if (!confirm(confirmMessage)) return;
 
     try {
-      const { error } = await deleteCourse(id);
-      if (error) throw new Error(error);
-
-      setCourses((prev) => prev.filter((c) => c.id !== id));
+      await preparatoriosService.delete(id);
+      setPreparatorios((prev) => prev.filter((p) => p.id !== id));
       setOpenMenu(null);
       toast.success('Preparatório excluído com sucesso!');
     } catch (err: any) {
@@ -86,30 +101,27 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
     }
   };
 
-  // Filter courses
-  const filteredCourses = courses.filter((course) => {
-    // Search filter
-    if (searchTerm && !course.title.toLowerCase().includes(searchTerm.toLowerCase())) {
+  // Filter preparatorios
+  const filteredPreparatorios = preparatorios.filter((prep) => {
+    // Search filter - busca por nome
+    if (searchTerm && !prep.nome.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
 
     // Type filter - verifica se o content_types array contém o tipo selecionado
-    if (filterType !== 'all' && !course.content_types?.includes(filterType)) {
+    if (filterType !== 'all' && !prep.content_types?.includes(filterType)) {
       return false;
     }
 
     // Status filter
-    if (filterStatus === 'active' && !course.is_active) return false;
-    if (filterStatus === 'inactive' && course.is_active) return false;
-    if (filterStatus === 'pending' && course.edital?.status !== 'pending' && course.edital?.status !== 'processing') {
-      return false;
-    }
+    if (filterStatus === 'active' && !prep.is_active) return false;
+    if (filterStatus === 'inactive' && prep.is_active) return false;
 
     return true;
   });
 
-  const getEditalStatusBadge = (course: Course) => {
-    if (!course.edital) {
+  const getEditalStatusBadge = (prep: PreparatorioWithStats) => {
+    if (!prep.editalCount || prep.editalCount === 0) {
       return (
         <span className="px-2 py-0.5 bg-gray-500/20 text-gray-500 text-xs font-bold uppercase rounded">
           Sem edital
@@ -117,38 +129,12 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
       );
     }
 
-    switch (course.edital.status) {
-      case 'pending':
-        return (
-          <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-500 text-xs font-bold uppercase rounded">
-            <Clock className="w-3 h-3" />
-            Aguardando
-          </span>
-        );
-      case 'processing':
-        return (
-          <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/20 text-blue-500 text-xs font-bold uppercase rounded">
-            <Loader2 className="w-3 h-3 animate-spin" />
-            Processando
-          </span>
-        );
-      case 'completed':
-        return (
-          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-500 text-xs font-bold uppercase rounded">
-            <CheckCircle className="w-3 h-3" />
-            Analisado
-          </span>
-        );
-      case 'error':
-        return (
-          <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/20 text-red-500 text-xs font-bold uppercase rounded">
-            <AlertCircle className="w-3 h-3" />
-            Erro
-          </span>
-        );
-      default:
-        return null;
-    }
+    return (
+      <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-500 text-xs font-bold uppercase rounded">
+        <FileText className="w-3 h-3" />
+        {prep.editalCount} itens
+      </span>
+    );
   };
 
   return (
@@ -161,36 +147,41 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
           </h1>
           <p className="text-gray-400 mt-1">Gerencie seus cursos preparatórios e simulados.</p>
         </div>
-        <Link
-          to="/admin/preparatorios/new"
-          className="bg-brand-yellow text-brand-darker px-4 py-2 rounded-sm font-bold uppercase tracking-wide hover:bg-white transition-colors flex items-center"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Novo Preparatório
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowQuickCreate(true)}
+            className="bg-purple-600 text-white px-4 py-2 rounded-sm font-bold uppercase tracking-wide hover:bg-purple-500 transition-colors flex items-center"
+          >
+            <Sparkles className="w-5 h-5 mr-2" />
+            Criar com IA
+          </button>
+          <Link
+            to="/admin/preparatorios/new"
+            className="bg-brand-yellow text-brand-darker px-4 py-2 rounded-sm font-bold uppercase tracking-wide hover:bg-white transition-colors flex items-center"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Manual
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-brand-card border border-white/5 rounded-sm p-4">
           <p className="text-gray-500 text-xs uppercase tracking-wider">Total</p>
           <p className="text-2xl font-black text-white">{stats.total}</p>
         </div>
         <div className="bg-brand-card border border-white/5 rounded-sm p-4">
-          <p className="text-gray-500 text-xs uppercase tracking-wider">Ativos</p>
+          <p className="text-gray-500 text-xs uppercase tracking-wider">Publicados</p>
           <p className="text-2xl font-black text-green-500">{stats.active}</p>
         </div>
         <div className="bg-brand-card border border-white/5 rounded-sm p-4">
-          <p className="text-gray-500 text-xs uppercase tracking-wider">Questões</p>
-          <p className="text-2xl font-black text-brand-yellow">{stats.simulados}</p>
+          <p className="text-gray-500 text-xs uppercase tracking-wider">Com Plano</p>
+          <p className="text-2xl font-black text-purple-500">{stats.plano}</p>
         </div>
         <div className="bg-brand-card border border-white/5 rounded-sm p-4">
-          <p className="text-gray-500 text-xs uppercase tracking-wider">Preparatórios</p>
-          <p className="text-2xl font-black text-blue-500">{stats.preparatorios}</p>
-        </div>
-        <div className="bg-brand-card border border-white/5 rounded-sm p-4">
-          <p className="text-gray-500 text-xs uppercase tracking-wider">Pendentes</p>
-          <p className="text-2xl font-black text-yellow-500">{stats.pendingEditais}</p>
+          <p className="text-gray-500 text-xs uppercase tracking-wider">Com Questões</p>
+          <p className="text-2xl font-black text-brand-yellow">{stats.questoes}</p>
         </div>
       </div>
 
@@ -224,9 +215,8 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
           className="bg-brand-dark border border-white/10 rounded-sm py-2 px-4 text-white focus:outline-none focus:border-brand-yellow"
         >
           <option value="all">Todos os status</option>
-          <option value="active">Ativos</option>
-          <option value="inactive">Inativos</option>
-          <option value="pending">Pendentes</option>
+          <option value="active">Publicados</option>
+          <option value="inactive">Não publicados</option>
         </select>
       </div>
 
@@ -247,7 +237,7 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
       )}
 
       {/* Empty State */}
-      {!loading && filteredCourses.length === 0 && (
+      {!loading && filteredPreparatorios.length === 0 && (
         <div className="bg-brand-card border border-white/5 rounded-sm overflow-hidden">
           <div className="p-12 text-center text-gray-500">
             <GraduationCap className="w-16 h-16 mx-auto mb-4 opacity-20" />
@@ -265,8 +255,8 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
         </div>
       )}
 
-      {/* Courses List */}
-      {!loading && filteredCourses.length > 0 && (
+      {/* Preparatorios List */}
+      {!loading && filteredPreparatorios.length > 0 && (
         <div className="bg-brand-card border border-white/5 rounded-sm overflow-hidden">
           <table className="w-full">
             <thead>
@@ -284,7 +274,7 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
                   Edital
                 </th>
                 <th className="text-left py-4 px-6 text-gray-500 text-xs uppercase tracking-wider font-bold">
-                  Questões
+                  Banca/Órgão
                 </th>
                 <th className="text-right py-4 px-6 text-gray-500 text-xs uppercase tracking-wider font-bold">
                   Ações
@@ -292,34 +282,28 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
               </tr>
             </thead>
             <tbody>
-              {filteredCourses.map((course) => (
+              {filteredPreparatorios.map((prep) => (
                 <tr
-                  key={course.id}
+                  key={prep.id}
                   className="border-b border-white/5 hover:bg-white/5 transition-colors"
                 >
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-brand-yellow/10 rounded-sm flex items-center justify-center">
-                        {course.content_types?.includes('questoes') ? (
-                          <CheckSquare className="w-5 h-5 text-brand-yellow" />
-                        ) : (
-                          <GraduationCap className="w-5 h-5 text-brand-yellow" />
-                        )}
+                        <GraduationCap className="w-5 h-5 text-brand-yellow" />
                       </div>
                       <div>
-                        <p className="text-white font-medium">{course.title}</p>
-                        {course.description && (
-                          <p className="text-gray-500 text-sm truncate max-w-xs">
-                            {course.description}
-                          </p>
-                        )}
+                        <p className="text-white font-medium">{prep.nome}</p>
+                        <p className="text-gray-600 text-xs font-mono">
+                          /{prep.slug}
+                        </p>
                       </div>
                     </div>
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex flex-wrap gap-1">
-                      {course.content_types?.map((type) => {
-                        const typeConfig: Record<ContentType, { label: string; bgClass: string; textClass: string }> = {
+                      {prep.content_types?.map((type) => {
+                        const typeConfig: Record<PreparatorioContentType, { label: string; bgClass: string; textClass: string }> = {
                           plano: { label: 'Plano', bgClass: 'bg-purple-500/20', textClass: 'text-purple-400' },
                           questoes: { label: 'Questões', bgClass: 'bg-brand-yellow/20', textClass: 'text-brand-yellow' },
                           preparatorio: { label: 'Prep.', bgClass: 'bg-blue-500/20', textClass: 'text-blue-400' },
@@ -337,29 +321,30 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
                     </div>
                   </td>
                   <td className="py-4 px-6">
-                    {course.is_active ? (
+                    {prep.is_active ? (
                       <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-500 text-xs font-bold uppercase rounded">
                         <CheckCircle className="w-3 h-3" />
-                        Ativo
+                        Publicado
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 bg-gray-500/20 text-gray-500 text-xs font-bold uppercase rounded">
-                        Inativo
+                        Rascunho
                       </span>
                     )}
                   </td>
-                  <td className="py-4 px-6">{getEditalStatusBadge(course)}</td>
+                  <td className="py-4 px-6">{getEditalStatusBadge(prep)}</td>
                   <td className="py-4 px-6">
-                    <span className="text-white font-bold">
-                      {course.questions_count > 0
-                        ? course.questions_count.toLocaleString('pt-BR')
-                        : '-'}
-                    </span>
+                    <div className="text-sm">
+                      {prep.banca && <span className="text-purple-400">{prep.banca}</span>}
+                      {prep.banca && prep.orgao && <span className="text-gray-600 mx-1">/</span>}
+                      {prep.orgao && <span className="text-blue-400">{prep.orgao}</span>}
+                      {!prep.banca && !prep.orgao && <span className="text-gray-600">-</span>}
+                    </div>
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex items-center justify-end gap-2 relative">
                       <Link
-                        to={`/admin/preparatorios/edit/${course.id}`}
+                        to={`/admin/preparatorios/edit/${prep.id}`}
                         className="p-2 text-gray-400 hover:text-brand-yellow transition-colors"
                         title="Editar"
                       >
@@ -368,13 +353,13 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
 
                       <div className="relative">
                         <button
-                          onClick={() => setOpenMenu(openMenu === course.id ? null : course.id)}
+                          onClick={() => setOpenMenu(openMenu === prep.id ? null : prep.id)}
                           className="p-2 text-gray-400 hover:text-white transition-colors"
                         >
                           <MoreVertical className="w-4 h-4" />
                         </button>
 
-                        {openMenu === course.id && (
+                        {openMenu === prep.id && (
                           <>
                             <div
                               className="fixed inset-0 z-10"
@@ -382,14 +367,14 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
                             />
                             <div className="absolute right-0 top-full mt-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl z-20 min-w-[150px]">
                               <Link
-                                to={`/admin/preparatorios/edit/${course.id}`}
+                                to={`/admin/preparatorios/edit/${prep.id}`}
                                 className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
                               >
                                 <Eye className="w-4 h-4" />
                                 Ver detalhes
                               </Link>
                               <button
-                                onClick={() => handleDelete(course.id)}
+                                onClick={() => handleDelete(prep.id)}
                                 className="w-full flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-red-500/10 transition-colors"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -407,6 +392,16 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
           </table>
         </div>
       )}
+
+      {/* Modal de Criação Rápida com IA */}
+      <QuickCreatePreparatorioModal
+        isOpen={showQuickCreate}
+        onClose={() => setShowQuickCreate(false)}
+        onSuccess={(preparatorioId) => {
+          toast.success('Preparatório criado com sucesso!');
+          navigate(`/admin/preparatorios/edit/${preparatorioId}`);
+        }}
+      />
     </div>
   );
 };

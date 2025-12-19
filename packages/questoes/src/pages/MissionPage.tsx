@@ -13,7 +13,10 @@ import {
   Lock,
   Loader2,
   Pause,
-  Sparkles
+  Sparkles,
+  Target,
+  BookOpen,
+  Zap
 } from 'lucide-react';
 import { useMissionStore, useTrailStore, useUserStore, useUIStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -31,10 +34,11 @@ import {
   DifficultyRating,
 } from '../services/questionFeedbackService';
 import {
-  createMassificacao,
+  marcarNeedsMassificacao,
   isMassificacao,
   completarMassificacao,
-  desbloquearProximaMissao,
+  getQuestoesIdsMassificacao,
+  getMassificacaoAttempts,
 } from '../services/massificacaoService';
 import { getQuestoesParaMissao } from '../services/missaoQuestoesService';
 import {
@@ -42,6 +46,12 @@ import {
   gerarConteudoMissao,
   MissaoConteudo,
 } from '../services/missaoConteudoService';
+import {
+  userPreparatoriosService,
+  getRodadasComProgresso,
+  rodadasToTrailRounds,
+  updateMissaoProgress,
+} from '../services';
 
 // URL do servidor Mastra para chamadas de background
 const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_SERVER_URL || 'http://localhost:4000';
@@ -782,62 +792,69 @@ function MassificationPhase({
       animate={{ opacity: 1, scale: 1 }}
       className="flex flex-col items-center justify-center h-full p-6 text-center"
     >
+      {/* Icon */}
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: 'spring' }}
-        className="text-6xl mb-6"
+        className="w-20 h-20 rounded-2xl bg-[#E74C3C]/20 flex items-center justify-center mb-6"
       >
-        🔄
+        <RefreshCw className="w-10 h-10 text-[#E74C3C]" />
       </motion.div>
 
       <h2 className="text-2xl font-bold text-white mb-2">
-        Massificação Ativada!
+        Hora de Reforcar!
       </h2>
-      <p className="text-[#A0A0A0] mb-2">
+
+      <p className="text-[#A0A0A0] mb-1">
         Seu score foi <span className="text-[#E74C3C] font-bold">{Math.round(score)}%</span>
       </p>
+      <p className="text-[#6E6E6E] text-sm mb-6 max-w-xs">
+        Voce precisa de pelo menos <span className="text-[#FFB800] font-semibold">{PASSING_SCORE}%</span> para avancar.
+      </p>
+
+      {/* Info cards */}
+      <div className="space-y-3 mb-6 w-full max-w-xs">
+        <div className="flex items-start gap-3 p-3 bg-[#2A2A2A] rounded-lg text-left">
+          <Target className="w-5 h-5 text-[#E74C3C] mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-white text-sm font-medium">Mesmas questoes</p>
+            <p className="text-[#6E6E6E] text-xs">Voce refara exatamente as mesmas questoes para fixar o conteudo.</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3 p-3 bg-[#2A2A2A] rounded-lg text-left">
+          <BookOpen className="w-5 h-5 text-[#E74C3C] mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-white text-sm font-medium">Conteudo disponivel</p>
+            <p className="text-[#6E6E6E] text-xs">Acesso ao material teorico para revisar antes de responder.</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3 p-3 bg-[#2A2A2A] rounded-lg text-left">
+          <Zap className="w-5 h-5 text-[#6E6E6E] mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-white text-sm font-medium">Sem recompensas</p>
+            <p className="text-[#6E6E6E] text-xs">Nao ganha XP ou moedas, mas desbloqueia a proxima missao.</p>
+          </div>
+        </div>
+      </div>
+
       {tentativa && tentativa > 1 && (
-        <p className="text-[#FFB800] text-sm mb-2">
+        <p className="text-[#FFB800] text-sm mb-4">
           Tentativa #{tentativa}
         </p>
       )}
-      <p className="text-[#6E6E6E] text-sm mb-4 max-w-xs">
-        Você precisará refazer <strong>todas</strong> as questões desta missão para fixar o conteúdo.
-      </p>
 
-      {/* Info box */}
-      <div className="bg-[#2A2A2A] border border-[#3A3A3A] rounded-lg p-4 mb-6 max-w-xs">
-        <p className="text-[#A0A0A0] text-xs mb-2">
-          📌 <strong>Regras da Massificação:</strong>
-        </p>
-        <ul className="text-[#6E6E6E] text-xs text-left space-y-1">
-          <li>• Refaça todas as questões</li>
-          <li>• Revise o conteúdo antes</li>
-          <li>• Atinja pelo menos {PASSING_SCORE}% para continuar</li>
-          <li>• Sem recompensas (XP/moedas)</li>
-        </ul>
-      </div>
-
-      <div className="space-y-3 w-full max-w-xs">
+      <div className="w-full max-w-xs">
         <Button
           size="lg"
           fullWidth
           onClick={onRetry}
-          leftIcon={isCreating ? undefined : <RefreshCw size={20} />}
           disabled={isCreating}
+          className="bg-[#E74C3C] hover:bg-[#C0392B]"
         >
-          {isCreating ? 'Preparando...' : 'Iniciar Massificação'}
-        </Button>
-        <Button
-          size="lg"
-          fullWidth
-          variant="ghost"
-          onClick={onGoHome}
-          leftIcon={<Home size={20} />}
-          disabled={isCreating}
-        >
-          Voltar para Trilha
+          {isCreating ? 'Salvando...' : 'Entendi'}
         </Button>
       </div>
     </motion.div>
@@ -940,25 +957,115 @@ export default function MissionPage() {
     getSelectedPreparatorio,
     getMissionUrl,
     getMissionByUrlParams,
+    userPreparatorios,
+    setUserPreparatorios,
+    setRounds,
+    setPreparatorio,
+    setCurrentTrail,
+    isLoading: isStoreLoading,
+    setLoading: setStoreLoading,
   } = useTrailStore();
 
+  // Estado local para controlar se os dados foram carregados
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // Carregar dados do store se estiverem vazios (acesso direto à página)
+  useEffect(() => {
+    async function loadDataIfNeeded() {
+      // Se já tem rounds carregados, não precisa carregar novamente
+      if (rounds.length > 0) {
+        setIsDataLoaded(true);
+        return;
+      }
+
+      // Se não tem usuário, não pode carregar
+      if (!user?.id) {
+        setIsDataLoaded(true);
+        return;
+      }
+
+      // Carregar preparatórios e rodadas
+      setStoreLoading(true);
+      try {
+        // Carregar preparatórios
+        const preparatorios = await userPreparatoriosService.getUserPreparatorios(user.id);
+
+        if (preparatorios.length === 0) {
+          setIsDataLoaded(true);
+          setStoreLoading(false);
+          return;
+        }
+
+        setUserPreparatorios(preparatorios);
+
+        // Encontrar o preparatório pelo slug da URL (se disponível)
+        let selectedPrep = preparatorios[0];
+        if (prepSlug) {
+          const matchingPrep = preparatorios.find(p => p.preparatorio?.slug === prepSlug);
+          if (matchingPrep) {
+            selectedPrep = matchingPrep;
+          }
+        }
+
+        // Carregar rodadas
+        const rodadasComProgresso = await getRodadasComProgresso(
+          user.id,
+          selectedPrep.preparatorio_id
+        );
+        const roundsData = rodadasToTrailRounds(rodadasComProgresso);
+        setRounds(roundsData);
+
+        // Atualizar dados do preparatório
+        setPreparatorio(selectedPrep.preparatorio);
+        setCurrentTrail({
+          id: selectedPrep.id,
+          user_id: selectedPrep.user_id,
+          preparatorio_id: selectedPrep.preparatorio_id,
+          nivel_usuario: selectedPrep.nivel_usuario,
+          current_round: selectedPrep.current_round,
+          created_at: selectedPrep.created_at,
+        });
+
+        setIsDataLoaded(true);
+      } catch (err) {
+        console.error('[MissionPage] Erro ao carregar dados:', err);
+        setIsDataLoaded(true);
+      } finally {
+        setStoreLoading(false);
+      }
+    }
+
+    loadDataIfNeeded();
+  }, [user?.id, rounds.length, prepSlug]);
+
   // Resolve mission ID from URL params (supports both old and new URL formats)
+  // Depende de 'rounds' para recalcular quando os dados são carregados (acesso direto)
   const resolvedMissionId = useMemo(() => {
+    console.log('[MissionPage] Resolving mission ID:', {
+      missionId,
+      prepSlug,
+      roundNum,
+      missionNum,
+      roundsLength: rounds.length,
+      userPreparatoriosLength: userPreparatorios.length,
+    });
+
     // Old format: /missao/:missionId
     if (missionId) return missionId;
 
     // New format: /trilha/:prepSlug/r/:roundNum/m/:missionNum
-    if (prepSlug && roundNum && missionNum) {
+    if (prepSlug && roundNum && missionNum && rounds.length > 0) {
       const mission = getMissionByUrlParams({
         prepSlug,
         roundNum: parseInt(roundNum, 10),
         missionNum: parseInt(missionNum, 10),
       });
+      console.log('[MissionPage] getMissionByUrlParams result:', mission?.id);
       return mission?.id || null;
     }
 
     return null;
-  }, [missionId, prepSlug, roundNum, missionNum, getMissionByUrlParams]);
+  }, [missionId, prepSlug, roundNum, missionNum, getMissionByUrlParams, rounds, userPreparatorios]);
 
   // Trail Logic
   const displayRounds = rounds.length > 0 ? rounds : DEMO_ROUNDS;
@@ -1029,19 +1136,17 @@ export default function MissionPage() {
     setSelectedStudyMode('zen');
     // Clear phase from URL
     setSearchParams({}, { replace: true });
-  }, [resolvedMissionId, setSearchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedMissionId]); // Removido setSearchParams para evitar loop
 
   // Update URL when phase changes to questions
   React.useEffect(() => {
     if (phase === 'questions') {
       setSearchParams({ fase: 'questoes' }, { replace: true });
-    } else {
-      // Remove fase param when not in questions phase
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('fase');
-      setSearchParams(newParams, { replace: true });
     }
-  }, [phase, setSearchParams]);
+    // Não remove o param quando não está em questions - isso evita o loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]); // Removido setSearchParams para evitar loop
 
   // Load or generate content for the mission
   useEffect(() => {
@@ -1218,14 +1323,9 @@ export default function MissionPage() {
             totalAnswered: questions.length,
           });
 
-          // Completar a massificação
-          if (resolvedMissionId) {
-            await completarMassificacao(resolvedMissionId, score);
-
-            // Desbloquear próxima missão
-            if (currentMission?.round_id) {
-              await desbloquearProximaMissao(currentMission.round_id, currentMission.ordem);
-            }
+          // Completar a massificação (desbloqueio automático via status)
+          if (resolvedMissionId && user?.id) {
+            await completarMassificacao(user.id, resolvedMissionId, score);
           }
         }
 
@@ -1241,7 +1341,7 @@ export default function MissionPage() {
   };
 
   const handleRetry = async () => {
-    if (!currentMission || !user?.id) {
+    if (!currentMission || !user?.id || !resolvedMissionId) {
       // Fallback para refazer localmente se não tiver dados
       setPhase('content');
       setCurrentQuestionIndex(0);
@@ -1259,29 +1359,30 @@ export default function MissionPage() {
       // Coletar IDs das questões atuais
       const questoesIds = questions.map(q => String(q.id));
 
-      // Criar missão de massificação
-      const novaMissao = await createMassificacao(
+      // Marcar missão como precisando de massificação
+      const sucesso = await marcarNeedsMassificacao(
         user.id,
-        currentMission,
+        resolvedMissionId,
         score,
         questoesIds
       );
 
-      if (novaMissao) {
-        setMassificacaoId(novaMissao.id);
-        addToast('info', `Massificação criada - Tentativa #${novaMissao.tentativa_massificacao}`);
-        // Navegar para a nova missão de massificação
-        navigate(`/missao/${novaMissao.id}`);
+      if (sucesso) {
+        addToast('info', 'Você precisa refazer esta missão. Vamos lá!');
+        // Limpar rounds para forçar reload da trilha com novo status
+        setRounds([]);
+        // Voltar para a trilha - o node vermelho aparecerá
+        navigate('/');
       } else {
-        // Fallback: refazer localmente se falhar a criação
-        addToast('error', 'Não foi possível criar massificação. Refazendo localmente...');
+        // Fallback: refazer localmente se falhar
+        addToast('error', 'Erro ao salvar. Refazendo localmente...');
         setPhase('content');
         setCurrentQuestionIndex(0);
         setAnswers(new Map());
       }
     } catch (error) {
-      console.error('[MissionPage] Erro ao criar massificação:', error);
-      addToast('error', 'Erro ao criar massificação');
+      console.error('[MissionPage] Erro ao marcar massificação:', error);
+      addToast('error', 'Erro ao salvar progresso');
       setPhase('content');
       setCurrentQuestionIndex(0);
       setAnswers(new Map());
@@ -1294,10 +1395,23 @@ export default function MissionPage() {
     navigate('/');
   };
 
-  const handleContinue = () => {
-    if (resolvedMissionId) {
+  const handleContinue = async () => {
+    if (resolvedMissionId && user?.id) {
       const correctCount = Array.from(answers.values()).filter(a => a.correct).length;
       const score = (correctCount / questions.length) * 100;
+
+      // Salvar no banco de dados ANTES de atualizar o store local
+      // Isso garante que quando o HomePage carregar, os dados estarão atualizados
+      try {
+        const success = await updateMissaoProgress(user.id, resolvedMissionId, 'completed', score);
+        if (!success) {
+          console.error('[MissionPage] Falha ao salvar progresso no banco');
+        }
+      } catch (err) {
+        console.error('[MissionPage] Erro ao salvar progresso:', err);
+      }
+
+      // Atualizar store local (para animação e UI)
       completeMission(resolvedMissionId, score);
     }
     navigate('/');
@@ -1311,6 +1425,33 @@ export default function MissionPage() {
   // Calcular score atual
   const correctCount = Array.from(answers.values()).filter(a => a.correct).length;
   const currentScore = questions.length > 0 ? (correctCount / questions.length) * 100 : 0;
+
+  // Se os dados ainda estão sendo carregados (acesso direto à página), mostra skeleton
+  // Também mostra skeleton se temos parâmetros de URL mas ainda não resolvemos o ID
+  const isWaitingForData = !isDataLoaded || isStoreLoading ||
+    (prepSlug && roundNum && missionNum && rounds.length === 0);
+
+  if (isWaitingForData) {
+    return (
+      <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A] p-4">
+        <ContentSkeleton />
+      </div>
+    );
+  }
+
+  // Se não conseguiu resolver o mission ID após carregar os dados, mostra erro
+  if (!resolvedMissionId && isDataLoaded && rounds.length > 0) {
+    return (
+      <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A] flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔍</div>
+          <h2 className="text-xl font-bold text-white mb-2">Missão não encontrada</h2>
+          <p className="text-[#A0A0A0] mb-6">Não foi possível encontrar esta missão.</p>
+          <Button onClick={() => navigate('/')}>Voltar para Trilha</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A]">
@@ -1390,7 +1531,11 @@ export default function MissionPage() {
                   />
                 )}
 
-                {phase === 'questions' && questions.length === 0 && (
+                {phase === 'questions' && isLoadingQuestions && (
+                  <QuestionsSkeleton key="questions-loading" />
+                )}
+
+                {phase === 'questions' && !isLoadingQuestions && questions.length === 0 && (
                   <motion.div
                     key="no-questions"
                     initial={{ opacity: 0, y: 20 }}
@@ -1410,7 +1555,7 @@ export default function MissionPage() {
                   </motion.div>
                 )}
 
-                {phase === 'questions' && questions.length > 0 && currentQuestion && (
+                {phase === 'questions' && !isLoadingQuestions && questions.length > 0 && currentQuestion && (
                   <motion.div
                     key={`question-${currentQuestionIndex}`}
                     initial={{ opacity: 0, x: 50 }}

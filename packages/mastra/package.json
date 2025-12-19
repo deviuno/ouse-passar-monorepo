@@ -16,10 +16,12 @@
         "@mastra/mcp": "^0.14.5",
         "@mastra/memory": "^0.15.13",
         "@supabase/supabase-js": "^2.87.3",
+        "@types/multer": "^2.0.0",
         "ai": "^5.0.113",
         "cors": "^2.8.5",
         "dotenv": "^16.4.5",
         "express": "^4.21.2",
+        "multer": "^2.0.2",
         "zod": "^3.24.1"
     },
     "devDependencies": {

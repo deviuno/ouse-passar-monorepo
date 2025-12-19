@@ -39,7 +39,7 @@ export default function PreparatoriosStorePage() {
         setAvailablePreparatorios(preparatorios);
       } catch (err) {
         console.error('Erro ao carregar preparatórios:', err);
-        addToast('Erro ao carregar preparatórios', 'error');
+        addToast('error', 'Erro ao carregar preparatórios');
       } finally {
         setIsLoading(false);
       }
@@ -68,14 +68,14 @@ export default function PreparatoriosStorePage() {
       if (userPrep) {
         addUserPreparatorio(userPrep);
         setSelectedPreparatorioId(userPrep.id);
-        addToast(`${selectedPrep.nome} adicionado com sucesso!`, 'success');
+        addToast('success', `${selectedPrep.nome} adicionado com sucesso!`);
         navigate('/');
       } else {
-        addToast('Erro ao adicionar preparatório', 'error');
+        addToast('error', 'Erro ao adicionar preparatório');
       }
     } catch (err) {
       console.error('Erro ao adquirir preparatório:', err);
-      addToast('Erro ao adquirir preparatório', 'error');
+      addToast('error', 'Erro ao adquirir preparatório');
     } finally {
       setIsAcquiring(false);
       setShowConfirmModal(false);

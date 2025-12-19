@@ -11,6 +11,7 @@ interface FloatingChatButtonProps {
 export function FloatingChatButton({ isOpen, onClick, sidebarWidth = 0 }: FloatingChatButtonProps) {
   return (
     <motion.button
+      data-floating-chat-button
       onClick={onClick}
       className="fixed bottom-8 z-50"
       initial={{ y: 100, opacity: 0, right: sidebarWidth + 32 }}

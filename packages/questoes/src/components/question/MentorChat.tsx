@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Send, Zap, Mic, Square, MessageSquare, GripHorizontal, Sparkles, Headphones, Radio, FileText, Video, ChevronUp, Loader2 } from 'lucide-react';
+import { Send, Zap, Mic, Square, MessageSquare, GripHorizontal, Sparkles, Headphones, Radio, FileText, Video, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { chatWithTutor, TutorUserContext, generateAudioExplanation, generatePodcast, GeneratedAudio } from '../../services/geminiService';
 import { ParsedQuestion } from '../../types';
@@ -119,14 +119,17 @@ function renderMarkdown(text: string): React.ReactNode {
 const MIN_HEIGHT = 300;
 const MAX_HEIGHT = 700;
 const DEFAULT_HEIGHT = 462; // 420px + 10%
+const COLLAPSED_HEIGHT = 72; // Just input field
 
 export function MentorChat({ contentContext, userContext, isVisible = true, onClose }: MentorChatProps) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false); // Collapsed = only input visible
     const [threadId, setThreadId] = useState<string | undefined>(undefined);
     const [chatHeight, setChatHeight] = useState(DEFAULT_HEIGHT);
     const [isResizing, setIsResizing] = useState(false);
     const resizeStartY = useRef(0);
     const resizeStartHeight = useRef(0);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
 
     // When controlled externally, always show expanded
     const isControlled = onClose !== undefined;
@@ -234,6 +237,38 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
             return () => clearTimeout(timer);
         }
     }, [isExpanded, isControlled, isVisible]);
+
+    // Handle click outside to collapse (not close) the chat
+    useEffect(() => {
+        if (!isControlled || !isVisible || isCollapsed) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            // Don't collapse if clicking inside the chat container
+            if (chatContainerRef.current?.contains(target)) return;
+            // Don't collapse if clicking on the floating button (it has its own handler)
+            if (target.closest('[data-floating-chat-button]')) return;
+
+            setIsCollapsed(true);
+        };
+
+        // Small delay to avoid triggering on the same click that opened the chat
+        const timer = setTimeout(() => {
+            document.addEventListener('mousedown', handleClickOutside);
+        }, 100);
+
+        return () => {
+            clearTimeout(timer);
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isControlled, isVisible, isCollapsed]);
+
+    // Reset collapsed state when chat opens
+    useEffect(() => {
+        if (isVisible) {
+            setIsCollapsed(false);
+        }
+    }, [isVisible]);
 
     // Initialize Speech Recognition
     useEffect(() => {
@@ -470,7 +505,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
 
     return (
         <motion.div
-            className="absolute bottom-0 inset-x-0 z-50 flex justify-center px-4 pb-0 pointer-events-none"
+            className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pb-0 pointer-events-none"
             initial={false}
             animate={{}}
             transition={{ type: "spring", stiffness: 200, damping: 25 }}
@@ -498,101 +533,93 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                     </motion.div>
                 ) : showExpanded && (
                     <motion.div
+                        ref={chatContainerRef}
                         key="expanded"
                         initial={{ y: 100, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 100, opacity: 0 }}
-                        style={{ height: chatHeight }}
-                        className="w-full max-w-[900px] bg-[#1A1A1A] border border-[#3A3A3A] rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto"
+                        style={{ height: isCollapsed ? COLLAPSED_HEIGHT : chatHeight }}
+                        className="w-full max-w-[900px] bg-[#1A1A1A] border border-[#3A3A3A] rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-200"
                     >
-                        {/* Resize Handle */}
-                        <div
-                            onMouseDown={handleResizeStart}
-                            onTouchStart={handleResizeStart}
-                            className={`
-                                flex items-center justify-center h-6 cursor-ns-resize
-                                bg-[#1A1A1A] rounded-t-2xl border-b border-[#3A3A3A]
-                                hover:bg-[#252525] transition-colors group
-                                ${isResizing ? 'bg-[#252525]' : ''}
-                            `}
-                        >
-                            <GripHorizontal
-                                size={20}
-                                className={`text-[#4A4A4A] group-hover:text-[#6E6E6E] transition-colors ${isResizing ? 'text-[#FFB800]' : ''}`}
-                            />
-                        </div>
-
-                        {/* Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-[#3A3A3A] bg-[#1A1A1A]">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-[#FFB800] p-1.5 rounded-lg">
-                                    <Zap size={20} className="text-black fill-black" />
-                                </div>
-                                <span className="font-bold text-white">Seu Mentor IA</span>
-                            </div>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleClose(); }}
-                                className="p-2 hover:bg-[#252525] rounded-full text-[#A0A0A0] transition-colors"
+                        {/* Resize Handle - only show when expanded */}
+                        {!isCollapsed && (
+                            <div
+                                onMouseDown={handleResizeStart}
+                                onTouchStart={handleResizeStart}
+                                className={`
+                                    flex items-center justify-center h-6 cursor-ns-resize
+                                    bg-[#1A1A1A] rounded-t-2xl
+                                    hover:bg-[#252525] transition-colors group
+                                    ${isResizing ? 'bg-[#252525]' : ''}
+                                `}
                             >
-                                <X size={20} />
-                            </button>
-                        </div>
+                                <GripHorizontal
+                                    size={20}
+                                    className={`text-[#4A4A4A] group-hover:text-[#6E6E6E] transition-colors ${isResizing ? 'text-[#FFB800]' : ''}`}
+                                />
+                            </div>
+                        )}
 
-                        {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-[#121212]">
-                            {messages.map((msg, idx) => (
-                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div
-                                        className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                                            ? 'bg-[#FFB800] text-black font-medium rounded-tr-none'
-                                            : 'bg-[#252525] text-[#E0E0E0] rounded-tl-none border border-[#3A3A3A]'
-                                            }`}
-                                    >
-                                        {msg.role === 'model' ? renderMarkdown(msg.text) : msg.text}
+                        {/* Messages - only show when not collapsed */}
+                        {!isCollapsed && (
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-[#121212]">
+                                {messages.map((msg, idx) => (
+                                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div
+                                            className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
+                                                ? 'bg-[#FFB800] text-black font-medium rounded-tr-none'
+                                                : 'bg-[#252525] text-[#E0E0E0] rounded-tl-none border border-[#3A3A3A]'
+                                                }`}
+                                        >
+                                            {msg.role === 'model' ? renderMarkdown(msg.text) : msg.text}
 
-                                        {/* Audio Player inline - shows when message has audio */}
-                                        {msg.audio && (
-                                            <div className="mt-3 pt-3 border-t border-[#3A3A3A]">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <div className="bg-[#FFB800] p-1.5 rounded-lg">
-                                                        {msg.audio.type === 'podcast' ? <Radio size={16} className="text-black" /> : <Headphones size={16} className="text-black" />}
+                                            {/* Audio Player inline - shows when message has audio */}
+                                            {msg.audio && (
+                                                <div className="mt-3 pt-3 border-t border-[#3A3A3A]">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <div className="bg-[#FFB800] p-1.5 rounded-lg">
+                                                            {msg.audio.type === 'podcast' ? <Radio size={16} className="text-black" /> : <Headphones size={16} className="text-black" />}
+                                                        </div>
+                                                        <span className="text-white text-xs font-medium">
+                                                            {msg.audio.type === 'podcast' ? 'Podcast' : 'Áudio Explicativo'}
+                                                        </span>
                                                     </div>
-                                                    <span className="text-white text-xs font-medium">
-                                                        {msg.audio.type === 'podcast' ? 'Podcast' : 'Áudio Explicativo'}
-                                                    </span>
+                                                    <audio
+                                                        controls
+                                                        className="w-full h-10"
+                                                        src={msg.audio.audioUrl}
+                                                    >
+                                                        Seu navegador não suporta áudio.
+                                                    </audio>
                                                 </div>
-                                                <audio
-                                                    controls
-                                                    className="w-full h-10"
-                                                    src={msg.audio.audioUrl}
-                                                >
-                                                    Seu navegador não suporta áudio.
-                                                </audio>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                            {isLoading && (
-                                <div className="flex justify-start">
-                                    <div className="bg-[#252525] p-3 rounded-2xl rounded-tl-none border border-[#3A3A3A]">
-                                        <div className="flex space-x-1">
-                                            <div className="w-1.5 h-1.5 bg-[#A0A0A0] rounded-full animate-bounce"></div>
-                                            <div className="w-1.5 h-1.5 bg-[#A0A0A0] rounded-full animate-bounce delay-75"></div>
-                                            <div className="w-1.5 h-1.5 bg-[#A0A0A0] rounded-full animate-bounce delay-150"></div>
+                                            )}
                                         </div>
                                     </div>
-                                </div>
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
+                                ))}
+                                {isLoading && (
+                                    <div className="flex justify-start">
+                                        <div className="bg-[#252525] p-3 rounded-2xl rounded-tl-none border border-[#3A3A3A]">
+                                            <div className="flex space-x-1">
+                                                <div className="w-1.5 h-1.5 bg-[#A0A0A0] rounded-full animate-bounce"></div>
+                                                <div className="w-1.5 h-1.5 bg-[#A0A0A0] rounded-full animate-bounce delay-75"></div>
+                                                <div className="w-1.5 h-1.5 bg-[#A0A0A0] rounded-full animate-bounce delay-150"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
+                        )}
 
                         {/* Footer Input */}
-                        <div className="p-4 border-t border-[#3A3A3A] bg-[#1A1A1A]">
+                        <div
+                            className={`p-4 bg-[#1A1A1A] ${isCollapsed ? 'rounded-t-2xl' : 'border-t border-[#3A3A3A]'}`}
+                            onClick={() => isCollapsed && setIsCollapsed(false)}
+                        >
                             <div className="relative" ref={shortcutsRef}>
-                                {/* Shortcuts Dropdown */}
+                                {/* Shortcuts Dropdown - only show when expanded */}
                                 <AnimatePresence>
-                                    {showShortcuts && (
+                                    {showShortcuts && !isCollapsed && (
                                         <motion.div
                                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -629,13 +656,16 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
 
                                 {/* Shortcuts Button */}
                                 <button
-                                    onClick={() => setShowShortcuts(!showShortcuts)}
-                                    disabled={isGeneratingAudio}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!isCollapsed) setShowShortcuts(!showShortcuts);
+                                    }}
+                                    disabled={isGeneratingAudio || isCollapsed}
                                     className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${
                                         showShortcuts
                                             ? 'bg-[#FFB800] text-black'
                                             : 'text-[#A0A0A0] hover:text-[#FFB800] hover:bg-[#3A3A3A]'
-                                    } ${isGeneratingAudio ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    } ${(isGeneratingAudio || isCollapsed) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     title="Atalhos de IA"
                                 >
                                     {isGeneratingAudio ? (
@@ -651,12 +681,16 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSend(e)}
-                                    placeholder="Digite sua duvida..."
+                                    onFocus={() => isCollapsed && setIsCollapsed(false)}
+                                    placeholder={isCollapsed ? "Clique para expandir o chat..." : "Digite sua duvida..."}
                                     className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl pl-12 pr-24 py-3 text-white placeholder-[#6E6E6E] focus:outline-none focus:border-[#FFB800] transition-colors"
                                 />
                                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                                     <button
-                                        onClick={handleMicClick}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleMicClick(e);
+                                        }}
                                         className={`p-2 rounded-lg transition-colors ${isRecording
                                             ? 'text-[#FF4444] bg-[#FF4444]/10 animate-pulse'
                                             : 'text-[#A0A0A0] hover:text-[#FFB800] hover:bg-[#3A3A3A]'
