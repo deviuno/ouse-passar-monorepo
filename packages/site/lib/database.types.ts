@@ -1398,6 +1398,9 @@ export type MissaoTipo = Database['public']['Enums']['missao_tipo']
 // - 'preparatorio': Aparecerá em portal futuro
 export type PreparatorioContentType = 'plano' | 'questoes' | 'preparatorio'
 
+// Status de processamento N8N
+export type N8NStatus = 'none' | 'pending' | 'processing' | 'completed' | 'error'
+
 export interface Preparatorio {
   id: string
   nome: string
@@ -1433,6 +1436,13 @@ export interface Preparatorio {
   ano_previsto: number | null
   edital_url: string | null
   raio_x: Record<string, unknown> | null
+  // Campos N8N
+  requisitos?: string | null
+  area_conhecimento_basico?: string | null
+  area_conhecimento_especifico?: string | null
+  n8n_status?: N8NStatus
+  n8n_error_message?: string | null
+  n8n_processed_at?: string | null
   // Timestamps
   created_at: string
   updated_at: string
@@ -1665,9 +1675,6 @@ export interface PlannerSemanal {
 // Tipos para o Sistema de Conteúdo N8N
 // =====================================================
 
-// Status de processamento N8N
-export type N8NStatus = 'none' | 'pending' | 'processing' | 'completed' | 'error'
-
 // Nível de dificuldade do conteúdo
 export type NivelDificuldade = 'iniciante' | 'intermediario' | 'avancado'
 
@@ -1675,15 +1682,11 @@ export type NivelDificuldade = 'iniciante' | 'intermediario' | 'avancado'
 export type ConteudoStatus = 'pending' | 'generating' | 'completed' | 'error'
 
 // Campos extras do Preparatório para dados do edital (N8N)
+// Nota: orgao, banca, nivel, cargo, data_prevista já existem em Preparatorio
 export interface PreparatorioN8NFields {
-  orgao: string | null
-  banca: string | null
-  nivel: string | null
-  cargo: string | null
   requisitos: string | null
   area_conhecimento_basico: string | null
   area_conhecimento_especifico: string | null
-  data_prevista: string | null
   n8n_status: N8NStatus
   n8n_error_message: string | null
   n8n_processed_at: string | null

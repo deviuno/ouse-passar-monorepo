@@ -101,13 +101,20 @@ export const editalService = {
     // Se não passou ordem, calcular a próxima
     let ordem = input.ordem;
     if (ordem === undefined) {
-      const { data: siblings } = await supabase
+      let query = supabase
         .from('edital_verticalizado_items')
         .select('ordem')
         .eq('preparatorio_id', input.preparatorio_id)
-        .eq('parent_id', input.parent_id || null)
         .order('ordem', { ascending: false })
         .limit(1);
+
+      if (input.parent_id) {
+        query = query.eq('parent_id', input.parent_id);
+      } else {
+        query = query.is('parent_id', null);
+      }
+
+      const { data: siblings } = await query;
 
       ordem = siblings && siblings.length > 0 ? siblings[0].ordem + 1 : 0;
     }
@@ -189,14 +196,22 @@ export const editalService = {
     // Calcular nova ordem no destino
     const item = await this.getById(id);
     if (!item) throw new Error('Item não encontrado');
+    if (!item.preparatorio_id) throw new Error('Item sem preparatorio_id');
 
-    const { data: siblings } = await supabase
+    let query = supabase
       .from('edital_verticalizado_items')
       .select('ordem')
       .eq('preparatorio_id', item.preparatorio_id)
-      .eq('parent_id', newParentId)
       .order('ordem', { ascending: false })
       .limit(1);
+
+    if (newParentId) {
+      query = query.eq('parent_id', newParentId);
+    } else {
+      query = query.is('parent_id', null);
+    }
+
+    const { data: siblings } = await query;
 
     const newOrdem = siblings && siblings.length > 0 ? siblings[0].ordem + 1 : 0;
 
