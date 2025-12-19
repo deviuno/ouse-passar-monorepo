@@ -1015,6 +1015,14 @@ export default function MissionPage() {
         const roundsData = rodadasToTrailRounds(rodadasComProgresso);
         setRounds(roundsData);
 
+        // Sincronizar viewingRoundIndex com a URL
+        if (roundNum && roundsData.length > 0) {
+          const roundIndex = roundsData.findIndex(r => r.round_number === parseInt(roundNum, 10));
+          if (roundIndex >= 0) {
+            setViewingRoundIndex(roundIndex);
+          }
+        }
+
         // Atualizar dados do preparatório
         setPreparatorio(selectedPrep.preparatorio);
         setCurrentTrail({
@@ -1037,6 +1045,17 @@ export default function MissionPage() {
 
     loadDataIfNeeded();
   }, [user?.id, rounds.length, prepSlug]);
+
+  // Sincronizar viewingRoundIndex com a URL quando os rounds estão carregados
+  useEffect(() => {
+    if (roundNum && rounds.length > 0) {
+      const targetRoundNum = parseInt(roundNum, 10);
+      const roundIndex = rounds.findIndex(r => r.round_number === targetRoundNum);
+      if (roundIndex >= 0 && roundIndex !== viewingRoundIndex) {
+        setViewingRoundIndex(roundIndex);
+      }
+    }
+  }, [roundNum, rounds, viewingRoundIndex, setViewingRoundIndex]);
 
   // Resolve mission ID from URL params (supports both old and new URL formats)
   // Depende de 'rounds' para recalcular quando os dados são carregados (acesso direto)
@@ -1086,9 +1105,11 @@ export default function MissionPage() {
   }, [allMissions]);
 
   const handleMissionClick = (mission: TrailMission) => {
+    // Só bloquear se a missão está trancada
     if (mission.status === 'locked') return;
     if (mission.id === resolvedMissionId) return; // Já estamos aqui
 
+    // Permitir navegação para missões disponíveis, em progresso, completadas ou em massificação
     setSelectedMissionId(mission.id);
     const url = getMissionUrl(mission);
     navigate(url);
@@ -1157,26 +1178,24 @@ export default function MissionPage() {
       setIsLoadingContent(true);
 
       try {
+        // SEMPRE disparar pré-geração da missão N+2 em background (silencioso)
+        // Exemplo: Aluno na missão 1 → gera missão 3 | Aluno na missão 2 → gera missão 4
+        fetch(`${MASTRA_SERVER_URL}/api/missao/trigger-proxima`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ missao_id: resolvedMissionId }),
+        }).catch(() => {
+          // Silencioso - ignora erros
+        });
+
         // 1. Check if content already exists
         const existingContent = await getMissaoConteudo(resolvedMissionId);
 
         if (existingContent) {
-          console.log('[MissionPage] Conteudo encontrado:', existingContent.status);
+          console.log('[MissionPage] Conteudo encontrado:', existingContent.status, 'audio:', !!existingContent.audio_url);
           setMissaoConteudo(existingContent);
           setContentStatus(existingContent.status as 'generating' | 'completed' | 'failed');
           setIsLoadingContent(false);
-
-          // Se o conteúdo já está pronto, disparar geração da próxima missão em background (silencioso)
-          if (existingContent.status === 'completed') {
-            // Fire-and-forget: não esperamos resposta nem mostramos erro
-            fetch(`${MASTRA_SERVER_URL}/api/missao/trigger-proxima`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ missao_id: resolvedMissionId }),
-            }).catch(() => {
-              // Silencioso - ignora erros
-            });
-          }
 
           // If still generating, poll for updates
           if (existingContent.status === 'generating') {
@@ -1191,6 +1210,30 @@ export default function MissionPage() {
 
             // Cleanup on unmount
             return () => clearInterval(pollInterval);
+          }
+
+          // If completed but no audio, poll for audio updates (regeneration in background)
+          if (existingContent.status === 'completed' && !existingContent.audio_url && existingContent.texto_content) {
+            console.log('[MissionPage] Conteúdo sem áudio, polling para atualização...');
+            let pollCount = 0;
+            const maxPolls = 60; // Max 3 minutes (60 * 3s)
+
+            const audioPollInterval = setInterval(async () => {
+              pollCount++;
+              const updated = await getMissaoConteudo(resolvedMissionId);
+
+              if (updated?.audio_url) {
+                console.log('[MissionPage] Áudio disponível:', updated.audio_url);
+                setMissaoConteudo(updated);
+                clearInterval(audioPollInterval);
+              } else if (pollCount >= maxPolls) {
+                console.log('[MissionPage] Timeout aguardando áudio');
+                clearInterval(audioPollInterval);
+              }
+            }, 3000);
+
+            // Cleanup on unmount
+            return () => clearInterval(audioPollInterval);
           }
           return;
         }

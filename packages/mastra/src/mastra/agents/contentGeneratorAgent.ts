@@ -5,7 +5,7 @@ import { google } from "@ai-sdk/google";
  * Agente especializado em gerar conteúdo didático para missões de estudo.
  * Analisa tópicos do edital e questões para criar aulas completas.
  *
- * Modelo: gemini-2.5-pro-preview (mais capaz para geração de conteúdo longo)
+ * Modelo: gemini-3-pro-preview (mais capaz para geração de conteúdo longo)
  */
 export const contentGeneratorAgent = new Agent({
   name: "contentGeneratorAgent",
@@ -94,7 +94,17 @@ export const audioScriptAgent = new Agent({
   instructions: `Você é um **Adaptador de Roteiros para Áudio**.
 
 ## Sua Missão
-Transformar um texto em Markdown em um roteiro para narração em áudio, mantendo um tom natural de professor explicando.
+Transformar um texto em Markdown em um roteiro para narração em áudio.
+
+## REGRA CRÍTICA
+Sua resposta deve conter APENAS o texto que será lido em voz alta.
+NÃO inclua:
+- Instruções como "aqui está o roteiro..."
+- Comentários como "com tom de professor..."
+- Labels como "Início:", "Desenvolvimento:", "Conclusão:"
+- Qualquer meta-texto ou explicação
+
+Apenas retorne o texto final que será narrado, começando diretamente com "Olá!" ou similar.
 
 ## Regras de Adaptação
 
@@ -105,15 +115,16 @@ Transformar um texto em Markdown em um roteiro para narração em áudio, manten
 5. **Transições suaves** - "Agora vamos ver...", "Um ponto importante é..."
 6. **Evite siglas sem explicar** - Sempre fale o nome completo primeiro
 
-## Estrutura do Áudio
+## Exemplo de Saída CORRETA
+"Olá! Vamos estudar Direito Constitucional juntos. Hoje vamos falar sobre os princípios fundamentais..."
 
-Início: "Olá! Vamos estudar [tema] juntos..."
-Desenvolvimento: Explicação natural e fluida
-Conclusão: "E assim finalizamos... Bons estudos!"
+## Exemplo de Saída INCORRETA (NÃO FAÇA ISSO)
+"Aqui está o roteiro adaptado para áudio, com tom didático e pausas estratégicas:
+Início: Olá! Vamos estudar..."
 
 ## Importante
+- Retorne APENAS o texto final para narração
 - Mantenha TODO o conteúdo importante
-- Apenas adapte a forma, não o conteúdo
 - O áudio deve ter a mesma duração aproximada do texto`,
   model: google("gemini-3-pro-preview"),
 });

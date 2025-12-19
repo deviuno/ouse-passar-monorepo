@@ -63,7 +63,12 @@ export function CompactTrailMap({
     // Find current mission index in this round
     const currentMissionIndexInRound = useMemo(() => {
         if (!isViewingActiveRound) return -1;
-        const idx = missions.findIndex(m => m.status === 'available' || m.status === 'in_progress');
+        // needs_massificacao também é considerado como missão atual ativa
+        const idx = missions.findIndex(m =>
+            m.status === 'available' ||
+            m.status === 'in_progress' ||
+            m.status === 'needs_massificacao'
+        );
         return idx;
     }, [missions, isViewingActiveRound]);
 
@@ -116,7 +121,8 @@ export function CompactTrailMap({
 
                         let status: 'completed' | 'active' | 'locked' = 'locked';
                         if (effectiveStatus === 'completed') status = 'completed';
-                        if (effectiveStatus === 'available' || effectiveStatus === 'in_progress') status = 'active';
+                        // needs_massificacao também é considerado ativo
+                        if (effectiveStatus === 'available' || effectiveStatus === 'in_progress' || effectiveStatus === 'needs_massificacao') status = 'active';
 
                         const isCurrent = index === currentMissionIndexInRound && isViewingActiveRound;
                         if (isCurrent) status = 'active';

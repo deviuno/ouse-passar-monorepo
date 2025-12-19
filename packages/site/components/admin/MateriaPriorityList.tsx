@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { GripVertical, ChevronUp, ChevronDown, BookOpen, Sparkles } from 'lucide-react';
 import { MateriaOrdenada, MateriaPriorizada } from '../../services/rodadasGeneratorService';
 
@@ -17,6 +17,8 @@ export const MateriaPriorityList: React.FC<MateriaPriorityListProps> = ({
 }) => {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+    const dragNode = useRef<HTMLDivElement | null>(null);
+    const dragStartY = useRef<number>(0);
 
     // Mapa de justificativas da IA
     const justificativaMap = new Map<string, { score: number; justificativa: string }>();
@@ -24,63 +26,126 @@ export const MateriaPriorityList: React.FC<MateriaPriorityListProps> = ({
         justificativaMap.set(p.id, { score: p.score, justificativa: p.justificativa });
     });
 
-    const handleDragStart = (e: React.DragEvent, index: number) => {
-        setDraggedIndex(index);
+    // Reorder function
+    const reorderItems = useCallback((fromIndex: number, toIndex: number) => {
+        if (fromIndex === toIndex) return;
+
+        const result = [...materias];
+        const [removed] = result.splice(fromIndex, 1);
+        result.splice(toIndex, 0, removed);
+
+        // Atualizar prioridades
+        const reordered = result.map((m, idx) => ({
+            ...m,
+            prioridade: idx + 1,
+        }));
+
+        onChange(reordered);
+    }, [materias, onChange]);
+
+    // HTML5 Drag and Drop handlers
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', String(index));
+
+        // Set a transparent drag image to avoid default browser behavior
+        const dragImage = document.createElement('div');
+        dragImage.style.opacity = '0';
+        document.body.appendChild(dragImage);
+        e.dataTransfer.setDragImage(dragImage, 0, 0);
+        setTimeout(() => document.body.removeChild(dragImage), 0);
+
+        setDraggedIndex(index);
+        dragNode.current = e.currentTarget;
     };
 
-    const handleDragOver = (e: React.DragEvent, index: number) => {
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        setDragOverIndex(index);
+
+        if (draggedIndex !== null && index !== draggedIndex) {
+            setDragOverIndex(index);
+        }
     };
 
-    const handleDragLeave = () => {
-        setDragOverIndex(null);
-    };
-
-    const handleDrop = (e: React.DragEvent, toIndex: number) => {
+    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>, index: number) => {
         e.preventDefault();
-        const fromIndex = draggedIndex;
+        if (draggedIndex !== null && index !== draggedIndex) {
+            setDragOverIndex(index);
+        }
+    };
 
-        if (fromIndex !== null && fromIndex !== toIndex) {
-            const result = [...materias];
-            const [removed] = result.splice(fromIndex, 1);
-            result.splice(toIndex, 0, removed);
+    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        // Only clear if we're leaving the current target
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setDragOverIndex(null);
+        }
+    };
 
-            // Atualizar prioridades
-            const reordered = result.map((m, idx) => ({
-                ...m,
-                prioridade: idx + 1,
-            }));
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>, toIndex: number) => {
+        e.preventDefault();
+        e.stopPropagation();
 
-            onChange(reordered);
+        if (draggedIndex !== null && draggedIndex !== toIndex) {
+            reorderItems(draggedIndex, toIndex);
         }
 
         setDraggedIndex(null);
         setDragOverIndex(null);
+        dragNode.current = null;
     };
 
     const handleDragEnd = () => {
         setDraggedIndex(null);
         setDragOverIndex(null);
+        dragNode.current = null;
+    };
+
+    // Touch handlers for mobile support
+    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>, index: number) => {
+        const touch = e.touches[0];
+        dragStartY.current = touch.clientY;
+        setDraggedIndex(index);
+        dragNode.current = e.currentTarget;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+        if (draggedIndex === null) return;
+
+        const touch = e.touches[0];
+        const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
+
+        for (const el of elements) {
+            const dataIndex = el.getAttribute('data-index');
+            if (dataIndex !== null) {
+                const index = parseInt(dataIndex, 10);
+                if (index !== draggedIndex) {
+                    setDragOverIndex(index);
+                }
+                break;
+            }
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
+            reorderItems(draggedIndex, dragOverIndex);
+        }
+
+        setDraggedIndex(null);
+        setDragOverIndex(null);
+        dragNode.current = null;
     };
 
     const moveUp = (index: number) => {
         if (index === 0) return;
-        const result = [...materias];
-        [result[index - 1], result[index]] = [result[index], result[index - 1]];
-        const reordered = result.map((m, idx) => ({ ...m, prioridade: idx + 1 }));
-        onChange(reordered);
+        reorderItems(index, index - 1);
     };
 
     const moveDown = (index: number) => {
         if (index === materias.length - 1) return;
-        const result = [...materias];
-        [result[index], result[index + 1]] = [result[index + 1], result[index]];
-        const reordered = result.map((m, idx) => ({ ...m, prioridade: idx + 1 }));
-        onChange(reordered);
+        reorderItems(index, index + 1);
     };
 
     if (loading) {
@@ -114,27 +179,50 @@ export const MateriaPriorityList: React.FC<MateriaPriorityListProps> = ({
                 return (
                     <div
                         key={materia.id}
-                        draggable
+                        data-index={index}
+                        draggable="true"
                         onDragStart={(e) => handleDragStart(e, index)}
                         onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnter={(e) => handleDragEnter(e, index)}
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, index)}
                         onDragEnd={handleDragEnd}
+                        onTouchStart={(e) => handleTouchStart(e, index)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        style={{
+                            transform: isDragOver && draggedIndex !== null
+                                ? draggedIndex < index
+                                    ? 'translateY(-4px)'
+                                    : 'translateY(4px)'
+                                : 'none',
+                            transition: isDragging ? 'none' : 'transform 0.2s ease, opacity 0.2s ease, border-color 0.2s ease',
+                        }}
                         className={`
-                            bg-brand-card border rounded-sm transition-all cursor-move
-                            ${isDragging ? 'opacity-50 border-brand-yellow' : 'border-white/10'}
-                            ${isDragOver ? 'border-brand-yellow border-2' : ''}
+                            bg-brand-card border rounded-sm select-none
+                            ${isDragging
+                                ? 'opacity-50 border-brand-yellow shadow-lg scale-[1.02] z-10'
+                                : 'border-white/10'
+                            }
+                            ${isDragOver && !isDragging
+                                ? 'border-brand-yellow border-2 bg-brand-yellow/5'
+                                : ''
+                            }
                             hover:border-white/20
+                            touch-none
                         `}
                     >
                         <div className="flex items-center gap-3 p-4">
-                            {/* Drag Handle */}
-                            <div className="text-gray-500 hover:text-white">
+                            {/* Drag Handle - made larger for easier grabbing */}
+                            <div
+                                className="text-gray-500 hover:text-white cursor-grab active:cursor-grabbing p-1 -m-1 touch-none"
+                                title="Arraste para reordenar"
+                            >
                                 <GripVertical className="w-5 h-5" />
                             </div>
 
                             {/* Numero */}
-                            <div className="w-8 h-8 bg-brand-yellow/20 border border-brand-yellow/50 rounded flex items-center justify-center">
+                            <div className="w-8 h-8 bg-brand-yellow/20 border border-brand-yellow/50 rounded flex items-center justify-center flex-shrink-0">
                                 <span className="text-brand-yellow font-black text-sm">
                                     {index + 1}
                                 </span>
@@ -148,7 +236,7 @@ export const MateriaPriorityList: React.FC<MateriaPriorityListProps> = ({
                                     </h4>
                                     {iaInfo && (
                                         <span
-                                            className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full flex items-center gap-1"
+                                            className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full flex items-center gap-1 flex-shrink-0"
                                             title={iaInfo.justificativa}
                                         >
                                             <Sparkles className="w-3 h-3" />
@@ -170,18 +258,26 @@ export const MateriaPriorityList: React.FC<MateriaPriorityListProps> = ({
                             </div>
 
                             {/* Botoes de mover */}
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-1 flex-shrink-0">
                                 <button
-                                    onClick={() => moveUp(index)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        moveUp(index);
+                                    }}
                                     disabled={index === 0}
-                                    className="p-1 text-gray-500 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    title="Mover para cima"
                                 >
                                     <ChevronUp className="w-4 h-4" />
                                 </button>
                                 <button
-                                    onClick={() => moveDown(index)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        moveDown(index);
+                                    }}
                                     disabled={index === materias.length - 1}
-                                    className="p-1 text-gray-500 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    title="Mover para baixo"
                                 >
                                     <ChevronDown className="w-4 h-4" />
                                 </button>

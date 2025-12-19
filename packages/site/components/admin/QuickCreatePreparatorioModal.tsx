@@ -119,6 +119,10 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
   const [rodadasExpandidas, setRodadasExpandidas] = useState<Set<number>>(new Set([1]));
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Drag and drop state for materias
+  const [draggedMateriaIndex, setDraggedMateriaIndex] = useState<number | null>(null);
+  const [dragOverMateriaIndex, setDragOverMateriaIndex] = useState<number | null>(null);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(true);
@@ -351,6 +355,65 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     setMateriasOrdenadas(newOrdem);
   };
 
+  // Drag and drop handlers for materias list
+  const handleMateriaDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+
+    // Create transparent drag image
+    const dragImage = document.createElement('div');
+    dragImage.style.opacity = '0';
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, 0, 0);
+    setTimeout(() => document.body.removeChild(dragImage), 0);
+
+    setDraggedMateriaIndex(index);
+  };
+
+  const handleMateriaDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+
+    if (draggedMateriaIndex !== null && index !== draggedMateriaIndex) {
+      setDragOverMateriaIndex(index);
+    }
+  };
+
+  const handleMateriaDragEnter = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    if (draggedMateriaIndex !== null && index !== draggedMateriaIndex) {
+      setDragOverMateriaIndex(index);
+    }
+  };
+
+  const handleMateriaDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverMateriaIndex(null);
+    }
+  };
+
+  const handleMateriaDrop = (e: React.DragEvent<HTMLDivElement>, toIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (draggedMateriaIndex !== null && draggedMateriaIndex !== toIndex) {
+      const newOrdem = [...materiasOrdenadas];
+      const [removed] = newOrdem.splice(draggedMateriaIndex, 1);
+      newOrdem.splice(toIndex, 0, removed);
+      setMateriasOrdenadas(newOrdem);
+    }
+
+    setDraggedMateriaIndex(null);
+    setDragOverMateriaIndex(null);
+  };
+
+  const handleMateriaDragEnd = () => {
+    setDraggedMateriaIndex(null);
+    setDragOverMateriaIndex(null);
+  };
+
   const toggleRodadaExpandida = (numero: number) => {
     const newSet = new Set(rodadasExpandidas);
     if (newSet.has(numero)) {
@@ -565,37 +628,79 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                   Arraste ou use as setas para reordenar. Português está configurado como primeira matéria por padrão.
                 </p>
                 <div className="space-y-2">
-                  {materiasOrdenadas.map((materia, index) => (
-                    <div
-                      key={materia.id}
-                      className="flex items-center gap-3 bg-brand-dark/50 rounded-sm p-3 border border-white/5"
-                    >
-                      <span className="text-brand-yellow font-bold text-sm w-6">{index + 1}.</span>
-                      <GripVertical className="w-4 h-4 text-gray-600" />
-                      <div className="flex-1">
-                        <span className="text-white">{materia.titulo}</span>
-                        <span className="text-gray-500 text-xs ml-2">
-                          ({materia.topicosCount} tópicos)
-                        </span>
+                  {materiasOrdenadas.map((materia, index) => {
+                    const isDragging = draggedMateriaIndex === index;
+                    const isDragOver = dragOverMateriaIndex === index;
+
+                    return (
+                      <div
+                        key={materia.id}
+                        data-index={index}
+                        draggable="true"
+                        onDragStart={(e) => handleMateriaDragStart(e, index)}
+                        onDragOver={(e) => handleMateriaDragOver(e, index)}
+                        onDragEnter={(e) => handleMateriaDragEnter(e, index)}
+                        onDragLeave={handleMateriaDragLeave}
+                        onDrop={(e) => handleMateriaDrop(e, index)}
+                        onDragEnd={handleMateriaDragEnd}
+                        style={{
+                          transform: isDragOver && draggedMateriaIndex !== null
+                            ? draggedMateriaIndex < index
+                              ? 'translateY(-4px)'
+                              : 'translateY(4px)'
+                            : 'none',
+                          transition: isDragging ? 'none' : 'transform 0.2s ease, opacity 0.2s ease, border-color 0.2s ease',
+                        }}
+                        className={`
+                          flex items-center gap-3 bg-brand-dark/50 rounded-sm p-3 select-none
+                          ${isDragging
+                            ? 'opacity-50 border-brand-yellow border shadow-lg scale-[1.02] z-10'
+                            : 'border border-white/5'
+                          }
+                          ${isDragOver && !isDragging
+                            ? 'border-brand-yellow border-2 bg-brand-yellow/5'
+                            : ''
+                          }
+                          hover:border-white/20
+                        `}
+                      >
+                        <span className="text-brand-yellow font-bold text-sm w-6">{index + 1}.</span>
+                        <div className="cursor-grab active:cursor-grabbing p-1 -m-1" title="Arraste para reordenar">
+                          <GripVertical className="w-4 h-4 text-gray-600 hover:text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-white">{materia.titulo}</span>
+                          <span className="text-gray-500 text-xs ml-2">
+                            ({materia.topicosCount} tópicos)
+                          </span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoverMateria(index, 'up');
+                            }}
+                            disabled={index === 0}
+                            className="p-1.5 bg-white/5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            title="Mover para cima"
+                          >
+                            <ArrowUp className="w-4 h-4 text-gray-400" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoverMateria(index, 'down');
+                            }}
+                            disabled={index === materiasOrdenadas.length - 1}
+                            className="p-1.5 bg-white/5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            title="Mover para baixo"
+                          >
+                            <ArrowDown className="w-4 h-4 text-gray-400" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleMoverMateria(index, 'up')}
-                          disabled={index === 0}
-                          className="p-1.5 bg-white/5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <ArrowUp className="w-4 h-4 text-gray-400" />
-                        </button>
-                        <button
-                          onClick={() => handleMoverMateria(index, 'down')}
-                          disabled={index === materiasOrdenadas.length - 1}
-                          className="p-1.5 bg-white/5 hover:bg-white/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <ArrowDown className="w-4 h-4 text-gray-400" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

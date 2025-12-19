@@ -136,10 +136,44 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
 
     // Dynamic greeting based on context
     const getGreeting = () => {
+        // Extrair a essência do título - pegar apenas o tema principal
+        const extractEssence = (title: string | undefined): string => {
+            if (!title) return 'o conteúdo';
+
+            // Limpar o texto
+            const cleaned = title
+                .replace(/\n+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            // Estratégias para extrair a essência:
+            // 1. Se tem "Introdução ao/à", pegar o que vem depois
+            const introMatch = cleaned.match(/Introdução a[o|à]\s+(.+?)(?:\s*[-–—.]|$)/i);
+            if (introMatch) {
+                return introMatch[1].trim();
+            }
+
+            // 2. Pegar a primeira parte antes de separadores (-, –, ., :)
+            const parts = cleaned.split(/\s*[-–—.:]\s*/);
+            if (parts.length > 0 && parts[0].length >= 3) {
+                // Se a primeira parte é muito curta, juntar com a segunda
+                if (parts[0].length < 15 && parts.length > 1) {
+                    return `${parts[0]} - ${parts[1]}`.trim();
+                }
+                return parts[0].trim();
+            }
+
+            // 3. Fallback: pegar as primeiras palavras significativas
+            const words = cleaned.split(' ').slice(0, 4);
+            return words.join(' ');
+        };
+
         if (contentContext.question) {
-            return `Olá! 👋 Sou seu **Tutor IA**. Vi que você está na questão de **${contentContext.question.assunto || contentContext.question.materia}**.\n\nComo posso te ajudar a entender melhor?`;
+            const assunto = extractEssence(contentContext.question.assunto || contentContext.question.materia);
+            return `Olá! 👋 Sou seu **Tutor IA**. Vi que você está estudando **${assunto}**.\n\nComo posso te ajudar?`;
         }
-        return `Olá! 👋 Estou aqui para tirar suas dúvidas sobre **${contentContext.title || 'o conteúdo'}**.\n\nPode perguntar sobre conceitos, pedir explicações ou tirar dúvidas sobre questões!`;
+        const title = extractEssence(contentContext.title);
+        return `Olá! 👋 Estou aqui para te ajudar com **${title}**.\n\nPode perguntar sobre conceitos, pedir explicações ou tirar dúvidas!`;
     };
 
     const [messages, setMessages] = useState<Message[]>([

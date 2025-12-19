@@ -31,8 +31,13 @@ interface GeracaoConteudoInput {
 // URL base do servidor Mastra (ajustar conforme ambiente)
 const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_SERVER_URL || 'http://localhost:4000';
 
+// Set para controlar deduplicação de regeneração de áudio
+// Evita múltiplas chamadas paralelas para a mesma missão
+const audioRegenerationInProgress = new Set<string>();
+
 /**
  * Busca o conteúdo existente de uma missão
+ * Se o conteúdo existe mas não tem áudio, dispara geração em background
  */
 export async function getMissaoConteudo(missaoId: string): Promise<MissaoConteudo | null> {
   try {
@@ -49,6 +54,21 @@ export async function getMissaoConteudo(missaoId: string): Promise<MissaoConteud
       }
       console.error('[MissaoConteudoService] Erro ao buscar conteúdo:', error);
       return null;
+    }
+
+    // Se o conteúdo está completo mas não tem áudio, tentar gerar em background
+    // Usa deduplicação para evitar múltiplas chamadas paralelas
+    if (data && data.status === 'completed' && !data.audio_url && data.texto_content) {
+      if (!audioRegenerationInProgress.has(missaoId)) {
+        console.log('[MissaoConteudoService] Conteúdo sem áudio detectado, disparando geração em background...');
+        audioRegenerationInProgress.add(missaoId);
+        // Usar setTimeout para garantir que as funções auxiliares estejam disponíveis
+        setTimeout(() => {
+          regenerarAudioParaConteudo(data.id, data.texto_content, missaoId);
+        }, 0);
+      } else {
+        console.log('[MissaoConteudoService] Regeneração de áudio já em progresso para missão:', missaoId);
+      }
     }
 
     return data;
@@ -217,10 +237,15 @@ async function adaptarParaAudio(textoMarkdown: string): Promise<string> {
 }
 
 /**
- * Gera o áudio usando Google TTS
+ * Gera o áudio usando Google TTS (com timeout de 5 minutos)
+ * Timeout maior pois a geração de áudio pode demorar para textos longos
  */
 async function gerarAudio(texto: string, missaoId: string): Promise<string | null> {
   try {
+    // Timeout de 5 minutos para permitir geração de áudios completos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000);
+
     // Chamar endpoint de TTS no servidor Mastra ou diretamente a API do Google
     const response = await fetch(`${MASTRA_SERVER_URL}/api/tts/generate`, {
       method: 'POST',
@@ -233,7 +258,10 @@ async function gerarAudio(texto: string, missaoId: string): Promise<string | nul
         voiceName: 'kore', // Voz Gemini TTS
         missaoId,
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.warn('[MissaoConteudoService] TTS não disponível, continuando sem áudio');
@@ -242,8 +270,12 @@ async function gerarAudio(texto: string, missaoId: string): Promise<string | nul
 
     const result = await response.json();
     return result.audioUrl || null;
-  } catch (error) {
-    console.warn('[MissaoConteudoService] Erro ao gerar áudio:', error);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.warn('[MissaoConteudoService] TTS timeout (5min), continuando sem áudio');
+    } else {
+      console.warn('[MissaoConteudoService] Erro ao gerar áudio:', error);
+    }
     return null;
   }
 }
@@ -300,62 +332,38 @@ async function atualizarConteudo(
 }
 
 /**
- * Gera o conteúdo completo para uma missão
- * Esta é a função principal que orquestra todo o processo
+ * Executa a geração de conteúdo (função interna)
  */
-export async function gerarConteudoMissao(
-  input: GeracaoConteudoInput
+async function executarGeracao(
+  missaoId: string,
+  conteudoId: string,
+  questoesPorMissao: number
 ): Promise<MissaoConteudo | null> {
-  const { missaoId, userId, questoesPorMissao = 20 } = input;
-
-  console.log('[MissaoConteudoService] Iniciando geração para missão:', missaoId);
-
-  // 1. Verificar se já existe
-  const existente = await getMissaoConteudo(missaoId);
-  if (existente) {
-    if (existente.status === 'completed') {
-      console.log('[MissaoConteudoService] Conteúdo já existe');
-      return existente;
-    }
-    if (existente.status === 'generating') {
-      console.log('[MissaoConteudoService] Conteúdo está sendo gerado');
-      return existente;
-    }
-    // Se falhou, vamos tentar novamente (não implementado por simplicidade)
-  }
-
-  // 2. Marcar como gerando (evita duplicação)
-  const conteudoId = await marcarComoGerando(missaoId, userId);
-  if (!conteudoId) {
-    // Já existe ou está sendo gerado, buscar novamente
-    return await getMissaoConteudo(missaoId);
-  }
-
   try {
-    // 3. Montar contexto
+    // 1. Montar contexto
     console.log('[MissaoConteudoService] Montando contexto...');
     const contexto = await montarContextoParaGeracao(missaoId, questoesPorMissao);
 
-    // 4. Gerar conteúdo texto
+    // 2. Gerar conteúdo texto
     console.log('[MissaoConteudoService] Gerando conteúdo texto...');
     const textoContent = await gerarConteudoComAgente(contexto);
 
-    // 5. Adaptar para áudio
+    // 3. Adaptar para áudio
     console.log('[MissaoConteudoService] Adaptando para áudio...');
     const roteiro = await adaptarParaAudio(textoContent);
 
-    // 6. Gerar áudio (opcional, não bloqueia se falhar)
+    // 4. Gerar áudio (opcional, não bloqueia se falhar)
     console.log('[MissaoConteudoService] Gerando áudio...');
     const audioUrl = await gerarAudio(roteiro, missaoId);
 
-    // 7. Atualizar com sucesso
+    // 5. Atualizar com sucesso
     await atualizarConteudo(conteudoId, {
       texto_content: textoContent,
       audio_url: audioUrl,
       topicos_analisados: contexto.topicos,
       questoes_analisadas: contexto.questoesIds,
       status: 'completed',
-      modelo_texto: 'gemini-2.5-pro-preview',
+      modelo_texto: 'gemini-3-pro-preview',
       modelo_audio: audioUrl ? 'google-tts' : null,
     });
 
@@ -373,6 +381,137 @@ export async function gerarConteudoMissao(
 
     return null;
   }
+}
+
+/**
+ * Regenera o áudio para um conteúdo que já existe
+ * Usado quando o conteúdo foi gerado mas o áudio falhou
+ */
+async function regenerarAudioParaConteudo(
+  conteudoId: string,
+  textoContent: string,
+  missaoId: string
+): Promise<void> {
+  try {
+    console.log('[MissaoConteudoService] Iniciando regeneração de áudio para missão:', missaoId);
+
+    // 1. Adaptar para áudio
+    const roteiro = await adaptarParaAudio(textoContent);
+
+    if (!roteiro || roteiro.length < 100) {
+      console.warn('[MissaoConteudoService] Roteiro muito curto, pulando geração de áudio');
+      audioRegenerationInProgress.delete(missaoId);
+      return;
+    }
+
+    console.log('[MissaoConteudoService] Roteiro adaptado, gerando TTS...');
+
+    // 2. Gerar áudio
+    const audioUrl = await gerarAudio(roteiro, missaoId);
+
+    if (audioUrl) {
+      // 3. Atualizar o registro com o áudio
+      await atualizarConteudo(conteudoId, {
+        audio_url: audioUrl,
+        modelo_audio: 'gemini-tts',
+      });
+      console.log('[MissaoConteudoService] Áudio regenerado com sucesso:', audioUrl);
+    } else {
+      console.warn('[MissaoConteudoService] Não foi possível gerar áudio');
+    }
+  } catch (error) {
+    console.error('[MissaoConteudoService] Erro ao regenerar áudio:', error);
+  } finally {
+    // Sempre limpar o set quando terminar (sucesso ou falha)
+    audioRegenerationInProgress.delete(missaoId);
+  }
+}
+
+/**
+ * Gera o conteúdo completo para uma missão
+ * Esta é a função principal que orquestra todo o processo
+ */
+export async function gerarConteudoMissao(
+  input: GeracaoConteudoInput
+): Promise<MissaoConteudo | null> {
+  const { missaoId, userId, questoesPorMissao = 20 } = input;
+
+  console.log('[MissaoConteudoService] Iniciando geração para missão:', missaoId);
+
+  // 1. Verificar se já existe
+  const existente = await getMissaoConteudo(missaoId);
+  if (existente) {
+    if (existente.status === 'completed') {
+      // Se o conteúdo existe mas não tem áudio, tentar gerar o áudio
+      if (!existente.audio_url && existente.texto_content) {
+        console.log('[MissaoConteudoService] Conteúdo existe mas sem áudio, tentando gerar áudio...');
+        setTimeout(() => regenerarAudioParaConteudo(existente.id, existente.texto_content, missaoId), 0);
+      }
+      return existente;
+    }
+    if (existente.status === 'generating') {
+      // Verificar se está travado (mais de 5 minutos)
+      const createdAt = new Date(existente.created_at);
+      const agora = new Date();
+      const minutosPassados = (agora.getTime() - createdAt.getTime()) / 1000 / 60;
+
+      if (minutosPassados > 5) {
+        console.log('[MissaoConteudoService] Geração travada há', Math.round(minutosPassados), 'minutos. Resetando...');
+        // Deletar o registro travado para tentar novamente
+        await supabase.from('missao_conteudos').delete().eq('id', existente.id);
+      } else {
+        console.log('[MissaoConteudoService] Conteúdo está sendo gerado há', Math.round(minutosPassados), 'minutos');
+        return existente;
+      }
+    }
+    if (existente.status === 'failed') {
+      console.log('[MissaoConteudoService] Geração anterior falhou, deletando para tentar novamente...');
+      await supabase.from('missao_conteudos').delete().eq('id', existente.id);
+    }
+  }
+
+  // 2. Marcar como gerando (evita duplicação)
+  const conteudoId = await marcarComoGerando(missaoId, userId);
+  if (!conteudoId) {
+    // Já existe ou está sendo gerado - aguardar até completar
+    console.log('[MissaoConteudoService] Aguardando geração em andamento...');
+
+    // Polling para esperar a geração completar (máx 3 minutos)
+    const maxWait = 180000; // 3 minutos
+    const pollInterval = 3000; // 3 segundos
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWait) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      const conteudo = await getMissaoConteudo(missaoId);
+
+      if (conteudo?.status === 'completed') {
+        console.log('[MissaoConteudoService] Conteúdo completado por outro processo');
+        return conteudo;
+      }
+
+      if (conteudo?.status === 'failed') {
+        console.log('[MissaoConteudoService] Geração falhou, tentando novamente...');
+        // Deletar registro falho e tentar novamente
+        await supabase.from('missao_conteudos').delete().eq('id', conteudo.id);
+        break; // Sair do loop para tentar gerar novamente
+      }
+
+      console.log('[MissaoConteudoService] Ainda gerando, aguardando...');
+    }
+
+    // Se saiu do loop sem completar, tentar criar novo registro
+    const novoConteudoId = await marcarComoGerando(missaoId, userId);
+    if (!novoConteudoId) {
+      // Ainda em progresso ou completou, retornar o que tiver
+      return await getMissaoConteudo(missaoId);
+    }
+    // Continuar com o novo ID para gerar
+    return await executarGeracao(missaoId, novoConteudoId, questoesPorMissao);
+  }
+
+  // Executar a geração
+  return await executarGeracao(missaoId, conteudoId, questoesPorMissao);
 }
 
 export default {

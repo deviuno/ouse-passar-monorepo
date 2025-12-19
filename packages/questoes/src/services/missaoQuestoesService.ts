@@ -158,8 +158,20 @@ function extractKeywords(text: string): string[] {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+    .replace(/[\/\\]/g, ' ') // Substitui / e \ por espaço para separar palavras como "judiciaria/investigativa"
     .split(/\s+/)
     .filter(word => word.length > 2 && !stopWords.has(word));
+}
+
+/**
+ * Sanitiza uma keyword para uso seguro em queries ILIKE
+ * Remove caracteres especiais que podem causar erros no PostgreSQL
+ */
+function sanitizeKeywordForQuery(keyword: string): string {
+  // Remove caracteres que podem causar problemas em queries LIKE/ILIKE
+  return keyword
+    .replace(/[%_\\\/\[\](){}*+?^$|]/g, '') // Remove caracteres especiais de regex/LIKE
+    .trim();
 }
 
 /**
@@ -208,12 +220,15 @@ async function fetchQuestionsWithFilters(
         .slice(0, 3);
 
       for (const keyword of topKeywords) {
-        console.log('[MissaoQuestoesService] Tentando palavra-chave:', keyword);
+        const sanitizedKeyword = sanitizeKeywordForQuery(keyword);
+        if (!sanitizedKeyword || sanitizedKeyword.length < 3) continue;
+
+        console.log('[MissaoQuestoesService] Tentando palavra-chave:', sanitizedKeyword);
 
         const { data, error } = await questionsDb
           .from('questoes_concurso')
           .select('*')
-          .ilike('assunto', `%${keyword}%`)
+          .ilike('assunto', `%${sanitizedKeyword}%`)
           .limit(limit * 3);
 
         if (!error && data && data.length > 0) {
@@ -359,12 +374,15 @@ export async function countQuestoesParaMissao(missaoId: string): Promise<number>
         .sort((a, b) => b.length - a.length)[0];
 
       if (topKeyword) {
-        const { count, error } = await questionsDb
-          .from('questoes_concurso')
-          .select('*', { count: 'exact', head: true })
-          .ilike('assunto', `%${topKeyword}%`);
+        const sanitizedKeyword = sanitizeKeywordForQuery(topKeyword);
+        if (sanitizedKeyword && sanitizedKeyword.length >= 3) {
+          const { count, error } = await questionsDb
+            .from('questoes_concurso')
+            .select('*', { count: 'exact', head: true })
+            .ilike('assunto', `%${sanitizedKeyword}%`);
 
-        if (!error) return count || 0;
+          if (!error) return count || 0;
+        }
       }
     }
 

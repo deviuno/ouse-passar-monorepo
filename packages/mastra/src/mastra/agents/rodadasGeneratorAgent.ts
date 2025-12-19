@@ -19,6 +19,14 @@ function getSupabaseClient(): SupabaseClient {
 
 // ==================== TIPOS ====================
 
+/**
+ * Plataformas onde a missão pode aparecer
+ * - questoes: App de questões (estudo com questões)
+ * - planejador: Planejador de estudos
+ * - plataforma: Plataforma web completa
+ */
+export type Plataforma = 'questoes' | 'planejador' | 'plataforma';
+
 export interface TopicoParaGeracao {
     id: string;
     titulo: string;
@@ -33,24 +41,28 @@ export interface MateriaOrdenada {
 }
 
 export interface ConfiguracaoGeracao {
-    missoes_por_rodada: number;      // Default: 5
+    materias_por_rodada: number;     // Default: 5 (5 matérias diferentes)
     max_topicos_por_missao: number;  // Default: 3
-    incluir_revisoes: boolean;       // Default: true
+    incluir_revisao_op: boolean;     // Default: true (Revisão Ouse Passar)
+    incluir_tecnicas_op: boolean;    // Default: true (Aplicar Técnicas)
     incluir_simulado: boolean;       // Default: true
     gerar_filtros_questoes: boolean; // Default: true
 }
 
 export interface MissaoGerada {
     numero: string;
-    tipo: 'padrao' | 'revisao' | 'acao';
+    tipo: 'estudo' | 'revisao' | 'tecnicas' | 'simulado';
     materia: string | null;
     materia_id: string | null;
     assunto: string | null;
     instrucoes: string | null;
     tema: string | null;
-    acao: string | null;
     topico_ids: string[];
     ordem: number;
+    /** Plataformas onde esta missão aparece */
+    plataformas: Plataforma[];
+    /** IDs das matérias incluídas (para revisão e simulado) */
+    materias_ids?: string[];
 }
 
 export interface RodadaGerada {
@@ -85,111 +97,127 @@ export interface ResultadoPersistencia {
 // ==================== ALGORITMO DE GERAÇÃO ====================
 
 /**
- * Divide os tópicos de uma matéria em missões equilibradas
+ * Estado de uma matéria durante a geração
  */
-function dividirTopicosEmMissoes(
-    materia: MateriaOrdenada,
-    maxTopicos: number
-): MissaoGerada[] {
-    const topicos = materia.topicos;
-    const n = topicos.length;
-
-    if (n === 0) return [];
-
-    const numMissoes = Math.ceil(n / maxTopicos);
-    const missoes: MissaoGerada[] = [];
-
-    // Distribuir equilibradamente
-    const base = Math.floor(n / numMissoes);
-    const extra = n % numMissoes;
-
-    let idx = 0;
-    for (let i = 0; i < numMissoes; i++) {
-        const qtd = base + (i < extra ? 1 : 0);
-        const topicosSlice = topicos.slice(idx, idx + qtd);
-
-        missoes.push({
-            numero: '',
-            tipo: 'padrao',
-            materia: materia.titulo,
-            materia_id: materia.id,
-            assunto: topicosSlice.map(t => t.titulo).join('\n'),
-            instrucoes: 'Estudar os tópicos indicados e resolver questões relacionadas.',
-            tema: null,
-            acao: null,
-            topico_ids: topicosSlice.map(t => t.id),
-            ordem: 0,
-        });
-
-        idx += qtd;
-    }
-
-    return missoes;
+interface EstadoMateria {
+    materia: MateriaOrdenada;
+    topicosRestantes: TopicoParaGeracao[];
+    topicosEstudados: TopicoParaGeracao[];
+    finalizada: boolean;
+    rodadaFinalizacao: number | null;
 }
 
 /**
- * Cria uma missão de revisão para uma matéria
+ * Pega os próximos N tópicos de uma matéria
  */
-function criarMissaoRevisao(materia: MateriaOrdenada, topicosIds: string[]): MissaoGerada {
+function pegarProximosTopicos(estado: EstadoMateria, quantidade: number): TopicoParaGeracao[] {
+    const topicos = estado.topicosRestantes.splice(0, quantidade);
+    estado.topicosEstudados.push(...topicos);
+    return topicos;
+}
+
+/**
+ * Cria uma missão de estudo
+ */
+function criarMissaoEstudo(
+    materia: MateriaOrdenada,
+    topicos: TopicoParaGeracao[]
+): MissaoGerada {
+    return {
+        numero: '',
+        tipo: 'estudo',
+        materia: materia.titulo,
+        materia_id: materia.id,
+        assunto: topicos.map(t => t.titulo).join('\n'),
+        instrucoes: 'Estudar os tópicos indicados e resolver questões relacionadas.',
+        tema: null,
+        topico_ids: topicos.map(t => t.id),
+        ordem: 0,
+        plataformas: ['questoes', 'planejador', 'plataforma'],
+    };
+}
+
+/**
+ * Cria a missão "Revisão Ouse Passar"
+ * Esta missão unifica todas as revisões: matérias da rodada atual + matérias finalizadas
+ */
+function criarMissaoRevisaoOusePassar(
+    materiasRodada: MateriaOrdenada[],
+    materiasFinalizadas: MateriaOrdenada[],
+    topicosRodada: string[]
+): MissaoGerada {
+    const todasMaterias = [...materiasRodada, ...materiasFinalizadas];
+    const materiasUnicas = [...new Map(todasMaterias.map(m => [m.id, m])).values()];
+
     return {
         numero: '',
         tipo: 'revisao',
-        materia: materia.titulo,
-        materia_id: materia.id,
-        assunto: null,
-        instrucoes: null,
-        tema: `REVISÃO: ${materia.titulo}`,
-        acao: null,
-        topico_ids: topicosIds,
-        ordem: 0,
-    };
-}
-
-/**
- * Cria uma missão de simulado para uma rodada
- */
-function criarMissaoSimulado(rodadaNumero: number, topicosIds: string[], materias: string[]): MissaoGerada {
-    return {
-        numero: '',
-        tipo: 'acao',
-        materia: 'SIMULADO',
+        materia: 'REVISÃO OUSE PASSAR',
         materia_id: null,
         assunto: null,
-        instrucoes: 'Realizar simulado com tempo cronometrado. Após finalizar, corrigir e revisar as questões erradas.',
-        tema: null,
-        acao: `SIMULADO DA RODADA ${rodadaNumero}\nMatérias: ${materias.join(', ')}`,
-        topico_ids: topicosIds,
+        instrucoes: 'Revisão das matérias estudadas nesta rodada e das matérias finalizadas anteriormente. No app Questões, serão incluídas questões das matérias que você errou ou marcou como difíceis.',
+        tema: `Revisão: ${materiasUnicas.map(m => m.titulo).join(', ')}`,
+        topico_ids: topicosRodada,
         ordem: 0,
+        plataformas: ['questoes', 'planejador', 'plataforma'],
+        materias_ids: materiasUnicas.map(m => m.id),
     };
 }
 
 /**
- * Cria uma missão de aplicação das técnicas Ouse Passar
- * Esta missão aparece apenas no modo de planejamento, não no app de questões
+ * Cria a missão "Aplicar Técnicas Ouse Passar"
+ * Esta missão aparece APENAS no Planejador
  */
 function criarMissaoTecnicasOusePassar(): MissaoGerada {
     return {
         numero: '',
-        tipo: 'acao',
-        materia: 'TÉCNICAS',
+        tipo: 'tecnicas',
+        materia: 'TÉCNICAS OUSE PASSAR',
         materia_id: null,
         assunto: null,
         instrucoes: 'Aplicar as técnicas de estudo do método Ouse Passar para fixação do conteúdo estudado nesta rodada.',
-        tema: null,
-        acao: 'Aplicar as técnicas Ouse Passar',
+        tema: 'Aplicar as técnicas Ouse Passar',
         topico_ids: [],
         ordem: 0,
+        plataformas: ['planejador'], // Só aparece no planejador
+    };
+}
+
+/**
+ * Cria a missão de Simulado
+ * Esta missão aparece no app Questões (modo simulado)
+ */
+function criarMissaoSimulado(
+    rodadaNumero: number,
+    materiasRodada: MateriaOrdenada[],
+    topicosRodada: string[]
+): MissaoGerada {
+    return {
+        numero: '',
+        tipo: 'simulado',
+        materia: 'SIMULADO',
+        materia_id: null,
+        assunto: null,
+        instrucoes: 'Realizar simulado com tempo cronometrado. Após finalizar, corrigir e revisar as questões erradas.',
+        tema: `SIMULADO DA RODADA ${rodadaNumero}\nMatérias: ${materiasRodada.map(m => m.titulo).join(', ')}`,
+        topico_ids: topicosRodada,
+        ordem: 0,
+        plataformas: ['questoes', 'planejador', 'plataforma'],
+        materias_ids: materiasRodada.map(m => m.id),
     };
 }
 
 /**
  * Algoritmo principal de geração de rodadas
  *
- * Regras:
- * 1. Cada rodada tem N missões de estudo (config.missoes_por_rodada)
- * 2. Alternância obrigatória: nunca duas missões consecutivas da mesma matéria
- * 3. Quando uma matéria finaliza na rodada R, entra revisão na rodada R+1
- * 4. Revisões são intercaladas com estudos, respeitando alternância
+ * NOVA ESTRUTURA (10 missões por rodada):
+ * 1. Missões 1-5: Uma missão de cada uma das 5 primeiras matérias (alternância garantida)
+ * 2. Missões 6-7: Repetição das 2 matérias com mais tópicos restantes
+ * 3. Missão 8: "Revisão Ouse Passar" (todas plataformas)
+ * 4. Missão 9: "Aplicar Técnicas Ouse Passar" (só Planejador)
+ * 5. Missão 10: Simulado (app Questões)
+ *
+ * Quando uma matéria finaliza, ela entra na Revisão Ouse Passar das rodadas seguintes.
  */
 export function gerarRodadas(
     materias: MateriaOrdenada[],
@@ -197,168 +225,57 @@ export function gerarRodadas(
 ): ResultadoGeracao {
     try {
         const rodadas: RodadaGerada[] = [];
-        const materiasFinalizadas = new Set<string>();
-        const materiasRevisadas = new Set<string>();
 
-        // Fila de revisões pendentes para a PRÓXIMA rodada
-        let revisoesParaProximaRodada: MateriaOrdenada[] = [];
-        // Fila de revisões disponíveis para a rodada ATUAL
-        let revisoesDisponiveis: MateriaOrdenada[] = [];
+        // Inicializar estado de cada matéria
+        const estados: EstadoMateria[] = materias.map(m => ({
+            materia: m,
+            topicosRestantes: [...m.topicos],
+            topicosEstudados: [],
+            finalizada: false,
+            rodadaFinalizacao: null,
+        }));
 
-        // Preparar filas de missões por matéria
-        const filaMissoes = new Map<string, MissaoGerada[]>();
-        const topicosMateria = new Map<string, string[]>();
-
-        for (const materia of materias) {
-            const missoes = dividirTopicosEmMissoes(materia, config.max_topicos_por_missao);
-            filaMissoes.set(materia.id, missoes);
-            topicosMateria.set(materia.id, materia.topicos.map(t => t.id));
-        }
+        // Matérias que já finalizaram (para revisão)
+        const materiasFinalizadas: MateriaOrdenada[] = [];
 
         let rodadaAtual = 1;
-        let ultimaMateriaId: string | null = null;
         const maxRodadas = 100;
+        const materiasNaRodada = Math.min(config.materias_por_rodada || 5, materias.length);
 
         while (rodadaAtual <= maxRodadas) {
             const missoesRodada: MissaoGerada[] = [];
             const topicosRodada: string[] = [];
-            const materiasRodada: string[] = [];
+            const materiasUsadasNaRodada: MateriaOrdenada[] = [];
 
-            // No início de cada rodada, mover revisões pendentes para disponíveis
-            revisoesDisponiveis = [...revisoesDisponiveis, ...revisoesParaProximaRodada];
-            revisoesParaProximaRodada = [];
+            // Pegar as N primeiras matérias que ainda têm tópicos
+            const materiasAtivas = estados
+                .filter(e => !e.finalizada)
+                .slice(0, materiasNaRodada);
 
-            // Gerar missões para esta rodada
-            for (let i = 0; i < config.missoes_por_rodada; i++) {
-                let missaoAdicionada = false;
+            if (materiasAtivas.length === 0) {
+                // Todas as matérias finalizaram
+                break;
+            }
 
-                // Criar lista de candidatos (estudos e revisões) respeitando alternância
-                const candidatos: { tipo: 'estudo' | 'revisao'; materia: MateriaOrdenada; missao?: MissaoGerada }[] = [];
+            // ========== MISSÕES 1-5: Uma de cada matéria ==========
+            for (const estado of materiasAtivas) {
+                const topicos = pegarProximosTopicos(estado, config.max_topicos_por_missao);
 
-                // Adicionar missões de estudo disponíveis
-                for (const materia of materias) {
-                    if (materia.id === ultimaMateriaId) continue;
-                    if (materiasFinalizadas.has(materia.id)) continue;
+                if (topicos.length === 0) continue;
 
-                    const fila = filaMissoes.get(materia.id);
-                    if (fila && fila.length > 0) {
-                        candidatos.push({ tipo: 'estudo', materia, missao: fila[0] });
-                    }
-                }
+                const missao = criarMissaoEstudo(estado.materia, topicos);
+                missao.numero = String(missoesRodada.length + 1);
+                missao.ordem = missoesRodada.length + 1;
+                missoesRodada.push(missao);
 
-                // Adicionar revisões disponíveis
-                if (config.incluir_revisoes) {
-                    for (const materia of revisoesDisponiveis) {
-                        if (materia.id === ultimaMateriaId) continue;
-                        candidatos.push({ tipo: 'revisao', materia });
-                    }
-                }
+                topicosRodada.push(...missao.topico_ids);
+                materiasUsadasNaRodada.push(estado.materia);
 
-                // Priorizar: primeiro estudos das matérias prioritárias, depois revisões intercaladas
-                // A cada 2-3 missões de estudo, incluir uma revisão se disponível
-                let candidatoEscolhido = null;
-
-                // Se há revisões e já temos pelo menos 2 missões de estudo consecutivas, priorizar revisão
-                const missoesEstudoConsecutivas = missoesRodada.filter(m => m.tipo === 'padrao').length;
-                const temRevisaoPendente = candidatos.some(c => c.tipo === 'revisao');
-                const deveIncluirRevisao = temRevisaoPendente && missoesEstudoConsecutivas >= 2;
-
-                if (deveIncluirRevisao) {
-                    candidatoEscolhido = candidatos.find(c => c.tipo === 'revisao');
-                }
-
-                // Se não escolheu revisão, pegar primeiro candidato (estudo ou revisão)
-                if (!candidatoEscolhido && candidatos.length > 0) {
-                    // Priorizar estudo se disponível
-                    candidatoEscolhido = candidatos.find(c => c.tipo === 'estudo') || candidatos[0];
-                }
-
-                if (candidatoEscolhido) {
-                    if (candidatoEscolhido.tipo === 'estudo') {
-                        const fila = filaMissoes.get(candidatoEscolhido.materia.id)!;
-                        const missao = fila.shift()!;
-                        missao.numero = String(missoesRodada.length + 1);
-                        missao.ordem = missoesRodada.length + 1;
-                        missoesRodada.push(missao);
-                        topicosRodada.push(...missao.topico_ids);
-
-                        if (!materiasRodada.includes(candidatoEscolhido.materia.titulo)) {
-                            materiasRodada.push(candidatoEscolhido.materia.titulo);
-                        }
-
-                        ultimaMateriaId = candidatoEscolhido.materia.id;
-                        missaoAdicionada = true;
-
-                        // Se matéria finalizou, agendar revisão para PRÓXIMA rodada
-                        if (fila.length === 0) {
-                            materiasFinalizadas.add(candidatoEscolhido.materia.id);
-                            if (config.incluir_revisoes) {
-                                revisoesParaProximaRodada.push(candidatoEscolhido.materia);
-                            }
-                        }
-                    } else {
-                        // Revisão
-                        const topicos = topicosMateria.get(candidatoEscolhido.materia.id) || [];
-                        const missaoRevisao = criarMissaoRevisao(candidatoEscolhido.materia, topicos);
-                        missaoRevisao.numero = String(missoesRodada.length + 1);
-                        missaoRevisao.ordem = missoesRodada.length + 1;
-                        missoesRodada.push(missaoRevisao);
-                        topicosRodada.push(...topicos);
-
-                        ultimaMateriaId = candidatoEscolhido.materia.id;
-                        materiasRevisadas.add(candidatoEscolhido.materia.id);
-
-                        // Remover da fila de revisões disponíveis
-                        revisoesDisponiveis = revisoesDisponiveis.filter(m => m.id !== candidatoEscolhido!.materia.id);
-                        missaoAdicionada = true;
-                    }
-                }
-
-                // Se não encontrou candidato com alternância, tentar sem alternância
-                if (!missaoAdicionada) {
-                    // Tentar qualquer estudo
-                    for (const materia of materias) {
-                        if (materiasFinalizadas.has(materia.id)) continue;
-                        const fila = filaMissoes.get(materia.id);
-                        if (!fila || fila.length === 0) continue;
-
-                        const missao = fila.shift()!;
-                        missao.numero = String(missoesRodada.length + 1);
-                        missao.ordem = missoesRodada.length + 1;
-                        missoesRodada.push(missao);
-                        topicosRodada.push(...missao.topico_ids);
-
-                        if (!materiasRodada.includes(materia.titulo)) {
-                            materiasRodada.push(materia.titulo);
-                        }
-
-                        ultimaMateriaId = materia.id;
-                        missaoAdicionada = true;
-
-                        if (fila.length === 0) {
-                            materiasFinalizadas.add(materia.id);
-                            if (config.incluir_revisoes) {
-                                revisoesParaProximaRodada.push(materia);
-                            }
-                        }
-                        break;
-                    }
-
-                    // Tentar qualquer revisão
-                    if (!missaoAdicionada && revisoesDisponiveis.length > 0) {
-                        const materiaRevisao = revisoesDisponiveis[0];
-                        const topicos = topicosMateria.get(materiaRevisao.id) || [];
-                        const missaoRevisao = criarMissaoRevisao(materiaRevisao, topicos);
-                        missaoRevisao.numero = String(missoesRodada.length + 1);
-                        missaoRevisao.ordem = missoesRodada.length + 1;
-                        missoesRodada.push(missaoRevisao);
-                        topicosRodada.push(...topicos);
-
-                        ultimaMateriaId = materiaRevisao.id;
-                        materiasRevisadas.add(materiaRevisao.id);
-                        revisoesDisponiveis = revisoesDisponiveis.slice(1);
-                        missaoAdicionada = true;
-                    }
+                // Verificar se a matéria finalizou
+                if (estado.topicosRestantes.length === 0) {
+                    estado.finalizada = true;
+                    estado.rodadaFinalizacao = rodadaAtual;
+                    materiasFinalizadas.push(estado.materia);
                 }
             }
 
@@ -366,20 +283,68 @@ export function gerarRodadas(
                 break;
             }
 
-            // Adicionar missão "Aplicar as técnicas Ouse Passar" (penúltima)
-            const missaoTecnicas = criarMissaoTecnicasOusePassar();
-            missaoTecnicas.numero = String(missoesRodada.length + 1);
-            missaoTecnicas.ordem = missoesRodada.length + 1;
-            missoesRodada.push(missaoTecnicas);
+            // ========== MISSÕES 6-7: Repetição das 2 matérias com mais tópicos restantes ==========
+            const materiasComMaisTopicos = estados
+                .filter(e => !e.finalizada && e.topicosRestantes.length > 0)
+                .sort((a, b) => b.topicosRestantes.length - a.topicosRestantes.length)
+                .slice(0, 2);
 
-            // Adicionar simulado ao final (última)
+            for (const estado of materiasComMaisTopicos) {
+                const topicos = pegarProximosTopicos(estado, config.max_topicos_por_missao);
+
+                if (topicos.length === 0) continue;
+
+                const missao = criarMissaoEstudo(estado.materia, topicos);
+                missao.numero = String(missoesRodada.length + 1);
+                missao.ordem = missoesRodada.length + 1;
+                missoesRodada.push(missao);
+
+                topicosRodada.push(...missao.topico_ids);
+                if (!materiasUsadasNaRodada.includes(estado.materia)) {
+                    materiasUsadasNaRodada.push(estado.materia);
+                }
+
+                // Verificar se a matéria finalizou
+                if (estado.topicosRestantes.length === 0) {
+                    estado.finalizada = true;
+                    estado.rodadaFinalizacao = rodadaAtual;
+                    materiasFinalizadas.push(estado.materia);
+                }
+            }
+
+            // ========== MISSÃO 8: Revisão Ouse Passar ==========
+            if (config.incluir_revisao_op) {
+                const missaoRevisao = criarMissaoRevisaoOusePassar(
+                    materiasUsadasNaRodada,
+                    materiasFinalizadas,
+                    topicosRodada
+                );
+                missaoRevisao.numero = String(missoesRodada.length + 1);
+                missaoRevisao.ordem = missoesRodada.length + 1;
+                missoesRodada.push(missaoRevisao);
+            }
+
+            // ========== MISSÃO 9: Aplicar Técnicas Ouse Passar ==========
+            if (config.incluir_tecnicas_op) {
+                const missaoTecnicas = criarMissaoTecnicasOusePassar();
+                missaoTecnicas.numero = String(missoesRodada.length + 1);
+                missaoTecnicas.ordem = missoesRodada.length + 1;
+                missoesRodada.push(missaoTecnicas);
+            }
+
+            // ========== MISSÃO 10: Simulado ==========
             if (config.incluir_simulado && topicosRodada.length > 0) {
-                const missaoSimulado = criarMissaoSimulado(rodadaAtual, topicosRodada, materiasRodada);
+                const missaoSimulado = criarMissaoSimulado(
+                    rodadaAtual,
+                    materiasUsadasNaRodada,
+                    topicosRodada
+                );
                 missaoSimulado.numero = String(missoesRodada.length + 1);
                 missaoSimulado.ordem = missoesRodada.length + 1;
                 missoesRodada.push(missaoSimulado);
             }
 
+            // Adicionar rodada
             rodadas.push({
                 numero: rodadaAtual,
                 titulo: `${rodadaAtual}ª RODADA`,
@@ -388,13 +353,9 @@ export function gerarRodadas(
 
             rodadaAtual++;
 
-            // Condição de parada
-            const todasFinalizadas = materiasFinalizadas.size === materias.length;
-            const todasRevisadas = !config.incluir_revisoes ||
-                materias.every(m => materiasRevisadas.has(m.id));
-            const semPendencias = revisoesDisponiveis.length === 0 && revisoesParaProximaRodada.length === 0;
-
-            if (todasFinalizadas && todasRevisadas && semPendencias) {
+            // Condição de parada: todas as matérias finalizaram
+            const todasFinalizadas = estados.every(e => e.finalizada);
+            if (todasFinalizadas) {
                 break;
             }
         }
@@ -407,12 +368,11 @@ export function gerarRodadas(
 
         for (const rodada of rodadas) {
             for (const missao of rodada.missoes) {
-                if (missao.tipo === 'padrao') missoes_estudo++;
-                else if (missao.tipo === 'revisao') missoes_revisao++;
-                else if (missao.tipo === 'acao') {
-                    // Diferenciar entre técnicas e simulado
-                    if (missao.materia === 'TÉCNICAS') missoes_tecnicas++;
-                    else missoes_simulado++;
+                switch (missao.tipo) {
+                    case 'estudo': missoes_estudo++; break;
+                    case 'revisao': missoes_revisao++; break;
+                    case 'tecnicas': missoes_tecnicas++; break;
+                    case 'simulado': missoes_simulado++; break;
                 }
             }
         }
@@ -545,11 +505,13 @@ export async function persistirRodadas(
                         numero: missao.numero,
                         tipo: missao.tipo,
                         materia: missao.materia,
+                        materia_id: missao.materia_id,
                         assunto: missao.assunto,
                         instrucoes: missao.instrucoes,
                         tema: missao.tema,
-                        acao: missao.acao,
                         ordem: missao.ordem,
+                        plataformas: missao.plataformas,
+                        materias_ids: missao.materias_ids || null,
                     })
                     .select()
                     .single();

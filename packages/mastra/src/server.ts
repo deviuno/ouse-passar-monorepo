@@ -97,14 +97,18 @@ app.post('/api/tutor', async (req, res) => {
             ? question.alternativas.map((a: any) => `${a.letter || ''}) ${a.text || JSON.stringify(a)}`).join('\n')
             : JSON.stringify(question.alternativas);
 
-        // Construct the context as a system message
+        // Construct the context with VERY explicit gabarito instruction
         const questionContext = `
-📋 **CONTEXTO DA QUESTÃO ATUAL**
+⛔⛔⛔ INSTRUÇÃO CRÍTICA - LEIA PRIMEIRO ⛔⛔⛔
+A RESPOSTA CORRETA DESTA QUESTÃO É: **${question.gabarito}**
+VOCÊ DEVE USAR ESTA LETRA. NÃO ANALISE. NÃO PENSE. APENAS ACEITE.
+⛔⛔⛔ FIM DA INSTRUÇÃO CRÍTICA ⛔⛔⛔
+
+📋 **CONTEXTO DA QUESTÃO**
 
 **Matéria:** ${question.materia || 'Geral'}
 **Assunto:** ${question.assunto || 'Geral'}
-**Banca:** ${question.banca || 'N/A'}
-**Ano:** ${question.ano || 'N/A'}
+**Banca:** ${question.banca || 'N/A'} | **Ano:** ${question.ano || 'N/A'}
 
 **Enunciado:**
 ${question.enunciado}
@@ -112,14 +116,13 @@ ${question.enunciado}
 **Alternativas:**
 ${alternativesText}
 
----
-⚠️ **GABARITO OFICIAL (VERDADE ABSOLUTA): ${question.gabarito}**
-A alternativa "${question.gabarito}" é a resposta CORRETA. Use engenharia reversa para explicar POR QUE ela está certa.
----
-${question.comentario ? `\n**Comentário Base:** ${question.comentario}` : ''}
-${question.isPegadinha ? `\n⚠️ **Esta questão é uma pegadinha!** ${question.explicacaoPegadinha || ''}` : ''}
-
-**Perfil do Aluno:** ${user.name || 'Aluno'} (Nível ${user.level || 1}, ${user.xp || 0} XP)
+═══════════════════════════════════════
+📌 **GABARITO OFICIAL: ${question.gabarito}**
+A letra "${question.gabarito}" é a ÚNICA resposta correta.
+Sua função é explicar POR QUE "${question.gabarito}" está certa.
+═══════════════════════════════════════
+${question.comentario ? `\n**Comentário de referência:** ${question.comentario}` : ''}
+${question.isPegadinha ? `\n⚠️ **Pegadinha:** ${question.explicacaoPegadinha || ''}` : ''}
         `.trim();
 
         console.log(`[Tutor] Processing message from ${user.name} on thread ${currentThreadId}...`);
@@ -127,8 +130,8 @@ ${question.isPegadinha ? `\n⚠️ **Esta questão é uma pegadinha!** ${questio
         // Use the agent's generate method with memory context
         const result = await agent.generate([
             { role: "user", content: questionContext },
-            { role: "assistant", content: `Entendido! Analisei a questão e confirmei que o gabarito oficial é a alternativa **${question.gabarito}**. Vou usar essa informação como base para minhas explicações. Como posso te ajudar?` },
-            { role: "user", content: userMessage }
+            { role: "assistant", content: `✅ Recebi a questão. O GABARITO OFICIAL é a letra **${question.gabarito}**. Essa é a resposta correta e vou usá-la como base absoluta. Como posso ajudar?` },
+            { role: "user", content: `${userMessage}\n\n[LEMBRETE: O gabarito é ${question.gabarito}. Use essa letra como resposta correta.]` }
         ], {
             threadId: currentThreadId,
             resourceId: resourceId,
@@ -231,6 +234,10 @@ const questionsDbUrl = process.env.VITE_QUESTIONS_DB_URL || '';
 const questionsDbKey = process.env.VITE_QUESTIONS_DB_ANON_KEY || '';
 const questionsDb = createClient(questionsDbUrl, questionsDbKey);
 
+// In-memory Set para deduplicação de geração de conteúdo em background
+// Evita múltiplas requisições paralelas para a mesma missão
+const contentGenerationInProgress = new Set<string>();
+
 // Audio cache helper functions
 async function getFromCache(assunto: string, contentType: 'explanation' | 'podcast') {
     try {
@@ -306,7 +313,7 @@ const getGeminiClient = () => {
 // ==================== GERAÇÃO DE IMAGEM DE CAPA ====================
 
 /**
- * Gera uma imagem de capa profissional para o preparatório usando Gemini
+ * Gera uma imagem de capa profissional estilo poster de filme Netflix
  * @param info Informações do preparatório (nome, banca, órgão, cargo)
  * @returns URL da imagem no Supabase Storage ou null se falhar
  */
@@ -324,92 +331,125 @@ async function gerarImagemCapa(info: {
     }
 
     try {
-        console.log(`[ImagemCapa] Gerando imagem para: ${info.nome}`);
+        console.log(`[ImagemCapa] Gerando imagem estilo Netflix para: ${info.nome}`);
 
-        // Prompt otimizado para gerar uma capa motivacional focada no cargo
         const cargoDescricao = info.cargo?.toLowerCase() || '';
 
-        // Mapear cargo para contexto visual específico
-        let profissaoContexto = 'a successful professional in a modern office';
-        let ambiente = 'professional office environment';
+        // Mapear cargo para visual cinematográfico
+        let protagonista = 'a powerful executive in a tailored suit';
+        let cenario = 'towering glass skyscraper at golden hour';
+        let mood = 'power and ambition';
+        let cores = 'deep blues, warm golds, and dramatic shadows';
 
         if (cargoDescricao.includes('juiz') || cargoDescricao.includes('magistrad')) {
-            profissaoContexto = 'a confident judge in elegant black robes, standing proudly in a beautiful courtroom';
-            ambiente = 'majestic courtroom with wooden details and scales of justice';
+            protagonista = 'a commanding judge in flowing black robes, gavel in hand';
+            cenario = 'grand marble courtroom with dramatic light streaming through tall windows';
+            mood = 'justice and authority';
+            cores = 'rich blacks, deep mahogany, golden light rays';
         } else if (cargoDescricao.includes('promotor') || cargoDescricao.includes('procurador')) {
-            profissaoContexto = 'a confident prosecutor in formal attire, standing proud in a courthouse';
-            ambiente = 'elegant courthouse interior';
+            protagonista = 'a fierce prosecutor in sharp formal attire, eyes burning with determination';
+            cenario = 'imposing courthouse steps with dramatic storm clouds';
+            mood = 'relentless pursuit of justice';
+            cores = 'steel grays, midnight blues, lightning highlights';
         } else if (cargoDescricao.includes('delegado')) {
-            profissaoContexto = 'a proud police chief in professional attire, radiating authority and success';
-            ambiente = 'modern police headquarters';
-        } else if (cargoDescricao.includes('policial') || cargoDescricao.includes('agente') && (cargoDescricao.includes('prf') || cargoDescricao.includes('pf') || cargoDescricao.includes('polícia'))) {
-            profissaoContexto = 'a proud federal police officer in uniform, standing tall and confident';
-            ambiente = 'impressive federal building entrance';
+            protagonista = 'a commanding police chief in formal uniform with badge gleaming';
+            cenario = 'city skyline at night with police lights reflecting';
+            mood = 'authority and protection';
+            cores = 'deep navy, red and blue accents, noir shadows';
+        } else if (cargoDescricao.includes('policial') || cargoDescricao.includes('agente')) {
+            protagonista = 'a elite federal agent in tactical gear, intense focused gaze';
+            cenario = 'dramatic federal building with Brazilian flag, rain-slicked streets';
+            mood = 'action hero, guardian of the nation';
+            cores = 'tactical blacks, steel blues, golden badge highlights';
         } else if (cargoDescricao.includes('auditor') || cargoDescricao.includes('fiscal')) {
-            profissaoContexto = 'a successful tax auditor in elegant business attire, confident posture';
-            ambiente = 'modern government financial office';
+            protagonista = 'a sharp-eyed financial investigator in expensive suit, documents in hand';
+            cenario = 'sleek modern office overlooking city, multiple screens with data';
+            mood = 'intelligence and precision';
+            cores = 'corporate blues, green accents, chrome highlights';
         } else if (cargoDescricao.includes('analista')) {
-            profissaoContexto = 'a successful analyst in professional business attire, confident and accomplished';
-            ambiente = 'modern government office with city view';
+            protagonista = 'a brilliant analyst silhouetted against holographic data displays';
+            cenario = 'futuristic control room with glowing screens and city view';
+            mood = 'brilliance and innovation';
+            cores = 'electric blues, cyan glows, dark backgrounds';
         } else if (cargoDescricao.includes('técnico')) {
-            profissaoContexto = 'a successful public servant in professional attire, proud of achievement';
-            ambiente = 'modern public institution';
+            protagonista = 'a dedicated professional standing confidently in modern workspace';
+            cenario = 'impressive government building with dramatic architecture';
+            mood = 'competence and reliability';
+            cores = 'warm neutrals, golden hour lighting, architectural shadows';
         } else if (cargoDescricao.includes('professor') || cargoDescricao.includes('docente')) {
-            profissaoContexto = 'a happy professor in a university setting, inspiring and accomplished';
-            ambiente = 'prestigious university classroom';
+            protagonista = 'an inspiring educator surrounded by floating books and knowledge symbols';
+            cenario = 'majestic university library with endless bookshelves';
+            mood = 'wisdom and inspiration';
+            cores = 'warm amber, leather browns, magical golden particles';
         } else if (cargoDescricao.includes('médico') || cargoDescricao.includes('perito')) {
-            profissaoContexto = 'a confident doctor in white coat, successful and caring';
-            ambiente = 'modern hospital or clinic';
+            protagonista = 'a brilliant doctor in pristine white coat, stethoscope draped heroically';
+            cenario = 'state-of-the-art hospital with dramatic lighting';
+            mood = 'life-saving hero';
+            cores = 'clinical whites, emergency reds, cool blues';
         } else if (cargoDescricao.includes('defensor')) {
-            profissaoContexto = 'a proud public defender in formal attire, champion of justice';
-            ambiente = 'elegant law office';
-        } else if (cargoDescricao.includes('escrivão') || cargoDescricao.includes('cartório')) {
-            profissaoContexto = 'a professional notary in elegant attire, accomplished and reliable';
-            ambiente = 'prestigious notary office';
+            protagonista = 'a passionate public defender, fist raised in triumph';
+            cenario = 'courthouse with scales of justice dramatically lit';
+            mood = 'champion of the people';
+            cores = 'bronze and gold, warm dramatic lighting';
         } else if (cargoDescricao.includes('militar') || cargoDescricao.includes('bombeiro')) {
-            profissaoContexto = 'a proud military professional or firefighter in dress uniform, heroic posture';
-            ambiente = 'impressive military or fire station';
+            protagonista = 'a heroic first responder in full gear, flames or action behind';
+            cenario = 'dramatic rescue scene with smoke and fire';
+            mood = 'bravery and sacrifice';
+            cores = 'fiery oranges, heroic reds, smoke blacks';
         }
 
-        const prompt = `Create an inspiring, aspirational cover image for a Brazilian public exam preparation course.
+        const prompt = `NETFLIX MOVIE POSTER STYLE - SQUARE FORMAT (1:1 aspect ratio)
 
-MAIN SUBJECT: ${profissaoContexto}
-The person should look:
-- Genuinely happy and fulfilled
-- At the peak of their career
-- Confident and successful
-- Professional but approachable
-- Like someone who achieved their dream
+Create a cinematic, high-budget movie poster featuring:
 
-ENVIRONMENT: ${ambiente}
+HERO: ${protagonista}
+- Shot from a low angle to emphasize power and importance
+- Face partially in dramatic shadow, eyes catching the light
+- Expression: determined, confident, ready to conquer
+- Posture: heroic, commanding presence
 
-MOOD AND FEELING:
-- Triumphant, like someone who just achieved a life goal
-- Warm, golden lighting suggesting success and a bright future
-- Inspiring and motivational
-- Premium and aspirational
+SETTING: ${cenario}
+- Epic scale, making the scene feel larger than life
+- Atmospheric perspective with depth
+- Weather/particles adding drama (light rays, rain, smoke, dust)
 
-COMPOSITION:
-- Cinematic, professional photography style
-- Shallow depth of field, subject in sharp focus
-- Beautiful bokeh in background
-- 16:9 aspect ratio
-- Rich, warm color grading
-- Professional lighting with subtle rim light
+MOOD: ${mood}
+- This person has overcome impossible odds
+- They are the protagonist of their own success story
+- Viewer should feel inspired and motivated
 
-${info.orgao ? `Context: This is for ${info.orgao}` : ''}
-${info.cargo ? `Specific role: ${info.cargo}` : ''}
+CINEMATOGRAPHY:
+- Color palette: ${cores}
+- Dramatic chiaroscuro lighting (strong contrast between light and shadow)
+- Shallow depth of field with cinematic bokeh
+- Film grain for premium feel
+- Lens flares or light leaks for dramatic effect
+- High production value, $200 million blockbuster quality
 
-CRITICAL: Do NOT include any text, words, letters, numbers, logos, or watermarks in the image.
-The image should make viewers WANT to be this person - successful, happy, and transformed by achieving their dream.`;
+COMPOSITION FOR SQUARE FORMAT:
+- Subject centered or using rule of thirds
+- Full upper body or dramatic close-up
+- Negative space at top for dramatic effect
+- Perfect for social media and app thumbnails
 
-        // Adicionar timeout de 30 segundos para não travar indefinidamente
+${info.orgao ? `Organization context: ${info.orgao}` : ''}
+${info.cargo ? `Role: ${info.cargo}` : ''}
+
+ABSOLUTE REQUIREMENTS:
+- NO text, titles, credits, or watermarks
+- NO logos or symbols
+- Photorealistic quality
+- SQUARE 1:1 aspect ratio
+- Professional movie poster composition
+- The image alone should tell a story of triumph and success`;
+
+        // Timeout de 60 segundos para modelo mais potente
         const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error('Timeout: geração de imagem demorou mais de 30 segundos')), 30000);
+            setTimeout(() => reject(new Error('Timeout: geração de imagem demorou mais de 60 segundos')), 60000);
         });
 
         const generatePromise = client.models.generateContent({
-            model: 'gemini-2.0-flash-exp-image-generation', // Modelo específico para geração de imagem
+            model: 'gemini-2.0-flash-exp-image-generation',
             contents: prompt,
             config: {
                 responseModalities: ['image', 'text'],
@@ -434,7 +474,7 @@ The image should make viewers WANT to be this person - successful, happy, and tr
             return null;
         }
 
-        console.log('[ImagemCapa] Imagem gerada, fazendo upload para Supabase...');
+        console.log('[ImagemCapa] Imagem estilo Netflix gerada, fazendo upload...');
 
         // Upload para Supabase Storage
         const fileName = `capa-${info.preparatorioId}-${Date.now()}.png`;
@@ -471,96 +511,148 @@ The image should make viewers WANT to be this person - successful, happy, and tr
 // ==================== ENDPOINT PARA GERAÇÃO DE IMAGEM DE CAPA ====================
 
 /**
- * Gera o prompt contextualizado para a imagem de capa baseado no cargo
+ * Gera o prompt estilo poster Netflix para imagem de capa baseado no cargo
  */
 function gerarPromptImagemCapa(cargo: string, orgao?: string): { prompt: string; promptUsuario: string } {
     const cargoDescricao = cargo?.toLowerCase() || '';
 
-    // Mapear cargo para descrição amigável em português
-    let profissaoDescricao = 'profissional';
-    let contextoVisual = 'em um ambiente de trabalho moderno';
+    // Mapear cargo para visual cinematográfico estilo Netflix
+    let profissaoDescricao = 'profissional de sucesso';
+    let protagonista = 'a powerful executive in a tailored suit';
+    let cenario = 'towering glass skyscraper at golden hour';
+    let mood = 'power and ambition';
+    let cores = 'deep blues, warm golds, and dramatic shadows';
 
     if (cargoDescricao.includes('juiz') || cargoDescricao.includes('magistrad')) {
         profissaoDescricao = 'Juiz(a) de Direito';
-        contextoVisual = 'em um tribunal elegante, usando toga preta';
+        protagonista = 'a commanding judge in flowing black robes, gavel in hand';
+        cenario = 'grand marble courtroom with dramatic light streaming through tall windows';
+        mood = 'justice and authority';
+        cores = 'rich blacks, deep mahogany, golden light rays';
     } else if (cargoDescricao.includes('promotor') || cargoDescricao.includes('procurador')) {
         profissaoDescricao = 'Promotor(a) de Justiça';
-        contextoVisual = 'em um fórum de justiça, com postura confiante';
+        protagonista = 'a fierce prosecutor in sharp formal attire, eyes burning with determination';
+        cenario = 'imposing courthouse steps with dramatic storm clouds';
+        mood = 'relentless pursuit of justice';
+        cores = 'steel grays, midnight blues, lightning highlights';
     } else if (cargoDescricao.includes('delegado')) {
         profissaoDescricao = 'Delegado(a) de Polícia';
-        contextoVisual = 'em uma delegacia moderna, transmitindo autoridade';
+        protagonista = 'a commanding police chief in formal uniform with badge gleaming';
+        cenario = 'city skyline at night with police lights reflecting';
+        mood = 'authority and protection';
+        cores = 'deep navy, red and blue accents, noir shadows';
     } else if (cargoDescricao.includes('agente') && (cargoDescricao.includes('polícia') || cargoDescricao.includes('policia') || cargoDescricao.includes('civil'))) {
         profissaoDescricao = 'Agente de Polícia Civil';
-        contextoVisual = 'exercendo sua função com orgulho e dedicação';
+        protagonista = 'an elite detective in professional attire, intense focused gaze';
+        cenario = 'dramatic police station with evidence boards and city lights';
+        mood = 'investigation and justice';
+        cores = 'noir blacks, amber highlights, urban blues';
     } else if (cargoDescricao.includes('policial') || cargoDescricao.includes('prf') || cargoDescricao.includes('pf')) {
         profissaoDescricao = 'Policial Federal';
-        contextoVisual = 'em uniforme, em frente a um prédio federal imponente';
+        protagonista = 'an elite federal agent in tactical gear, intense focused gaze';
+        cenario = 'dramatic federal building with Brazilian flag, rain-slicked streets';
+        mood = 'action hero, guardian of the nation';
+        cores = 'tactical blacks, steel blues, golden badge highlights';
     } else if (cargoDescricao.includes('auditor') || cargoDescricao.includes('fiscal')) {
         profissaoDescricao = 'Auditor(a) Fiscal';
-        contextoVisual = 'em um escritório governamental sofisticado';
+        protagonista = 'a sharp-eyed financial investigator in expensive suit, documents in hand';
+        cenario = 'sleek modern office overlooking city, multiple screens with data';
+        mood = 'intelligence and precision';
+        cores = 'corporate blues, green accents, chrome highlights';
     } else if (cargoDescricao.includes('analista')) {
         profissaoDescricao = 'Analista';
-        contextoVisual = 'em um ambiente corporativo moderno com vista para a cidade';
+        protagonista = 'a brilliant analyst silhouetted against holographic data displays';
+        cenario = 'futuristic control room with glowing screens and city view';
+        mood = 'brilliance and innovation';
+        cores = 'electric blues, cyan glows, dark backgrounds';
     } else if (cargoDescricao.includes('técnico')) {
         profissaoDescricao = 'Técnico(a)';
-        contextoVisual = 'em uma instituição pública moderna';
+        protagonista = 'a dedicated professional standing confidently in modern workspace';
+        cenario = 'impressive government building with dramatic architecture';
+        mood = 'competence and reliability';
+        cores = 'warm neutrals, golden hour lighting, architectural shadows';
     } else if (cargoDescricao.includes('professor') || cargoDescricao.includes('docente')) {
         profissaoDescricao = 'Professor(a)';
-        contextoVisual = 'em uma sala de aula universitária prestigiada';
+        protagonista = 'an inspiring educator surrounded by floating books and knowledge symbols';
+        cenario = 'majestic university library with endless bookshelves';
+        mood = 'wisdom and inspiration';
+        cores = 'warm amber, leather browns, magical golden particles';
     } else if (cargoDescricao.includes('médico') || cargoDescricao.includes('perito')) {
         profissaoDescricao = 'Médico(a) Perito(a)';
-        contextoVisual = 'em um ambiente hospitalar moderno';
+        protagonista = 'a brilliant doctor in pristine white coat, stethoscope draped heroically';
+        cenario = 'state-of-the-art hospital with dramatic lighting';
+        mood = 'life-saving hero';
+        cores = 'clinical whites, emergency reds, cool blues';
     } else if (cargoDescricao.includes('defensor')) {
         profissaoDescricao = 'Defensor(a) Público(a)';
-        contextoVisual = 'em um escritório de advocacia elegante';
+        protagonista = 'a passionate public defender, fist raised in triumph';
+        cenario = 'courthouse with scales of justice dramatically lit';
+        mood = 'champion of the people';
+        cores = 'bronze and gold, warm dramatic lighting';
     } else if (cargoDescricao.includes('escrivão') || cargoDescricao.includes('cartório')) {
         profissaoDescricao = 'Escrivão(ã)';
-        contextoVisual = 'em um cartório ou delegacia';
+        protagonista = 'a meticulous legal professional with important documents';
+        cenario = 'elegant office with legal books and official seals';
+        mood = 'precision and trust';
+        cores = 'warm woods, parchment tones, golden accents';
     } else if (cargoDescricao.includes('militar') || cargoDescricao.includes('bombeiro')) {
         profissaoDescricao = 'Bombeiro(a) Militar';
-        contextoVisual = 'em uniforme de gala, com postura heroica';
+        protagonista = 'a heroic first responder in full gear, flames or action behind';
+        cenario = 'dramatic rescue scene with smoke and fire';
+        mood = 'bravery and sacrifice';
+        cores = 'fiery oranges, heroic reds, smoke blacks';
     } else if (cargo) {
         profissaoDescricao = cargo;
     }
 
     // Prompt amigável para o usuário
-    const promptUsuario = `${profissaoDescricao} feliz por ter sido aprovado(a) no concurso${orgao ? ` do ${orgao}` : ''}, ${contextoVisual}, exercendo sua função com prazer e realização profissional.`;
+    const promptUsuario = `Poster cinematográfico de ${profissaoDescricao}${orgao ? ` do ${orgao}` : ''} - estilo Netflix, imagem quadrada profissional.`;
 
-    // Prompt técnico completo para a IA - otimizado para qualidade profissional
-    const prompt = `MANDATORY FORMAT: HORIZONTAL LANDSCAPE IMAGE (16:9 aspect ratio, wider than tall)
+    // Prompt técnico estilo Netflix
+    const prompt = `NETFLIX MOVIE POSTER STYLE - SQUARE FORMAT (1:1 aspect ratio)
 
-Create a premium, magazine-quality cover photograph for a Brazilian public exam preparation course.
+Create a cinematic, high-budget movie poster featuring:
 
-SUBJECT: A successful ${profissaoDescricao} at work${orgao ? ` at ${orgao}` : ''}.
-- Professional, confident posture
-- Natural, genuine expression of satisfaction
-- Wearing appropriate professional attire
-- ${contextoVisual}
+HERO: ${protagonista}
+- Shot from a low angle to emphasize power and importance
+- Face partially in dramatic shadow, eyes catching the light
+- Expression: determined, confident, ready to conquer
+- Posture: heroic, commanding presence
 
-PHOTOGRAPHY STYLE:
-- High-end editorial/corporate photography
-- Shot with professional DSLR camera
-- 85mm portrait lens with f/1.8 aperture
-- Soft, natural lighting with professional studio quality
-- Shallow depth of field, subject in crisp focus
-- Elegant bokeh in background
-- Color grading: warm, premium tones (similar to LinkedIn professional photos)
+SETTING: ${cenario}
+- Epic scale, making the scene feel larger than life
+- Atmospheric perspective with depth
+- Weather/particles adding drama (light rays, rain, smoke, dust)
 
-COMPOSITION RULES:
-- MUST be HORIZONTAL/LANDSCAPE orientation (16:9)
-- Rule of thirds positioning
-- Subject positioned slightly off-center
-- Clean, uncluttered background
-- Professional workspace or institutional environment visible
+MOOD: ${mood}
+- This person has overcome impossible odds
+- They are the protagonist of their own success story
+- Viewer should feel inspired and motivated
 
-ABSOLUTELY FORBIDDEN - DO NOT INCLUDE:
-- ANY text, letters, words, or numbers
-- ANY logos, watermarks, or badges
-- ANY overlays or graphic elements
-- ANY handwritten elements
-- ANY signs or plaques with writing
+CINEMATOGRAPHY:
+- Color palette: ${cores}
+- Dramatic chiaroscuro lighting (strong contrast between light and shadow)
+- Shallow depth of field with cinematic bokeh
+- Film grain for premium feel
+- Lens flares or light leaks for dramatic effect
+- High production value, $200 million blockbuster quality
 
-The final image must look like a premium stock photo suitable for a Fortune 500 company website.`;
+COMPOSITION FOR SQUARE FORMAT:
+- Subject centered or using rule of thirds
+- Full upper body or dramatic close-up
+- Negative space at top for dramatic effect
+- Perfect for social media and app thumbnails
+
+${orgao ? `Organization context: ${orgao}` : ''}
+${cargo ? `Role: ${cargo}` : ''}
+
+ABSOLUTE REQUIREMENTS:
+- NO text, titles, credits, or watermarks
+- NO logos or symbols
+- Photorealistic quality
+- SQUARE 1:1 aspect ratio
+- Professional movie poster composition
+- The image alone should tell a story of triumph and success`;
 
     return { prompt, promptUsuario };
 }
@@ -622,7 +714,7 @@ app.post('/api/preparatorio/gerar-imagem-capa', async (req, res) => {
             });
         }
 
-        console.log('[ImagemCapa API] Imagem gerada, fazendo upload...');
+        console.log('[ImagemCapa API] Imagem estilo Netflix gerada, fazendo upload...');
 
         // Upload para Supabase Storage
         const fileName = `capa-ai-${Date.now()}-${Math.random().toString(36).substring(2)}.png`;
@@ -973,16 +1065,15 @@ app.post('/api/tts/generate', async (req, res) => {
             return;
         }
 
-        // Limitar texto para evitar timeout (máx ~5000 chars)
-        const textoLimitado = text.length > 5000 ? text.substring(0, 5000) + '...' : text;
-
-        // Generate TTS audio using Gemini 2.5 Flash TTS
-        // Ref: https://ai.google.dev/gemini-api/docs/speech-generation
+        // Sem limite de texto - cliente tem timeout de 5 minutos para aguardar
+        // Generate TTS audio using Gemini TTS
+        // IMPORTANTE: Não incluir instruções no texto, apenas o conteúdo a ser narrado
+        // As instruções fazem o modelo ler "Leia o seguinte texto..." no áudio
         const audioResponse = await client.models.generateContent({
             model: 'gemini-2.5-flash-preview-tts',
             contents: [{
                 parts: [{
-                    text: `Leia o seguinte texto de forma clara, natural e didática em português brasileiro, como um professor explicando:\n\n${textoLimitado}`
+                    text: text
                 }]
             }],
             config: {
@@ -1232,6 +1323,13 @@ async function buscarQuestoesScrapping(
 
 // Função principal: Gerar conteúdo de uma missão em background
 async function gerarConteudoMissaoBackground(missaoId: string): Promise<boolean> {
+    // Deduplicação em memória - evita múltiplas requisições paralelas
+    if (contentGenerationInProgress.has(missaoId)) {
+        console.log(`[BackgroundContent] Geração já em progresso (in-memory) para missão ${missaoId}`);
+        return false;
+    }
+    contentGenerationInProgress.add(missaoId);
+
     console.log(`[BackgroundContent] Iniciando geração para missão ${missaoId}...`);
 
     try {
@@ -1245,10 +1343,12 @@ async function gerarConteudoMissaoBackground(missaoId: string): Promise<boolean>
         if (existingContent) {
             if (existingContent.status === 'completed') {
                 console.log(`[BackgroundContent] Conteúdo já existe para missão ${missaoId}`);
+                contentGenerationInProgress.delete(missaoId);
                 return true;
             }
             if (existingContent.status === 'generating') {
                 console.log(`[BackgroundContent] Geração já em andamento para missão ${missaoId}`);
+                contentGenerationInProgress.delete(missaoId);
                 return false;
             }
         }
@@ -1260,7 +1360,7 @@ async function gerarConteudoMissaoBackground(missaoId: string): Promise<boolean>
                 missao_id: missaoId,
                 texto_content: '',
                 status: 'generating',
-                modelo_texto: 'gemini-2.5-pro-preview',
+                modelo_texto: 'gemini-3-pro-preview',
             })
             .select('id')
             .single();
@@ -1268,6 +1368,7 @@ async function gerarConteudoMissaoBackground(missaoId: string): Promise<boolean>
         if (insertError) {
             if (insertError.code === '23505') {
                 console.log(`[BackgroundContent] Conteúdo já em criação (race condition)`);
+                contentGenerationInProgress.delete(missaoId);
                 return false;
             }
             throw insertError;
@@ -1345,21 +1446,21 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
             console.log(`[BackgroundContent] Roteiro gerado (${roteiro.length} chars)`);
         }
 
-        // 8. Gerar TTS (opcional, não bloqueia se falhar)
+        // 8. Gerar TTS (sem timeout - processo assíncrono pode levar o tempo que precisar)
         let audioUrl: string | null = null;
         if (roteiro && roteiro.length > 100) {
             try {
-                console.log(`[BackgroundContent] Gerando TTS para missão ${missaoId}...`);
+                console.log(`[BackgroundContent] Gerando TTS para missão ${missaoId} (${roteiro.length} chars)...`);
 
                 const client = getGeminiClient();
                 if (client) {
-                    const textoLimitado = roteiro.length > 5000 ? roteiro.substring(0, 5000) + '...' : roteiro;
-
+                    // Sem limite de texto - geramos o áudio completo no background
+                    // IMPORTANTE: Não incluir instruções no texto, apenas o conteúdo a ser narrado
                     const audioResponse = await client.models.generateContent({
                         model: 'gemini-2.5-flash-preview-tts',
                         contents: [{
                             parts: [{
-                                text: `Leia o seguinte texto de forma clara, natural e didática em português brasileiro, como um professor explicando:\n\n${textoLimitado}`
+                                text: roteiro
                             }]
                         }],
                         config: {
@@ -1458,30 +1559,42 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
             .eq('missao_id', missaoId);
 
         return false;
+    } finally {
+        // Sempre limpar do Set quando terminar (sucesso ou falha)
+        contentGenerationInProgress.delete(missaoId);
     }
 }
 
-// Helper: Buscar primeiras N missões de um preparatório
+// Helper: Buscar primeiras N missões de um preparatório (atravessa rodadas se necessário)
 async function getPrimeirasMissoes(preparatorioId: string, limite: number = 2): Promise<string[]> {
+    // Buscar todas as rodadas ordenadas
     const { data: rodadas, error } = await supabase
         .from('rodadas')
         .select('id')
         .eq('preparatorio_id', preparatorioId)
-        .order('ordem', { ascending: true })
-        .limit(1);
+        .order('ordem', { ascending: true });
 
     if (error || !rodadas?.length) return [];
 
-    const { data: missoes, error: missoesError } = await supabase
-        .from('missoes')
-        .select('id')
-        .eq('rodada_id', rodadas[0].id)
-        .order('ordem', { ascending: true })
-        .limit(limite);
+    const missaoIds: string[] = [];
 
-    if (missoesError || !missoes) return [];
+    // Percorrer rodadas até ter missões suficientes
+    for (const rodada of rodadas) {
+        if (missaoIds.length >= limite) break;
 
-    return missoes.map(m => m.id);
+        const { data: missoes } = await supabase
+            .from('missoes')
+            .select('id')
+            .eq('rodada_id', rodada.id)
+            .order('ordem', { ascending: true })
+            .limit(limite - missaoIds.length);
+
+        if (missoes) {
+            missaoIds.push(...missoes.map(m => m.id));
+        }
+    }
+
+    return missaoIds.slice(0, limite);
 }
 
 // Helper: Buscar próxima missão
@@ -1535,6 +1648,66 @@ async function getProximaMissao(missaoAtualId: string): Promise<string | null> {
     return primeiraMissao?.id || null;
 }
 
+// Helper: Buscar próximas N missões (atravessa rodadas)
+async function getProximasMissoes(missaoAtualId: string, quantidade: number = 2): Promise<string[]> {
+    // Buscar missão atual
+    const { data: missaoAtual, error: missaoError } = await supabase
+        .from('missoes')
+        .select('id, ordem, rodada_id, rodadas(preparatorio_id, ordem)')
+        .eq('id', missaoAtualId)
+        .single();
+
+    if (missaoError || !missaoAtual) return [];
+
+    const preparatorioId = (missaoAtual.rodadas as any)?.preparatorio_id;
+    const rodadaAtualOrdem = (missaoAtual.rodadas as any)?.ordem;
+    if (!preparatorioId) return [];
+
+    const proximasMissoes: string[] = [];
+
+    // 1. Buscar missões restantes na rodada atual
+    const { data: missoesNaRodada } = await supabase
+        .from('missoes')
+        .select('id')
+        .eq('rodada_id', missaoAtual.rodada_id)
+        .gt('ordem', missaoAtual.ordem)
+        .order('ordem', { ascending: true })
+        .limit(quantidade);
+
+    if (missoesNaRodada) {
+        proximasMissoes.push(...missoesNaRodada.map(m => m.id));
+    }
+
+    // 2. Se ainda não tem o suficiente, buscar das próximas rodadas
+    if (proximasMissoes.length < quantidade) {
+        const { data: proximasRodadas } = await supabase
+            .from('rodadas')
+            .select('id')
+            .eq('preparatorio_id', preparatorioId)
+            .gt('ordem', rodadaAtualOrdem)
+            .order('ordem', { ascending: true });
+
+        if (proximasRodadas) {
+            for (const rodada of proximasRodadas) {
+                if (proximasMissoes.length >= quantidade) break;
+
+                const { data: missoes } = await supabase
+                    .from('missoes')
+                    .select('id')
+                    .eq('rodada_id', rodada.id)
+                    .order('ordem', { ascending: true })
+                    .limit(quantidade - proximasMissoes.length);
+
+                if (missoes) {
+                    proximasMissoes.push(...missoes.map(m => m.id));
+                }
+            }
+        }
+    }
+
+    return proximasMissoes.slice(0, quantidade);
+}
+
 // Endpoint: Gerar conteúdo em background (fire-and-forget)
 app.post('/api/missao/gerar-conteudo-background', async (req, res) => {
     const { missao_id } = req.body;
@@ -1582,7 +1755,9 @@ app.post('/api/preparatorio/gerar-conteudo-inicial', async (req, res) => {
     });
 });
 
-// Endpoint: Trigger geração da próxima missão (chamado quando aluno acessa uma missão)
+// Endpoint: Trigger geração da missão 2 posições à frente (chamado quando aluno acessa uma missão)
+// Exemplo: Aluno na missão 1 → gera missão 3 | Aluno na missão 2 → gera missão 4
+// Isso garante que sempre há 1 missão pronta à frente do aluno
 app.post('/api/missao/trigger-proxima', async (req, res) => {
     const { missao_id } = req.body;
 
@@ -1592,31 +1767,49 @@ app.post('/api/missao/trigger-proxima', async (req, res) => {
     }
 
     // Responde imediatamente
-    res.json({ success: true, message: 'Verificação iniciada' });
+    res.json({ success: true, message: 'Pré-geração iniciada em background' });
 
     // Verifica e gera em background
     (async () => {
-        const proximaMissaoId = await getProximaMissao(missao_id);
+        // Buscar as próximas 2 missões, mas só gerar a segunda (2 posições à frente)
+        const proximasMissoes = await getProximasMissoes(missao_id, 2);
 
-        if (!proximaMissaoId) {
-            console.log(`[BackgroundContent] Nenhuma próxima missão após ${missao_id}`);
+        if (proximasMissoes.length < 2) {
+            console.log(`[BackgroundContent] Menos de 2 missões restantes após ${missao_id}`);
+            // Se só tem 1 missão restante, gerar ela
+            if (proximasMissoes.length === 1) {
+                const missaoId = proximasMissoes[0];
+                const { data: existingContent } = await supabase
+                    .from('missao_conteudos')
+                    .select('status')
+                    .eq('missao_id', missaoId)
+                    .maybeSingle();
+
+                if (!existingContent || (existingContent.status !== 'completed' && existingContent.status !== 'generating')) {
+                    console.log(`[BackgroundContent] Gerando última missão disponível: ${missaoId}`);
+                    await gerarConteudoMissaoBackground(missaoId);
+                }
+            }
             return;
         }
 
-        // Verificar se próxima já tem conteúdo
+        // Pegar a missão 2 posições à frente (índice 1)
+        const missaoAFrente = proximasMissoes[1];
+
+        // Verificar se já tem conteúdo
         const { data: existingContent } = await supabase
             .from('missao_conteudos')
             .select('status')
-            .eq('missao_id', proximaMissaoId)
+            .eq('missao_id', missaoAFrente)
             .maybeSingle();
 
         if (existingContent?.status === 'completed' || existingContent?.status === 'generating') {
-            console.log(`[BackgroundContent] Próxima missão ${proximaMissaoId} já tem/está gerando conteúdo`);
+            console.log(`[BackgroundContent] Missão ${missaoAFrente} (N+2) já tem/está gerando conteúdo`);
             return;
         }
 
-        console.log(`[BackgroundContent] Iniciando geração para próxima missão ${proximaMissaoId}`);
-        await gerarConteudoMissaoBackground(proximaMissaoId);
+        console.log(`[BackgroundContent] Gerando missão ${missaoAFrente} (2 posições à frente de ${missao_id})`);
+        await gerarConteudoMissaoBackground(missaoAFrente);
     })().catch(err => {
         console.error(`[BackgroundContent] Erro ao trigger próxima:`, err);
     });
@@ -1717,9 +1910,10 @@ app.post('/api/preparatorio/gerar-rodadas', async (req, res) => {
 
         // Configuração padrão
         const configuracao: ConfiguracaoGeracao = {
-            missoes_por_rodada: config?.missoes_por_rodada || 5,
+            materias_por_rodada: config?.materias_por_rodada || 5,
             max_topicos_por_missao: config?.max_topicos_por_missao || 3,
-            incluir_revisoes: config?.incluir_revisoes !== false,
+            incluir_revisao_op: config?.incluir_revisao_op !== false,
+            incluir_tecnicas_op: config?.incluir_tecnicas_op !== false,
             incluir_simulado: config?.incluir_simulado !== false,
             gerar_filtros_questoes: config?.gerar_filtros_questoes !== false,
         };
@@ -2071,9 +2265,10 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
 
         // Configuração padrão
         const config: ConfiguracaoGeracao = {
-            missoes_por_rodada: 5,
+            materias_por_rodada: 5,
             max_topicos_por_missao: 3,
-            incluir_revisoes: true,
+            incluir_revisao_op: true,
+            incluir_tecnicas_op: true,
             incluir_simulado: true,
             gerar_filtros_questoes: true,
         };
@@ -2387,9 +2582,10 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
         }
 
         const config: ConfiguracaoGeracao = {
-            missoes_por_rodada: 5,
+            materias_por_rodada: 5,
             max_topicos_por_missao: 3,
-            incluir_revisoes: true,
+            incluir_revisao_op: true,
+            incluir_tecnicas_op: true,
             incluir_simulado: true,
             gerar_filtros_questoes: true,
         };
@@ -2694,9 +2890,10 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
 
         // Gerar rodadas sem persistir
         const config: ConfiguracaoGeracao = {
-            missoes_por_rodada: 5,
+            materias_por_rodada: 5,
             max_topicos_por_missao: 3,
-            incluir_revisoes: true,
+            incluir_revisao_op: true,
+            incluir_tecnicas_op: true,
             incluir_simulado: true,
             gerar_filtros_questoes: true,
         };
@@ -2826,9 +3023,10 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
 
         // Gerar rodadas com a nova ordem
         const config: ConfiguracaoGeracao = {
-            missoes_por_rodada: 5,
+            materias_por_rodada: 5,
             max_topicos_por_missao: 3,
-            incluir_revisoes: true,
+            incluir_revisao_op: true,
+            incluir_tecnicas_op: true,
             incluir_simulado: true,
             gerar_filtros_questoes: true,
         };
