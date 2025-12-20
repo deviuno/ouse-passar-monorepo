@@ -75,8 +75,8 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
       </div>
 
       {/* User Info */}
-      <div className={`border-b border-[#3A3A3A] ${isCollapsed ? 'p-3' : 'p-4'}`}>
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+      <div className={`border-b border-[#3A3A3A] ${isCollapsed ? 'p-3' : 'p-3.5'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'}`}>
           {/* Profile Photo with Progress Ring */}
           <button
             onClick={() => navigate('/perfil')}
@@ -85,37 +85,42 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
           >
             <CircularProgress
               value={xpProgress.percentage}
-              size={isCollapsed ? 44 : 50}
-              strokeWidth={4}
+              size={isCollapsed ? 38 : 44}
+              strokeWidth={2}
               color="brand"
               showLabel={false}
             >
-              {profile?.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt="Profile"
-                  className={`rounded-full object-cover ${isCollapsed ? 'w-8 h-8' : 'w-9 h-9'}`}
-                />
-              ) : (
-                <div className={`rounded-full bg-[#3A3A3A] flex items-center justify-center ${isCollapsed ? 'w-8 h-8' : 'w-9 h-9'}`}>
-                  <User size={isCollapsed ? 16 : 18} className="text-[#A0A0A0]" />
-                </div>
-              )}
+              <div className={`rounded-full overflow-hidden ${isCollapsed ? 'w-7 h-7' : 'w-8 h-8'}`}>
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-[#3A3A3A] flex items-center justify-center">
+                    <User size={isCollapsed ? 14 : 16} className="text-[#A0A0A0]" />
+                  </div>
+                )}
+              </div>
             </CircularProgress>
             <div className="absolute inset-0 rounded-full bg-[#FFB800]/0 group-hover:bg-[#FFB800]/10 transition-colors" />
           </button>
 
           {!isCollapsed && (
-            <>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-medium truncate">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-white font-medium truncate text-sm">
                   {profile?.name || 'Estudante'}
                 </p>
-                <p className="text-[#A0A0A0] text-sm">
-                  {stats.xp} XP
-                </p>
+                <button className="text-[#A0A0A0] hover:text-[#FFB800] transition-colors p-0.5">
+                  <span className="text-xs">🔔</span>
+                </button>
               </div>
-            </>
+              <p className="text-[#A0A0A0] text-[11px] -mt-0.5">
+                {stats.xp} XP
+              </p>
+            </div>
           )}
         </div>
 

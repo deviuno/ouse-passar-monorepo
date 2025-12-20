@@ -62,6 +62,7 @@ export interface UserProfile {
   email?: string;
   name?: string;
   avatar_url?: string;
+  role?: 'admin' | 'user';
   xp: number;
   coins: number;
   streak: number;

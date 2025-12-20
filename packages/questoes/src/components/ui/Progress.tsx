@@ -76,7 +76,7 @@ export function CircularProgress({
   value,
   max = 100,
   size = 80,
-  strokeWidth = 8,
+  strokeWidth = 4,
   color = 'brand',
   showLabel = true,
   children,

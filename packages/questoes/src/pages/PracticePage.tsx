@@ -592,6 +592,7 @@ export default function PracticePage() {
             studyMode={studyMode}
             initialTime={studyMode === 'hard' ? 3 : undefined}
             userId={user?.id}
+            userRole={useAuthStore.getState().profile?.role}
             onShowToast={handleShowToast}
           />
         </div>
@@ -733,15 +734,13 @@ export default function PracticePage() {
               {/* Apenas Revisadas */}
               <button
                 onClick={() => setToggleFilters(prev => ({ ...prev, apenasRevisadas: !prev.apenasRevisadas }))}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                  toggleFilters.apenasRevisadas
+                className={`flex items-center gap-3 p-3 rounded-lg transition-all ${toggleFilters.apenasRevisadas
                     ? 'bg-[#2ECC71]/10 border border-[#2ECC71]'
                     : 'bg-[#252525] border border-[#3A3A3A] hover:border-[#4A4A4A]'
-                }`}
+                  }`}
               >
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                  toggleFilters.apenasRevisadas ? 'bg-[#2ECC71] border-[#2ECC71]' : 'border-[#4A4A4A]'
-                }`}>
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${toggleFilters.apenasRevisadas ? 'bg-[#2ECC71] border-[#2ECC71]' : 'border-[#4A4A4A]'
+                  }`}>
                   {toggleFilters.apenasRevisadas && <Check size={12} className="text-black" />}
                 </div>
                 <div className="text-left flex-1">
@@ -756,15 +755,13 @@ export default function PracticePage() {
               {/* Com Comentário */}
               <button
                 onClick={() => setToggleFilters(prev => ({ ...prev, apenasComComentario: !prev.apenasComComentario }))}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                  toggleFilters.apenasComComentario
+                className={`flex items-center gap-3 p-3 rounded-lg transition-all ${toggleFilters.apenasComComentario
                     ? 'bg-[#3498DB]/10 border border-[#3498DB]'
                     : 'bg-[#252525] border border-[#3A3A3A] hover:border-[#4A4A4A]'
-                }`}
+                  }`}
               >
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                  toggleFilters.apenasComComentario ? 'bg-[#3498DB] border-[#3498DB]' : 'border-[#4A4A4A]'
-                }`}>
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${toggleFilters.apenasComComentario ? 'bg-[#3498DB] border-[#3498DB]' : 'border-[#4A4A4A]'
+                  }`}>
                   {toggleFilters.apenasComComentario && <Check size={12} className="text-black" />}
                 </div>
                 <div className="text-left flex-1">
@@ -947,9 +944,8 @@ export default function PracticePage() {
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => setStudyMode('zen')}
-            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${
-              studyMode === 'zen' ? 'border-teal-500 bg-teal-500/10' : 'border-[#3A3A3A] hover:border-[#4A4A4A]'
-            }`}
+            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${studyMode === 'zen' ? 'border-teal-500 bg-teal-500/10' : 'border-[#3A3A3A] hover:border-[#4A4A4A]'
+              }`}
           >
             <Coffee size={20} className={studyMode === 'zen' ? 'text-teal-400' : 'text-[#6E6E6E]'} />
             <span className={`text-xs font-medium ${studyMode === 'zen' ? 'text-teal-400' : 'text-white'}`}>Zen</span>
@@ -957,9 +953,8 @@ export default function PracticePage() {
           </button>
           <button
             onClick={() => setStudyMode('reta_final')}
-            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${
-              studyMode === 'reta_final' ? 'border-purple-500 bg-purple-500/10' : 'border-[#3A3A3A] hover:border-[#4A4A4A]'
-            }`}
+            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${studyMode === 'reta_final' ? 'border-purple-500 bg-purple-500/10' : 'border-[#3A3A3A] hover:border-[#4A4A4A]'
+              }`}
           >
             <Zap size={20} className={studyMode === 'reta_final' ? 'text-purple-400' : 'text-[#6E6E6E]'} />
             <span className={`text-xs font-medium ${studyMode === 'reta_final' ? 'text-purple-400' : 'text-white'}`}>
@@ -969,9 +964,8 @@ export default function PracticePage() {
           </button>
           <button
             onClick={() => setStudyMode('hard')}
-            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${
-              studyMode === 'hard' ? 'border-red-500 bg-red-500/10' : 'border-[#3A3A3A] hover:border-[#4A4A4A]'
-            }`}
+            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${studyMode === 'hard' ? 'border-red-500 bg-red-500/10' : 'border-[#3A3A3A] hover:border-[#4A4A4A]'
+              }`}
           >
             <Timer size={20} className={studyMode === 'hard' ? 'text-red-400' : 'text-[#6E6E6E]'} />
             <span className={`text-xs font-medium ${studyMode === 'hard' ? 'text-red-400' : 'text-white'}`}>Simulado</span>
@@ -988,9 +982,8 @@ export default function PracticePage() {
             <button
               key={count}
               onClick={() => setQuestionCount(count)}
-              className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                questionCount === count ? 'bg-[#FFB800] text-black' : 'bg-[#3A3A3A] text-white hover:bg-[#4A4A4A]'
-              }`}
+              className={`flex-1 py-2 rounded-lg font-medium transition-colors ${questionCount === count ? 'bg-[#FFB800] text-black' : 'bg-[#3A3A3A] text-white hover:bg-[#4A4A4A]'
+                }`}
             >
               {count}
             </button>
