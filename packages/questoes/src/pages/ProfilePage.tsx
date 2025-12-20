@@ -70,9 +70,11 @@ function MenuButton({
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { profile, logout } = useAuthStore();
+  const { profile, logout, updateProfile } = useAuthStore();
   const { stats } = useUserStore();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const xpProgress = calculateXPProgress(stats.xp);
   const level = calculateLevel(stats.xp);
@@ -82,7 +84,38 @@ export default function ProfilePage() {
     navigate('/auth');
   };
 
-  // League tier display
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !profile?.id) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione uma imagem válida.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('A imagem deve ter no máximo 5MB.');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const { uploadAvatar } = await import('../services/avatarService');
+      const { url, error } = await uploadAvatar(profile.id, file);
+
+      if (error) throw error;
+
+      if (url) {
+        await updateProfile({ avatar_url: url });
+      }
+    } catch (error: any) {
+      console.error('Erro ao fazer upload da foto:', error);
+      alert('Erro ao carregar imagem: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const leagueTiers = {
     ferro: { label: 'Liga Ferro', color: '#6E6E6E', emoji: '🔩' },
     bronze: { label: 'Liga Bronze', color: '#CD7F32', emoji: '🥉' },
@@ -91,17 +124,72 @@ export default function ProfilePage() {
     diamante: { label: 'Liga Diamante', color: '#B9F2FF', emoji: '💎' },
   };
 
+  const achievements = [
+    {
+      id: 'first-step',
+      emoji: '🎯',
+      title: 'Primeiro Passo',
+      description: 'Concluiu sua primeira missão na trilha.',
+      unlocked: true,
+      progress: 100,
+    },
+    {
+      id: 'streak-3',
+      emoji: '🔥',
+      title: 'Em Chamas',
+      description: 'Mantenha uma ofensiva de 3 dias consecutivos.',
+      unlocked: stats.streak >= 3,
+      progress: Math.min((stats.streak / 3) * 100, 100),
+    },
+    {
+      id: 'scholar',
+      emoji: '📚',
+      title: 'Estudioso',
+      description: 'Respondeu mais de 100 questões.',
+      unlocked: stats.totalAnswered >= 100,
+      progress: Math.min((stats.totalAnswered / 100) * 100, 100),
+    },
+    {
+      id: 'perfectionist',
+      emoji: '⭐',
+      title: 'Perfeccionista',
+      description: 'Acertou 10 questões seguidas sem errar.',
+      unlocked: false,
+      progress: 40,
+    },
+    {
+      id: 'league-pioneer',
+      emoji: '🏆',
+      title: 'Pioneiro da Liga',
+      description: 'Subiu para a Liga Bronze.',
+      unlocked: profile?.league_tier !== 'ferro',
+      progress: profile?.league_tier !== 'ferro' ? 100 : 0,
+    },
+  ];
+
   const currentLeague = leagueTiers[profile?.league_tier || 'ferro'];
 
   return (
-    <div className="p-4 pb-24">
+    <div className="p-4 pb-24 max-w-2xl mx-auto">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* Profile Header */}
       <Card className="mb-6">
         <div className="flex items-center gap-4">
           {/* Avatar */}
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-[#3A3A3A] flex items-center justify-center overflow-hidden">
-              {profile?.avatar_url ? (
+            <div className={`w-20 h-20 rounded-full bg-[#3A3A3A] flex items-center justify-center overflow-hidden border-2 ${isUploading ? 'border-[#FFB800] animate-pulse' : 'border-[#2A2A2A]'}`}>
+              {isUploading ? (
+                <div className="flex flex-col items-center gap-1">
+                  <div className="w-5 h-5 border-2 border-[#FFB800] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : profile?.avatar_url ? (
                 <img
                   src={profile.avatar_url}
                   alt="Avatar"
@@ -111,7 +199,11 @@ export default function ProfilePage() {
                 <User size={32} className="text-[#6E6E6E]" />
               )}
             </div>
-            <button className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#FFB800] flex items-center justify-center shadow-lg">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className={`absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#FFB800] flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
               <Camera size={14} className="text-black" />
             </button>
           </div>
@@ -168,26 +260,43 @@ export default function ProfilePage() {
         />
       </div>
 
-      {/* Achievements Preview */}
+      {/* Achievements Elaborated */}
       <Card className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-white font-semibold">Conquistas</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-semibold">Minhas Conquistas</h3>
           <button className="text-[#FFB800] text-sm hover:underline">Ver todas</button>
         </div>
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {['🎯', '🔥', '📚', '⭐', '🏆'].map((emoji, i) => (
-            <motion.div
-              key={i}
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: i * 0.1 }}
-              className={`
-                w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0
-                ${i < 3 ? 'bg-[#FFB800]/20' : 'bg-[#3A3A3A]'}
-              `}
-            >
-              {i < 3 ? emoji : '🔒'}
-            </motion.div>
+        <div className="space-y-4">
+          {achievements.map((achievement) => (
+            <div key={achievement.id} className="flex items-center gap-4 p-3 rounded-xl bg-[#2A2A2A]/50 border border-[#3A3A3A]">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 ${achievement.unlocked ? 'bg-[#FFB800]/20' : 'bg-[#1A1A1A] grayscale'}`}>
+                {achievement.unlocked ? achievement.emoji : '🔒'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start mb-1">
+                  <h4 className={`font-medium text-sm ${achievement.unlocked ? 'text-white' : 'text-[#6E6E6E]'}`}>
+                    {achievement.title}
+                  </h4>
+                  {achievement.progress < 100 && !achievement.unlocked && (
+                    <span className="text-[10px] text-[#A0A0A0]">{Math.round(achievement.progress)}%</span>
+                  )}
+                </div>
+                <p className="text-xs text-[#A0A0A0] line-clamp-1">{achievement.description}</p>
+                {!achievement.unlocked && (
+                  <div className="mt-2 h-1 bg-[#1A1A1A] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#FFB800] transition-all duration-500"
+                      style={{ width: `${achievement.progress}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+              {achievement.unlocked && (
+                <div className="w-5 h-5 rounded-full bg-[#2ECC71]/20 flex items-center justify-center">
+                  <span className="text-[#2ECC71] text-[10px]">✓</span>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </Card>
@@ -262,3 +371,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
