@@ -6,3 +6,5 @@ export { ToastContainer } from './Toast';
 export { FadeIn, StaggerContainer, StaggerItem } from './animations/FadeIn';
 export { Confetti, SuccessCelebration } from './animations/Confetti';
 export { FloatingChatButton } from './FloatingChatButton';
+export { MermaidDiagram } from './MermaidDiagram';
+export { MarkdownContent } from './MarkdownContent';

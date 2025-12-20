@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import ReactMarkdown from 'react-markdown';
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useMissionStore, useTrailStore, useUserStore, useUIStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
-import { Button, Card, Progress, CircularProgress, SuccessCelebration, FadeIn, FloatingChatButton } from '../components/ui';
+import { Button, Card, Progress, CircularProgress, SuccessCelebration, FadeIn, FloatingChatButton, MarkdownContent } from '../components/ui';
 import { QuestionCard } from '../components/question';
 import { ParsedQuestion, TrailMission, MissionStatus } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
@@ -647,12 +646,12 @@ function ContentPhase({
           </div>
         )}
 
-        {/* Text Content with Markdown */}
+        {/* Text Content with Markdown and Mermaid diagrams */}
         <Card className="p-0 overflow-hidden">
           <div className="mission-content p-6">
-            <ReactMarkdown>
-              {content?.texto_content || 'Conteudo nao disponivel para esta missao.'}
-            </ReactMarkdown>
+            <MarkdownContent
+              content={content?.texto_content || 'Conteudo nao disponivel para esta missao.'}
+            />
           </div>
         </Card>
       </div>
@@ -1660,11 +1659,12 @@ export default function MissionPage() {
                 }
               : {
                   // Extrair título: assunto pode ser objeto (TrailMission) ou string (Missao)
+                  // Usamos 'as any' porque a missão pode ter campos extras vindos de _missaoOriginal
                   title: (typeof currentMission?.assunto === 'string' ? currentMission?.assunto : currentMission?.assunto?.nome)
-                    || currentMission?.tema
+                    || (currentMission as any)?.tema
                     || (typeof currentMission?.materia === 'string' ? currentMission?.materia : currentMission?.materia?.materia)
                     || 'Aula',
-                  text: missaoConteudo?.texto_content || `Conteúdo sobre ${(typeof currentMission?.assunto === 'string' ? currentMission?.assunto : currentMission?.assunto?.nome) || currentMission?.tema || 'o tema'}`
+                  text: missaoConteudo?.texto_content || `Conteúdo sobre ${(typeof currentMission?.assunto === 'string' ? currentMission?.assunto : currentMission?.assunto?.nome) || (currentMission as any)?.tema || 'o tema'}`
                 }
           }
           userContext={{
