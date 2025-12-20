@@ -31,6 +31,7 @@ import {
     finalizarMontagem,
     getMissoesPorRodada,
 } from './services/missionBuilderService.js';
+import * as storeService from './services/storeService.js';
 import multer from 'multer';
 
 // Load environment variables
@@ -3594,6 +3595,328 @@ app.post('/api/preparatorio/:id/finalizar-montagem', async (req, res) => {
             success: false,
             error: error.message || 'Erro ao finalizar montagem',
         });
+    }
+});
+
+// ==================== STORE ENDPOINTS ====================
+
+/**
+ * Listar categorias da loja
+ */
+app.get('/api/store/categories', async (req, res) => {
+    try {
+        const categories = await storeService.getCategories();
+        return res.json({ success: true, categories });
+    } catch (error: any) {
+        console.error('[Store] Erro ao buscar categorias:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Listar produtos da loja (com filtros opcionais)
+ */
+app.get('/api/store/products', async (req, res) => {
+    try {
+        const { category, type, featured, search } = req.query;
+        const products = await storeService.getProducts({
+            category_slug: category as string,
+            product_type: type as string,
+            is_featured: featured === 'true',
+            search: search as string,
+        });
+        return res.json({ success: true, products });
+    } catch (error: any) {
+        console.error('[Store] Erro ao buscar produtos:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Buscar produto por ID
+ */
+app.get('/api/store/products/:id', async (req, res) => {
+    try {
+        const product = await storeService.getProductById(req.params.id);
+        if (!product) {
+            return res.status(404).json({ success: false, error: 'Produto não encontrado' });
+        }
+        return res.json({ success: true, product });
+    } catch (error: any) {
+        console.error('[Store] Erro ao buscar produto:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Produtos em destaque
+ */
+app.get('/api/store/featured', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 6;
+        const products = await storeService.getFeaturedProducts(limit);
+        return res.json({ success: true, products });
+    } catch (error: any) {
+        console.error('[Store] Erro ao buscar produtos em destaque:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Comprar produto com moedas
+ */
+app.post('/api/store/purchase/coins', async (req, res) => {
+    try {
+        const { userId, itemId, quantity } = req.body;
+        if (!userId || !itemId) {
+            return res.status(400).json({ success: false, error: 'userId e itemId são obrigatórios' });
+        }
+        const result = await storeService.purchaseWithCoins(userId, itemId, quantity || 1);
+        return res.json(result);
+    } catch (error: any) {
+        console.error('[Store] Erro ao comprar produto:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Histórico de compras do usuário
+ */
+app.get('/api/store/purchases/:userId', async (req, res) => {
+    try {
+        const purchases = await storeService.getUserPurchases(req.params.userId);
+        return res.json({ success: true, purchases });
+    } catch (error: any) {
+        console.error('[Store] Erro ao buscar compras:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Inventário do usuário
+ */
+app.get('/api/store/inventory/:userId', async (req, res) => {
+    try {
+        const inventory = await storeService.getUserInventory(req.params.userId);
+        return res.json({ success: true, inventory });
+    } catch (error: any) {
+        console.error('[Store] Erro ao buscar inventário:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Equipar item do inventário
+ */
+app.post('/api/store/inventory/:inventoryId/equip', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) {
+            return res.status(400).json({ success: false, error: 'userId é obrigatório' });
+        }
+        const result = await storeService.equipItem(userId, req.params.inventoryId);
+        return res.json(result);
+    } catch (error: any) {
+        console.error('[Store] Erro ao equipar item:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Boosts ativos do usuário
+ */
+app.get('/api/store/boosts/:userId', async (req, res) => {
+    try {
+        const boosts = await storeService.getUserActiveBoosts(req.params.userId);
+        return res.json({ success: true, boosts });
+    } catch (error: any) {
+        console.error('[Store] Erro ao buscar boosts:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Usar boost
+ */
+app.post('/api/store/boosts/:boostId/use', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) {
+            return res.status(400).json({ success: false, error: 'userId é obrigatório' });
+        }
+        const result = await storeService.useBoost(req.params.boostId, userId);
+        return res.json(result);
+    } catch (error: any) {
+        console.error('[Store] Erro ao usar boost:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Ativar modo Reta Final
+ */
+app.post('/api/trails/:trailId/reta-final', async (req, res) => {
+    try {
+        const { userId, dataProva } = req.body;
+        if (!userId || !dataProva) {
+            return res.status(400).json({ success: false, error: 'userId e dataProva são obrigatórios' });
+        }
+        const result = await storeService.activateRetaFinal(userId, req.params.trailId, dataProva);
+        return res.json(result);
+    } catch (error: any) {
+        console.error('[Store] Erro ao ativar Reta Final:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * Status do Reta Final
+ */
+app.get('/api/trails/:trailId/reta-final/:userId', async (req, res) => {
+    try {
+        const status = await storeService.getRetaFinalStatus(req.params.userId, req.params.trailId);
+        return res.json({ success: true, status });
+    } catch (error: any) {
+        console.error('[Store] Erro ao buscar status Reta Final:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==================== STORE ADMIN ENDPOINTS ====================
+
+/**
+ * [Admin] Listar todas categorias
+ */
+app.get('/api/admin/store/categories', async (req, res) => {
+    try {
+        const categories = await storeService.getAllCategories();
+        return res.json({ success: true, categories });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * [Admin] Criar categoria
+ */
+app.post('/api/admin/store/categories', async (req, res) => {
+    try {
+        const category = await storeService.createCategory(req.body);
+        return res.json({ success: true, category });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * [Admin] Atualizar categoria
+ */
+app.put('/api/admin/store/categories/:id', async (req, res) => {
+    try {
+        const category = await storeService.updateCategory(req.params.id, req.body);
+        return res.json({ success: true, category });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * [Admin] Deletar categoria
+ */
+app.delete('/api/admin/store/categories/:id', async (req, res) => {
+    try {
+        await storeService.deleteCategory(req.params.id);
+        return res.json({ success: true });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * [Admin] Listar todos produtos
+ */
+app.get('/api/admin/store/products', async (req, res) => {
+    try {
+        const products = await storeService.getAllProducts();
+        return res.json({ success: true, products });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * [Admin] Criar produto
+ */
+app.post('/api/admin/store/products', async (req, res) => {
+    try {
+        const product = await storeService.createProduct(req.body);
+        return res.json({ success: true, product });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * [Admin] Atualizar produto
+ */
+app.put('/api/admin/store/products/:id', async (req, res) => {
+    try {
+        const product = await storeService.updateProduct(req.params.id, req.body);
+        return res.json({ success: true, product });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * [Admin] Deletar produto
+ */
+app.delete('/api/admin/store/products/:id', async (req, res) => {
+    try {
+        await storeService.deleteProduct(req.params.id);
+        return res.json({ success: true });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * [Admin] Listar todas compras
+ */
+app.get('/api/admin/store/purchases', async (req, res) => {
+    try {
+        const { status, limit } = req.query;
+        const purchases = await storeService.getAllPurchases({
+            status: status as string,
+            limit: limit ? parseInt(limit as string) : undefined,
+        });
+        return res.json({ success: true, purchases });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * [Admin] Estatísticas da loja
+ */
+app.get('/api/admin/store/stats', async (req, res) => {
+    try {
+        const stats = await storeService.getStoreStats();
+        return res.json({ success: true, stats });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * [Admin] Sincronizar preparatórios com a loja
+ */
+app.post('/api/admin/store/sync-preparatorios', async (req, res) => {
+    try {
+        const result = await storeService.syncPreparatoriosToStore();
+        return res.json({ success: true, ...result });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, error: error.message });
     }
 });
 
