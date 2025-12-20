@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   X,
   Upload,
@@ -107,6 +108,7 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
   onClose,
   onSuccess,
 }) => {
+  const navigate = useNavigate();
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -287,6 +289,7 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     setError(null);
 
     try {
+      // Salvar a ordem das matérias
       const response = await fetch(`${MASTRA_SERVER_URL}/api/preparatorio/confirm-rodadas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -297,29 +300,17 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
             prioridade: idx + 1,
           })),
           banca: previewData.preparatorioInfo.banca,
+          // Indicar que vamos usar o sistema híbrido (não gerar missões automaticamente)
+          sistemaHibrido: true,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setResultado({
-          success: true,
-          preparatorio: {
-            id: previewData.preparatorioId,
-            ...previewData.preparatorioInfo,
-          },
-          estatisticas: {
-            blocos: previewData.estatisticas.blocos,
-            materias: previewData.estatisticas.materias,
-            topicos: previewData.estatisticas.topicos,
-            rodadas: data.estatisticas.rodadas,
-            missoes: data.estatisticas.missoes,
-            mensagens_incentivo: data.estatisticas.mensagens_incentivo,
-            tempo_processamento_ms: previewData.estatisticas.tempo_analise_ms,
-          },
-        });
-        setPreviewData(null);
+        // Fechar modal e redirecionar para o MissionBuilder
+        onClose();
+        navigate(`/admin/preparatorios/${previewData.preparatorioId}/montar-missoes`);
       } else {
         setError(data.error || 'Erro ao confirmar rodadas');
       }
@@ -973,12 +964,12 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                 {isConfirming ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Criando Rodadas...
+                    Preparando...
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="w-4 h-4" />
-                    Confirmar e Criar
+                    <Target className="w-4 h-4" />
+                    Montar Missões
                   </>
                 )}
               </button>

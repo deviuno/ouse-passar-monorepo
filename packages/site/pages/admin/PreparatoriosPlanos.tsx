@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, EyeOff, List, MoreVertical, Book, ChevronRight, MessageSquare, LayoutGrid, LayoutList, FileText, Sparkles } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, List, MoreVertical, Book, ChevronRight, MessageSquare, LayoutGrid, LayoutList, FileText, Sparkles, Target } from 'lucide-react';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { Preparatorio } from '../../lib/database.types';
 import { QuickCreatePreparatorioModal } from '../../components/admin/QuickCreatePreparatorioModal';
@@ -489,6 +489,16 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
       {/* Actions */}
       <div className="space-y-2">
         <Link
+          to={`/admin/preparatorios/${prep.id}/montar-missoes`}
+          className="flex items-center justify-between w-full p-3 bg-purple-500/10 border border-purple-500/30 text-sm text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4" />
+            <span>Montar Missões</span>
+          </div>
+          <ChevronRight className="w-4 h-4" />
+        </Link>
+        <Link
           to={`/admin/preparatorios/${prep.id}/rodadas`}
           className="flex items-center justify-between w-full p-3 bg-brand-dark/50 border border-white/10 text-sm text-gray-300 hover:border-brand-yellow/30 hover:text-white transition-colors"
         >
@@ -599,6 +609,13 @@ const PreparatorioListRow: React.FC<PreparatorioListRowProps> = ({
     </td>
     <td className="px-4 py-4">
       <div className="flex items-center justify-end gap-1">
+        <Link
+          to={`/admin/preparatorios/${prep.id}/montar-missoes`}
+          className="p-2 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded transition-colors"
+          title="Montar Missões"
+        >
+          <Target className="w-4 h-4" />
+        </Link>
         <Link
           to={`/admin/preparatorios/${prep.id}/rodadas`}
           className="p-2 text-gray-500 hover:text-brand-yellow hover:bg-brand-yellow/10 rounded transition-colors"

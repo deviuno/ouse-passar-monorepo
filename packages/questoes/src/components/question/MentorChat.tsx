@@ -168,12 +168,87 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
             return words.join(' ');
         };
 
+        // Extrair tema do conteúdo da aula se disponível
+        const extractThemeFromContent = (text: string | undefined): string | null => {
+            if (!text || text.length < 50) return null;
+
+            // Procurar por padrões comuns em textos de aula
+            // 1. Primeiro título markdown (# ou ##) - mais comum em conteúdo gerado
+            const markdownTitle = text.match(/^#{1,3}\s*(.+?)(?:\n|$)/m);
+            if (markdownTitle && markdownTitle[1].length > 5) {
+                // Limpar emojis e caracteres especiais do início
+                return markdownTitle[1].replace(/^[🎯📚⚖️🏛️💡✨🔍📝]+\s*/, '').trim();
+            }
+
+            // 2. Título em negrito no início (**Título**)
+            const boldTitle = text.match(/^\*\*(.+?)\*\*/m);
+            if (boldTitle && boldTitle[1].length > 5 && boldTitle[1].length < 100) {
+                return boldTitle[1].trim();
+            }
+
+            // 3. Procurar por padrões como "Introdução ao/à X", "Conceitos de X", etc.
+            const topicPatterns = [
+                /(?:introdução|conceitos?|fundamentos?|noções?|princípios?)\s+(?:ao?|à|de|do|da)\s+(.{5,60}?)(?:\.|,|\n|:)/i,
+                /(?:o que é|entendendo|conhecendo)\s+(.{5,60}?)(?:\.|,|\n|:)/i,
+            ];
+            for (const pattern of topicPatterns) {
+                const match = text.match(pattern);
+                if (match && match[1]) {
+                    return match[1].trim();
+                }
+            }
+
+            // 4. Primeira frase significativa (antes de ponto ou quebra de linha)
+            const firstSentence = text.match(/^(.{20,100}?)(?:\.|!|\?|\n)/);
+            if (firstSentence) {
+                // Limpar prefixos comuns
+                const cleaned = firstSentence[1]
+                    .replace(/^(Nesta aula|Vamos estudar|Hoje vamos|Neste módulo|Este conteúdo|Bem-vindo)/i, '')
+                    .replace(/^[🎯📚⚖️🏛️💡✨🔍📝]+\s*/, '')
+                    .trim();
+                if (cleaned.length > 10) {
+                    return cleaned;
+                }
+            }
+
+            return null;
+        };
+
         if (contentContext.question) {
             const assunto = extractEssence(contentContext.question.assunto || contentContext.question.materia);
-            return `Olá! 👋 Sou seu **Tutor IA**. Vi que você está estudando **${assunto}**.\n\nComo posso te ajudar?`;
+            return `Olá! 👋 Sou seu **Professor Virtual**. Vi que você está estudando **${assunto}**.\n\nComo posso te ajudar?`;
         }
-        const title = extractEssence(contentContext.title);
-        return `Olá! 👋 Estou aqui para te ajudar com **${title}**.\n\nPode perguntar sobre conceitos, pedir explicações ou tirar dúvidas!`;
+
+        // Para aulas/conteúdo
+        let theme = contentContext.title;
+
+        // Lista de títulos genéricos que devemos substituir
+        const genericTitles = ['Aula', 'o tema', 'Estudo', 'Conteudo Teorico', 'Conteúdo Teórico', 'Revisão'];
+        const isGenericTitle = !theme || theme.length < 5 || genericTitles.some(g => theme?.toLowerCase() === g.toLowerCase());
+
+        // Se o título é genérico, tentar extrair do conteúdo
+        if (isGenericTitle && contentContext.text) {
+            const contentTheme = extractThemeFromContent(contentContext.text);
+            if (contentTheme) {
+                theme = contentTheme;
+            }
+        }
+
+        const cleanTheme = extractEssence(theme);
+
+        // Capitalizar corretamente: primeira letra maiúscula, resto minúsculo
+        const capitalize = (str: string) => {
+            if (!str) return str;
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        };
+        const formattedTheme = capitalize(cleanTheme);
+
+        // Se ainda é genérico, usar mensagem mais geral
+        if (genericTitles.some(g => cleanTheme.toLowerCase() === g.toLowerCase()) || cleanTheme === 'o conteúdo') {
+            return `Olá! 👋 Sou seu **Professor Virtual**.\n\nEstou aqui para te ajudar com esta aula. Pergunte sobre conceitos, peça exemplos ou tire suas dúvidas!`;
+        }
+
+        return `Olá! 👋 Sou seu **Professor Virtual** para esta aula sobre **${formattedTheme}**.\n\nPergunte sobre conceitos, peça exemplos ou tire suas dúvidas!`;
     };
 
     const [messages, setMessages] = useState<Message[]>([
@@ -185,11 +260,13 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // Reset messages when question changes
+    // Reset messages when question or content changes
+    // We use a hash of the text to detect when content loads
+    const contentHash = contentContext.text?.slice(0, 100) || '';
     useEffect(() => {
         setMessages([{ role: 'model', text: getGreeting() }]);
         setThreadId(undefined);
-    }, [contentContext.question?.id, contentContext.title]);
+    }, [contentContext.question?.id, contentContext.title, contentHash]);
 
     // Shortcuts dropdown state
     const [showShortcuts, setShowShortcuts] = useState(false);

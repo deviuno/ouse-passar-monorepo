@@ -175,8 +175,34 @@ function sanitizeKeywordForQuery(keyword: string): string {
 }
 
 /**
+ * Aplica filtros obrigatórios de qualidade a uma query
+ * - Garante que a questão tenha gabarito válido
+ * - Garante que tenha enunciado
+ */
+function applyQualityFilters(query: any): any {
+  return query
+    .not('gabarito', 'is', null)
+    .neq('gabarito', '')
+    .not('enunciado', 'is', null)
+    .neq('enunciado', '');
+}
+
+/**
+ * Valida se uma questão tem todos os campos obrigatórios
+ */
+function isValidQuestion(question: any): boolean {
+  return !!(
+    question.gabarito &&
+    question.gabarito.trim() !== '' &&
+    question.enunciado &&
+    question.enunciado.trim() !== ''
+  );
+}
+
+/**
  * Busca questões do banco de questões baseado nos filtros
  * Usa estratégias otimizadas para evitar timeout
+ * IMPORTANTE: Só retorna questões com gabarito válido
  */
 async function fetchQuestionsWithFilters(
   filtros: MissaoFiltros,
@@ -196,12 +222,16 @@ async function fetchQuestionsWithFilters(
         query = query.in('banca', filtros.bancas);
       }
 
+      // Aplicar filtros de qualidade (gabarito obrigatório)
+      query = applyQualityFilters(query);
       query = query.limit(limit * 3);
       const { data, error } = await query;
 
       if (!error && data && data.length > 0) {
-        console.log('[MissaoQuestoesService] Encontradas', data.length, 'questões por matéria');
-        const shuffled = data.sort(() => Math.random() - 0.5).slice(0, limit);
+        // Filtro adicional de segurança no código
+        const validData = data.filter(isValidQuestion);
+        console.log('[MissaoQuestoesService] Encontradas', validData.length, 'questões válidas por matéria (de', data.length, 'total)');
+        const shuffled = validData.sort(() => Math.random() - 0.5).slice(0, limit);
         return shuffled.map(transformQuestion);
       }
     }
@@ -225,15 +255,21 @@ async function fetchQuestionsWithFilters(
 
         console.log('[MissaoQuestoesService] Tentando palavra-chave:', sanitizedKeyword);
 
-        const { data, error } = await questionsDb
+        let query = questionsDb
           .from('questoes_concurso')
           .select('*')
-          .ilike('assunto', `%${sanitizedKeyword}%`)
-          .limit(limit * 3);
+          .ilike('assunto', `%${sanitizedKeyword}%`);
+
+        // Aplicar filtros de qualidade (gabarito obrigatório)
+        query = applyQualityFilters(query);
+        query = query.limit(limit * 3);
+        const { data, error } = await query;
 
         if (!error && data && data.length > 0) {
-          console.log('[MissaoQuestoesService] Encontradas', data.length, 'questões com keyword:', keyword);
-          const shuffled = data.sort(() => Math.random() - 0.5).slice(0, limit);
+          // Filtro adicional de segurança no código
+          const validData = data.filter(isValidQuestion);
+          console.log('[MissaoQuestoesService] Encontradas', validData.length, 'questões válidas com keyword:', keyword);
+          const shuffled = validData.sort(() => Math.random() - 0.5).slice(0, limit);
           return shuffled.map(transformQuestion);
         }
       }
@@ -243,14 +279,20 @@ async function fetchQuestionsWithFilters(
     if (filtros.bancas && filtros.bancas.length > 0) {
       console.log('[MissaoQuestoesService] Fallback: buscando por banca apenas');
 
-      const { data, error } = await questionsDb
+      let query = questionsDb
         .from('questoes_concurso')
         .select('*')
-        .in('banca', filtros.bancas)
-        .limit(limit * 3);
+        .in('banca', filtros.bancas);
+
+      // Aplicar filtros de qualidade (gabarito obrigatório)
+      query = applyQualityFilters(query);
+      query = query.limit(limit * 3);
+      const { data, error } = await query;
 
       if (!error && data && data.length > 0) {
-        const shuffled = data.sort(() => Math.random() - 0.5).slice(0, limit);
+        // Filtro adicional de segurança no código
+        const validData = data.filter(isValidQuestion);
+        const shuffled = validData.sort(() => Math.random() - 0.5).slice(0, limit);
         return shuffled.map(transformQuestion);
       }
     }
@@ -341,8 +383,9 @@ export async function getQuestoesParaMissao(
 }
 
 /**
- * Conta quantas questões estão disponíveis para uma missão
+ * Conta quantas questões VÁLIDAS estão disponíveis para uma missão
  * Usa estratégias otimizadas para evitar timeout
+ * IMPORTANTE: Só conta questões com gabarito válido
  */
 export async function countQuestoesParaMissao(missaoId: string): Promise<number> {
   const filtros = await getMissaoFiltros(missaoId);
@@ -361,6 +404,9 @@ export async function countQuestoesParaMissao(missaoId: string): Promise<number>
         query = query.in('banca', filtros.bancas);
       }
 
+      // Aplicar filtros de qualidade (gabarito obrigatório)
+      query = applyQualityFilters(query);
+
       const { count, error } = await query;
       if (!error && count && count > 0) {
         return count;
@@ -376,11 +422,15 @@ export async function countQuestoesParaMissao(missaoId: string): Promise<number>
       if (topKeyword) {
         const sanitizedKeyword = sanitizeKeywordForQuery(topKeyword);
         if (sanitizedKeyword && sanitizedKeyword.length >= 3) {
-          const { count, error } = await questionsDb
+          let query = questionsDb
             .from('questoes_concurso')
             .select('*', { count: 'exact', head: true })
             .ilike('assunto', `%${sanitizedKeyword}%`);
 
+          // Aplicar filtros de qualidade (gabarito obrigatório)
+          query = applyQualityFilters(query);
+
+          const { count, error } = await query;
           if (!error) return count || 0;
         }
       }

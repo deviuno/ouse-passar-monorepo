@@ -1655,12 +1655,16 @@ export default function MissionPage() {
             phase === 'questions' && currentQuestion
               ? {
                   title: currentQuestion.assunto || currentQuestion.materia,
-                  text: currentQuestion.enunciado,
+                  text: `QUESTÃO:\n${currentQuestion.enunciado}\n\nALTERNATIVAS:\n${currentQuestion.parsedAlternativas?.map(a => `${a.letter}) ${a.text}`).join('\n') || ''}\n\nGABARITO: ${currentQuestion.gabarito}\n\nCOMENTÁRIO:\n${currentQuestion.comentario || 'Sem comentário disponível'}`,
                   question: currentQuestion
                 }
               : {
-                  title: currentMission?.assunto?.nome,
-                  text: `Conteudo sobre ${currentMission?.assunto?.nome || 'o tema'}`
+                  // Extrair título: assunto pode ser objeto (TrailMission) ou string (Missao)
+                  title: (typeof currentMission?.assunto === 'string' ? currentMission?.assunto : currentMission?.assunto?.nome)
+                    || currentMission?.tema
+                    || (typeof currentMission?.materia === 'string' ? currentMission?.materia : currentMission?.materia?.materia)
+                    || 'Aula',
+                  text: missaoConteudo?.texto_content || `Conteúdo sobre ${(typeof currentMission?.assunto === 'string' ? currentMission?.assunto : currentMission?.assunto?.nome) || currentMission?.tema || 'o tema'}`
                 }
           }
           userContext={{

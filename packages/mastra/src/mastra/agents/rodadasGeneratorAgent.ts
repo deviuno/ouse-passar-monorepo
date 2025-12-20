@@ -1034,6 +1034,61 @@ function gerarSlug(nome: string): string {
 }
 
 /**
+ * Gera uma descrição persuasiva para o preparatório
+ * Focada em motivar o aluno a alcançar seu objetivo
+ */
+function gerarDescricaoPersuasiva(input: PreparatorioInput): string {
+    const cargo = input.cargo || 'servidor público';
+    const orgao = input.orgao || '';
+    const salario = input.salario;
+
+    // Formatador de moeda
+    const formatarSalario = (valor: number) => {
+        return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    };
+
+    // Frases de abertura motivacionais
+    const aberturas = [
+        `Seu sonho de se tornar ${cargo} está mais perto do que você imagina.`,
+        `Chegou a hora de transformar sua vida e conquistar o cargo de ${cargo}.`,
+        `O caminho para se tornar ${cargo} começa aqui.`,
+        `Sua aprovação como ${cargo} é o nosso objetivo.`,
+    ];
+
+    // Selecionar abertura baseada no hash do nome
+    const hash = input.nome.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const abertura = aberturas[hash % aberturas.length];
+
+    // Construir descrição
+    let descricao = abertura + ' ';
+
+    // Adicionar benefício do salário se disponível
+    if (salario && salario > 0) {
+        descricao += `Com remuneração de ${formatarSalario(salario)}, `;
+
+        if (salario >= 20000) {
+            descricao += 'você terá a estabilidade e o reconhecimento que sempre mereceu. ';
+        } else if (salario >= 10000) {
+            descricao += 'você conquistará estabilidade financeira e qualidade de vida. ';
+        } else {
+            descricao += 'você terá a segurança de um cargo público estável. ';
+        }
+    } else {
+        descricao += 'A estabilidade e os benefícios do serviço público esperam por você. ';
+    }
+
+    // Adicionar órgão se disponível
+    if (orgao) {
+        descricao += `Atuar no ${orgao} é fazer parte de uma instituição que transforma a sociedade. `;
+    }
+
+    // Fechamento motivacional
+    descricao += 'Este preparatório foi desenvolvido com a metodologia Ouse Passar, unindo inteligência artificial e estratégia para maximizar suas chances de aprovação. Não deixe para amanhã o que pode mudar sua vida hoje.';
+
+    return descricao;
+}
+
+/**
  * Cria o preparatório no banco de dados
  */
 export async function criarPreparatorio(
@@ -1065,12 +1120,16 @@ export async function criarPreparatorio(
             }
         }
 
+        // Gerar descrição persuasiva
+        const descricao = gerarDescricaoPersuasiva(input);
+
         // Criar preparatório
         const { data, error } = await supabase
             .from('preparatorios')
             .insert({
                 nome: input.nome,
                 slug,
+                descricao,
                 banca: input.banca,
                 orgao: input.orgao,
                 cargo: input.cargo,

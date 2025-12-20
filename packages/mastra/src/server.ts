@@ -20,6 +20,17 @@ import {
     ConfiguracaoGeracao,
     EditalEstrutura,
 } from './mastra/agents/rodadasGeneratorAgent.js';
+import {
+    getBuilderState,
+    getTopicosDisponiveis,
+    createMissao,
+    deleteMissao,
+    createRodada,
+    deleteRodada,
+    addRevisaoExtra,
+    finalizarMontagem,
+    getMissoesPorRodada,
+} from './services/missionBuilderService.js';
 import multer from 'multer';
 
 // Load environment variables
@@ -79,7 +90,7 @@ const upload = multer({
 
 app.post('/api/tutor', async (req, res) => {
     try {
-        const { history, userMessage, question, user, threadId } = req.body;
+        const { history, userMessage, question, user, threadId, mode } = req.body;
 
         const agent = mastra.getAgent("tutorAgent");
 
@@ -88,17 +99,56 @@ app.post('/api/tutor', async (req, res) => {
             return;
         }
 
-        // Generate thread ID based on question if not provided
-        const currentThreadId = threadId || `question-${question.id || Date.now()}`;
+        // Detect if this is content mode (lesson) or question mode
+        // Content mode: no gabarito, no alternatives, or explicitly set mode
+        const isContentMode = mode === 'content' ||
+            (!question.gabarito && (!question.alternativas || question.alternativas.length === 0));
+
+        // Generate thread ID based on context
+        const currentThreadId = threadId || (isContentMode
+            ? `content-${question.assunto || Date.now()}`
+            : `question-${question.id || Date.now()}`);
         const resourceId = user.id || user.name || 'anonymous';
 
-        // Format alternatives if they are an array of objects
-        const alternativesText = Array.isArray(question.alternativas)
-            ? question.alternativas.map((a: any) => `${a.letter || ''}) ${a.text || JSON.stringify(a)}`).join('\n')
-            : JSON.stringify(question.alternativas);
+        let contextPrompt: string;
+        let assistantPriming: string;
+        let userPrompt: string;
 
-        // Construct the context with VERY explicit gabarito instruction
-        const questionContext = `
+        if (isContentMode) {
+            // CONTENT MODE - Lesson/Aula context
+            contextPrompt = `
+📚 **MODO: TUTOR DE CONTEÚDO TEÓRICO**
+
+Você está ajudando um aluno a entender o conteúdo de uma AULA TEÓRICA.
+NÃO há questão de múltipla escolha aqui. NÃO mencione gabarito, alternativas ou respostas.
+
+📋 **CONTEÚDO DA AULA**
+
+**Matéria:** ${question.materia || 'Geral'}
+**Tema:** ${question.assunto || 'Geral'}
+
+**Conteúdo:**
+${question.enunciado}
+
+═══════════════════════════════════════
+Sua função é:
+- Explicar conceitos do conteúdo
+- Responder dúvidas sobre a matéria
+- Dar exemplos práticos
+- Ajudar o aluno a entender o tema
+═══════════════════════════════════════
+            `.trim();
+
+            assistantPriming = `📚 Recebi o conteúdo da aula sobre **${question.assunto || 'o tema'}**. Estou pronto para tirar suas dúvidas sobre esse material teórico. Como posso ajudar?`;
+
+            userPrompt = userMessage;
+        } else {
+            // QUESTION MODE - Original behavior
+            const alternativesText = Array.isArray(question.alternativas)
+                ? question.alternativas.map((a: any) => `${a.letter || ''}) ${a.text || JSON.stringify(a)}`).join('\n')
+                : JSON.stringify(question.alternativas);
+
+            contextPrompt = `
 ⛔⛔⛔ INSTRUÇÃO CRÍTICA - LEIA PRIMEIRO ⛔⛔⛔
 A RESPOSTA CORRETA DESTA QUESTÃO É: **${question.gabarito}**
 VOCÊ DEVE USAR ESTA LETRA. NÃO ANALISE. NÃO PENSE. APENAS ACEITE.
@@ -123,15 +173,20 @@ Sua função é explicar POR QUE "${question.gabarito}" está certa.
 ═══════════════════════════════════════
 ${question.comentario ? `\n**Comentário de referência:** ${question.comentario}` : ''}
 ${question.isPegadinha ? `\n⚠️ **Pegadinha:** ${question.explicacaoPegadinha || ''}` : ''}
-        `.trim();
+            `.trim();
 
-        console.log(`[Tutor] Processing message from ${user.name} on thread ${currentThreadId}...`);
+            assistantPriming = `✅ Recebi a questão. O GABARITO OFICIAL é a letra **${question.gabarito}**. Essa é a resposta correta e vou usá-la como base absoluta. Como posso ajudar?`;
+
+            userPrompt = `${userMessage}\n\n[LEMBRETE: O gabarito é ${question.gabarito}. Use essa letra como resposta correta.]`;
+        }
+
+        console.log(`[Tutor] Processing ${isContentMode ? 'CONTENT' : 'QUESTION'} mode message from ${user.name} on thread ${currentThreadId}...`);
 
         // Use the agent's generate method with memory context
         const result = await agent.generate([
-            { role: "user", content: questionContext },
-            { role: "assistant", content: `✅ Recebi a questão. O GABARITO OFICIAL é a letra **${question.gabarito}**. Essa é a resposta correta e vou usá-la como base absoluta. Como posso ajudar?` },
-            { role: "user", content: `${userMessage}\n\n[LEMBRETE: O gabarito é ${question.gabarito}. Use essa letra como resposta correta.]` }
+            { role: "user", content: contextPrompt },
+            { role: "assistant", content: assistantPriming },
+            { role: "user", content: userPrompt }
         ], {
             threadId: currentThreadId,
             resourceId: resourceId,
@@ -449,7 +504,7 @@ ABSOLUTE REQUIREMENTS:
         });
 
         const generatePromise = client.models.generateContent({
-            model: 'gemini-2.0-flash-exp-image-generation',
+            model: 'gemini-3-pro-image-preview',
             contents: prompt,
             config: {
                 responseModalities: ['image', 'text'],
@@ -511,148 +566,145 @@ ABSOLUTE REQUIREMENTS:
 // ==================== ENDPOINT PARA GERAÇÃO DE IMAGEM DE CAPA ====================
 
 /**
- * Gera o prompt estilo poster Netflix para imagem de capa baseado no cargo
+ * Gera o prompt para imagem de capa foto-realista e cinematográfica
+ * Mostra o profissional exercendo o cargo após aprovação, feliz e realizado
  */
 function gerarPromptImagemCapa(cargo: string, orgao?: string): { prompt: string; promptUsuario: string } {
     const cargoDescricao = cargo?.toLowerCase() || '';
 
-    // Mapear cargo para visual cinematográfico estilo Netflix
+    // Mapear cargo para descrição visual realista
     let profissaoDescricao = 'profissional de sucesso';
-    let protagonista = 'a powerful executive in a tailored suit';
-    let cenario = 'towering glass skyscraper at golden hour';
-    let mood = 'power and ambition';
-    let cores = 'deep blues, warm golds, and dramatic shadows';
+    let protagonista = 'a confident professional in elegant business attire';
+    let cenario = 'modern office environment with natural light';
+    let atividade = 'working confidently at their desk, reviewing important documents';
 
     if (cargoDescricao.includes('juiz') || cargoDescricao.includes('magistrad')) {
         profissaoDescricao = 'Juiz(a) de Direito';
-        protagonista = 'a commanding judge in flowing black robes, gavel in hand';
-        cenario = 'grand marble courtroom with dramatic light streaming through tall windows';
-        mood = 'justice and authority';
-        cores = 'rich blacks, deep mahogany, golden light rays';
+        protagonista = 'a distinguished judge wearing black judicial robes';
+        cenario = 'elegant courtroom with wooden details and Brazilian flag';
+        atividade = 'presiding over the court with wisdom and authority, gavel nearby';
     } else if (cargoDescricao.includes('promotor') || cargoDescricao.includes('procurador')) {
         profissaoDescricao = 'Promotor(a) de Justiça';
-        protagonista = 'a fierce prosecutor in sharp formal attire, eyes burning with determination';
-        cenario = 'imposing courthouse steps with dramatic storm clouds';
-        mood = 'relentless pursuit of justice';
-        cores = 'steel grays, midnight blues, lightning highlights';
+        protagonista = 'a sharp prosecutor in formal business attire';
+        cenario = 'modern prosecutor office with law books and case files';
+        atividade = 'reviewing case documents with focused determination';
     } else if (cargoDescricao.includes('delegado')) {
         profissaoDescricao = 'Delegado(a) de Polícia';
-        protagonista = 'a commanding police chief in formal uniform with badge gleaming';
-        cenario = 'city skyline at night with police lights reflecting';
-        mood = 'authority and protection';
-        cores = 'deep navy, red and blue accents, noir shadows';
+        protagonista = 'a commanding police delegate in formal uniform';
+        cenario = 'police station command office with investigation boards';
+        atividade = 'coordinating operations with their team, leading with confidence';
     } else if (cargoDescricao.includes('agente') && (cargoDescricao.includes('polícia') || cargoDescricao.includes('policia') || cargoDescricao.includes('civil'))) {
         profissaoDescricao = 'Agente de Polícia Civil';
-        protagonista = 'an elite detective in professional attire, intense focused gaze';
-        cenario = 'dramatic police station with evidence boards and city lights';
-        mood = 'investigation and justice';
-        cores = 'noir blacks, amber highlights, urban blues';
-    } else if (cargoDescricao.includes('policial') || cargoDescricao.includes('prf') || cargoDescricao.includes('pf')) {
+        protagonista = 'a professional police detective in smart casual attire with badge visible';
+        cenario = 'investigation room with evidence boards and computer screens';
+        atividade = 'analyzing evidence and solving cases, dedicated to justice';
+    } else if (cargoDescricao.includes('policial') || cargoDescricao.includes('prf')) {
+        profissaoDescricao = 'Policial Rodoviário Federal';
+        protagonista = 'a proud highway patrol officer in PRF uniform';
+        cenario = 'scenic Brazilian highway with patrol vehicle nearby';
+        atividade = 'ensuring road safety, protecting citizens with pride';
+    } else if (cargoDescricao.includes('pf') || cargoDescricao.includes('federal')) {
         profissaoDescricao = 'Policial Federal';
-        protagonista = 'an elite federal agent in tactical gear, intense focused gaze';
-        cenario = 'dramatic federal building with Brazilian flag, rain-slicked streets';
-        mood = 'action hero, guardian of the nation';
-        cores = 'tactical blacks, steel blues, golden badge highlights';
+        protagonista = 'an elite federal police officer in official attire';
+        cenario = 'federal police headquarters with Brazilian flag';
+        atividade = 'working on important federal investigations';
     } else if (cargoDescricao.includes('auditor') || cargoDescricao.includes('fiscal')) {
         profissaoDescricao = 'Auditor(a) Fiscal';
-        protagonista = 'a sharp-eyed financial investigator in expensive suit, documents in hand';
-        cenario = 'sleek modern office overlooking city, multiple screens with data';
-        mood = 'intelligence and precision';
-        cores = 'corporate blues, green accents, chrome highlights';
+        protagonista = 'a sharp-eyed fiscal auditor in professional suit';
+        cenario = 'modern government office with multiple monitors and financial data';
+        atividade = 'analyzing complex fiscal data with expertise and precision';
     } else if (cargoDescricao.includes('analista')) {
         profissaoDescricao = 'Analista';
-        protagonista = 'a brilliant analyst silhouetted against holographic data displays';
-        cenario = 'futuristic control room with glowing screens and city view';
-        mood = 'brilliance and innovation';
-        cores = 'electric blues, cyan glows, dark backgrounds';
+        protagonista = 'a skilled analyst in smart business casual attire';
+        cenario = 'contemporary open-plan office with tech equipment';
+        atividade = 'working on data analysis with multiple screens, solving complex problems';
     } else if (cargoDescricao.includes('técnico')) {
         profissaoDescricao = 'Técnico(a)';
-        protagonista = 'a dedicated professional standing confidently in modern workspace';
-        cenario = 'impressive government building with dramatic architecture';
-        mood = 'competence and reliability';
-        cores = 'warm neutrals, golden hour lighting, architectural shadows';
+        protagonista = 'a competent technician in professional attire';
+        cenario = 'well-organized government office with documents and equipment';
+        atividade = 'efficiently handling administrative tasks with expertise';
     } else if (cargoDescricao.includes('professor') || cargoDescricao.includes('docente')) {
         profissaoDescricao = 'Professor(a)';
-        protagonista = 'an inspiring educator surrounded by floating books and knowledge symbols';
-        cenario = 'majestic university library with endless bookshelves';
-        mood = 'wisdom and inspiration';
-        cores = 'warm amber, leather browns, magical golden particles';
+        protagonista = 'an inspiring teacher in smart casual academic attire';
+        cenario = 'vibrant classroom with engaged students and educational materials';
+        atividade = 'teaching with passion, inspiring the next generation';
     } else if (cargoDescricao.includes('médico') || cargoDescricao.includes('perito')) {
         profissaoDescricao = 'Médico(a) Perito(a)';
-        protagonista = 'a brilliant doctor in pristine white coat, stethoscope draped heroically';
-        cenario = 'state-of-the-art hospital with dramatic lighting';
-        mood = 'life-saving hero';
-        cores = 'clinical whites, emergency reds, cool blues';
+        protagonista = 'a skilled medical examiner in white lab coat with stethoscope';
+        cenario = 'modern medical facility with professional equipment';
+        atividade = 'conducting expert medical analysis with precision';
     } else if (cargoDescricao.includes('defensor')) {
         profissaoDescricao = 'Defensor(a) Público(a)';
-        protagonista = 'a passionate public defender, fist raised in triumph';
-        cenario = 'courthouse with scales of justice dramatically lit';
-        mood = 'champion of the people';
-        cores = 'bronze and gold, warm dramatic lighting';
+        protagonista = 'a dedicated public defender in formal legal attire';
+        cenario = 'public defenders office with clients and legal files';
+        atividade = 'passionately defending citizens rights';
     } else if (cargoDescricao.includes('escrivão') || cargoDescricao.includes('cartório')) {
         profissaoDescricao = 'Escrivão(ã)';
-        protagonista = 'a meticulous legal professional with important documents';
-        cenario = 'elegant office with legal books and official seals';
-        mood = 'precision and trust';
-        cores = 'warm woods, parchment tones, golden accents';
-    } else if (cargoDescricao.includes('militar') || cargoDescricao.includes('bombeiro')) {
+        protagonista = 'a meticulous notary in professional attire';
+        cenario = 'elegant notary office with official documents and seals';
+        atividade = 'carefully handling important legal documents';
+    } else if (cargoDescricao.includes('bombeiro')) {
         profissaoDescricao = 'Bombeiro(a) Militar';
-        protagonista = 'a heroic first responder in full gear, flames or action behind';
-        cenario = 'dramatic rescue scene with smoke and fire';
-        mood = 'bravery and sacrifice';
-        cores = 'fiery oranges, heroic reds, smoke blacks';
+        protagonista = 'a brave firefighter in full uniform';
+        cenario = 'fire station with emergency vehicles in background';
+        atividade = 'ready for action, a true hero protecting the community';
+    } else if (cargoDescricao.includes('militar')) {
+        profissaoDescricao = 'Militar';
+        protagonista = 'a proud military officer in official uniform';
+        cenario = 'military base with national flag visible';
+        atividade = 'serving the nation with honor and dedication';
     } else if (cargo) {
         profissaoDescricao = cargo;
     }
 
     // Prompt amigável para o usuário
-    const promptUsuario = `Poster cinematográfico de ${profissaoDescricao}${orgao ? ` do ${orgao}` : ''} - estilo Netflix, imagem quadrada profissional.`;
+    const promptUsuario = `${profissaoDescricao}${orgao ? ` - ${orgao}` : ''} exercendo sua função com realização profissional. Imagem foto-realista, cinematográfica e quadrada.`;
 
-    // Prompt técnico estilo Netflix
-    const prompt = `NETFLIX MOVIE POSTER STYLE - SQUARE FORMAT (1:1 aspect ratio)
+    // Prompt técnico foto-realista
+    const prompt = `PHOTOREALISTIC CINEMATIC IMAGE - PERFECT SQUARE FORMAT (1:1 aspect ratio)
 
-Create a cinematic, high-budget movie poster featuring:
+Create a beautiful, inspiring photorealistic image showing a person who has just been approved in a competitive exam and is now working happily in their dream job.
 
-HERO: ${protagonista}
-- Shot from a low angle to emphasize power and importance
-- Face partially in dramatic shadow, eyes catching the light
-- Expression: determined, confident, ready to conquer
-- Posture: heroic, commanding presence
+THE PROFESSIONAL:
+${protagonista}
+- Expression: genuinely happy, fulfilled, proud of their achievement
+- Natural, authentic smile showing job satisfaction
+- Confident but approachable body language
+- Age: between 25-40 years old
+- Brazilian appearance
 
-SETTING: ${cenario}
-- Epic scale, making the scene feel larger than life
-- Atmospheric perspective with depth
-- Weather/particles adding drama (light rays, rain, smoke, dust)
+THE SCENE:
+${cenario}
+- The professional is ${atividade}
+- Include realistic context and environment details
+- Other people or elements that make sense for this profession may appear in the background
+- Natural, believable workplace setting
 
-MOOD: ${mood}
-- This person has overcome impossible odds
-- They are the protagonist of their own success story
-- Viewer should feel inspired and motivated
+PHOTOGRAPHY STYLE:
+- Shot on professional cinema camera (RED or ARRI quality)
+- Beautiful natural lighting with soft shadows
+- Shallow depth of field with gorgeous bokeh
+- Warm, inviting color grading
+- Golden hour or soft natural light feeling
+- 8K resolution quality
+- Magazine cover worthy composition
 
-CINEMATOGRAPHY:
-- Color palette: ${cores}
-- Dramatic chiaroscuro lighting (strong contrast between light and shadow)
-- Shallow depth of field with cinematic bokeh
-- Film grain for premium feel
-- Lens flares or light leaks for dramatic effect
-- High production value, $200 million blockbuster quality
+EMOTIONAL TONE:
+- Convey the feeling of "I made it, I achieved my dream"
+- Show professional fulfillment and purpose
+- Inspire viewers who want to achieve the same success
+- The joy of doing meaningful work
 
-COMPOSITION FOR SQUARE FORMAT:
-- Subject centered or using rule of thirds
-- Full upper body or dramatic close-up
-- Negative space at top for dramatic effect
-- Perfect for social media and app thumbnails
+${orgao ? `Organization: ${orgao}` : ''}
+${cargo ? `Position: ${cargo}` : ''}
 
-${orgao ? `Organization context: ${orgao}` : ''}
-${cargo ? `Role: ${cargo}` : ''}
-
-ABSOLUTE REQUIREMENTS:
-- NO text, titles, credits, or watermarks
-- NO logos or symbols
-- Photorealistic quality
-- SQUARE 1:1 aspect ratio
-- Professional movie poster composition
-- The image alone should tell a story of triumph and success`;
+CRITICAL REQUIREMENTS:
+- ABSOLUTELY NO TEXT of any kind in the image
+- NO titles, watermarks, logos, or written words
+- NO floating text or captions
+- 100% PHOTOREALISTIC - must look like a real photograph
+- PERFECTLY SQUARE composition (1:1 ratio)
+- The image must tell the story of success without any text`;
 
     return { prompt, promptUsuario };
 }
@@ -687,7 +739,7 @@ app.post('/api/preparatorio/gerar-imagem-capa', async (req, res) => {
         });
 
         const generatePromise = client.models.generateContent({
-            model: 'gemini-2.0-flash-exp-image-generation',
+            model: 'gemini-3-pro-image-preview',
             contents: promptFinal,
             config: {
                 responseModalities: ['image', 'text'],
@@ -2980,7 +3032,7 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
  * }
  */
 app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) => {
-    const { preparatorioId, materiasOrdenadas, banca } = req.body;
+    const { preparatorioId, materiasOrdenadas, banca, sistemaHibrido } = req.body;
 
     if (!preparatorioId || !materiasOrdenadas) {
         return res.status(400).json({
@@ -2989,7 +3041,7 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
         });
     }
 
-    console.log(`[ConfirmRodadas] Iniciando para preparatório: ${preparatorioId}`);
+    console.log(`[ConfirmRodadas] Iniciando para preparatório: ${preparatorioId} (híbrido: ${sistemaHibrido})`);
 
     try {
         // Buscar matérias com tópicos
@@ -3021,7 +3073,53 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
 
         console.log(`[ConfirmRodadas] Matérias reordenadas: ${materias.map(m => m.titulo).join(', ')}`);
 
-        // Gerar rodadas com a nova ordem
+        // Se for sistema híbrido, não gerar rodadas automaticamente
+        if (sistemaHibrido) {
+            // Apenas salvar a ordem das matérias no banco
+            const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+            const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+            const supabase = createClient(supabaseUrl, supabaseKey);
+
+            // Atualizar ordem das matérias
+            for (const materia of materias) {
+                await supabase
+                    .from('preparatorio_materias')
+                    .update({ ordem: materia.prioridade })
+                    .eq('id', materia.id);
+            }
+
+            // Salvar raio-x
+            const raioX = {
+                analise_automatica: false,
+                sistema_hibrido: true,
+                data_analise: new Date().toISOString(),
+                ordem_materias: materias.map(m => ({ id: m.id, titulo: m.titulo, prioridade: m.prioridade })),
+            };
+            await atualizarRaioX(preparatorioId, raioX);
+
+            // Criar mensagens de incentivo
+            const resultadoMensagens = await criarMensagensIncentivoPadrao(preparatorioId);
+            console.log(`[ConfirmRodadas] Mensagens criadas: ${resultadoMensagens.mensagens_criadas}`);
+
+            // Atualizar status para montagem em andamento
+            await supabase
+                .from('preparatorios')
+                .update({ montagem_status: 'em_andamento' })
+                .eq('id', preparatorioId);
+
+            console.log(`[ConfirmRodadas] Sistema híbrido configurado, redirecionando para montagem manual`);
+
+            return res.json({
+                success: true,
+                sistemaHibrido: true,
+                estatisticas: {
+                    materias: materias.length,
+                    mensagens_incentivo: resultadoMensagens.mensagens_criadas,
+                },
+            });
+        }
+
+        // Fluxo original: Gerar rodadas automaticamente
         const config: ConfiguracaoGeracao = {
             materias_por_rodada: 5,
             max_topicos_por_missao: 3,
@@ -3140,6 +3238,361 @@ app.delete('/api/preparatorio/cancel-creation/:preparatorioId', async (req, res)
         return res.status(500).json({
             success: false,
             error: error.message || 'Erro ao cancelar criação',
+        });
+    }
+});
+
+// =====================================================
+// MISSION BUILDER ENDPOINTS
+// Sistema híbrido de montagem manual de missões
+// =====================================================
+
+/**
+ * GET /api/preparatorio/:id/builder-state
+ * Retorna o estado completo do builder para montagem de missões
+ */
+app.get('/api/preparatorio/:id/builder-state', async (req, res) => {
+    const { id: preparatorioId } = req.params;
+
+    if (!preparatorioId) {
+        return res.status(400).json({
+            success: false,
+            error: 'preparatorioId é obrigatório',
+        });
+    }
+
+    console.log(`[Builder] Buscando estado para preparatório: ${preparatorioId}`);
+
+    try {
+        const state = await getBuilderState(preparatorioId);
+        return res.json({ success: true, data: state });
+    } catch (error: any) {
+        console.error('[Builder] Erro ao buscar estado:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao buscar estado do builder',
+        });
+    }
+});
+
+/**
+ * GET /api/preparatorio/:id/materias/:materiaId/topicos
+ * Retorna os tópicos disponíveis de uma matéria
+ */
+app.get('/api/preparatorio/:id/materias/:materiaId/topicos', async (req, res) => {
+    const { id: preparatorioId, materiaId } = req.params;
+
+    if (!preparatorioId || !materiaId) {
+        return res.status(400).json({
+            success: false,
+            error: 'preparatorioId e materiaId são obrigatórios',
+        });
+    }
+
+    console.log(`[Builder] Buscando tópicos da matéria ${materiaId}`);
+
+    try {
+        const topicos = await getTopicosDisponiveis(materiaId, preparatorioId);
+        return res.json({ success: true, data: topicos });
+    } catch (error: any) {
+        console.error('[Builder] Erro ao buscar tópicos:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao buscar tópicos',
+        });
+    }
+});
+
+/**
+ * POST /api/preparatorio/:id/missoes
+ * Cria uma nova missão (estudo ou revisão)
+ */
+app.post('/api/preparatorio/:id/missoes', async (req, res) => {
+    const { id: preparatorioId } = req.params;
+    const { rodada_id, materia_id, assuntos_ids, tipo, tema, assunto, revisao_criterios } = req.body;
+
+    if (!preparatorioId || !rodada_id) {
+        return res.status(400).json({
+            success: false,
+            error: 'preparatorioId e rodada_id são obrigatórios',
+        });
+    }
+
+    try {
+        // Missão de revisão: não precisa de materia_id e assuntos_ids
+        if (tipo === 'revisao') {
+            console.log(`[Builder] Criando missão de revisão na rodada ${rodada_id}`);
+
+            // Contar revisões existentes na rodada para definir ordem e parte
+            const { data: revisoesExistentes } = await supabase
+                .from('missoes')
+                .select('id')
+                .eq('rodada_id', rodada_id)
+                .eq('tipo', 'revisao');
+
+            const revisaoParte = (revisoesExistentes?.length || 0) + 1;
+
+            // Critérios padrão: apenas questões erradas
+            const criterios = revisao_criterios || ['erradas'];
+
+            const { data: novaMissao, error } = await supabase
+                .from('missoes')
+                .insert({
+                    rodada_id,
+                    numero: '8',
+                    tipo: 'revisao',
+                    tema: tema || 'REVISÃO OUSE PASSAR',
+                    assunto: assunto || null,
+                    ordem: 8,
+                    revisao_parte: revisaoParte > 1 ? revisaoParte : null,
+                    revisao_criterios: criterios,
+                })
+                .select()
+                .single();
+
+            if (error) {
+                throw new Error(`Erro ao criar missão de revisão: ${error.message}`);
+            }
+
+            return res.json({ success: true, data: novaMissao });
+        }
+
+        // Missão de estudo: precisa de materia_id e assuntos_ids
+        if (!materia_id || !assuntos_ids?.length) {
+            return res.status(400).json({
+                success: false,
+                error: 'materia_id e assuntos_ids são obrigatórios para missões de estudo',
+            });
+        }
+
+        console.log(`[Builder] Criando missão de estudo na rodada ${rodada_id} com ${assuntos_ids.length} tópicos`);
+
+        const missao = await createMissao(preparatorioId, {
+            rodada_id,
+            materia_id,
+            assuntos_ids,
+            tipo: tipo || 'estudo',
+        });
+        return res.json({ success: true, data: missao });
+    } catch (error: any) {
+        console.error('[Builder] Erro ao criar missão:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao criar missão',
+        });
+    }
+});
+
+/**
+ * DELETE /api/preparatorio/:id/missoes/:missaoId
+ * Deleta uma missão
+ */
+app.delete('/api/preparatorio/:id/missoes/:missaoId', async (req, res) => {
+    const { missaoId } = req.params;
+
+    if (!missaoId) {
+        return res.status(400).json({
+            success: false,
+            error: 'missaoId é obrigatório',
+        });
+    }
+
+    console.log(`[Builder] Deletando missão: ${missaoId}`);
+
+    try {
+        await deleteMissao(missaoId);
+        return res.json({ success: true });
+    } catch (error: any) {
+        console.error('[Builder] Erro ao deletar missão:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao deletar missão',
+        });
+    }
+});
+
+/**
+ * PUT /api/preparatorio/:id/missoes/:missaoId
+ * Atualiza uma missão existente
+ */
+app.put('/api/preparatorio/:id/missoes/:missaoId', async (req, res) => {
+    const { missaoId } = req.params;
+    const { tema, assunto, materia, acao, instrucoes } = req.body;
+
+    if (!missaoId) {
+        return res.status(400).json({
+            success: false,
+            error: 'missaoId é obrigatório',
+        });
+    }
+
+    console.log(`[Builder] Atualizando missão: ${missaoId}`);
+
+    try {
+        // Montar objeto de update apenas com campos fornecidos
+        const updateData: Record<string, any> = {};
+        if (tema !== undefined) updateData.tema = tema;
+        if (assunto !== undefined) updateData.assunto = assunto;
+        if (materia !== undefined) updateData.materia = materia;
+        if (acao !== undefined) updateData.acao = acao;
+        if (instrucoes !== undefined) updateData.instrucoes = instrucoes;
+
+        const { data, error } = await supabase
+            .from('missoes')
+            .update(updateData)
+            .eq('id', missaoId)
+            .select()
+            .single();
+
+        if (error) {
+            throw new Error(`Erro ao atualizar missão: ${error.message}`);
+        }
+
+        return res.json({ success: true, data });
+    } catch (error: any) {
+        console.error('[Builder] Erro ao atualizar missão:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao atualizar missão',
+        });
+    }
+});
+
+/**
+ * POST /api/preparatorio/:id/rodadas
+ * Cria uma nova rodada com as 3 missões obrigatórias
+ */
+app.post('/api/preparatorio/:id/rodadas', async (req, res) => {
+    const { id: preparatorioId } = req.params;
+    const { numero, titulo } = req.body;
+
+    if (!preparatorioId) {
+        return res.status(400).json({
+            success: false,
+            error: 'preparatorioId é obrigatório',
+        });
+    }
+
+    console.log(`[Builder] Criando nova rodada para preparatório: ${preparatorioId}`);
+
+    try {
+        const rodada = await createRodada(preparatorioId, { numero, titulo });
+        return res.json({ success: true, data: rodada });
+    } catch (error: any) {
+        console.error('[Builder] Erro ao criar rodada:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao criar rodada',
+        });
+    }
+});
+
+/**
+ * DELETE /api/preparatorio/:id/rodadas/:rodadaId
+ * Deleta uma rodada e todas suas missões
+ */
+app.delete('/api/preparatorio/:id/rodadas/:rodadaId', async (req, res) => {
+    const { rodadaId } = req.params;
+
+    if (!rodadaId) {
+        return res.status(400).json({
+            success: false,
+            error: 'rodadaId é obrigatório',
+        });
+    }
+
+    console.log(`[Builder] Deletando rodada: ${rodadaId}`);
+
+    try {
+        await deleteRodada(rodadaId);
+        return res.json({ success: true });
+    } catch (error: any) {
+        console.error('[Builder] Erro ao deletar rodada:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao deletar rodada',
+        });
+    }
+});
+
+/**
+ * POST /api/preparatorio/:id/rodadas/:rodadaId/revisao-extra
+ * Adiciona uma missão extra de revisão
+ */
+app.post('/api/preparatorio/:id/rodadas/:rodadaId/revisao-extra', async (req, res) => {
+    const { rodadaId } = req.params;
+
+    if (!rodadaId) {
+        return res.status(400).json({
+            success: false,
+            error: 'rodadaId é obrigatório',
+        });
+    }
+
+    console.log(`[Builder] Adicionando revisão extra na rodada: ${rodadaId}`);
+
+    try {
+        const revisao = await addRevisaoExtra(rodadaId);
+        return res.json({ success: true, data: revisao });
+    } catch (error: any) {
+        console.error('[Builder] Erro ao adicionar revisão extra:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao adicionar revisão extra',
+        });
+    }
+});
+
+/**
+ * GET /api/preparatorio/:id/rodadas/:rodadaId/missoes
+ * Retorna as missões de uma rodada
+ */
+app.get('/api/preparatorio/:id/rodadas/:rodadaId/missoes', async (req, res) => {
+    const { rodadaId } = req.params;
+
+    if (!rodadaId) {
+        return res.status(400).json({
+            success: false,
+            error: 'rodadaId é obrigatório',
+        });
+    }
+
+    try {
+        const missoes = await getMissoesPorRodada(rodadaId);
+        return res.json({ success: true, data: missoes });
+    } catch (error: any) {
+        console.error('[Builder] Erro ao buscar missões:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao buscar missões',
+        });
+    }
+});
+
+/**
+ * POST /api/preparatorio/:id/finalizar-montagem
+ * Finaliza a montagem do preparatório
+ */
+app.post('/api/preparatorio/:id/finalizar-montagem', async (req, res) => {
+    const { id: preparatorioId } = req.params;
+
+    if (!preparatorioId) {
+        return res.status(400).json({
+            success: false,
+            error: 'preparatorioId é obrigatório',
+        });
+    }
+
+    console.log(`[Builder] Finalizando montagem do preparatório: ${preparatorioId}`);
+
+    try {
+        const result = await finalizarMontagem(preparatorioId);
+        return res.json(result);
+    } catch (error: any) {
+        console.error('[Builder] Erro ao finalizar montagem:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao finalizar montagem',
         });
     }
 });

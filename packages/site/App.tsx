@@ -73,6 +73,7 @@ import { RodadasAdmin } from './pages/admin/Rodadas';
 import { MissoesAdmin } from './pages/admin/Missoes';
 import { MensagensIncentivoAdmin } from './pages/admin/MensagensIncentivo';
 import { EditalAdmin } from './pages/admin/EditalAdmin';
+import { MissionBuilder } from './pages/admin/MissionBuilder';
 
 // Gamification Admin
 import {
@@ -243,6 +244,7 @@ const App: React.FC = () => {
               <Route path="preparatorios/:preparatorioId/rodadas/:rodadaId/missoes" element={<AdminOnlyRoute><MissoesAdmin /></AdminOnlyRoute>} />
               <Route path="preparatorios/:preparatorioId/mensagens" element={<AdminOnlyRoute><MensagensIncentivoAdmin /></AdminOnlyRoute>} />
               <Route path="preparatorios/:preparatorioId/edital" element={<AdminOnlyRoute><EditalAdmin /></AdminOnlyRoute>} />
+              <Route path="preparatorios/:preparatorioId/montar-missoes" element={<AdminOnlyRoute><MissionBuilder /></AdminOnlyRoute>} />
 
               {/* Courses (Simulados) - Sistema legado para app Ouse Questões */}
               <Route path="courses" element={<AdminOnlyRoute><Preparatorios /></AdminOnlyRoute>} />
