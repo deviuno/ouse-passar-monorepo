@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import mermaid from 'mermaid';
 
 // Inicializar mermaid com tema escuro
@@ -31,26 +31,68 @@ interface MermaidDiagramProps {
   className?: string;
 }
 
+/**
+ * Sanitiza o código Mermaid para evitar erros de parse
+ * - Remove parênteses de dentro dos nós (causa conflito com sintaxe Mermaid)
+ * - Substitui caracteres especiais problemáticos
+ */
+function sanitizeMermaidCode(code: string): string {
+  // Regex para encontrar conteúdo dentro de colchetes [], chaves {} e parênteses de nó
+  // Substitui parênteses por colchetes ou remove
+  let sanitized = code;
+
+  // Substituir parênteses dentro de nós [...] por traços ou removê-los
+  // Exemplo: [Ato Válido (Pas de Nullité)] -> [Ato Válido - Pas de Nullité]
+  sanitized = sanitized.replace(/\[([^\]]*)\]/g, (match, content) => {
+    // Substituir ( e ) por - dentro do conteúdo do nó
+    const cleanContent = content
+      .replace(/\s*\(/g, ' - ')
+      .replace(/\)\s*/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return `[${cleanContent}]`;
+  });
+
+  // Fazer o mesmo para nós com chaves {...}
+  sanitized = sanitized.replace(/\{([^}]*)\}/g, (match, content) => {
+    const cleanContent = content
+      .replace(/\s*\(/g, ' - ')
+      .replace(/\)\s*/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return `{${cleanContent}}`;
+  });
+
+  return sanitized;
+}
+
 export function MermaidDiagram({ chart, className = '' }: MermaidDiagramProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const renderChart = async () => {
-      if (!chart || !containerRef.current) return;
+      if (!chart) {
+        setIsLoading(false);
+        return;
+      }
 
       setIsLoading(true);
       setError(null);
 
       try {
         // Limpar o código do diagrama
-        const cleanChart = chart
+        let cleanChart = chart
           .trim()
           .replace(/^```mermaid\s*/i, '')
           .replace(/```\s*$/, '')
           .trim();
+
+        // Sanitizar para evitar erros de parse
+        cleanChart = sanitizeMermaidCode(cleanChart);
+
+        console.log('[Mermaid] Renderizando diagrama:', cleanChart.substring(0, 100) + '...');
 
         // Gerar ID único para o diagrama
         const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
@@ -58,8 +100,9 @@ export function MermaidDiagram({ chart, className = '' }: MermaidDiagramProps) {
         // Renderizar o diagrama
         const { svg: renderedSvg } = await mermaid.render(id, cleanChart);
         setSvg(renderedSvg);
+        console.log('[Mermaid] Diagrama renderizado com sucesso');
       } catch (err: any) {
-        console.error('Erro ao renderizar diagrama Mermaid:', err);
+        console.error('[Mermaid] Erro ao renderizar diagrama:', err);
         setError(err.message || 'Erro ao renderizar diagrama');
       } finally {
         setIsLoading(false);
@@ -93,7 +136,6 @@ export function MermaidDiagram({ chart, className = '' }: MermaidDiagramProps) {
 
   return (
     <div
-      ref={containerRef}
       className={`mermaid-container bg-[#252525] rounded-xl p-4 border border-[#3A3A3A] overflow-x-auto ${className}`}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
