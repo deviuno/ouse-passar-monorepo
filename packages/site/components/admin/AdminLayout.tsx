@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, Gamepad2, Zap, Trophy, Medal, Star, ClipboardList, UserCheck, Plus, Calendar, ShoppingCart, Package, Tag } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 export const AdminLayout: React.FC = () => {
@@ -8,10 +8,8 @@ export const AdminLayout: React.FC = () => {
     const navigate = useNavigate();
     const { user, logout, isAdmin, isVendedor } = useAuth();
     const [blogOpen, setBlogOpen] = useState(false);
-    const [gamificationOpen, setGamificationOpen] = useState(false);
     const [lojaOpen, setLojaOpen] = useState(false);
-    // Accordion sempre aberto
-    const [planejamentosOpen, setPlanejamentosOpen] = useState(true);
+    const [planejamentosOpen, setPlanejamentosOpen] = useState(false);
 
     const isActive = (path: string) => {
         return location.pathname === path ? 'bg-brand-yellow text-brand-darker' : 'text-gray-400 hover:text-white hover:bg-white/5';
@@ -25,32 +23,35 @@ export const AdminLayout: React.FC = () => {
                     <img
                         src="https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp"
                         alt="Ouse Passar"
-                        className="h-10 mb-4"
+                        className="h-10"
                     />
-                    <Link
-                        to="/admin/profile"
-                        className="block bg-brand-dark/50 border border-white/5 p-4 rounded-sm hover:border-brand-yellow/30 transition-colors cursor-pointer"
-                    >
-                        <div className="flex flex-col items-center">
-                            <div className="w-16 h-16 rounded-full overflow-hidden mb-3 border-2 border-brand-yellow/30">
-                                {user?.avatar_url ? (
-                                    <img
-                                        src={user.avatar_url}
-                                        alt={user.name}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full bg-brand-yellow/20 flex items-center justify-center">
-                                        <User className="w-8 h-8 text-brand-yellow" />
-                                    </div>
-                                )}
+                    {/* Card de perfil apenas para vendedores */}
+                    {isVendedor && !isAdmin && (
+                        <Link
+                            to="/admin/profile"
+                            className="block bg-brand-dark/50 border border-white/5 p-4 rounded-sm hover:border-brand-yellow/30 transition-colors cursor-pointer mt-4"
+                        >
+                            <div className="flex flex-col items-center">
+                                <div className="w-16 h-16 rounded-full overflow-hidden mb-3 border-2 border-brand-yellow/30">
+                                    {user?.avatar_url ? (
+                                        <img
+                                            src={user.avatar_url}
+                                            alt={user.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full bg-brand-yellow/20 flex items-center justify-center">
+                                            <User className="w-8 h-8 text-brand-yellow" />
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-white text-sm font-bold text-center truncate w-full">{user?.name}</p>
+                                <span className="mt-2 text-[10px] bg-brand-yellow/20 text-brand-yellow px-3 py-1 rounded-full uppercase font-bold tracking-wide">
+                                    Vendedor
+                                </span>
                             </div>
-                            <p className="text-white text-sm font-bold text-center truncate w-full">{user?.name}</p>
-                            <span className="mt-2 text-[10px] bg-brand-yellow/20 text-brand-yellow px-3 py-1 rounded-full uppercase font-bold tracking-wide">
-                                Estrategista
-                            </span>
-                        </div>
-                    </Link>
+                        </Link>
+                    )}
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
@@ -117,7 +118,7 @@ export const AdminLayout: React.FC = () => {
                             <div className="space-y-1">
                                 <button
                                     onClick={() => setBlogOpen(!blogOpen)}
-                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/articles') || location.pathname.includes('/admin/categories') || location.pathname.includes('/admin/authors') || location.pathname.includes('/admin/settings') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/articles') || location.pathname.includes('/admin/categories') || location.pathname.includes('/admin/authors') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                                 >
                                     <div className="flex items-center">
                                         <BookOpen className="w-5 h-5 mr-3" />
@@ -151,14 +152,6 @@ export const AdminLayout: React.FC = () => {
                                             <Users className="w-4 h-4 mr-3" />
                                             Autores
                                         </Link>
-
-                                        <Link
-                                            to="/admin/settings"
-                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/settings')}`}
-                                        >
-                                            <Settings className="w-4 h-4 mr-3" />
-                                            Configurações
-                                        </Link>
                                     </div>
                                 )}
                             </div>
@@ -171,72 +164,6 @@ export const AdminLayout: React.FC = () => {
                                 <GraduationCap className="w-5 h-5 mr-3" />
                                 Preparatórios
                             </Link>
-
-                            {/* Gamification Accordion */}
-                            <div className="space-y-1">
-                                <button
-                                    onClick={() => setGamificationOpen(!gamificationOpen)}
-                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/gamification') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                                >
-                                    <div className="flex items-center">
-                                        <Gamepad2 className="w-5 h-5 mr-3" />
-                                        Gamificação
-                                    </div>
-                                    <ChevronDown className={`w-4 h-4 transition-transform ${gamificationOpen ? 'rotate-180' : ''}`} />
-                                </button>
-
-                                {gamificationOpen && (
-                                    <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
-                                        <Link
-                                            to="/admin/gamification"
-                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification')}`}
-                                        >
-                                            <Settings className="w-4 h-4 mr-3" />
-                                            Configurações
-                                        </Link>
-
-                                        <Link
-                                            to="/admin/gamification/levels"
-                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/levels')}`}
-                                        >
-                                            <Star className="w-4 h-4 mr-3" />
-                                            Níveis
-                                        </Link>
-
-                                        <Link
-                                            to="/admin/gamification/leagues"
-                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/leagues')}`}
-                                        >
-                                            <Medal className="w-4 h-4 mr-3" />
-                                            Ligas
-                                        </Link>
-
-                                        <Link
-                                            to="/admin/gamification/xp-actions"
-                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/xp-actions')}`}
-                                        >
-                                            <Zap className="w-4 h-4 mr-3" />
-                                            Ações de XP
-                                        </Link>
-
-                                        <Link
-                                            to="/admin/gamification/achievements"
-                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/achievements')}`}
-                                        >
-                                            <Trophy className="w-4 h-4 mr-3" />
-                                            Conquistas
-                                        </Link>
-
-                                        <Link
-                                            to="/admin/gamification/planejamento-conquistas"
-                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gamification/planejamento-conquistas')}`}
-                                        >
-                                            <Calendar className="w-4 h-4 mr-3" />
-                                            Conquistas Planejamento
-                                        </Link>
-                                    </div>
-                                )}
-                            </div>
 
                             {/* Loja Accordion */}
                             <div className="space-y-1">
@@ -300,13 +227,15 @@ export const AdminLayout: React.FC = () => {
                 </nav>
 
                 <div className="p-4 border-t border-white/5 space-y-2">
-                    <Link
-                        to="/"
-                        className="flex items-center px-4 py-3 text-gray-400 hover:text-white hover:bg-white/5 transition-colors text-sm font-bold uppercase tracking-wide rounded-sm"
-                    >
-                        <BookOpen className="w-5 h-5 mr-3" />
-                        Voltar ao Site
-                    </Link>
+                    {isAdmin && (
+                        <Link
+                            to="/admin/settings"
+                            className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/settings')}`}
+                        >
+                            <Settings className="w-5 h-5 mr-3" />
+                            Configurações
+                        </Link>
+                    )}
                     <button
                         onClick={() => {
                             logout();

@@ -1,5 +1,8 @@
 import { supabase, DbUserProfile, DbUserAnswer, DbUserReview, DbUserFlashcard } from './supabaseClient';
 import { UserStats, UserAnswer, ReviewItem, Flashcard } from '../types';
+import { calculateLevel } from '../src/services/gamificationSettingsService';
+import { addWeeklyXp } from './rankingService';
+import { checkAndUnlockAchievements } from '../src/services/achievementsService';
 
 // ============================================
 // USER PROFILE / STATS
@@ -76,12 +79,40 @@ export const incrementUserStats = async (
   if (increments.correct_answers) updates.correct_answers = profile.correct_answers + increments.correct_answers;
   if (increments.total_answered) updates.total_answered = profile.total_answered + increments.total_answered;
 
-  // Calculate level based on XP
+  // Calculate level based on XP using gamification settings
   if (updates.xp) {
-    updates.level = Math.floor(updates.xp / 1000) + 1;
+    updates.level = await calculateLevel(updates.xp);
   }
 
-  return updateUserStats(userId, updates);
+  // Track weekly XP for league rankings
+  if (increments.xp) {
+    addWeeklyXp(
+      userId,
+      increments.xp,
+      increments.total_answered || 0,
+      increments.correct_answers || 0
+    ).catch(err => console.error('Error updating weekly XP:', err));
+  }
+
+  const result = await updateUserStats(userId, updates);
+
+  // Check and unlock achievements based on new stats
+  if (result) {
+    const newStats = {
+      xp: updates.xp || profile.xp,
+      coins: updates.coins || profile.coins,
+      level: updates.level || profile.level,
+      correctAnswers: updates.correct_answers || profile.correct_answers,
+      totalAnswered: updates.total_answered || profile.total_answered,
+      streak: profile.streak,
+    };
+
+    checkAndUnlockAchievements(userId, newStats).catch(err =>
+      console.error('Error checking achievements:', err)
+    );
+  }
+
+  return result;
 };
 
 // ============================================

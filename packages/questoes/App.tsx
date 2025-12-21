@@ -48,6 +48,7 @@ import {
 import { CourseQuestionFilters } from './services/questionsDbClient';
 import { fetchCourseById, CourseWithFilters } from './services/coursesService';
 import { fetchAllTimeRanking, WeeklyRankingUser } from './services/rankingService';
+import { getGamificationSettings, GamificationSettings } from './src/services/gamificationSettingsService';
 
 // --- Helper to parse the JSON string in alternatives ---
 const parseQuestions = (rawQuestions: typeof MOCK_QUESTIONS): ParsedQuestion[] => {
@@ -75,6 +76,9 @@ const App: React.FC = () => {
     const [userId, setUserId] = useState<string | null>(null);
     const [userName, setUserName] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
+
+    // Gamification Settings (loaded from DB)
+    const [gamificationSettings, setGamificationSettings] = useState<GamificationSettings | null>(null);
 
     // Persistent State: User Stats
     const [stats, setStats] = useState<UserStats>(() => {
@@ -251,6 +255,14 @@ const App: React.FC = () => {
 
                 // Load ranking data
                 await loadRanking(session?.user?.id || null);
+
+                // Load gamification settings from DB
+                try {
+                    const settings = await getGamificationSettings();
+                    setGamificationSettings(settings);
+                } catch (err) {
+                    console.warn('Could not load gamification settings, using defaults');
+                }
 
                 // Load questions stats from external DB (Scrapping project)
                 const stats = await getExternalQuestionsStats();
@@ -567,10 +579,14 @@ const App: React.FC = () => {
         // Stats Updates for Zen/Reta/Review
         if (studyMode !== 'hard') {
             if (isCorrect) {
+                // Use gamification settings or defaults
+                const xpReward = gamificationSettings?.xp_per_correct_answer ?? 50;
+                const coinsReward = gamificationSettings?.coins_per_correct_answer ?? 10;
+
                 setStats(prev => ({
                     ...prev,
-                    xp: prev.xp + 50,
-                    coins: prev.coins + 10,
+                    xp: prev.xp + xpReward,
+                    coins: prev.coins + coinsReward,
                     correctAnswers: prev.correctAnswers + 1,
                     totalAnswered: prev.totalAnswered + 1
                 }));
@@ -578,8 +594,8 @@ const App: React.FC = () => {
                 // Sync stats to Supabase if authenticated
                 if (userId) {
                     incrementUserStats(userId, {
-                        xp: 50,
-                        coins: 10,
+                        xp: xpReward,
+                        coins: coinsReward,
                         correct_answers: 1,
                         total_answered: 1,
                     }).catch(err => console.error('Error updating stats:', err));
@@ -684,8 +700,11 @@ const App: React.FC = () => {
 
         if (studyMode === 'hard') {
             const correctCount = userAnswers.filter(a => a.isCorrect).length;
-            const coinsEarned = correctCount * 20;
-            const xpEarned = correctCount * 100;
+            // Use gamification settings or defaults for hard mode
+            const xpPerCorrect = gamificationSettings?.xp_per_correct_hard_mode ?? 100;
+            const coinsPerCorrect = gamificationSettings?.coins_per_correct_hard_mode ?? 20;
+            const coinsEarned = correctCount * coinsPerCorrect;
+            const xpEarned = correctCount * xpPerCorrect;
 
             setStats(prev => ({
                 ...prev,
@@ -801,8 +820,13 @@ const App: React.FC = () => {
     };
 
     const handlePvPFinish = (winner: boolean) => {
-        const xpGain = winner ? 200 : 20;
-        const coinsGain = winner ? 50 : 5;
+        // Use gamification settings or defaults for PvP
+        const xpGain = winner
+            ? (gamificationSettings?.xp_per_pvp_win ?? 200)
+            : (gamificationSettings?.xp_per_pvp_loss ?? 20);
+        const coinsGain = winner
+            ? (gamificationSettings?.coins_per_pvp_win ?? 50)
+            : (gamificationSettings?.coins_per_pvp_loss ?? 5);
 
         setStats(prev => ({
             ...prev,

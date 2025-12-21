@@ -218,28 +218,71 @@ export const unlockAchievement = async (
 // LEAGUE PROMOTION LOGIC
 // ============================================
 
+const PROMOTION_TOP = 3; // Top 3 get promoted
+const DEMOTION_BOTTOM = 3; // Bottom 3 get demoted
+const MIN_XP_FOR_PROMOTION = 100; // Minimum XP earned in the week to be eligible
+
 export const checkLeaguePromotion = async (
   userId: string,
   currentTier: LeagueTier
-): Promise<LeagueTier | null> => {
+): Promise<{ newTier: LeagueTier | null; action: 'promote' | 'demote' | 'none' }> => {
   const tiers: LeagueTier[] = ['ferro', 'bronze', 'prata', 'ouro', 'diamante'];
   const currentIndex = tiers.indexOf(currentTier);
 
-  if (currentIndex >= tiers.length - 1) {
-    return null; // Already at max tier
+  // Get user's weekly ranking in their league
+  const ranking = await fetchWeeklyRanking(userId, 100);
+  const userEntry = ranking.find((u) => u.user_id === userId);
+
+  if (!userEntry) {
+    return { newTier: null, action: 'none' };
   }
 
-  // Get user's weekly XP and ranking
-  const ranking = await getLeagueRanking(currentTier, userId, 50);
-  const userRank = ranking.find((u) => u.user_id === userId);
-
-  if (!userRank) {
-    return null;
+  // Check for promotion (top 3 and not at max tier)
+  if (userEntry.rank <= PROMOTION_TOP && currentIndex < tiers.length - 1 && userEntry.xp_earned >= MIN_XP_FOR_PROMOTION) {
+    const newTier = tiers[currentIndex + 1];
+    return { newTier, action: 'promote' };
   }
 
-  // Promote top 3 users at end of week (this would be called by a scheduled function)
-  // For now, just return null - promotion logic handled separately
-  return null;
+  // Check for demotion (bottom 3 and not at min tier)
+  const totalUsers = ranking.length;
+  if (totalUsers > 5 && userEntry.rank > totalUsers - DEMOTION_BOTTOM && currentIndex > 0) {
+    const newTier = tiers[currentIndex - 1];
+    return { newTier, action: 'demote' };
+  }
+
+  return { newTier: null, action: 'none' };
+};
+
+/**
+ * Process league promotion/demotion for a user
+ * This should be called at the end of each week or when user opens the app
+ */
+export const processLeagueChange = async (
+  userId: string,
+  currentTier: LeagueTier
+): Promise<{ success: boolean; newTier?: LeagueTier; action?: 'promote' | 'demote' }> => {
+  const result = await checkLeaguePromotion(userId, currentTier);
+
+  if (result.action === 'none' || !result.newTier) {
+    return { success: true };
+  }
+
+  // Update user's league tier
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ league_tier: result.newTier })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Error updating league tier:', error);
+    return { success: false };
+  }
+
+  return {
+    success: true,
+    newTier: result.newTier,
+    action: result.action,
+  };
 };
 
 export const getLeagueTierDisplay = (tier: LeagueTier): { name: string; color: string; icon: string } => {
