@@ -237,7 +237,7 @@ export default function ProfilePage() {
               <div className="w-8 h-8 rounded-full bg-[#FFB800]/20 flex items-center justify-center">
                 <span className="text-[#FFB800] font-bold text-sm">{level}</span>
               </div>
-              <span className="text-white font-medium">Nivel {level}</span>
+              <span className="text-white font-medium">Nível {level}</span>
             </div>
             <span className="text-[#6E6E6E] text-sm">
               {xpProgress.current}/{xpProgress.needed} XP
@@ -249,7 +249,7 @@ export default function ProfilePage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-4 gap-2 mb-6">
-        <StatCard icon={Target} label="Questoes" value={stats.totalAnswered} color="#3498DB" />
+        <StatCard icon={Target} label="Questões" value={stats.totalAnswered} color="#3498DB" />
         <StatCard icon={Award} label="Acertos" value={stats.correctAnswers} color="#2ECC71" />
         <StatCard icon={Flame} label="Ofensiva" value={stats.streak} color="#E74C3C" />
         <StatCard
@@ -305,12 +305,12 @@ export default function ProfilePage() {
       <Card padding="none" className="mb-6">
         <MenuButton
           icon={Settings}
-          label="Configuracoes"
+          label="Configurações"
           onClick={() => console.log('Settings')}
         />
         <MenuButton
           icon={Bell}
-          label="Notificacoes"
+          label="Notificações"
           onClick={() => console.log('Notifications')}
         />
         <MenuButton
@@ -347,7 +347,7 @@ export default function ProfilePage() {
           </div>
           <p className="text-white mb-2">Tem certeza que deseja sair?</p>
           <p className="text-[#6E6E6E] text-sm mb-6">
-            Voce pode voltar a qualquer momento.
+            Você pode voltar a qualquer momento.
           </p>
 
           <div className="flex gap-3">

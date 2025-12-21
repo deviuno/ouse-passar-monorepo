@@ -14,11 +14,11 @@ import { useUserStore } from '../stores';
 
 // Mock data for demonstration
 const MATERIA_STATS = [
-  { materia: 'Lingua Portuguesa', acertos: 45, total: 60, percentual: 75, status: 'forte' as const },
+  { materia: 'Língua Portuguesa', acertos: 45, total: 60, percentual: 75, status: 'forte' as const },
   { materia: 'Direito Constitucional', acertos: 38, total: 50, percentual: 76, status: 'forte' as const },
   { materia: 'Direito Administrativo', acertos: 22, total: 40, percentual: 55, status: 'medio' as const },
-  { materia: 'Informatica', acertos: 18, total: 30, percentual: 60, status: 'medio' as const },
-  { materia: 'Raciocinio Logico', acertos: 8, total: 25, percentual: 32, status: 'fraco' as const },
+  { materia: 'Informática', acertos: 18, total: 30, percentual: 60, status: 'medio' as const },
+  { materia: 'Raciocínio Lógico', acertos: 8, total: 25, percentual: 32, status: 'fraco' as const },
 ];
 
 const WEEKLY_EVOLUTION = [
@@ -89,7 +89,7 @@ function HeatMapCard({ stats }: { stats: typeof MATERIA_STATS }) {
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-full bg-[#F39C12]" />
-          <span className="text-[#6E6E6E] text-xs">Medio (50-70%)</span>
+          <span className="text-[#6E6E6E] text-xs">Médio (50-70%)</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-full bg-[#E74C3C]" />
@@ -109,7 +109,7 @@ function ComparisonCard() {
       </div>
 
       <div className="text-center mb-4">
-        <p className="text-[#A0A0A0] text-sm mb-1">Voce esta acima de</p>
+        <p className="text-[#A0A0A0] text-sm mb-1">Você está acima de</p>
         <p className="text-4xl font-bold text-[#2ECC71]">68%</p>
         <p className="text-[#A0A0A0] text-sm">dos estudantes</p>
       </div>
@@ -123,14 +123,14 @@ function ComparisonCard() {
           </div>
         </div>
         <div className="flex items-center justify-between p-2 bg-[#3A3A3A]/50 rounded-lg">
-          <span className="text-[#A0A0A0] text-sm">Lingua Portuguesa</span>
+          <span className="text-[#A0A0A0] text-sm">Língua Portuguesa</span>
           <div className="flex items-center gap-1">
             <TrendingUp size={14} className="text-[#2ECC71]" />
             <span className="text-[#2ECC71] text-sm">+8%</span>
           </div>
         </div>
         <div className="flex items-center justify-between p-2 bg-[#3A3A3A]/50 rounded-lg">
-          <span className="text-[#A0A0A0] text-sm">Raciocinio Logico</span>
+          <span className="text-[#A0A0A0] text-sm">Raciocínio Lógico</span>
           <div className="flex items-center gap-1">
             <TrendingDown size={14} className="text-[#E74C3C]" />
             <span className="text-[#E74C3C] text-sm">-5%</span>
@@ -148,7 +148,7 @@ function EvolutionChart({ data }: { data: typeof WEEKLY_EVOLUTION }) {
     <Card>
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp size={20} className="text-[#2ECC71]" />
-        <h3 className="text-white font-semibold">Evolucao Semanal</h3>
+        <h3 className="text-white font-semibold">Evolução Semanal</h3>
       </div>
 
       <div className="flex items-end justify-between gap-2 h-32">
@@ -171,11 +171,11 @@ function EvolutionChart({ data }: { data: typeof WEEKLY_EVOLUTION }) {
 
       <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#3A3A3A]">
         <div>
-          <p className="text-[#6E6E6E] text-xs">Total de questoes</p>
+          <p className="text-[#6E6E6E] text-xs">Total de questões</p>
           <p className="text-white font-bold">{data.reduce((acc, d) => acc + d.questoes, 0)}</p>
         </div>
         <div className="text-right">
-          <p className="text-[#6E6E6E] text-xs">Media de acerto</p>
+          <p className="text-[#6E6E6E] text-xs">Média de acerto</p>
           <p className="text-[#2ECC71] font-bold">
             {Math.round(data.reduce((acc, d) => acc + d.acerto, 0) / data.length)}%
           </p>
@@ -218,7 +218,7 @@ export default function StatsPage() {
         <Card>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[#6E6E6E] text-sm">Questoes</span>
+              <span className="text-[#6E6E6E] text-sm">Questões</span>
               <span className="text-white font-bold">{stats.totalAnswered}</span>
             </div>
             <div className="flex items-center justify-between">
@@ -240,7 +240,7 @@ export default function StatsPage() {
         <Card className="text-center" padding="sm">
           <Clock size={20} className="text-[#3498DB] mx-auto mb-1" />
           <p className="text-white font-bold">45s</p>
-          <p className="text-[#6E6E6E] text-[10px]">Tempo medio</p>
+          <p className="text-[#6E6E6E] text-[10px]">Tempo médio</p>
         </Card>
         <Card className="text-center" padding="sm">
           <Award size={20} className="text-[#FFB800] mx-auto mb-1" />
@@ -250,7 +250,7 @@ export default function StatsPage() {
         <Card className="text-center" padding="sm">
           <Target size={20} className="text-[#2ECC71] mx-auto mb-1" />
           <p className="text-white font-bold">5</p>
-          <p className="text-[#6E6E6E] text-[10px]">Missoes</p>
+          <p className="text-[#6E6E6E] text-[10px]">Missões</p>
         </Card>
       </div>
 
@@ -271,7 +271,7 @@ export default function StatsPage() {
 
       {/* Action Items */}
       <Card>
-        <h3 className="text-white font-semibold mb-3">Recomendacoes</h3>
+        <h3 className="text-white font-semibold mb-3">Recomendações</h3>
         <div className="space-y-2">
           <button className="w-full flex items-center justify-between p-3 bg-[#E74C3C]/10 rounded-lg hover:bg-[#E74C3C]/20 transition-colors">
             <div className="flex items-center gap-3">
@@ -279,7 +279,7 @@ export default function StatsPage() {
                 <Target size={16} className="text-[#E74C3C]" />
               </div>
               <div className="text-left">
-                <p className="text-white text-sm">Foque em Raciocinio Logico</p>
+                <p className="text-white text-sm">Foque em Raciocínio Lógico</p>
                 <p className="text-[#6E6E6E] text-xs">Seu ponto mais fraco</p>
               </div>
             </div>
@@ -292,8 +292,8 @@ export default function StatsPage() {
                 <Clock size={16} className="text-[#3498DB]" />
               </div>
               <div className="text-left">
-                <p className="text-white text-sm">Revise 12 questoes</p>
-                <p className="text-[#6E6E6E] text-xs">Revisao espacada pendente</p>
+                <p className="text-white text-sm">Revise 12 questões</p>
+                <p className="text-[#6E6E6E] text-xs">Revisão espaçada pendente</p>
               </div>
             </div>
             <ChevronRight size={18} className="text-[#6E6E6E]" />

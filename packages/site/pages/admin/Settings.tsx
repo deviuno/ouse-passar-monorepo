@@ -121,75 +121,75 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; 
   simulado: {
     label: 'Simulados',
     icon: FileText,
-    description: 'Configuracoes dos simulados e provas',
+    description: 'Configurações dos simulados e provas',
   },
   gamification: {
-    label: 'Gamificacao',
+    label: 'Gamificação',
     icon: Gamepad2,
-    description: 'XP, moedas, niveis, ligas e conquistas',
+    description: 'XP, moedas, níveis, ligas e conquistas',
   },
   store: {
     label: 'Loja',
     icon: ShoppingBag,
-    description: 'Precos e configuracoes da loja',
+    description: 'Preços e configurações da loja',
   },
   trail: {
     label: 'Trilha',
     icon: MapIcon,
-    description: 'Configuracoes das missoes e rodadas',
+    description: 'Configurações das missões e rodadas',
   },
   general: {
     label: 'Geral',
     icon: Globe,
-    description: 'Configuracoes gerais do sistema',
+    description: 'Configurações gerais do sistema',
   },
   blog: {
     label: 'Blog',
     icon: Newspaper,
-    description: 'Configuracoes do blog e SEO',
+    description: 'Configurações do blog e SEO',
   },
 };
 
 const SETTING_LABELS: Record<string, string> = {
   // Simulado
-  questions_per_simulado: 'Questoes por Simulado',
-  max_attempts: 'Maximo de Tentativas',
-  different_exams_per_user: 'Provas Diferentes por Usuario',
+  questions_per_simulado: 'Questões por Simulado',
+  max_attempts: 'Máximo de Tentativas',
+  different_exams_per_user: 'Provas Diferentes por Usuário',
   allow_chat: 'Permitir Chat',
   time_limit_minutes: 'Tempo Limite (minutos)',
-  show_answers_after: 'Mostrar Respostas Apos',
-  allow_review: 'Permitir Revisao',
-  randomize_questions: 'Randomizar Questoes',
+  show_answers_after: 'Mostrar Respostas Após',
+  allow_review: 'Permitir Revisão',
+  randomize_questions: 'Randomizar Questões',
   randomize_options: 'Randomizar Alternativas',
 
   // Gamification
   xp_per_correct_answer: 'XP por Resposta Correta',
-  xp_per_mission_complete: 'XP por Missao Completa',
+  xp_per_mission_complete: 'XP por Missão Completa',
   coins_per_correct_answer: 'Moedas por Resposta Correta',
   streak_bonus_multiplier: 'Multiplicador de Ofensiva',
-  daily_goal_xp: 'Meta Diaria de XP',
+  daily_goal_xp: 'Meta Diária de XP',
 
   // Store
   auto_create_simulado_product: 'Criar Simulado Automaticamente',
 
   // Trail
-  questions_per_mission: 'Questoes por Missao',
-  missions_per_round: 'Missoes por Rodada',
-  min_score_to_pass: 'Pontuacao Minima (%)',
+  questions_per_mission: 'Questões por Missão',
+  missions_per_round: 'Missões por Rodada',
+  min_score_to_pass: 'Pontuação Mínima (%)',
   allow_retry: 'Permitir Refazer',
-  show_explanation: 'Mostrar Explicacao',
+  show_explanation: 'Mostrar Explicação',
 
   // General
-  maintenance_mode: 'Modo Manutencao',
+  maintenance_mode: 'Modo Manutenção',
   allow_new_registrations: 'Permitir Novos Cadastros',
-  require_email_verification: 'Verificacao de Email',
-  max_preparatorios_per_user: 'Max Preparatorios por Usuario',
+  require_email_verification: 'Verificação de Email',
+  max_preparatorios_per_user: 'Max Preparatórios por Usuário',
 };
 
 // Gamification sub-tabs
 const GAMIFICATION_TABS = [
-  { id: 'questoes', label: 'Questoes', icon: Zap },
-  { id: 'niveis', label: 'Niveis', icon: Star },
+  { id: 'questoes', label: 'Questões', icon: Zap },
+  { id: 'niveis', label: 'Níveis', icon: Star },
   { id: 'ligas', label: 'Ligas', icon: Medal },
   { id: 'conquistas', label: 'Conquistas', icon: Award },
   { id: 'conquistas-planejamento', label: 'Planejamento', icon: Calendar },
@@ -198,63 +198,63 @@ const GAMIFICATION_TABS = [
 // Tutorial content for each gamification tab
 const GAMIFICATION_TUTORIALS: Record<string, { title: string; content: string[] }> = {
   questoes: {
-    title: 'Como funcionam as Recompensas de Questoes',
+    title: 'Como funcionam as Recompensas de Questões',
     content: [
       'O sistema de XP e Moedas recompensa os alunos por cada atividade realizada na plataforma.',
-      'XP por Resposta Correta: Quantidade de XP que o aluno ganha ao acertar uma questao no modo normal.',
-      'XP por Acerto Hard Mode: Bonus adicional para questoes respondidas no modo desafio (simulado).',
-      'XP por Vitoria/Derrota PvP: Recompensas para partidas no modo Player vs Player.',
-      'Moedas: Podem ser usadas na loja para comprar itens, avatares e outros beneficios.',
-      'XP por Nivel: Define quantos pontos de XP sao necessarios para subir de nivel.',
-      'Formula de Nivel: Linear (XP fixo por nivel) ou Exponencial (XP aumenta a cada nivel).',
+      'XP por Resposta Correta: Quantidade de XP que o aluno ganha ao acertar uma questão no modo normal.',
+      'XP por Acerto Hard Mode: Bônus adicional para questões respondidas no modo desafio (simulado).',
+      'XP por Vitória/Derrota PvP: Recompensas para partidas no modo Player vs Player.',
+      'Moedas: Podem ser usadas na loja para comprar itens, avatares e outros benefícios.',
+      'XP por Nível: Define quantos pontos de XP são necessários para subir de nível.',
+      'Fórmula de Nível: Linear (XP fixo por nível) ou Exponencial (XP aumenta a cada nível).',
     ],
   },
   niveis: {
-    title: 'Como funciona o Sistema de Niveis',
+    title: 'Como funciona o Sistema de Níveis',
     content: [
-      'Os niveis representam o progresso do aluno na plataforma.',
-      'Numero do Nivel: Identificador unico do nivel (1, 2, 3, etc.).',
-      'Titulo: Nome exibido para o nivel (ex: Iniciante, Estudante, Mestre).',
-      'XP Minimo: Quantidade de XP necessaria para atingir este nivel.',
-      'Icone e Cor: Personalizacao visual do nivel.',
-      'Recompensas: XP e Moedas bonus que o aluno recebe ao atingir o nivel.',
-      'Dica: Crie niveis com titulos motivacionais relacionados a concursos publicos!',
+      'Os níveis representam o progresso do aluno na plataforma.',
+      'Número do Nível: Identificador único do nível (1, 2, 3, etc.).',
+      'Título: Nome exibido para o nível (ex: Iniciante, Estudante, Mestre).',
+      'XP Mínimo: Quantidade de XP necessária para atingir este nível.',
+      'Ícone e Cor: Personalização visual do nível.',
+      'Recompensas: XP e Moedas bônus que o aluno recebe ao atingir o nível.',
+      'Dica: Crie níveis com títulos motivacionais relacionados a concursos públicos!',
     ],
   },
   ligas: {
     title: 'Como funciona o Sistema de Ligas',
     content: [
-      'As ligas criam competicao saudavel entre os alunos.',
+      'As ligas criam competição saudável entre os alunos.',
       'Ferro, Bronze, Prata, Ouro, Diamante: Hierarquia das ligas.',
       'Ranking Semanal: Os alunos competem pelo XP ganho durante a semana.',
-      'Promocao: Os 3 primeiros colocados sobem para a liga superior.',
-      'Rebaixamento: Os 3 ultimos colocados descem para a liga inferior.',
-      'Reset Semanal: O ranking reinicia toda semana (configuravel).',
-      'Bonus de Promocao: XP e Moedas extras ao subir de liga.',
+      'Promoção: Os 3 primeiros colocados sobem para a liga superior.',
+      'Rebaixamento: Os 3 últimos colocados descem para a liga inferior.',
+      'Reset Semanal: O ranking reinicia toda semana (configurável).',
+      'Bônus de Promoção: XP e Moedas extras ao subir de liga.',
     ],
   },
   conquistas: {
     title: 'Como funcionam as Conquistas',
     content: [
-      'Conquistas sao premios que os alunos desbloqueiam ao atingir marcos.',
-      'Categorias: Estudo, Streak, PvP, Nivel, Social, Especial.',
-      'Tipos de Requisito: Questoes respondidas, Acertos, Dias de sequencia, Nivel, XP, etc.',
-      'Valor do Requisito: Numero que define a meta (ex: 100 questoes, 7 dias de streak).',
+      'Conquistas são prêmios que os alunos desbloqueiam ao atingir marcos.',
+      'Categorias: Estudo, Streak, PvP, Nível, Social, Especial.',
+      'Tipos de Requisito: Questões respondidas, Acertos, Dias de sequência, Nível, XP, etc.',
+      'Valor do Requisito: Número que define a meta (ex: 100 questões, 7 dias de streak).',
       'Recompensas: XP e Moedas que o aluno ganha ao desbloquear.',
-      'Conquistas Ocultas: Nao aparecem na lista ate serem desbloqueadas (surpresa!).',
+      'Conquistas Ocultas: Não aparecem na lista até serem desbloqueadas (surpresa!).',
       'Dica: Crie conquistas variadas para diferentes perfis de alunos.',
     ],
   },
   'conquistas-planejamento': {
     title: 'Como funcionam as Conquistas de Planejamento',
     content: [
-      'Conquistas especificas para o sistema de planejamento de estudos.',
-      'Missoes Completadas: Numero de missoes finalizadas pelo aluno.',
-      'Rodadas Completadas: Numero de rodadas de estudo finalizadas.',
-      'Dias Consecutivos: Sequencia de dias estudando sem interrupcao.',
-      '% do Edital: Porcentagem do conteudo do edital coberta.',
+      'Conquistas específicas para o sistema de planejamento de estudos.',
+      'Missões Completadas: Número de missões finalizadas pelo aluno.',
+      'Rodadas Completadas: Número de rodadas de estudo finalizadas.',
+      'Dias Consecutivos: Sequência de dias estudando sem interrupção.',
+      '% do Edital: Porcentagem do conteúdo do edital coberta.',
       'Esses achievements incentivam o uso do planejador de estudos.',
-      'Dica: Crie conquistas progressivas (10, 50, 100 missoes) para manter engajamento.',
+      'Dica: Crie conquistas progressivas (10, 50, 100 missões) para manter engajamento.',
     ],
   },
 };
@@ -373,7 +373,7 @@ function BlogSettingsSection({
       {/* General */}
       <section className="bg-brand-card border border-white/10 p-6 rounded-sm">
         <h3 className="text-lg font-bold text-white uppercase mb-6 border-b border-white/10 pb-2">
-          Configuracoes Gerais do Blog
+          Configurações Gerais do Blog
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -543,28 +543,28 @@ const DEFAULT_GAMIFICATION_SETTINGS: GamificationSettings = {
 const ACHIEVEMENT_CATEGORIES = ['estudo', 'streak', 'pvp', 'nivel', 'social', 'especial'];
 
 const REQUIREMENT_TYPES = [
-  { value: 'questions_answered', label: 'Questoes Respondidas' },
+  { value: 'questions_answered', label: 'Questões Respondidas' },
   { value: 'correct_answers', label: 'Respostas Corretas' },
   { value: 'streak_days', label: 'Dias de Streak' },
-  { value: 'pvp_wins', label: 'Vitorias PvP' },
-  { value: 'level_reached', label: 'Nivel Alcancado' },
+  { value: 'pvp_wins', label: 'Vitórias PvP' },
+  { value: 'level_reached', label: 'Nível Alcançado' },
   { value: 'xp_earned', label: 'XP Total' },
   { value: 'coins_earned', label: 'Moedas Total' },
   { value: 'flashcards_reviewed', label: 'Flashcards Revisados' },
-  { value: 'subjects_mastered', label: 'Materias Dominadas' },
+  { value: 'subjects_mastered', label: 'Matérias Dominadas' },
   { value: 'custom', label: 'Personalizado' },
 ];
 
 const REQUISITO_TIPOS: { value: PlanejamentoConquistaRequisitoTipo; label: string }[] = [
-  { value: 'missoes_completadas', label: 'Missoes Completadas' },
+  { value: 'missoes_completadas', label: 'Missões Completadas' },
   { value: 'rodadas_completadas', label: 'Rodadas Completadas' },
   { value: 'dias_consecutivos', label: 'Dias Consecutivos' },
   { value: 'porcentagem_edital', label: '% do Edital' },
-  { value: 'missoes_por_dia', label: 'Missoes por Dia' },
+  { value: 'missoes_por_dia', label: 'Missões por Dia' },
   { value: 'tempo_estudo', label: 'Tempo de Estudo (min)' },
   { value: 'primeiro_acesso', label: 'Primeiro Acesso' },
   { value: 'semana_perfeita', label: 'Semana Perfeita' },
-  { value: 'mes_perfeito', label: 'Mes Perfeito' },
+  { value: 'mes_perfeito', label: 'Mês Perfeito' },
   { value: 'custom', label: 'Personalizado' },
 ];
 
@@ -717,7 +717,7 @@ function GamificationSection() {
     setSaving(true);
     const { success, error: err } = await updateGamificationSettings(gamSettings);
     if (success) {
-      toast.success('Configuracoes salvas com sucesso!');
+      toast.success('Configurações salvas com sucesso!');
     } else {
       toast.error(err || 'Erro ao salvar');
     }
@@ -726,7 +726,7 @@ function GamificationSection() {
 
   const handleResetSettings = () => {
     setGamSettings(DEFAULT_GAMIFICATION_SETTINGS);
-    toast.info('Configuracoes restauradas para o padrao');
+    toast.info('Configurações restauradas para o padrão');
   };
 
   const updateSetting = <K extends keyof GamificationSettings>(key: K, value: GamificationSettings[K]) => {
@@ -812,7 +812,7 @@ function GamificationSection() {
             <NumberInput label="Moedas por Derrota PvP" value={gamSettings.coins_per_pvp_loss} onChange={(v) => updateSetting('coins_per_pvp_loss', v)} />
           </SettingSection>
 
-          <SettingSection title="Sistema de Niveis" icon={<TrendingUp className="w-5 h-5 text-green-500" />}>
+          <SettingSection title="Sistema de Níveis" icon={<TrendingUp className="w-5 h-5 text-green-500" />}>
             <NumberInput label="XP por Nivel" value={gamSettings.xp_per_level} onChange={(v) => updateSetting('xp_per_level', v)} suffix="XP" />
             <div>
               <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Formula de Progressao</label>
@@ -828,7 +828,7 @@ function GamificationSection() {
           </SettingSection>
 
           <SettingSection title="Meta Diaria" icon={<Target className="w-5 h-5 text-blue-500" />}>
-            <NumberInput label="Questoes por Dia" value={gamSettings.daily_goal_questions} onChange={(v) => updateSetting('daily_goal_questions', v)} />
+            <NumberInput label="Questões por Dia" value={gamSettings.daily_goal_questions} onChange={(v) => updateSetting('daily_goal_questions', v)} />
             <NumberInput label="Bonus XP ao Completar" value={gamSettings.daily_goal_xp_bonus} onChange={(v) => updateSetting('daily_goal_xp_bonus', v)} suffix="XP" />
             <NumberInput label="Bonus Moedas ao Completar" value={gamSettings.daily_goal_coins_bonus} onChange={(v) => updateSetting('daily_goal_coins_bonus', v)} />
           </SettingSection>
@@ -865,10 +865,10 @@ function GamificationSection() {
           <div className="bg-brand-card border border-white/5 rounded-sm p-6">
             <h2 className="text-lg font-bold text-white uppercase tracking-wide mb-6 flex items-center gap-3">
               <SettingsIcon className="w-5 h-5 text-gray-400" />
-              Configuracoes Gerais
+              Configurações Gerais
             </h2>
             <div className="space-y-4">
-              <ToggleInput label="Gamificacao Ativa" checked={gamSettings.is_gamification_enabled} onChange={(v) => updateSetting('is_gamification_enabled', v)} description="Desativar remove todo o sistema de XP, moedas e niveis do app" />
+              <ToggleInput label="Gamificação Ativa" checked={gamSettings.is_gamification_enabled} onChange={(v) => updateSetting('is_gamification_enabled', v)} description="Desativar remove todo o sistema de XP, moedas e níveis do app" />
               <ToggleInput label="Mostrar Animacoes de XP" checked={gamSettings.show_xp_animations} onChange={(v) => updateSetting('show_xp_animations', v)} description="Animacoes visuais ao ganhar XP" />
               <ToggleInput label="Mostrar Modal de Level Up" checked={gamSettings.show_level_up_modal} onChange={(v) => updateSetting('show_level_up_modal', v)} description="Modal de celebracao ao subir de nivel" />
             </div>
@@ -1097,7 +1097,7 @@ function LevelsTab({
               <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">Cor</th>
               <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">Bonus</th>
               <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase">Status</th>
-              <th className="text-right px-4 py-3 text-xs font-bold text-gray-400 uppercase">Acoes</th>
+              <th className="text-right px-4 py-3 text-xs font-bold text-gray-400 uppercase">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -1491,7 +1491,7 @@ export const Settings: React.FC = () => {
         if (error) throw error;
       }
 
-      toast.success('Configuracoes salvas com sucesso!');
+      toast.success('Configurações salvas com sucesso!');
       await loadAllSettings();
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -1535,11 +1535,11 @@ export const Settings: React.FC = () => {
         if (error) throw error;
       }
 
-      toast.success('Configuracoes do blog salvas!');
+      toast.success('Configurações do blog salvas!');
       await loadAllSettings();
     } catch (error) {
       console.error('Error saving blog settings:', error);
-      toast.error('Erro ao salvar configuracoes do blog');
+      toast.error('Erro ao salvar configurações do blog');
     } finally {
       setSaving(false);
     }
@@ -1564,10 +1564,10 @@ export const Settings: React.FC = () => {
         <div>
           <h1 className="text-3xl font-black text-white uppercase tracking-tight flex items-center gap-3">
             <SettingsIcon className="w-8 h-8 text-brand-yellow" />
-            Configuracoes
+            Configurações
           </h1>
           <p className="text-gray-400 mt-1">
-            Gerencie todas as configuracoes do sistema
+            Gerencie todas as configurações do sistema
           </p>
         </div>
 
@@ -1749,9 +1749,9 @@ export const Settings: React.FC = () => {
                 <div className="mt-6 bg-green-500/10 border border-green-500/30 rounded-sm p-4">
                   <h3 className="text-green-400 font-bold mb-2">Sobre a Loja</h3>
                   <ul className="text-green-300 text-sm space-y-1">
-                    <li>• <strong>Criar Simulado Automaticamente:</strong> Quando ativado, um produto simulado sera criado automaticamente ao criar um preparatorio</li>
-                    <li>• <strong>Os precos sao definidos por preparatorio</strong> na etapa "Vendas" ao criar/editar um preparatorio</li>
-                    <li>• Cada preparatorio tem precos individuais para: Planejador, 8 Questoes, Simulados, Reta Final e Plataforma Completa</li>
+                    <li>• <strong>Criar Simulado Automaticamente:</strong> Quando ativado, um produto simulado será criado automaticamente ao criar um preparatório</li>
+                    <li>• <strong>Os preços são definidos por preparatório</strong> na etapa "Vendas" ao criar/editar um preparatório</li>
+                    <li>• Cada preparatório tem preços individuais para: Planejador, 8 Questões, Simulados, Reta Final e Plataforma Completa</li>
                   </ul>
                 </div>
               )}

@@ -136,7 +136,7 @@ function StoreItemCard({
         {/* Content */}
         <div className="flex-1 flex flex-col">
           <h3 className="text-white font-medium text-sm line-clamp-1 mb-1">{item.name}</h3>
-          <p className="text-[#6E6E6E] text-xs line-clamp-2 flex-1">{item.description || 'Sem descricao'}</p>
+          <p className="text-[#6E6E6E] text-xs line-clamp-2 flex-1">{item.description || 'Sem descrição'}</p>
         </div>
 
         {/* Footer */}
@@ -144,7 +144,7 @@ function StoreItemCard({
           {owned ? (
             <div className="flex items-center justify-center gap-1 text-[#2ECC71]">
               <Check size={14} />
-              <span className="text-xs font-medium">Na sua colecao</span>
+              <span className="text-xs font-medium">Na sua coleção</span>
             </div>
           ) : (
             <div className="flex items-center justify-between">
@@ -282,7 +282,7 @@ export default function StorePage() {
           </div>
         </div>
         <p className="text-[#A0A0A0]">
-          Personalize sua experiencia e potencialize seus estudos
+          Personalize sua experiência e potencialize seus estudos
         </p>
       </div>
 
@@ -348,7 +348,7 @@ export default function StorePage() {
       ) : (
         <div className="text-center py-12 text-[#6E6E6E]">
           <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Nenhum produto disponivel nesta categoria</p>
+          <p>Nenhum produto disponível nesta categoria</p>
         </div>
       )}
 
@@ -365,7 +365,7 @@ export default function StorePage() {
                 <Package className="w-5 h-5 text-[#FFB800]" />
               </div>
               <div>
-                <h3 className="text-white font-medium">Meu Inventario</h3>
+                <h3 className="text-white font-medium">Meu Inventário</h3>
                 <p className="text-[#6E6E6E] text-sm">
                   {inventory.length} {inventory.length === 1 ? 'item' : 'itens'}
                 </p>
@@ -404,7 +404,7 @@ export default function StorePage() {
             </div>
 
             <p className="text-[#6E6E6E] text-sm mb-6">
-              Saldo apos compra: {(userCoins - selectedItem.price_coins).toLocaleString('pt-BR')} moedas
+              Saldo após compra: {(userCoins - selectedItem.price_coins).toLocaleString('pt-BR')} moedas
             </p>
 
             <div className="flex gap-3">

@@ -99,10 +99,10 @@ function EmptyTrailState() {
         🗺️
       </motion.div>
       <h2 className="text-xl font-bold text-white mb-2">
-        Sua trilha esta vazia
+        Sua trilha está vazia
       </h2>
       <p className="text-[#A0A0A0] mb-6 max-w-xs">
-        Parece que voce ainda nao tem uma trilha de estudos configurada.
+        Parece que você ainda não tem uma trilha de estudos configurada.
         Vamos criar uma agora!
       </p>
       <Button onClick={() => navigate('/onboarding')}>
@@ -125,13 +125,13 @@ function NoPreparatoriosState({ onAddNew }: { onAddNew: () => void }) {
         📚
       </motion.div>
       <h2 className="text-xl font-bold text-white mb-2">
-        Nenhum preparatorio ainda
+        Nenhum preparatório ainda
       </h2>
       <p className="text-[#A0A0A0] mb-6 max-w-xs">
-        Adicione seu primeiro preparatorio para comecar sua jornada de estudos!
+        Adicione seu primeiro preparatório para começar sua jornada de estudos!
       </p>
       <Button onClick={onAddNew}>
-        Adicionar Preparatorio
+        Adicionar Preparatório
       </Button>
     </div>
   );

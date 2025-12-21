@@ -84,7 +84,7 @@ function InventoryItemCard({
             )}
           </div>
           <p className="text-[#6E6E6E] text-sm line-clamp-2 mt-1">
-            {item.description || 'Sem descricao'}
+            {item.description || 'Sem descrição'}
           </p>
 
           {isConsumable && (
@@ -190,7 +190,7 @@ export default function InventoryPage() {
       setActiveBoosts(boosts.filter(b => b.is_active && new Date(b.expires_at) > new Date()));
     } catch (error) {
       console.error('Error loading inventory:', error);
-      addToast('error', 'Erro ao carregar inventario');
+      addToast('error', 'Erro ao carregar inventário');
     } finally {
       setLoading(false);
     }
@@ -248,7 +248,7 @@ export default function InventoryPage() {
       }
     } catch (error) {
       console.error('Error processing action:', error);
-      addToast('error', 'Erro ao processar acao');
+      addToast('error', 'Erro ao processar ação');
     } finally {
       setProcessing(false);
       setSelectedItem(null);
@@ -291,7 +291,7 @@ export default function InventoryPage() {
     <div className="p-4 pb-24">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white mb-2">Meu Inventario</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">Meu Inventário</h1>
         <p className="text-[#A0A0A0]">
           Gerencie seus itens e equipamentos
         </p>
@@ -367,7 +367,7 @@ export default function InventoryPage() {
           <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p className="mb-4">
             {activeTab === 'all'
-              ? 'Seu inventario esta vazio'
+              ? 'Seu inventário está vazio'
               : `Nenhum item do tipo ${ITEM_TYPE_LABELS[activeTab] || activeTab}`
             }
           </p>
@@ -448,13 +448,13 @@ export default function InventoryPage() {
                 </div>
                 <p className="text-[#A0A0A0] text-sm">
                   {selectedItem.item.metadata?.effect === 'streak_freeze'
-                    ? 'Protege sua ofensiva por 1 dia caso voce nao estude'
+                    ? 'Protege sua ofensiva por 1 dia caso você não estude'
                     : selectedItem.item.metadata?.effect === 'hint'
-                    ? 'Revela uma dica para a questao atual'
+                    ? 'Revela uma dica para a questão atual'
                     : selectedItem.item.metadata?.effect === 'skip'
-                    ? 'Pula a questao atual sem perder pontos'
+                    ? 'Pula a questão atual sem perder pontos'
                     : selectedItem.item.metadata?.effect === 'reveal'
-                    ? 'Revela a resposta correta da questao'
+                    ? 'Revela a resposta correta da questão'
                     : 'Aplica um efeito especial'
                   }
                 </p>
@@ -465,7 +465,7 @@ export default function InventoryPage() {
               <div className="flex items-center justify-center gap-2 text-[#A0A0A0] text-sm mb-6">
                 <AlertCircle size={14} />
                 <span>
-                  Quantidade atual: {selectedItem.quantity} | Apos uso: {selectedItem.quantity - 1}
+                  Quantidade atual: {selectedItem.quantity} | Após uso: {selectedItem.quantity - 1}
                 </span>
               </div>
             )}

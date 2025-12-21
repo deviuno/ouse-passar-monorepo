@@ -46,7 +46,7 @@ function MassificacaoModal({
                                 <RefreshCw className="w-6 h-6 text-[#E74C3C]" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-white">Massificacao</h2>
+                                <h2 className="text-xl font-bold text-white">Massificação</h2>
                                 <p className="text-sm text-[#E74C3C]">{missionLabel}</p>
                             </div>
                         </div>
@@ -61,23 +61,23 @@ function MassificacaoModal({
                     {/* Content */}
                     <div className="space-y-4 mb-6">
                         <p className="text-[#A0A0A0] text-sm leading-relaxed">
-                            Voce nao atingiu a pontuacao minima nesta missao. A <span className="text-[#E74C3C] font-semibold">Massificacao</span> e uma oportunidade de reforcar seu aprendizado!
+                            Você não atingiu a pontuação mínima nesta missão. A <span className="text-[#E74C3C] font-semibold">Massificação</span> é uma oportunidade de reforçar seu aprendizado!
                         </p>
 
                         <div className="space-y-3">
                             <div className="flex items-start gap-3 p-3 bg-[#2A2A2A] rounded-lg">
                                 <Target className="w-5 h-5 text-[#E74C3C] mt-0.5 flex-shrink-0" />
                                 <div>
-                                    <p className="text-white text-sm font-medium">Mesmas questoes</p>
-                                    <p className="text-[#6E6E6E] text-xs">Voce refara exatamente as mesmas questoes para fixar o conteudo.</p>
+                                    <p className="text-white text-sm font-medium">Mesmas questões</p>
+                                    <p className="text-[#6E6E6E] text-xs">Você refará exatamente as mesmas questões para fixar o conteúdo.</p>
                                 </div>
                             </div>
 
                             <div className="flex items-start gap-3 p-3 bg-[#2A2A2A] rounded-lg">
                                 <BookOpen className="w-5 h-5 text-[#E74C3C] mt-0.5 flex-shrink-0" />
                                 <div>
-                                    <p className="text-white text-sm font-medium">Conteudo disponivel</p>
-                                    <p className="text-[#6E6E6E] text-xs">Acesso ao material teorico para revisar antes de responder.</p>
+                                    <p className="text-white text-sm font-medium">Conteúdo disponível</p>
+                                    <p className="text-[#6E6E6E] text-xs">Acesso ao material teórico para revisar antes de responder.</p>
                                 </div>
                             </div>
 
@@ -85,7 +85,7 @@ function MassificacaoModal({
                                 <Zap className="w-5 h-5 text-[#6E6E6E] mt-0.5 flex-shrink-0" />
                                 <div>
                                     <p className="text-white text-sm font-medium">Sem recompensas</p>
-                                    <p className="text-[#6E6E6E] text-xs">Nao ganha XP ou moedas, mas desbloqueia a proxima missao.</p>
+                                    <p className="text-[#6E6E6E] text-xs">Não ganha XP ou moedas, mas desbloqueia a próxima missão.</p>
                                 </div>
                             </div>
                         </div>
@@ -104,7 +104,7 @@ function MassificacaoModal({
                             className="flex-1 py-3 px-4 rounded-xl bg-[#E74C3C] text-white font-medium hover:bg-[#C0392B] transition-colors flex items-center justify-center gap-2"
                         >
                             <RefreshCw className="w-4 h-4" />
-                            Fazer Massificacao
+                            Fazer Massificação
                         </button>
                     </div>
                 </motion.div>
@@ -303,9 +303,9 @@ export function TrailMap({
         // If it's the first attempt, just show "Massificação M1"
         // If multiple attempts, show "Massificação M1 (2)"
         if (tentativa > 1) {
-            return `Massificacao M${missionNumber} (${tentativa})`;
+            return `Massificação M${missionNumber} (${tentativa})`;
         }
-        return `Massificacao M${missionNumber}`;
+        return `Massificação M${missionNumber}`;
     }, [missions]);
 
     // Find the index of the just completed mission
@@ -357,7 +357,7 @@ export function TrailMap({
     if (rounds.length === 0) {
         return (
             <div className="flex items-center justify-center p-8 text-[#A0A0A0]">
-                Nenhuma rodada disponivel
+                Nenhuma rodada disponível
             </div>
         );
     }
@@ -428,7 +428,7 @@ export function TrailMap({
                                 transition={{ duration: 0.5, repeat: Infinity }}
                                 className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg mb-1 whitespace-nowrap"
                             >
-                                Avancando!
+                                Avançando!
                                 <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-emerald-500 rotate-45" />
                             </motion.div>
                             <motion.img
@@ -486,7 +486,7 @@ export function TrailMap({
                                             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                                             className="text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg mb-1 whitespace-nowrap relative"
                                         >
-                                            {isMassificacaoMission ? 'Massificacao' : 'Voce esta aqui'}
+                                            {isMassificacaoMission ? 'Massificação' : 'Você está aqui'}
                                             <motion.div
                                                 animate={{ backgroundColor: isMassificacaoMission ? ["#E74C3C", "#C0392B", "#E74C3C"] : ["#059669", "#047857", "#059669"] }}
                                                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -542,7 +542,7 @@ export function TrailMap({
                                 `}>
                                     {isMassificacaoMission
                                         ? getMassificacaoLabel(mission, index)
-                                        : `Missao ${index + 1}`
+                                        : `Missão ${index + 1}`
                                     }
                                 </div>
                             </div>

@@ -217,7 +217,7 @@ export const AdminLayout: React.FC = () => {
                                             className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/loja/documentacao')}`}
                                         >
                                             <BookOpen className="w-4 h-4 mr-3" />
-                                            Documentacao
+                                            Documentação
                                         </Link>
                                     </div>
                                 )}

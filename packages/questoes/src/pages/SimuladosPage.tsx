@@ -247,7 +247,7 @@ export default function SimuladosPage() {
       {/* Available Simulados */}
       {availableSimulados.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold text-white mb-3">Disponiveis</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Disponíveis</h2>
           <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {availableSimulados.map((simulado) => (
               <StaggerItem key={simulado.id}>

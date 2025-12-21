@@ -192,7 +192,7 @@ function StudyModeModal({
             Escolha o modo de estudo
           </h2>
           <p className="text-[#A0A0A0] text-sm text-center mb-6">
-            Como voce quer praticar as questoes?
+            Como você quer praticar as questões?
           </p>
 
           <div className="space-y-3">
@@ -210,7 +210,7 @@ function StudyModeModal({
                     Modo Zen
                   </h3>
                   <p className="text-[#A0A0A0] text-sm mt-1">
-                    Veja o gabarito e comentario apos cada questao. Ideal para aprender com calma.
+                    Veja o gabarito e comentário após cada questão. Ideal para aprender com calma.
                   </p>
                 </div>
               </div>
@@ -230,7 +230,7 @@ function StudyModeModal({
                     Modo Simulado
                   </h3>
                   <p className="text-[#A0A0A0] text-sm mt-1">
-                    Responda todas as questoes primeiro. Gabarito e comentarios so no final.
+                    Responda todas as questões primeiro. Gabarito e comentários só no final.
                   </p>
                 </div>
               </div>
@@ -409,10 +409,10 @@ function ContentPhase({
           <Sparkles size={48} className="text-[#FFB800]" />
         </motion.div>
         <h2 className="text-xl font-bold text-white mb-2">
-          Gerando conteudo personalizado...
+          Gerando conteúdo personalizado...
         </h2>
         <p className="text-[#A0A0A0] mb-4 max-w-xs">
-          Nossa IA esta preparando uma aula especial baseada nas questoes desta missao. Isso pode levar alguns segundos.
+          Nossa IA está preparando uma aula especial baseada nas questões desta missão. Isso pode levar alguns segundos.
         </p>
         <div className="w-48 h-2 bg-[#3A3A3A] rounded-full overflow-hidden">
           <motion.div
@@ -423,7 +423,7 @@ function ContentPhase({
           />
         </div>
         <p className="text-[#6E6E6E] text-xs mt-4">
-          Voce e o primeiro a acessar esta missao!
+          Você é o primeiro a acessar esta missão!
         </p>
       </motion.div>
     );
@@ -443,10 +443,10 @@ function ContentPhase({
           Ops! Algo deu errado
         </h2>
         <p className="text-[#A0A0A0] mb-6 max-w-xs">
-          Nao foi possivel gerar o conteudo. Voce ainda pode praticar com as questoes!
+          Não foi possível gerar o conteúdo. Você ainda pode praticar com as questões!
         </p>
         <Button onClick={() => onContinue('zen')} rightIcon={<ChevronRight size={20} />}>
-          Ir para as questoes
+          Ir para as questões
         </Button>
       </motion.div>
     );
@@ -537,8 +537,8 @@ function ContentPhase({
             <ChevronLeft size={20} />
           </Button>
           <div>
-            <h2 className="text-white font-semibold">{content?.title || 'Conteudo Teorico'}</h2>
-            <p className="text-[#6E6E6E] text-sm">Leia com atencao antes de praticar</p>
+            <h2 className="text-white font-semibold">{content?.title || 'Conteúdo Teórico'}</h2>
+            <p className="text-[#6E6E6E] text-sm">Leia com atenção antes de praticar</p>
           </div>
         </div>
 
@@ -591,7 +591,7 @@ function ContentPhase({
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-1">
                   <p className="text-white text-sm">
-                    {audioLoading ? 'Carregando audio...' : audioError ? 'Erro ao carregar' : 'Ouvir conteudo'}
+                    {audioLoading ? 'Carregando áudio...' : audioError ? 'Erro ao carregar' : 'Ouvir conteúdo'}
                   </p>
                   {audioDuration > 0 && !audioError && (
                     <span className="text-[#6E6E6E] text-xs">
@@ -615,7 +615,7 @@ function ContentPhase({
                       setShowSpeedMenu(!showSpeedMenu);
                     }}
                     className="px-2 py-1.5 bg-[#3A3A3A] hover:bg-[#4A4A4A] rounded text-xs font-bold text-[#FFB800] flex-shrink-0 transition-colors min-w-[44px]"
-                    title="Velocidade de reproducao"
+                    title="Velocidade de reprodução"
                   >
                     {playbackRate}x
                   </button>
@@ -650,7 +650,7 @@ function ContentPhase({
         <Card className="p-0 overflow-hidden">
           <div className="mission-content p-6">
             <MarkdownContent
-              content={content?.texto_content || 'Conteudo nao disponivel para esta missao.'}
+              content={content?.texto_content || 'Conteúdo não disponível para esta missão.'}
             />
           </div>
         </Card>
@@ -802,14 +802,14 @@ function MassificationPhase({
       </motion.div>
 
       <h2 className="text-2xl font-bold text-white mb-2">
-        Hora de Reforcar!
+        Hora de Reforçar!
       </h2>
 
       <p className="text-[#A0A0A0] mb-1">
         Seu score foi <span className="text-[#E74C3C] font-bold">{Math.round(score)}%</span>
       </p>
       <p className="text-[#6E6E6E] text-sm mb-6 max-w-xs">
-        Voce precisa de pelo menos <span className="text-[#FFB800] font-semibold">{PASSING_SCORE}%</span> para avancar.
+        Você precisa de pelo menos <span className="text-[#FFB800] font-semibold">{PASSING_SCORE}%</span> para avançar.
       </p>
 
       {/* Info cards */}
@@ -817,16 +817,16 @@ function MassificationPhase({
         <div className="flex items-start gap-3 p-3 bg-[#2A2A2A] rounded-lg text-left">
           <Target className="w-5 h-5 text-[#E74C3C] mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-white text-sm font-medium">Mesmas questoes</p>
-            <p className="text-[#6E6E6E] text-xs">Voce refara exatamente as mesmas questoes para fixar o conteudo.</p>
+            <p className="text-white text-sm font-medium">Mesmas questões</p>
+            <p className="text-[#6E6E6E] text-xs">Você refará exatamente as mesmas questões para fixar o conteúdo.</p>
           </div>
         </div>
 
         <div className="flex items-start gap-3 p-3 bg-[#2A2A2A] rounded-lg text-left">
           <BookOpen className="w-5 h-5 text-[#E74C3C] mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-white text-sm font-medium">Conteudo disponivel</p>
-            <p className="text-[#6E6E6E] text-xs">Acesso ao material teorico para revisar antes de responder.</p>
+            <p className="text-white text-sm font-medium">Conteúdo disponível</p>
+            <p className="text-[#6E6E6E] text-xs">Acesso ao material teórico para revisar antes de responder.</p>
           </div>
         </div>
 
@@ -834,7 +834,7 @@ function MassificationPhase({
           <Zap className="w-5 h-5 text-[#6E6E6E] mt-0.5 flex-shrink-0" />
           <div>
             <p className="text-white text-sm font-medium">Sem recompensas</p>
-            <p className="text-[#6E6E6E] text-xs">Nao ganha XP ou moedas, mas desbloqueia a proxima missao.</p>
+            <p className="text-[#6E6E6E] text-xs">Não ganha XP ou moedas, mas desbloqueia a próxima missão.</p>
           </div>
         </div>
       </div>
@@ -1237,7 +1237,22 @@ export default function MissionPage() {
           return;
         }
 
-        // 2. No content exists - generate it
+        // 2. No content exists - double check before generating
+        console.log('[MissionPage] Conteudo nao encontrado, verificando novamente...');
+
+        // Espera breve e verifica novamente para evitar race conditions
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const doubleCheck = await getMissaoConteudo(resolvedMissionId);
+
+        if (doubleCheck) {
+          console.log('[MissionPage] Conteudo encontrado na segunda verificacao:', doubleCheck.status);
+          setMissaoConteudo(doubleCheck);
+          setContentStatus(doubleCheck.status as 'generating' | 'completed' | 'failed');
+          setIsLoadingContent(false);
+          return;
+        }
+
+        // Confirmado: conteúdo realmente não existe, iniciar geração
         console.log('[MissionPage] Iniciando geracao de conteudo...');
         setIsLoadingContent(false);
         setIsGeneratingContent(true);
@@ -1297,12 +1312,12 @@ export default function MissionPage() {
         } else {
           console.warn('[MissionPage] Nenhuma questao encontrada, usando demo');
           setQuestions(DEMO_QUESTIONS);
-          addToast('info', 'Usando questoes de demonstracao');
+          addToast('info', 'Usando questões de demonstração');
         }
       } catch (error) {
         console.error('[MissionPage] Erro ao carregar questoes:', error);
         setQuestions(DEMO_QUESTIONS);
-        addToast('error', 'Erro ao carregar questoes');
+        addToast('error', 'Erro ao carregar questões');
       } finally {
         setIsLoadingQuestions(false);
       }
@@ -1555,11 +1570,11 @@ export default function MissionPage() {
                   <ContentPhase
                     key="content"
                     content={missaoConteudo ? {
-                      title: currentMission?.assunto?.nome || 'Conteudo Teorico',
+                      title: currentMission?.assunto?.nome || 'Conteúdo Teórico',
                       texto_content: missaoConteudo.texto_content,
                       audio_url: missaoConteudo.audio_url || undefined,
                     } : {
-                      title: currentMission?.assunto?.nome || 'Conteudo Teorico',
+                      title: currentMission?.assunto?.nome || 'Conteúdo Teórico',
                       texto_content: undefined,
                     }}
                     isLoading={isLoadingContent || isLoadingQuestions}
@@ -1586,10 +1601,10 @@ export default function MissionPage() {
                   >
                     <div className="text-6xl mb-4">📚</div>
                     <h2 className="text-xl font-bold text-white mb-2">
-                      Sem questoes disponiveis
+                      Sem questões disponíveis
                     </h2>
                     <p className="text-[#A0A0A0] mb-6 max-w-xs">
-                      Nao foram encontradas questoes para esta missao. Tente novamente mais tarde.
+                      Não foram encontradas questões para esta missão. Tente novamente mais tarde.
                     </p>
                     <Button onClick={() => navigate('/')}>
                       Voltar para Trilha
