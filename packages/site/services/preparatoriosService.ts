@@ -12,6 +12,90 @@ import {
   PreparatorioCompleto
 } from '../lib/database.types';
 
+// ==================== SIMULADO PRODUCT CREATION ====================
+
+async function createSimuladoProduct(preparatorio: Preparatorio): Promise<void> {
+  try {
+    // Check if auto-create is enabled
+    const { data: autoCreateSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('category', 'store')
+      .eq('key', 'auto_create_simulado_product')
+      .single();
+
+    if (autoCreateSetting?.value === 'false' || autoCreateSetting?.value === false) {
+      console.log('[createSimuladoProduct] Auto-create disabled, skipping');
+      return;
+    }
+
+    // Get default prices from settings
+    const { data: priceSettings } = await supabase
+      .from('system_settings')
+      .select('key, value')
+      .eq('category', 'store')
+      .in('key', ['default_simulado_price_coins', 'default_simulado_price_real']);
+
+    let priceCoins = 500;
+    let priceReal = 29.90;
+
+    if (priceSettings) {
+      for (const setting of priceSettings) {
+        if (setting.key === 'default_simulado_price_coins') {
+          priceCoins = parseInt(setting.value) || 500;
+        }
+        if (setting.key === 'default_simulado_price_real') {
+          priceReal = parseFloat(setting.value) || 29.90;
+        }
+      }
+    }
+
+    // Get simulados category
+    const { data: category } = await supabase
+      .from('store_categories')
+      .select('id')
+      .eq('slug', 'simulados')
+      .single();
+
+    if (!category) {
+      console.log('[createSimuladoProduct] Simulados category not found, skipping');
+      return;
+    }
+
+    // Create the simulado product
+    const { error } = await supabase
+      .from('store_items')
+      .insert({
+        name: `Simulado ${preparatorio.nome}`,
+        description: `Simulado completo para o concurso ${preparatorio.nome}. Estrutura identica a prova real com ${preparatorio.orgao ? `questoes do ${preparatorio.orgao}` : 'questoes selecionadas'}.`,
+        item_type: 'simulado',
+        product_type: 'digital',
+        price_coins: priceCoins,
+        price_real: priceReal,
+        icon: '📝',
+        is_active: true,
+        is_featured: false,
+        category_id: category.id,
+        metadata: {
+          preparatorio_id: preparatorio.id,
+          preparatorio_slug: preparatorio.slug,
+          preparatorio_nome: preparatorio.nome,
+          banca: preparatorio.banca,
+          orgao: preparatorio.orgao,
+          cargo: preparatorio.cargo,
+        }
+      });
+
+    if (error) {
+      console.error('[createSimuladoProduct] Error creating product:', error);
+    } else {
+      console.log('[createSimuladoProduct] Simulado product created for:', preparatorio.nome);
+    }
+  } catch (error) {
+    console.error('[createSimuladoProduct] Error:', error);
+  }
+}
+
 // ==================== PREPARATORIOS ====================
 
 export interface CreatePreparatorioInput {
@@ -23,6 +107,7 @@ export interface CreatePreparatorioInput {
   is_active?: boolean;
   ordem?: number;
   imagem_capa?: string;
+  logo_url?: string; // Logo quadrada do órgão
   preco?: number | null;
   preco_desconto?: number | null;
   checkout_url?: string;
@@ -72,6 +157,7 @@ export interface UpdatePreparatorioInput {
   is_active?: boolean;
   ordem?: number;
   imagem_capa?: string;
+  logo_url?: string; // Logo quadrada do órgão
   preco?: number | null;
   preco_desconto?: number | null;
   checkout_url?: string;
@@ -147,6 +233,7 @@ export const preparatoriosService = {
         is_active: input.is_active ?? true,
         ordem: input.ordem ?? 0,
         imagem_capa: input.imagem_capa,
+        logo_url: input.logo_url,
         preco: input.preco,
         preco_desconto: input.preco_desconto,
         checkout_url: input.checkout_url,
@@ -175,6 +262,12 @@ export const preparatoriosService = {
       .single();
 
     if (error) throw error;
+
+    // Auto-create simulado product
+    if (data) {
+      await createSimuladoProduct(data as Preparatorio);
+    }
+
     return data as Preparatorio;
   },
 
@@ -341,6 +434,11 @@ export const preparatoriosService = {
       if (error) {
         console.error('Erro ao criar preparatório:', error);
         return { preparatorio: null, error: error.message };
+      }
+
+      // Auto-create simulado product
+      if (data) {
+        await createSimuladoProduct(data);
       }
 
       return { preparatorio: data, error: null };

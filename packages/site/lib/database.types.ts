@@ -153,6 +153,36 @@ export interface Database {
         }
         Relationships: []
       }
+      system_settings: {
+        Row: {
+          id: string
+          category: string
+          key: string
+          value: Json
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          category: string
+          key: string
+          value: Json
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          category?: string
+          key?: string
+          value?: Json
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           id: string
@@ -585,6 +615,7 @@ export interface Database {
           is_active: boolean
           ordem: number
           imagem_capa: string | null
+          logo_url: string | null
           preco: number | null
           preco_desconto: number | null
           checkout_url: string | null
@@ -604,6 +635,7 @@ export interface Database {
           is_active?: boolean
           ordem?: number
           imagem_capa?: string | null
+          logo_url?: string | null
           preco?: number | null
           preco_desconto?: number | null
           checkout_url?: string | null
@@ -623,6 +655,7 @@ export interface Database {
           is_active?: boolean
           ordem?: number
           imagem_capa?: string | null
+          logo_url?: string | null
           preco?: number | null
           preco_desconto?: number | null
           checkout_url?: string | null
@@ -1411,6 +1444,7 @@ export interface Preparatorio {
   is_active: boolean
   ordem: number
   imagem_capa: string | null
+  logo_url: string | null // Logo quadrada do órgão (ex: PRF, PF)
   preco: number | null
   preco_desconto: number | null
   checkout_url: string | null
