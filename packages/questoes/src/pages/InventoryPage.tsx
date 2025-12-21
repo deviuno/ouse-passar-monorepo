@@ -6,8 +6,7 @@ import {
   ShoppingBag, Play, Pause
 } from 'lucide-react';
 import { Card, Button, Modal, StaggerContainer, StaggerItem } from '../components/ui';
-import { useUIStore } from '../stores';
-import { useAuth } from '../hooks/useAuth';
+import { useUIStore, useAuthStore } from '../stores';
 import {
   getUserInventory,
   getUserActiveBoosts,
@@ -162,7 +161,7 @@ function ActiveBoostCard({ boost }: { boost: UserBoost }) {
 }
 
 export default function InventoryPage() {
-  const { user } = useAuth();
+  const { profile: user } = useAuthStore();
   const { addToast } = useUIStore();
 
   const [loading, setLoading] = useState(true);

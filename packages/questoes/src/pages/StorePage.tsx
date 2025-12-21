@@ -6,8 +6,7 @@ import {
   GraduationCap, ClipboardList
 } from 'lucide-react';
 import { Card, Button, Modal, StaggerContainer, StaggerItem } from '../components/ui';
-import { useUIStore } from '../stores';
-import { useAuth } from '../hooks/useAuth';
+import { useUIStore, useAuthStore } from '../stores';
 import {
   getStoreCategories,
   getStoreProducts,
@@ -100,7 +99,7 @@ function StoreItemCard({
 }
 
 export default function StorePage() {
-  const { user } = useAuth();
+  const { profile: user } = useAuthStore();
   const { addToast } = useUIStore();
 
   const [loading, setLoading] = useState(true);
