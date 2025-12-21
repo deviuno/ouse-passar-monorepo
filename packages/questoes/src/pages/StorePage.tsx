@@ -42,43 +42,49 @@ function StoreItemCard({
   const canAfford = userCoins >= item.price_coins;
 
   return (
-    <Card hoverable={!owned} className={owned ? 'opacity-70' : ''}>
-      <div className="flex items-start gap-4">
-        <div className="w-14 h-14 rounded-xl bg-[#3A3A3A] flex items-center justify-center text-3xl overflow-hidden flex-shrink-0">
-          {item.image_url ? (
-            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-          ) : item.icon ? (
-            <span>{item.icon}</span>
-          ) : (
-            <Package className="w-6 h-6 text-gray-500" />
+    <Card hoverable={!owned} className={`${owned ? 'opacity-70' : ''} h-full`}>
+      <div className="flex flex-col h-full">
+        {/* Image/Icon */}
+        <div className="relative">
+          <div className="w-full aspect-square rounded-xl bg-[#3A3A3A] flex items-center justify-center text-5xl overflow-hidden mb-3">
+            {item.image_url ? (
+              <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+            ) : item.icon ? (
+              <span>{item.icon}</span>
+            ) : (
+              <Package className="w-12 h-12 text-gray-500" />
+            )}
+          </div>
+          {item.is_featured && (
+            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#FFB800] flex items-center justify-center">
+              <Star className="w-3.5 h-3.5 text-black" fill="currentColor" />
+            </div>
+          )}
+          {owned && (
+            <div className="absolute top-2 left-2 px-2 py-0.5 bg-[#2ECC71] text-white text-xs rounded-full font-medium">
+              Adquirido
+            </div>
           )}
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-white font-medium truncate">{item.name}</h3>
-            {item.is_featured && (
-              <Star className="w-4 h-4 text-[#FFB800] flex-shrink-0" fill="currentColor" />
-            )}
-            {owned && (
-              <span className="px-2 py-0.5 bg-[#2ECC71]/20 text-[#2ECC71] text-xs rounded-full flex-shrink-0">
-                Adquirido
-              </span>
-            )}
-          </div>
-          <p className="text-[#6E6E6E] text-sm line-clamp-2">{item.description || 'Sem descricao'}</p>
+        {/* Content */}
+        <div className="flex-1 flex flex-col">
+          <h3 className="text-white font-medium text-sm line-clamp-1 mb-1">{item.name}</h3>
+          <p className="text-[#6E6E6E] text-xs line-clamp-2 flex-1">{item.description || 'Sem descricao'}</p>
         </div>
 
-        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+        {/* Footer */}
+        <div className="mt-3 pt-3 border-t border-[#3A3A3A]">
           {owned ? (
-            <div className="w-8 h-8 rounded-full bg-[#2ECC71]/20 flex items-center justify-center">
-              <Check size={16} className="text-[#2ECC71]" />
+            <div className="flex items-center justify-center gap-1 text-[#2ECC71]">
+              <Check size={14} />
+              <span className="text-xs font-medium">Na sua colecao</span>
             </div>
           ) : (
-            <>
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
-                <span className="text-xl">🪙</span>
-                <span className={`font-bold ${canAfford ? 'text-[#FFB800]' : 'text-[#E74C3C]'}`}>
+                <span className="text-base">🪙</span>
+                <span className={`font-bold text-sm ${canAfford ? 'text-[#FFB800]' : 'text-[#E74C3C]'}`}>
                   {item.price_coins.toLocaleString('pt-BR')}
                 </span>
               </div>
@@ -90,7 +96,7 @@ function StoreItemCard({
               >
                 {canAfford ? 'Comprar' : <Lock size={14} />}
               </Button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -259,9 +265,9 @@ export default function StorePage() {
         })}
       </div>
 
-      {/* Products List */}
+      {/* Products Grid */}
       {filteredProducts.length > 0 ? (
-        <StaggerContainer className="space-y-3">
+        <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {filteredProducts.map((item) => (
             <StaggerItem key={item.id}>
               <StoreItemCard
