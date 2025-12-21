@@ -96,43 +96,64 @@ export async function getFeaturedProducts(): Promise<StoreItem[]> {
 // Get user inventory
 export async function getUserInventory(userId: string): Promise<UserInventoryItem[]> {
   try {
-    const { data, error } = await supabase
+    // First get user's inventory items
+    const { data: inventoryData, error: inventoryError } = await supabase
       .from('user_inventory')
-      .select(`
-        *,
-        item:store_items(*)
-      `)
+      .select('*')
       .eq('user_id', userId);
 
-    if (error) {
-      console.error('Error fetching user inventory:', error);
+    if (inventoryError) {
+      console.error('Error fetching user inventory:', inventoryError);
       return [];
     }
 
-    return (data || []).map((inv: any) => ({
-      id: inv.id,
-      user_id: inv.user_id,
-      item_id: inv.item_id,
-      quantity: 1, // user_inventory doesn't have quantity column, default to 1
-      is_equipped: inv.is_equipped || false,
-      acquired_at: inv.purchased_at || new Date().toISOString(),
-      expires_at: null,
-      item: inv.item ? {
-        id: inv.item.id,
-        name: inv.item.name,
-        description: inv.item.description,
-        item_type: inv.item.item_type,
-        product_type: inv.item.product_type || inv.item.item_type,
-        price_coins: inv.item.price_coins,
-        price_real: inv.item.price_real,
-        icon: inv.item.icon,
-        image_url: inv.item.image_url,
-        is_active: inv.item.is_active,
-        is_featured: inv.item.is_featured,
-        category_id: inv.item.category_id,
-        metadata: inv.item.metadata || {},
-      } : undefined,
-    }));
+    if (!inventoryData || inventoryData.length === 0) {
+      return [];
+    }
+
+    // Get unique item IDs
+    const itemIds = [...new Set(inventoryData.map((inv: any) => inv.item_id))];
+
+    // Fetch store items for these IDs
+    const { data: itemsData, error: itemsError } = await supabase
+      .from('store_items')
+      .select('*')
+      .in('id', itemIds);
+
+    if (itemsError) {
+      console.error('Error fetching store items:', itemsError);
+    }
+
+    // Create a map for quick lookup
+    const itemsMap = new Map((itemsData || []).map((item: any) => [item.id, item]));
+
+    return inventoryData.map((inv: any) => {
+      const item = itemsMap.get(inv.item_id);
+      return {
+        id: inv.id,
+        user_id: inv.user_id,
+        item_id: inv.item_id,
+        quantity: 1, // user_inventory doesn't have quantity column, default to 1
+        is_equipped: inv.is_equipped || false,
+        acquired_at: inv.purchased_at || new Date().toISOString(),
+        expires_at: null,
+        item: item ? {
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          item_type: item.item_type,
+          product_type: item.product_type || item.item_type,
+          price_coins: item.price_coins,
+          price_real: item.price_real,
+          icon: item.icon,
+          image_url: item.image_url,
+          is_active: item.is_active,
+          is_featured: item.is_featured,
+          category_id: item.category_id,
+          metadata: item.metadata || {},
+        } : undefined,
+      };
+    });
   } catch (error) {
     console.error('Error fetching user inventory:', error);
     return [];
