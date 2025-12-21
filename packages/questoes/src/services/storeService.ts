@@ -54,10 +54,27 @@ export interface UserBoost {
 // Fetch store categories
 export async function getStoreCategories(): Promise<StoreCategory[]> {
   try {
-    const response = await fetch(`${MASTRA_URL}/api/store/categories`);
-    if (!response.ok) throw new Error('Failed to fetch categories');
-    const data = await response.json();
-    return data?.categories || data || [];
+    const { data, error } = await supabase
+      .from('store_categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching store categories:', error);
+      return [];
+    }
+
+    return (data || []).map((cat: any) => ({
+      id: cat.id,
+      name: cat.name,
+      slug: cat.slug,
+      description: cat.description,
+      icon: cat.icon,
+      color: cat.color,
+      display_order: cat.display_order,
+      is_active: cat.is_active,
+    }));
   } catch (error) {
     console.error('Error fetching store categories:', error);
     return [];
@@ -67,13 +84,47 @@ export async function getStoreCategories(): Promise<StoreCategory[]> {
 // Fetch store products
 export async function getStoreProducts(categorySlug?: string): Promise<StoreItem[]> {
   try {
-    const url = categorySlug
-      ? `${MASTRA_URL}/api/store/products?category=${categorySlug}`
-      : `${MASTRA_URL}/api/store/products`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Failed to fetch products');
-    const data = await response.json();
-    return data?.products || data || [];
+    let query = supabase
+      .from('store_items')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+
+    // If category slug is provided, filter by category
+    if (categorySlug) {
+      const { data: catData } = await supabase
+        .from('store_categories')
+        .select('id')
+        .eq('slug', categorySlug)
+        .single();
+
+      if (catData) {
+        query = query.eq('category_id', catData.id);
+      }
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching store products:', error);
+      return [];
+    }
+
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      item_type: item.item_type,
+      product_type: item.product_type || item.item_type,
+      price_coins: item.price_coins || 0,
+      price_real: item.price_real,
+      icon: item.icon,
+      image_url: item.image_url,
+      is_active: item.is_active,
+      is_featured: item.is_featured || false,
+      category_id: item.category_id,
+      metadata: item.metadata || {},
+    }));
   } catch (error) {
     console.error('Error fetching store products:', error);
     return [];
@@ -83,10 +134,33 @@ export async function getStoreProducts(categorySlug?: string): Promise<StoreItem
 // Fetch featured products
 export async function getFeaturedProducts(): Promise<StoreItem[]> {
   try {
-    const response = await fetch(`${MASTRA_URL}/api/store/featured`);
-    if (!response.ok) throw new Error('Failed to fetch featured products');
-    const data = await response.json();
-    return data?.products || data || [];
+    const { data, error } = await supabase
+      .from('store_items')
+      .select('*')
+      .eq('is_active', true)
+      .eq('is_featured', true)
+      .order('display_order', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching featured products:', error);
+      return [];
+    }
+
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      item_type: item.item_type,
+      product_type: item.product_type || item.item_type,
+      price_coins: item.price_coins || 0,
+      price_real: item.price_real,
+      icon: item.icon,
+      image_url: item.image_url,
+      is_active: item.is_active,
+      is_featured: item.is_featured || false,
+      category_id: item.category_id,
+      metadata: item.metadata || {},
+    }));
   } catch (error) {
     console.error('Error fetching featured products:', error);
     return [];
