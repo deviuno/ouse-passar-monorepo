@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, Gamepad2, Zap, Trophy, Medal, Star, ClipboardList, UserCheck, Plus, Calendar } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, Gamepad2, Zap, Trophy, Medal, Star, ClipboardList, UserCheck, Plus, Calendar, ShoppingCart, Package, Tag } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 export const AdminLayout: React.FC = () => {
@@ -9,6 +9,7 @@ export const AdminLayout: React.FC = () => {
     const { user, logout, isAdmin, isVendedor } = useAuth();
     const [blogOpen, setBlogOpen] = useState(false);
     const [gamificationOpen, setGamificationOpen] = useState(false);
+    const [lojaOpen, setLojaOpen] = useState(false);
     // Accordion sempre aberto
     const [planejamentosOpen, setPlanejamentosOpen] = useState(true);
 
@@ -232,6 +233,64 @@ export const AdminLayout: React.FC = () => {
                                         >
                                             <Calendar className="w-4 h-4 mr-3" />
                                             Conquistas Planejamento
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Loja Accordion */}
+                            <div className="space-y-1">
+                                <button
+                                    onClick={() => setLojaOpen(!lojaOpen)}
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/loja') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                >
+                                    <div className="flex items-center">
+                                        <ShoppingCart className="w-5 h-5 mr-3" />
+                                        Loja
+                                    </div>
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${lojaOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {lojaOpen && (
+                                    <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
+                                        <Link
+                                            to="/admin/loja"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/loja')}`}
+                                        >
+                                            <LayoutDashboard className="w-4 h-4 mr-3" />
+                                            Dashboard
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/loja/categorias"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/loja/categorias')}`}
+                                        >
+                                            <Tag className="w-4 h-4 mr-3" />
+                                            Categorias
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/loja/produtos"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/loja/produtos')}`}
+                                        >
+                                            <Package className="w-4 h-4 mr-3" />
+                                            Produtos
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/loja/pedidos"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/loja/pedidos')}`}
+                                        >
+                                            <ShoppingCart className="w-4 h-4 mr-3" />
+                                            Pedidos
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/loja/documentacao"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/loja/documentacao')}`}
+                                        >
+                                            <BookOpen className="w-4 h-4 mr-3" />
+                                            Documentacao
                                         </Link>
                                     </div>
                                 )}

@@ -32,6 +32,7 @@ import {
     getMissoesPorRodada,
 } from './services/missionBuilderService.js';
 import * as storeService from './services/storeService.js';
+import { buscarOuGerarLogo } from './services/logoService.js';
 import multer from 'multer';
 
 // Load environment variables
@@ -827,6 +828,50 @@ app.post('/api/preparatorio/gerar-prompt-imagem', (req, res) => {
         success: true,
         prompt: promptUsuario,
     });
+});
+
+// ==================== BUSCA DE LOGO DO ÓRGÃO ====================
+
+/**
+ * Endpoint para buscar ou gerar logo de um órgão
+ * Estratégia: Google Custom Search -> Imagen 3 (fallback)
+ */
+app.post('/api/preparatorio/buscar-logo', async (req, res) => {
+    try {
+        const { orgao } = req.body;
+
+        if (!orgao || orgao.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                error: 'Nome do órgão é obrigatório',
+            });
+        }
+
+        console.log(`[BuscarLogo API] Buscando logo para: ${orgao}`);
+
+        const result = await buscarOuGerarLogo(orgao);
+
+        if (result.success) {
+            console.log(`[BuscarLogo API] Sucesso! Fonte: ${result.source}, URL: ${result.logoUrl}`);
+            res.json({
+                success: true,
+                logoUrl: result.logoUrl,
+                source: result.source,
+            });
+        } else {
+            console.log(`[BuscarLogo API] Falha: ${result.error}`);
+            res.status(500).json({
+                success: false,
+                error: result.error || 'Erro ao buscar logo',
+            });
+        }
+    } catch (error: any) {
+        console.error('[BuscarLogo API] Erro:', error.message || error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao buscar logo',
+        });
+    }
 });
 
 // Audio Generation Endpoints using Gemini TTS

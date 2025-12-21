@@ -12,6 +12,7 @@ import PracticePage from '../pages/PracticePage';
 import SimuladosPage from '../pages/SimuladosPage';
 import StatsPage from '../pages/StatsPage';
 import StorePage from '../pages/StorePage';
+import InventoryPage from '../pages/InventoryPage';
 import PreparatoriosStorePage from '../pages/PreparatoriosStorePage';
 import ProfilePage from '../pages/ProfilePage';
 
@@ -93,6 +94,10 @@ export const router = createBrowserRouter([
       {
         path: 'loja/preparatorios',
         element: <PreparatoriosStorePage />,
+      },
+      {
+        path: 'inventario',
+        element: <InventoryPage />,
       },
       {
         path: 'perfil',

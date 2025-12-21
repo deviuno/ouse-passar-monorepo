@@ -85,6 +85,13 @@ import {
   PlanejamentoAchievementsPage,
 } from './pages/admin/gamification';
 
+// Store Admin
+import { StoreDashboard } from './pages/admin/StoreDashboard';
+import { StoreCategories } from './pages/admin/StoreCategories';
+import { StoreProducts } from './pages/admin/StoreProducts';
+import { StorePurchases } from './pages/admin/StorePurchases';
+import { StoreDocumentation } from './pages/admin/StoreDocumentation';
+
 // Wrapper for Home Page components
 const Home = () => {
   const navigate = useNavigate();
@@ -262,6 +269,13 @@ const App: React.FC = () => {
               <Route path="gamification/xp-actions" element={<AdminOnlyRoute><XpActionsPage /></AdminOnlyRoute>} />
               <Route path="gamification/achievements" element={<AdminOnlyRoute><AchievementsPage /></AdminOnlyRoute>} />
               <Route path="gamification/planejamento-conquistas" element={<AdminOnlyRoute><PlanejamentoAchievementsPage /></AdminOnlyRoute>} />
+
+              {/* Store Admin */}
+              <Route path="loja" element={<AdminOnlyRoute><StoreDashboard /></AdminOnlyRoute>} />
+              <Route path="loja/categorias" element={<AdminOnlyRoute><StoreCategories /></AdminOnlyRoute>} />
+              <Route path="loja/produtos" element={<AdminOnlyRoute><StoreProducts /></AdminOnlyRoute>} />
+              <Route path="loja/pedidos" element={<AdminOnlyRoute><StorePurchases /></AdminOnlyRoute>} />
+              <Route path="loja/documentacao" element={<AdminOnlyRoute><StoreDocumentation /></AdminOnlyRoute>} />
             </Route>
 
             {/* Fallback */}
