@@ -96,10 +96,43 @@ export async function getFeaturedProducts(): Promise<StoreItem[]> {
 // Get user inventory
 export async function getUserInventory(userId: string): Promise<UserInventoryItem[]> {
   try {
-    const response = await fetch(`${MASTRA_URL}/api/store/inventory/${userId}`);
-    if (!response.ok) throw new Error('Failed to fetch inventory');
-    const data = await response.json();
-    return data?.inventory || data || [];
+    const { data, error } = await supabase
+      .from('user_inventory')
+      .select(`
+        *,
+        item:store_items(*)
+      `)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching user inventory:', error);
+      return [];
+    }
+
+    return (data || []).map((inv: any) => ({
+      id: inv.id,
+      user_id: inv.user_id,
+      item_id: inv.item_id,
+      quantity: 1, // user_inventory doesn't have quantity column, default to 1
+      is_equipped: inv.is_equipped || false,
+      acquired_at: inv.purchased_at || new Date().toISOString(),
+      expires_at: null,
+      item: inv.item ? {
+        id: inv.item.id,
+        name: inv.item.name,
+        description: inv.item.description,
+        item_type: inv.item.item_type,
+        product_type: inv.item.product_type || inv.item.item_type,
+        price_coins: inv.item.price_coins,
+        price_real: inv.item.price_real,
+        icon: inv.item.icon,
+        image_url: inv.item.image_url,
+        is_active: inv.item.is_active,
+        is_featured: inv.item.is_featured,
+        category_id: inv.item.category_id,
+        metadata: inv.item.metadata || {},
+      } : undefined,
+    }));
   } catch (error) {
     console.error('Error fetching user inventory:', error);
     return [];
@@ -109,10 +142,27 @@ export async function getUserInventory(userId: string): Promise<UserInventoryIte
 // Get user active boosts
 export async function getUserActiveBoosts(userId: string): Promise<UserBoost[]> {
   try {
-    const response = await fetch(`${MASTRA_URL}/api/store/boosts/${userId}`);
-    if (!response.ok) throw new Error('Failed to fetch boosts');
-    const data = await response.json();
-    return data?.boosts || data || [];
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('user_boosts')
+      .select('*')
+      .eq('user_id', userId)
+      .gt('expires_at', now);
+
+    if (error) {
+      console.error('Error fetching user boosts:', error);
+      return [];
+    }
+
+    return (data || []).map((boost: any) => ({
+      id: boost.id,
+      user_id: boost.user_id,
+      boost_type: boost.boost_type,
+      multiplier: boost.boost_value || 1, // DB uses boost_value
+      started_at: boost.used_at || boost.created_at,
+      expires_at: boost.expires_at,
+      is_active: boost.expires_at > now,
+    }));
   } catch (error) {
     console.error('Error fetching user boosts:', error);
     return [];
@@ -221,13 +271,13 @@ export async function usePowerUp(
   }
 }
 
-// Get user's coin balance (from gamification)
+// Get user's coin balance (from user_profiles)
 export async function getUserCoins(userId: string): Promise<number> {
   try {
     const { data, error } = await supabase
-      .from('user_gamification')
+      .from('user_profiles')
       .select('coins')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .single();
 
     if (error) {
