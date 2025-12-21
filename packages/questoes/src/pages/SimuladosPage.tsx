@@ -28,6 +28,9 @@ function SimuladoCard({
   const score = simulado.userResult?.score;
   const ranking = simulado.userResult?.ranking_position;
 
+  // Get cover image from preparatorio
+  const coverImage = simulado.preparatorio?.logo_url || simulado.preparatorio?.imagem_capa;
+
   return (
     <Card
       hoverable
@@ -38,93 +41,108 @@ function SimuladoCard({
           onStart(simulado.id);
         }
       }}
-      className={simulado.is_premium ? 'relative overflow-hidden' : ''}
+      className="relative overflow-hidden h-full"
     >
-      {/* Premium Badge */}
-      {simulado.is_premium && (
-        <div className="absolute top-0 right-0 bg-[#FFB800] text-black text-xs font-bold px-3 py-1 rounded-bl-xl">
-          PREMIUM
-        </div>
-      )}
-
-      <div className="flex items-start gap-4">
-        {/* Icon */}
-        <div
-          className={`
-            w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0
-            ${isCompleted ? 'bg-[#2ECC71]/20' : simulado.is_premium ? 'bg-[#FFB800]/20' : 'bg-[#3498DB]/20'}
-          `}
-        >
-          {isCompleted ? (
-            <CheckCircle size={24} className="text-[#2ECC71]" />
-          ) : simulado.is_premium ? (
-            <Lock size={24} className="text-[#FFB800]" />
-          ) : (
-            <FileText size={24} className="text-[#3498DB]" />
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <h3 className="text-white font-medium mb-1 truncate">{simulado.nome}</h3>
-
-          <div className="flex items-center gap-4 text-sm text-[#6E6E6E]">
-            <div className="flex items-center gap-1">
-              <Clock size={14} />
-              <span>{formatDuration(simulado.duracao_minutos)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <FileText size={14} />
-              <span>{simulado.total_questoes} questoes</span>
-            </div>
+      {/* Cover Image */}
+      <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden mb-3 bg-[#3A3A3A]">
+        {coverImage ? (
+          <img
+            src={coverImage}
+            alt={simulado.preparatorio?.nome || simulado.nome}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#3498DB]/30 to-[#8B5CF6]/30">
+            <FileText size={40} className="text-white/50" />
           </div>
+        )}
 
-          {/* Completed Stats */}
-          {isCompleted && score !== undefined && (
-            <div className="flex items-center gap-4 mt-2">
-              <div className="flex items-center gap-1">
-                <span className="text-[#2ECC71] font-bold">{Math.round(score)}%</span>
-                <span className="text-[#6E6E6E] text-sm">acerto</span>
-              </div>
-              {ranking && (
-                <div className="flex items-center gap-1">
-                  <Trophy size={14} className="text-[#FFB800]" />
-                  <span className="text-[#A0A0A0] text-sm">#{ranking}</span>
-                </div>
-              )}
+        {/* Overlay gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+        {/* Premium Badge */}
+        {simulado.is_premium && (
+          <div className="absolute top-2 right-2 bg-[#FFB800] text-black text-xs font-bold px-2 py-0.5 rounded-full">
+            PREMIUM
+          </div>
+        )}
+
+        {/* Completed Badge */}
+        {isCompleted && (
+          <div className="absolute top-2 left-2 bg-[#2ECC71] text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+            <CheckCircle size={12} />
+            Realizado
+          </div>
+        )}
+
+        {/* Score overlay for completed */}
+        {isCompleted && score !== undefined && (
+          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+            <div className="bg-black/70 rounded-full px-2 py-1 flex items-center gap-1">
+              <span className="text-[#2ECC71] font-bold text-sm">{Math.round(score)}%</span>
             </div>
-          )}
-        </div>
+            {ranking && (
+              <div className="bg-black/70 rounded-full px-2 py-1 flex items-center gap-1">
+                <Trophy size={12} className="text-[#FFB800]" />
+                <span className="text-white text-sm">#{ranking}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-        {/* Action Button */}
-        <div className="flex-shrink-0">
-          {isCompleted ? (
-            <button
-              className="text-[#3498DB] text-sm hover:underline"
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewResult(simulado.id);
-              }}
-            >
-              Ver Resultado
-            </button>
-          ) : simulado.is_premium ? (
-            <Button size="sm" variant="secondary">
-              Desbloquear
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              leftIcon={<Play size={16} />}
-              onClick={(e) => {
-                e.stopPropagation();
-                onStart(simulado.id);
-              }}
-            >
-              Iniciar
-            </Button>
-          )}
+      {/* Content */}
+      <div className="flex flex-col flex-1">
+        {/* Preparatorio name */}
+        {simulado.preparatorio?.nome && (
+          <p className="text-[#6E6E6E] text-xs mb-1 truncate">{simulado.preparatorio.nome}</p>
+        )}
+
+        <h3 className="text-white font-medium text-sm mb-2 line-clamp-2">{simulado.nome}</h3>
+
+        <div className="flex items-center gap-3 text-xs text-[#6E6E6E] mt-auto">
+          <div className="flex items-center gap-1">
+            <Clock size={12} />
+            <span>{formatDuration(simulado.duracao_minutos)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <FileText size={12} />
+            <span>{simulado.total_questoes}q</span>
+          </div>
         </div>
+      </div>
+
+      {/* Action Button */}
+      <div className="mt-3 pt-3 border-t border-[#3A3A3A]">
+        {isCompleted ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            fullWidth
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewResult(simulado.id);
+            }}
+          >
+            Ver Resultado
+          </Button>
+        ) : simulado.is_premium ? (
+          <Button size="sm" variant="secondary" fullWidth leftIcon={<Lock size={14} />}>
+            Desbloquear
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            fullWidth
+            leftIcon={<Play size={14} />}
+            onClick={(e) => {
+              e.stopPropagation();
+              onStart(simulado.id);
+            }}
+          >
+            Iniciar
+          </Button>
+        )}
       </div>
     </Card>
   );
@@ -230,7 +248,7 @@ export default function SimuladosPage() {
       {availableSimulados.length > 0 && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-white mb-3">Disponiveis</h2>
-          <StaggerContainer className="space-y-3">
+          <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {availableSimulados.map((simulado) => (
               <StaggerItem key={simulado.id}>
                 <SimuladoCard
@@ -248,7 +266,7 @@ export default function SimuladosPage() {
       {completedSimulados.length > 0 && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-white mb-3">Realizados</h2>
-          <StaggerContainer className="space-y-3">
+          <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {completedSimulados.map((simulado) => (
               <StaggerItem key={simulado.id}>
                 <SimuladoCard
@@ -269,7 +287,7 @@ export default function SimuladosPage() {
             Premium
             <span className="text-[#FFB800]">✨</span>
           </h2>
-          <StaggerContainer className="space-y-3">
+          <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {premiumSimulados.map((simulado) => (
               <StaggerItem key={simulado.id}>
                 <SimuladoCard

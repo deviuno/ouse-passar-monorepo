@@ -13,6 +13,8 @@ export interface Simulado {
     id: string;
     nome: string;
     slug: string;
+    logo_url: string | null;
+    imagem_capa: string | null;
   };
 }
 
@@ -42,7 +44,9 @@ export async function getSimulados(): Promise<Simulado[]> {
         preparatorio:preparatorios (
           id,
           nome,
-          slug
+          slug,
+          logo_url,
+          imagem_capa
         )
       `)
       .order('created_at', { ascending: false });
