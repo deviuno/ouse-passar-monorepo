@@ -28,6 +28,68 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   'simulados': ClipboardList,
 };
 
+// Theme preview component showing color scheme
+function ThemePreview({ metadata }: { metadata: Record<string, any> }) {
+  const colors = {
+    primary: metadata?.primary || '#8B5CF6',
+    secondary: metadata?.secondary || '#EC4899',
+    background: metadata?.background || '#0F172A',
+    surface: metadata?.surface || '#1E293B',
+    text: metadata?.text || '#F8FAFC',
+  };
+
+  return (
+    <div
+      className="w-full aspect-square rounded-xl overflow-hidden flex flex-col"
+      style={{ backgroundColor: colors.background }}
+    >
+      {/* Header bar */}
+      <div
+        className="h-6 flex items-center px-2 gap-1"
+        style={{ backgroundColor: colors.surface }}
+      >
+        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.primary }} />
+        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.secondary }} />
+        <div className="flex-1 h-1.5 rounded ml-2" style={{ backgroundColor: colors.primary, opacity: 0.3 }} />
+      </div>
+
+      {/* Content area */}
+      <div className="flex-1 p-2 flex flex-col gap-1.5">
+        {/* Card preview */}
+        <div
+          className="flex-1 rounded-lg p-2 flex flex-col gap-1"
+          style={{ backgroundColor: colors.surface }}
+        >
+          <div className="h-1.5 w-3/4 rounded" style={{ backgroundColor: colors.text, opacity: 0.9 }} />
+          <div className="h-1 w-1/2 rounded" style={{ backgroundColor: colors.text, opacity: 0.4 }} />
+          <div className="flex-1" />
+          <div className="flex gap-1">
+            <div
+              className="h-4 flex-1 rounded"
+              style={{ backgroundColor: colors.primary }}
+            />
+            <div
+              className="h-4 w-4 rounded"
+              style={{ backgroundColor: colors.secondary }}
+            />
+          </div>
+        </div>
+
+        {/* Bottom nav preview */}
+        <div
+          className="h-5 rounded-lg flex items-center justify-around px-2"
+          style={{ backgroundColor: colors.surface }}
+        >
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.primary }} />
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.text, opacity: 0.3 }} />
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.text, opacity: 0.3 }} />
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.text, opacity: 0.3 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StoreItemCard({
   item,
   owned,
@@ -41,13 +103,17 @@ function StoreItemCard({
 }) {
   const canAfford = userCoins >= item.price_coins;
 
+  const isTheme = item.item_type === 'theme';
+
   return (
     <Card hoverable={!owned} className={`${owned ? 'opacity-70' : ''} h-full`}>
       <div className="flex flex-col h-full">
-        {/* Image/Icon */}
+        {/* Image/Icon or Theme Preview */}
         <div className="relative">
           <div className="w-full aspect-square rounded-xl bg-[#3A3A3A] flex items-center justify-center text-5xl overflow-hidden mb-3">
-            {item.image_url ? (
+            {isTheme && item.metadata ? (
+              <ThemePreview metadata={item.metadata} />
+            ) : item.image_url ? (
               <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
             ) : item.icon ? (
               <span>{item.icon}</span>
