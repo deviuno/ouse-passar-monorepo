@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft, Plus, Eye, Trash2, CheckCircle2, BookOpen, Target,
+  ChevronLeft, ChevronDown, ChevronUp, Plus, Eye, Trash2, CheckCircle2, BookOpen, Target,
   ClipboardList, GraduationCap, Loader2, AlertCircle, X, AlertTriangle, RotateCcw
 } from 'lucide-react';
 
@@ -113,6 +113,9 @@ export const MissionBuilder: React.FC = () => {
   // Modal de revisões
   const [showRevisoesModal, setShowRevisoesModal] = useState(false);
 
+  // Expansão da árvore de missões na rodada
+  const [expandedRodadaMissoes, setExpandedRodadaMissoes] = useState(false);
+
   // Load builder state
   const loadBuilderState = useCallback(async () => {
     if (!preparatorioId) return;
@@ -140,7 +143,7 @@ export const MissionBuilder: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [preparatorioId, selectedRodadaId]);
+  }, [preparatorioId]); // Removido selectedRodadaId para evitar chamadas duplicadas à API
 
   useEffect(() => {
     loadBuilderState();
@@ -950,11 +953,10 @@ export const MissionBuilder: React.FC = () => {
                 <button
                   key={rodada.id}
                   onClick={() => setSelectedRodadaId(rodada.id)}
-                  className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                    selectedRodadaId === rodada.id
-                      ? 'bg-brand-yellow text-brand-darker'
-                      : 'bg-brand-darker text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
+                  className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${selectedRodadaId === rodada.id
+                    ? 'bg-brand-yellow text-brand-darker'
+                    : 'bg-brand-darker text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
                 >
                   Rodada {rodada.numero}
                   <span className="ml-2 text-xs opacity-70">
@@ -1045,11 +1047,10 @@ export const MissionBuilder: React.FC = () => {
                     <div
                       key={materia.id}
                       onClick={() => setSelectedMateriaId(isSelected ? null : materia.id)}
-                      className={`bg-brand-card rounded-xl p-4 border transition-all flex flex-col h-36 cursor-pointer ${
-                        isSelected
-                          ? 'border-brand-yellow ring-2 ring-brand-yellow/30'
-                          : 'border-white/10 hover:border-white/20'
-                      }`}
+                      className={`bg-brand-card rounded-xl p-4 border transition-all flex flex-col h-36 cursor-pointer ${isSelected
+                        ? 'border-brand-yellow ring-2 ring-brand-yellow/30'
+                        : 'border-white/10 hover:border-white/20'
+                        }`}
                     >
                       <h3 className="font-semibold text-white mb-2 text-sm line-clamp-2">
                         {materia.materia}
@@ -1077,11 +1078,10 @@ export const MissionBuilder: React.FC = () => {
                             e.stopPropagation();
                             setSelectedMateriaId(isSelected ? null : materia.id);
                           }}
-                          className={`${missoesCount > 0 ? 'w-3/4' : 'w-full'} flex items-center justify-center gap-1 py-1.5 rounded-lg transition-colors text-sm ${
-                            isSelected
-                              ? 'bg-brand-yellow text-brand-darker'
-                              : 'bg-brand-yellow/20 text-brand-yellow hover:bg-brand-yellow/30'
-                          }`}
+                          className={`${missoesCount > 0 ? 'w-3/4' : 'w-full'} flex items-center justify-center gap-1 py-1.5 rounded-lg transition-colors text-sm ${isSelected
+                            ? 'bg-brand-yellow text-brand-darker'
+                            : 'bg-brand-yellow/20 text-brand-yellow hover:bg-brand-yellow/30'
+                            }`}
                         >
                           <Plus className="w-3 h-3" />
                         </button>
@@ -1129,19 +1129,17 @@ export const MissionBuilder: React.FC = () => {
                           <button
                             key={topico.id}
                             onClick={() => toggleTopico(topico.id)}
-                            className={`w-full text-left p-3 rounded-lg border transition-all ${
-                              selectedTopicos.has(topico.id)
-                                ? 'border-brand-yellow bg-brand-yellow/10 text-white'
-                                : 'border-white/10 bg-brand-darker text-gray-300 hover:border-white/20 hover:bg-brand-darker/80'
-                            }`}
+                            className={`w-full text-left p-3 rounded-lg border transition-all ${selectedTopicos.has(topico.id)
+                              ? 'border-brand-yellow bg-brand-yellow/10 text-white'
+                              : 'border-white/10 bg-brand-darker text-gray-300 hover:border-white/20 hover:bg-brand-darker/80'
+                              }`}
                           >
                             <div className="flex items-start gap-3">
                               <div
-                                className={`w-5 h-5 min-w-5 min-h-5 shrink-0 rounded border-2 flex items-center justify-center mt-0.5 ${
-                                  selectedTopicos.has(topico.id)
-                                    ? 'border-brand-yellow bg-brand-yellow'
-                                    : 'border-gray-500'
-                                }`}
+                                className={`w-5 h-5 min-w-5 min-h-5 shrink-0 rounded border-2 flex items-center justify-center mt-0.5 ${selectedTopicos.has(topico.id)
+                                  ? 'border-brand-yellow bg-brand-yellow'
+                                  : 'border-gray-500'
+                                  }`}
                               >
                                 {selectedTopicos.has(topico.id) && (
                                   <CheckCircle2 className="w-3 h-3 text-brand-darker" />
@@ -1199,6 +1197,66 @@ export const MissionBuilder: React.FC = () => {
                       />
                     </div>
                   </div>
+
+                  {/* Expandable Mission Tree */}
+                  <button
+                    onClick={() => setExpandedRodadaMissoes(!expandedRodadaMissoes)}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                  >
+                    {expandedRodadaMissoes ? (
+                      <>
+                        <ChevronUp className="w-4 h-4" />
+                        <span>Ocultar missões</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-4 h-4" />
+                        <span>Ver missões ({missoesEstudo.length} de estudo + 3 fixas)</span>
+                      </>
+                    )}
+                  </button>
+
+                  {expandedRodadaMissoes && (
+                    <div className="mt-3 space-y-2 animate-in slide-in-from-top-2">
+                      {/* Missões de Estudo */}
+                      {missoesEstudo.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-500 mb-2">Missões de estudo:</p>
+                          {missoesEstudo.map((missao, idx) => (
+                            <div key={missao.id} className="pl-2 border-l-2 border-brand-yellow/30">
+                              <div className="flex items-start gap-2 py-1">
+                                <span className="text-xs font-medium text-brand-yellow min-w-[20px]">{idx + 1}.</span>
+                                <div className="flex-1">
+                                  <p className="text-sm text-white font-medium">{missao.materia}</p>
+                                  {missao.assunto && (
+                                    <div className="mt-1 pl-3 border-l border-white/10">
+                                      {missao.assunto.split('\n').map((topico, tIdx) => (
+                                        <p key={tIdx} className="text-xs text-gray-400 py-0.5">
+                                          • {topico}
+                                        </p>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => handleDeleteMissaoClick(missao.id)}
+                                  className="p-1 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {missoesEstudo.length === 0 && (
+                        <p className="text-xs text-gray-500 italic text-center py-2">
+                          Nenhuma missão de estudo adicionada ainda
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Fixed missions */}
                   <div className="mt-4 pt-4 border-t border-white/10">
@@ -1416,19 +1474,17 @@ export const MissionBuilder: React.FC = () => {
                           return next;
                         });
                       }}
-                      className={`w-full text-left p-3 rounded-lg border transition-all ${
-                        revisaoMissoesSelecionadas.has(missao.id)
-                          ? 'border-purple-500 bg-purple-500/10'
-                          : 'border-white/10 bg-brand-darker hover:border-white/20'
-                      }`}
+                      className={`w-full text-left p-3 rounded-lg border transition-all ${revisaoMissoesSelecionadas.has(missao.id)
+                        ? 'border-purple-500 bg-purple-500/10'
+                        : 'border-white/10 bg-brand-darker hover:border-white/20'
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <div
-                          className={`w-5 h-5 min-w-5 min-h-5 shrink-0 rounded border-2 flex items-center justify-center mt-0.5 ${
-                            revisaoMissoesSelecionadas.has(missao.id)
-                              ? 'border-purple-500 bg-purple-500'
-                              : 'border-gray-500'
-                          }`}
+                          className={`w-5 h-5 min-w-5 min-h-5 shrink-0 rounded border-2 flex items-center justify-center mt-0.5 ${revisaoMissoesSelecionadas.has(missao.id)
+                            ? 'border-purple-500 bg-purple-500'
+                            : 'border-gray-500'
+                            }`}
                         >
                           {revisaoMissoesSelecionadas.has(missao.id) && (
                             <CheckCircle2 className="w-3 h-3 text-white" />
@@ -1480,11 +1536,10 @@ export const MissionBuilder: React.FC = () => {
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         >
           <div
-            className={`relative bg-brand-card rounded-xl border w-full max-w-lg overflow-hidden transition-all duration-300 ${
-              showSuccessFlash
-                ? 'border-green-500 ring-4 ring-green-500/50 scale-[1.02]'
-                : 'border-white/10'
-            }`}
+            className={`relative bg-brand-card rounded-xl border w-full max-w-lg overflow-hidden transition-all duration-300 ${showSuccessFlash
+              ? 'border-green-500 ring-4 ring-green-500/50 scale-[1.02]'
+              : 'border-white/10'
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Flash de sucesso */}
@@ -1529,19 +1584,17 @@ export const MissionBuilder: React.FC = () => {
                             return next;
                           });
                         }}
-                        className={`w-full text-left p-3 rounded-lg border transition-all ${
-                          revisaoMateriasSelecionadas.has(materia.id)
-                            ? 'border-green-500 bg-green-500/10'
-                            : 'border-white/10 bg-brand-darker hover:border-white/20'
-                        }`}
+                        className={`w-full text-left p-3 rounded-lg border transition-all ${revisaoMateriasSelecionadas.has(materia.id)
+                          ? 'border-green-500 bg-green-500/10'
+                          : 'border-white/10 bg-brand-darker hover:border-white/20'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-5 h-5 min-w-5 min-h-5 shrink-0 rounded border-2 flex items-center justify-center ${
-                              revisaoMateriasSelecionadas.has(materia.id)
-                                ? 'border-green-500 bg-green-500'
-                                : 'border-gray-500'
-                            }`}
+                            className={`w-5 h-5 min-w-5 min-h-5 shrink-0 rounded border-2 flex items-center justify-center ${revisaoMateriasSelecionadas.has(materia.id)
+                              ? 'border-green-500 bg-green-500'
+                              : 'border-gray-500'
+                              }`}
                           >
                             {revisaoMateriasSelecionadas.has(materia.id) && (
                               <CheckCircle2 className="w-3 h-3 text-white" />
@@ -1601,19 +1654,17 @@ export const MissionBuilder: React.FC = () => {
                         return next;
                       });
                     }}
-                    className={`text-left p-2 rounded-lg border transition-all ${
-                      revisaoCriterios.has(option.value)
-                        ? 'border-green-500 bg-green-500/10'
-                        : 'border-white/10 bg-brand-darker hover:border-white/20'
-                    }`}
+                    className={`text-left p-2 rounded-lg border transition-all ${revisaoCriterios.has(option.value)
+                      ? 'border-green-500 bg-green-500/10'
+                      : 'border-white/10 bg-brand-darker hover:border-white/20'
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       <div
-                        className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                          revisaoCriterios.has(option.value)
-                            ? 'border-green-500 bg-green-500'
-                            : 'border-gray-500'
-                        }`}
+                        className={`w-4 h-4 rounded border-2 flex items-center justify-center ${revisaoCriterios.has(option.value)
+                          ? 'border-green-500 bg-green-500'
+                          : 'border-gray-500'
+                          }`}
                       >
                         {revisaoCriterios.has(option.value) && (
                           <CheckCircle2 className="w-2.5 h-2.5 text-white" />

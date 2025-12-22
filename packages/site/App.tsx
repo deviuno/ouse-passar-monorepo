@@ -74,6 +74,7 @@ import { MissoesAdmin } from './pages/admin/Missoes';
 import { MensagensIncentivoAdmin } from './pages/admin/MensagensIncentivo';
 import { EditalAdmin } from './pages/admin/EditalAdmin';
 import { MissionBuilder } from './pages/admin/MissionBuilder';
+import { AutomacaoConteudoMissao } from './pages/admin/AutomacaoConteudoMissao';
 
 // Gamification Admin
 import {
@@ -158,128 +159,131 @@ const App: React.FC = () => {
         <AuthProvider>
           <ToastProvider>
             <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Home />} />
-              <Route path="mentoria" element={<Mentorship />} />
-              <Route path="blog" element={<BlogList />} />
-              <Route path="blog/:slug" element={<BlogPostView />} />
-              <Route path="planejamento-prf" element={<PlanejamentoPRFForm />} />
-            </Route>
+              {/* Public Routes */}
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Home />} />
+                <Route path="mentoria" element={<Mentorship />} />
+                <Route path="blog" element={<BlogList />} />
+                <Route path="blog/:slug" element={<BlogPostView />} />
+                <Route path="planejamento-prf" element={<PlanejamentoPRFForm />} />
+              </Route>
 
-            {/* Sales Pages - Layout com footer minimalista */}
-            <Route path="/" element={<SalesLayout />}>
-              <Route path="planejamentos" element={<PlanejamentosPublic />} />
-            </Route>
+              {/* Sales Pages - Layout com footer minimalista */}
+              <Route path="/" element={<SalesLayout />}>
+                <Route path="planejamentos" element={<PlanejamentosPublic />} />
+              </Route>
 
-            {/* Pagina de Vendas - Sem header, apenas footer */}
-            <Route path="/planejamento/:slug" element={<PlanejamentoVendas />} />
+              {/* Pagina de Vendas - Sem header, apenas footer */}
+              <Route path="/planejamento/:slug" element={<PlanejamentoVendas />} />
 
-            {/* Planejamento PRF View (legado - fora do Layout principal) */}
-            <Route path="/planejamento-prf/:id" element={<PlanejamentoPRFView />} />
+              {/* Planejamento PRF View (legado - fora do Layout principal) */}
+              <Route path="/planejamento-prf/:id" element={<PlanejamentoPRFView />} />
 
-            {/* ================================================== */}
-            {/* PORTAL DO PLANO - /plano/* */}
-            {/* ================================================== */}
+              {/* ================================================== */}
+              {/* PORTAL DO PLANO - /plano/* */}
+              {/* ================================================== */}
 
-            {/* Login do Portal do Plano (público) */}
-            <Route path="/plano/login" element={<StudentLogin />} />
+              {/* Login do Portal do Plano (público) */}
+              <Route path="/plano/login" element={<StudentLogin />} />
 
-            {/* Rotas do Portal do Plano com Layout Compartilhado */}
-            <Route path="/plano" element={<PlannerLayout />}>
-              <Route path=":slug/:id" element={<PlanejamentoPRFView />} />
-              <Route path=":slug/:id/edital" element={<EditalVerticalizadoView />} />
-              <Route path=":slug/:id/calendario" element={<PlanejadorSemanalView />} />
-              <Route path=":slug/:id/performance" element={<PlannerPerformanceView />} />
-              <Route path=":slug/:id/perfil" element={<PlannerPerfilView />} />
-            </Route>
+              {/* Rotas do Portal do Plano com Layout Compartilhado */}
+              <Route path="/plano" element={<PlannerLayout />}>
+                <Route path=":slug/:id" element={<PlanejamentoPRFView />} />
+                <Route path=":slug/:id/edital" element={<EditalVerticalizadoView />} />
+                <Route path=":slug/:id/calendario" element={<PlanejadorSemanalView />} />
+                <Route path=":slug/:id/performance" element={<PlannerPerformanceView />} />
+                <Route path=":slug/:id/perfil" element={<PlannerPerfilView />} />
+              </Route>
 
-            {/* Rotas antigas (mantidas para compatibilidade - podem ser removidas depois) */}
-            <Route element={<PlannerLayout />}>
-              <Route path="/planejamento/:slug/:id" element={<PlanejamentoPRFView />} />
-              <Route path="/edital-verticalizado/:slug/:id" element={<EditalVerticalizadoView />} />
-              <Route path="/planejador-semanal/:slug/:id" element={<PlanejadorSemanalView />} />
-              <Route path="/planner/:slug/:id" element={<PlannerPerformanceView />} />
-              <Route path="/perfil/:slug/:id" element={<PlannerPerfilView />} />
-            </Route>
+              {/* Rotas antigas (mantidas para compatibilidade - podem ser removidas depois) */}
+              <Route element={<PlannerLayout />}>
+                <Route path="/planejamento/:slug/:id" element={<PlanejamentoPRFView />} />
+                <Route path="/edital-verticalizado/:slug/:id" element={<EditalVerticalizadoView />} />
+                <Route path="/planejador-semanal/:slug/:id" element={<PlanejadorSemanalView />} />
+                <Route path="/planner/:slug/:id" element={<PlannerPerformanceView />} />
+                <Route path="/perfil/:slug/:id" element={<PlannerPerfilView />} />
+              </Route>
 
-            {/* Página de Obrigado (pós-compra com agendamento) */}
-            <Route path="/obrigado" element={<Obrigado />} />
+              {/* Página de Obrigado (pós-compra com agendamento) */}
+              <Route path="/obrigado" element={<Obrigado />} />
 
-            {/* Admin Login (Public) */}
-            <Route path="/admin/login" element={<Login />} />
+              {/* Admin Login (Public) */}
+              <Route path="/admin/login" element={<Login />} />
 
-            {/* Student Login (Public) - Login genérico */}
-            <Route path="/login" element={<StudentLogin />} />
+              {/* Student Login (Public) - Login genérico */}
+              <Route path="/login" element={<StudentLogin />} />
 
-            {/* Documentation (Public - Direct access only, no menu links) */}
-            <Route path="/docs/integracao-questoes" element={<DocsIntegracao />} />
+              {/* Documentation (Public - Direct access only, no menu links) */}
+              <Route path="/docs/integracao-questoes" element={<DocsIntegracao />} />
 
-            {/* Dashboard do Aluno - Protegido por StudentProtectedRoute (não admin) */}
-            <Route path="/dashboard-aluno/:id" element={
-              <StudentProtectedRoute>
-                <StudentDashboardView />
-              </StudentProtectedRoute>
-            } />
+              {/* Dashboard do Aluno - Protegido por StudentProtectedRoute (não admin) */}
+              <Route path="/dashboard-aluno/:id" element={
+                <StudentProtectedRoute>
+                  <StudentDashboardView />
+                </StudentProtectedRoute>
+              } />
 
-            {/* Protected Admin Routes */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<AdminIndex />} />
-              <Route path="users" element={<AdminOnlyRoute><Users /></AdminOnlyRoute>} />
-              <Route path="planejamentos" element={<PlanejamentosAdmin />} />
-              <Route path="leads" element={<Leads />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="authors" element={<AdminOnlyRoute><Authors /></AdminOnlyRoute>} />
-              <Route path="categories" element={<AdminOnlyRoute><Categories /></AdminOnlyRoute>} />
-              <Route path="articles" element={<AdminOnlyRoute><Articles /></AdminOnlyRoute>} />
-              <Route path="articles/new" element={<AdminOnlyRoute><ArticleEditor /></AdminOnlyRoute>} />
-              <Route path="articles/new-ai" element={<AdminOnlyRoute><NewArticleAI /></AdminOnlyRoute>} />
-              <Route path="articles/edit/:slug" element={<AdminOnlyRoute><ArticleEditor /></AdminOnlyRoute>} />
-              <Route path="settings" element={<AdminOnlyRoute><Settings /></AdminOnlyRoute>} />
-              {/* Preparatórios - Sistema Unificado com Rodadas/Missões */}
-              <Route path="preparatorios" element={<AdminOnlyRoute><PreparatoriosPlanos /></AdminOnlyRoute>} />
-              <Route path="preparatorios/new" element={<AdminOnlyRoute><NewPreparatorio /></AdminOnlyRoute>} />
-              <Route path="preparatorios/edit/:id" element={<AdminOnlyRoute><EditPreparatorioNew /></AdminOnlyRoute>} />
-              <Route path="preparatorios/:preparatorioId/rodadas" element={<AdminOnlyRoute><RodadasAdmin /></AdminOnlyRoute>} />
-              <Route path="preparatorios/:preparatorioId/rodadas/:rodadaId/missoes" element={<AdminOnlyRoute><MissoesAdmin /></AdminOnlyRoute>} />
-              <Route path="preparatorios/:preparatorioId/mensagens" element={<AdminOnlyRoute><MensagensIncentivoAdmin /></AdminOnlyRoute>} />
-              <Route path="preparatorios/:preparatorioId/edital" element={<AdminOnlyRoute><EditalAdmin /></AdminOnlyRoute>} />
-              <Route path="preparatorios/:preparatorioId/montar-missoes" element={<AdminOnlyRoute><MissionBuilder /></AdminOnlyRoute>} />
+              {/* Protected Admin Routes */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AdminIndex />} />
+                <Route path="users" element={<AdminOnlyRoute><Users /></AdminOnlyRoute>} />
+                <Route path="planejamentos" element={<PlanejamentosAdmin />} />
+                <Route path="leads" element={<Leads />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="authors" element={<AdminOnlyRoute><Authors /></AdminOnlyRoute>} />
+                <Route path="categories" element={<AdminOnlyRoute><Categories /></AdminOnlyRoute>} />
+                <Route path="articles" element={<AdminOnlyRoute><Articles /></AdminOnlyRoute>} />
+                <Route path="articles/new" element={<AdminOnlyRoute><ArticleEditor /></AdminOnlyRoute>} />
+                <Route path="articles/new-ai" element={<AdminOnlyRoute><NewArticleAI /></AdminOnlyRoute>} />
+                <Route path="articles/edit/:slug" element={<AdminOnlyRoute><ArticleEditor /></AdminOnlyRoute>} />
+                <Route path="settings" element={<AdminOnlyRoute><Settings /></AdminOnlyRoute>} />
+                {/* Preparatórios - Sistema Unificado com Rodadas/Missões */}
+                <Route path="preparatorios" element={<AdminOnlyRoute><PreparatoriosPlanos /></AdminOnlyRoute>} />
+                <Route path="preparatorios/new" element={<AdminOnlyRoute><NewPreparatorio /></AdminOnlyRoute>} />
+                <Route path="preparatorios/edit/:id" element={<AdminOnlyRoute><EditPreparatorioNew /></AdminOnlyRoute>} />
+                <Route path="preparatorios/:preparatorioId/rodadas" element={<AdminOnlyRoute><RodadasAdmin /></AdminOnlyRoute>} />
+                <Route path="preparatorios/:preparatorioId/rodadas/:rodadaId/missoes" element={<AdminOnlyRoute><MissoesAdmin /></AdminOnlyRoute>} />
+                <Route path="preparatorios/:preparatorioId/mensagens" element={<AdminOnlyRoute><MensagensIncentivoAdmin /></AdminOnlyRoute>} />
+                <Route path="preparatorios/:preparatorioId/edital" element={<AdminOnlyRoute><EditalAdmin /></AdminOnlyRoute>} />
+                <Route path="preparatorios/:preparatorioId/montar-missoes" element={<AdminOnlyRoute><MissionBuilder /></AdminOnlyRoute>} />
 
-              {/* Courses (Simulados) - Sistema legado para app Ouse Questões */}
-              <Route path="courses" element={<AdminOnlyRoute><Preparatorios /></AdminOnlyRoute>} />
-              <Route path="courses/new" element={<AdminOnlyRoute><NewPreparatorio /></AdminOnlyRoute>} />
-              <Route path="courses/edit/:id" element={<AdminOnlyRoute><EditarPreparatorio /></AdminOnlyRoute>} />
+                {/* Courses (Simulados) - Sistema legado para app Ouse Questões */}
+                <Route path="courses" element={<AdminOnlyRoute><Preparatorios /></AdminOnlyRoute>} />
+                <Route path="courses/new" element={<AdminOnlyRoute><NewPreparatorio /></AdminOnlyRoute>} />
+                <Route path="courses/edit/:id" element={<AdminOnlyRoute><EditarPreparatorio /></AdminOnlyRoute>} />
 
-              {/* Rotas legadas - redirecionam para novas rotas */}
-              <Route path="planos-preparatorios" element={<Navigate to="/admin/preparatorios" replace />} />
-              <Route path="planos-preparatorios/:preparatorioId/rodadas" element={<Navigate to="/admin/preparatorios" replace />} />
+                {/* Rotas legadas - redirecionam para novas rotas */}
+                <Route path="planos-preparatorios" element={<Navigate to="/admin/preparatorios" replace />} />
+                <Route path="planos-preparatorios/:preparatorioId/rodadas" element={<Navigate to="/admin/preparatorios" replace />} />
 
-              {/* Gamification Admin */}
-              <Route path="gamification" element={<AdminOnlyRoute><GamificationSettingsPage /></AdminOnlyRoute>} />
-              <Route path="gamification/levels" element={<AdminOnlyRoute><LevelsPage /></AdminOnlyRoute>} />
-              <Route path="gamification/leagues" element={<AdminOnlyRoute><LeaguesPage /></AdminOnlyRoute>} />
-              <Route path="gamification/xp-actions" element={<AdminOnlyRoute><XpActionsPage /></AdminOnlyRoute>} />
-              <Route path="gamification/achievements" element={<AdminOnlyRoute><AchievementsPage /></AdminOnlyRoute>} />
-              <Route path="gamification/planejamento-conquistas" element={<AdminOnlyRoute><PlanejamentoAchievementsPage /></AdminOnlyRoute>} />
+                {/* Gamification Admin */}
+                <Route path="gamification" element={<AdminOnlyRoute><GamificationSettingsPage /></AdminOnlyRoute>} />
+                <Route path="gamification/levels" element={<AdminOnlyRoute><LevelsPage /></AdminOnlyRoute>} />
+                <Route path="gamification/leagues" element={<AdminOnlyRoute><LeaguesPage /></AdminOnlyRoute>} />
+                <Route path="gamification/xp-actions" element={<AdminOnlyRoute><XpActionsPage /></AdminOnlyRoute>} />
+                <Route path="gamification/achievements" element={<AdminOnlyRoute><AchievementsPage /></AdminOnlyRoute>} />
+                <Route path="gamification/planejamento-conquistas" element={<AdminOnlyRoute><PlanejamentoAchievementsPage /></AdminOnlyRoute>} />
 
-              {/* Store Admin */}
-              <Route path="loja" element={<AdminOnlyRoute><StoreDashboard /></AdminOnlyRoute>} />
-              <Route path="loja/categorias" element={<AdminOnlyRoute><StoreCategories /></AdminOnlyRoute>} />
-              <Route path="loja/produtos" element={<AdminOnlyRoute><StoreProducts /></AdminOnlyRoute>} />
-              <Route path="loja/pedidos" element={<AdminOnlyRoute><StorePurchases /></AdminOnlyRoute>} />
-              <Route path="loja/documentacao" element={<AdminOnlyRoute><StoreDocumentation /></AdminOnlyRoute>} />
-            </Route>
+                {/* Store Admin */}
+                <Route path="loja" element={<AdminOnlyRoute><StoreDashboard /></AdminOnlyRoute>} />
+                <Route path="loja/categorias" element={<AdminOnlyRoute><StoreCategories /></AdminOnlyRoute>} />
+                <Route path="loja/produtos" element={<AdminOnlyRoute><StoreProducts /></AdminOnlyRoute>} />
+                <Route path="loja/pedidos" element={<AdminOnlyRoute><StorePurchases /></AdminOnlyRoute>} />
+                <Route path="loja/documentacao" element={<AdminOnlyRoute><StoreDocumentation /></AdminOnlyRoute>} />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+                {/* Documentação técnica - Acesso apenas via URL direta, sem links */}
+                <Route path="automacao-conteudo-missao" element={<AdminOnlyRoute><AutomacaoConteudoMissao /></AdminOnlyRoute>} />
+              </Route>
+
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ToastProvider>
         </AuthProvider>

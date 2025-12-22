@@ -158,8 +158,9 @@ export default function HomePage() {
     getMissionUrl,
     justCompletedMissionId,
     clearJustCompletedMission,
+    reset,
   } = useTrailStore();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { addToast, isSidebarOpen } = useUIStore();
 
   // Carregar preparatórios do usuário
@@ -167,11 +168,12 @@ export default function HomePage() {
     async function loadUserPreparatorios() {
       if (!user?.id) return;
 
-      // Se já tem preparatórios carregados, não recarregar (evita loading desnecessário)
-      if (userPreparatorios.length > 0) {
-        console.log('[HomePage] Preparatórios já carregados, pulando fetch');
-        return;
+      // Se os dados em cache são de outro usuário, limpar estado
+      if (userPreparatorios.length > 0 && userPreparatorios[0].user_id !== user.id) {
+        console.warn('[HomePage] Dados de outro usuário detectados. Limpando estado...');
+        reset();
       }
+      // Sempre buscar dados frescos para garantir que preparatórios excluídos não apareçam
 
       console.log('[HomePage] Carregando preparatórios...');
       setLoading(true);
@@ -312,7 +314,7 @@ export default function HomePage() {
             <TrailMap
               rounds={displayRounds}
               onMissionClick={handleMissionClick}
-              userAvatar={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop"}
+              userAvatar={profile?.avatar_url || user?.user_metadata?.avatar_url}
               viewingRoundIndex={viewingRoundIndex}
               onViewingRoundChange={setViewingRoundIndex}
               justCompletedMissionId={justCompletedMissionId}

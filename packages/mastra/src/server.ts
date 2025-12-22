@@ -388,117 +388,13 @@ async function gerarImagemCapa(info: {
     }
 
     try {
-        console.log(`[ImagemCapa] Gerando imagem estilo Netflix para: ${info.nome}`);
+        console.log(`[ImagemCapa] Gerando imagem para: ${info.cargo || info.nome}`);
 
-        const cargoDescricao = info.cargo?.toLowerCase() || '';
+        // Construir prompt simples e efetivo (formato que funciona melhor)
+        const cargoTexto = info.cargo || 'profissional';
+        const orgaoTexto = info.orgao ? ` - ${info.orgao}` : '';
 
-        // Mapear cargo para visual cinematográfico
-        let protagonista = 'a powerful executive in a tailored suit';
-        let cenario = 'towering glass skyscraper at golden hour';
-        let mood = 'power and ambition';
-        let cores = 'deep blues, warm golds, and dramatic shadows';
-
-        if (cargoDescricao.includes('juiz') || cargoDescricao.includes('magistrad')) {
-            protagonista = 'a commanding judge in flowing black robes, gavel in hand';
-            cenario = 'grand marble courtroom with dramatic light streaming through tall windows';
-            mood = 'justice and authority';
-            cores = 'rich blacks, deep mahogany, golden light rays';
-        } else if (cargoDescricao.includes('promotor') || cargoDescricao.includes('procurador')) {
-            protagonista = 'a fierce prosecutor in sharp formal attire, eyes burning with determination';
-            cenario = 'imposing courthouse steps with dramatic storm clouds';
-            mood = 'relentless pursuit of justice';
-            cores = 'steel grays, midnight blues, lightning highlights';
-        } else if (cargoDescricao.includes('delegado')) {
-            protagonista = 'a commanding police chief in formal uniform with badge gleaming';
-            cenario = 'city skyline at night with police lights reflecting';
-            mood = 'authority and protection';
-            cores = 'deep navy, red and blue accents, noir shadows';
-        } else if (cargoDescricao.includes('policial') || cargoDescricao.includes('agente')) {
-            protagonista = 'a elite federal agent in tactical gear, intense focused gaze';
-            cenario = 'dramatic federal building with Brazilian flag, rain-slicked streets';
-            mood = 'action hero, guardian of the nation';
-            cores = 'tactical blacks, steel blues, golden badge highlights';
-        } else if (cargoDescricao.includes('auditor') || cargoDescricao.includes('fiscal')) {
-            protagonista = 'a sharp-eyed financial investigator in expensive suit, documents in hand';
-            cenario = 'sleek modern office overlooking city, multiple screens with data';
-            mood = 'intelligence and precision';
-            cores = 'corporate blues, green accents, chrome highlights';
-        } else if (cargoDescricao.includes('analista')) {
-            protagonista = 'a brilliant analyst silhouetted against holographic data displays';
-            cenario = 'futuristic control room with glowing screens and city view';
-            mood = 'brilliance and innovation';
-            cores = 'electric blues, cyan glows, dark backgrounds';
-        } else if (cargoDescricao.includes('técnico')) {
-            protagonista = 'a dedicated professional standing confidently in modern workspace';
-            cenario = 'impressive government building with dramatic architecture';
-            mood = 'competence and reliability';
-            cores = 'warm neutrals, golden hour lighting, architectural shadows';
-        } else if (cargoDescricao.includes('professor') || cargoDescricao.includes('docente')) {
-            protagonista = 'an inspiring educator surrounded by floating books and knowledge symbols';
-            cenario = 'majestic university library with endless bookshelves';
-            mood = 'wisdom and inspiration';
-            cores = 'warm amber, leather browns, magical golden particles';
-        } else if (cargoDescricao.includes('médico') || cargoDescricao.includes('perito')) {
-            protagonista = 'a brilliant doctor in pristine white coat, stethoscope draped heroically';
-            cenario = 'state-of-the-art hospital with dramatic lighting';
-            mood = 'life-saving hero';
-            cores = 'clinical whites, emergency reds, cool blues';
-        } else if (cargoDescricao.includes('defensor')) {
-            protagonista = 'a passionate public defender, fist raised in triumph';
-            cenario = 'courthouse with scales of justice dramatically lit';
-            mood = 'champion of the people';
-            cores = 'bronze and gold, warm dramatic lighting';
-        } else if (cargoDescricao.includes('militar') || cargoDescricao.includes('bombeiro')) {
-            protagonista = 'a heroic first responder in full gear, flames or action behind';
-            cenario = 'dramatic rescue scene with smoke and fire';
-            mood = 'bravery and sacrifice';
-            cores = 'fiery oranges, heroic reds, smoke blacks';
-        }
-
-        const prompt = `NETFLIX MOVIE POSTER STYLE - SQUARE FORMAT (1:1 aspect ratio)
-
-Create a cinematic, high-budget movie poster featuring:
-
-HERO: ${protagonista}
-- Shot from a low angle to emphasize power and importance
-- Face partially in dramatic shadow, eyes catching the light
-- Expression: determined, confident, ready to conquer
-- Posture: heroic, commanding presence
-
-SETTING: ${cenario}
-- Epic scale, making the scene feel larger than life
-- Atmospheric perspective with depth
-- Weather/particles adding drama (light rays, rain, smoke, dust)
-
-MOOD: ${mood}
-- This person has overcome impossible odds
-- They are the protagonist of their own success story
-- Viewer should feel inspired and motivated
-
-CINEMATOGRAPHY:
-- Color palette: ${cores}
-- Dramatic chiaroscuro lighting (strong contrast between light and shadow)
-- Shallow depth of field with cinematic bokeh
-- Film grain for premium feel
-- Lens flares or light leaks for dramatic effect
-- High production value, $200 million blockbuster quality
-
-COMPOSITION FOR SQUARE FORMAT:
-- Subject centered or using rule of thirds
-- Full upper body or dramatic close-up
-- Negative space at top for dramatic effect
-- Perfect for social media and app thumbnails
-
-${info.orgao ? `Organization context: ${info.orgao}` : ''}
-${info.cargo ? `Role: ${info.cargo}` : ''}
-
-ABSOLUTE REQUIREMENTS:
-- NO text, titles, credits, or watermarks
-- NO logos or symbols
-- Photorealistic quality
-- SQUARE 1:1 aspect ratio
-- Professional movie poster composition
-- The image alone should tell a story of triumph and success`;
+        const prompt = `${cargoTexto}${orgaoTexto} exercendo sua função com realização profissional. Imagem foto-realista, cinematográfica e quadrada.`;
 
         // Timeout de 60 segundos para modelo mais potente
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -556,6 +452,39 @@ ABSOLUTE REQUIREMENTS:
 
         const imageUrl = publicUrlData?.publicUrl || null;
         console.log(`[ImagemCapa] Upload concluído: ${imageUrl}`);
+
+        // IMPORTANTE: Atualizar o preparatório com a imagem E gerar textos de vendas
+        if (imageUrl) {
+            // Gerar textos de vendas persuasivos
+            const descricaoCurta = `Preparação completa para ${info.cargo || 'concurso'}${info.orgao ? ` - ${info.orgao}` : ''}. Método aprovado por milhares de concurseiros.`;
+
+            const descricaoVendas = `🎯 **Sua aprovação começa aqui!**
+
+Preparatório completo para ${info.cargo || 'o concurso'}${info.orgao ? ` do ${info.orgao}` : ''}${info.banca ? `, banca ${info.banca}` : ''}.
+
+✅ **Plano de estudos personalizado** - Trilha otimizada para seu nível
+✅ **Questões comentadas** - Resolva questões reais da banca
+✅ **Revisões estratégicas** - Revisão espaçada para fixar o conteúdo
+✅ **Simulados realistas** - Treine no formato da prova real
+✅ **Acompanhamento de progresso** - Veja sua evolução dia a dia
+
+🚀 Junte-se a milhares de concurseiros aprovados. Comece agora sua jornada rumo à aprovação!`;
+
+            const { error: updateError } = await supabase
+                .from('preparatorios')
+                .update({
+                    imagem_capa: imageUrl,
+                    descricao_curta: descricaoCurta,
+                    descricao_vendas: descricaoVendas,
+                })
+                .eq('id', info.preparatorioId);
+
+            if (updateError) {
+                console.error('[ImagemCapa] Erro ao atualizar preparatório:', updateError);
+            } else {
+                console.log(`[ImagemCapa] Preparatório atualizado com imagem e textos de vendas`);
+            }
+        }
 
         return imageUrl;
 
@@ -1390,18 +1319,28 @@ async function buscarQuestoesScrapping(
         }
     }
 
-    // Fallback: buscar por banca se tiver nos filtros
-    if (questoes.length < limite && filtros?.bancas?.length > 0) {
-        const { data, error } = await questionsDb
-            .from('questoes_concurso')
-            .select('*')
-            .in('banca', filtros.bancas)
-            .limit(limite - questoes.length);
+    // Fallback: buscar por banca + matéria se tiver nos filtros (DEVE manter filtro por tópico)
+    if (questoes.length < limite && filtros?.bancas?.length > 0 && editalTitulos.length > 0) {
+        // Usar o primeiro título como filtro de matéria para garantir relevância
+        const materiaKeyword = editalTitulos[0]
+            .toLowerCase()
+            .replace(/[^a-záéíóúãõâêîôûç\s]/gi, '')
+            .trim()
+            .split(' ')[0]; // Pegar primeira palavra significativa
 
-        if (!error && data) {
-            for (const q of data) {
-                if (!questoes.find(existing => existing.id === q.id)) {
-                    questoes.push(q);
+        if (materiaKeyword && materiaKeyword.length > 3) {
+            const { data, error } = await questionsDb
+                .from('questoes_concurso')
+                .select('*')
+                .in('banca', filtros.bancas)
+                .or(`assunto.ilike.%${materiaKeyword}%,disciplina.ilike.%${materiaKeyword}%,materia.ilike.%${materiaKeyword}%`)
+                .limit(limite - questoes.length);
+
+            if (!error && data) {
+                for (const q of data) {
+                    if (!questoes.find(existing => existing.id === q.id)) {
+                        questoes.push(q);
+                    }
                 }
             }
         }
@@ -1445,10 +1384,33 @@ async function gerarConteudoMissaoBackground(missaoId: string): Promise<boolean>
                 return true;
             }
             if (existingContent.status === 'generating') {
-                console.log(`[BackgroundContent] Geração já em andamento para missão ${missaoId}`);
-                contentGenerationInProgress.delete(missaoId);
-                return false;
+                // Fix 2: Reset automático de gerações travadas (>5 minutos)
+                const { data: fullRecord } = await supabase
+                    .from('missao_conteudos')
+                    .select('created_at')
+                    .eq('id', existingContent.id)
+                    .single();
+
+                if (fullRecord) {
+                    const createdAt = new Date(fullRecord.created_at);
+                    const minutos = (Date.now() - createdAt.getTime()) / 1000 / 60;
+
+                    if (minutos > 5) {
+                        console.log(`[BackgroundContent] Reset: ${missaoId} travado há ${minutos.toFixed(0)}min, deletando...`);
+                        await supabase.from('missao_conteudos').delete().eq('id', existingContent.id);
+                        // Continua para regenerar abaixo
+                    } else {
+                        console.log(`[BackgroundContent] Geração em andamento há ${minutos.toFixed(1)}min para missão ${missaoId}`);
+                        contentGenerationInProgress.delete(missaoId);
+                        return false;
+                    }
+                } else {
+                    console.log(`[BackgroundContent] Geração já em andamento para missão ${missaoId}`);
+                    contentGenerationInProgress.delete(missaoId);
+                    return false;
+                }
             }
+            // Se status é 'failed', continua para regenerar (cai no insert que vai dar conflito e deletar)
         }
 
         // 2. Criar registro como "generating"
@@ -1493,7 +1455,27 @@ async function gerarConteudoMissaoBackground(missaoId: string): Promise<boolean>
         console.log(`[BackgroundContent] ${questoes.length} questões encontradas para missão ${missaoId}`);
 
         // 6. Montar prompt e gerar conteúdo
-        const prompt = `
+        let prompt: string;
+
+        // Fix 5: Fallback quando não há questões - gerar conteúdo baseado nos tópicos
+        if (questoes.length === 0) {
+            console.warn(`[BackgroundContent] 0 questões para ${missaoId}, usando apenas tópicos do edital`);
+            prompt = `
+## Contexto da Missão
+
+**Matéria:** ${missaoInfo.materia || 'Matéria não especificada'}
+
+**Tópicos do Edital para Estudo:**
+${topicos.map((t: string) => `- ${t}`).join('\n')}
+
+---
+
+**ATENÇÃO:** Não foram encontradas questões específicas para esta missão.
+Crie uma aula teórica completa sobre "${topicos[0] || missaoInfo.materia || 'o tema'}" baseada nos tópicos do edital acima.
+A aula deve cobrir os conceitos fundamentais, exemplos práticos, e preparar o aluno para questões que cobrem esses tópicos.
+`;
+        } else {
+            prompt = `
 ## Contexto da Missão
 
 **Matéria:** ${missaoInfo.materia || 'Matéria não especificada'}
@@ -1521,6 +1503,7 @@ ${q.alternativas.map((a: { letter: string; text: string }) => `${a.letter}) ${a.
 Com base nas questões acima, crie uma aula completa sobre "${topicos[0] || missaoInfo.materia || 'o tema'}".
 A aula deve preparar o aluno para responder questões similares às apresentadas.
 `;
+        }
 
         const contentAgent = mastra.getAgent("contentGeneratorAgent");
         if (!contentAgent) throw new Error('contentGeneratorAgent não encontrado');
@@ -2455,11 +2438,19 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
         (async () => {
             const missoes = await getPrimeirasMissoes(preparatorioId, 2);
             console.log(`[FromPDF] Background: Gerando conteúdo para ${missoes.length} missões`);
+            // Fix 4: Try/catch individual por missão - uma falha não impede as outras
             for (const missaoId of missoes) {
-                await gerarConteudoMissaoBackground(missaoId);
+                try {
+                    const sucesso = await gerarConteudoMissaoBackground(missaoId);
+                    console.log(`[FromPDF] Missão ${missaoId}: ${sucesso ? '✅ Completa' : '⏳ Em andamento'}`);
+                } catch (err) {
+                    console.error(`[FromPDF] ❌ Erro na missão ${missaoId}:`, err);
+                    // Continua para próxima missão mesmo se uma falhar
+                }
             }
+            console.log('[FromPDF] Background: Geração de conteúdo finalizada');
         })().catch(err => {
-            console.error('[FromPDF] Erro na geração de conteúdo em background:', err);
+            console.error('[FromPDF] Erro fatal na geração de conteúdo em background:', err);
         });
 
         const tempoTotal = Date.now() - startTime;
@@ -3126,10 +3117,10 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
             const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
             const supabase = createClient(supabaseUrl, supabaseKey);
 
-            // Atualizar ordem das matérias
+            // Atualizar ordem das matérias na tabela correta (edital_verticalizado_items)
             for (const materia of materias) {
                 await supabase
-                    .from('preparatorio_materias')
+                    .from('edital_verticalizado_items')
                     .update({ ordem: materia.prioridade })
                     .eq('id', materia.id);
             }
@@ -3633,6 +3624,33 @@ app.post('/api/preparatorio/:id/finalizar-montagem', async (req, res) => {
 
     try {
         const result = await finalizarMontagem(preparatorioId);
+
+        // IMPORTANTE: Disparar geração automática das primeiras 2 missões em background
+        // Isso garante que o conteúdo estará pronto quando o primeiro aluno acessar
+        if (result.success) {
+            console.log(`[Builder] Disparando geração automática de conteúdo para ${preparatorioId}...`);
+
+            // Buscar as primeiras 2 missões de estudo
+            const primeiras = await getPrimeirasMissoes(preparatorioId, 2);
+
+            if (primeiras.length > 0) {
+                console.log(`[Builder] Gerando conteúdo para missões: ${primeiras.join(', ')}`);
+
+                // Gerar em background (fire-and-forget)
+                for (const missaoId of primeiras) {
+                    gerarConteudoMissaoBackground(missaoId)
+                        .then(success => {
+                            console.log(`[Builder] Conteúdo gerado para missão ${missaoId}: ${success ? 'OK' : 'FALHOU'}`);
+                        })
+                        .catch(err => {
+                            console.error(`[Builder] Erro ao gerar conteúdo para missão ${missaoId}:`, err.message);
+                        });
+                }
+            } else {
+                console.log(`[Builder] Nenhuma missão de estudo encontrada para gerar conteúdo`);
+            }
+        }
+
         return res.json(result);
     } catch (error: any) {
         console.error('[Builder] Erro ao finalizar montagem:', error);

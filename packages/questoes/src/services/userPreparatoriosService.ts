@@ -36,26 +36,29 @@ export const userPreparatoriosService = {
         return [];
       }
 
-      // Buscar preparatórios separadamente
+      // Buscar preparatórios separadamente (excluindo os inativos/excluídos)
       const prepIds = trails.map(t => t.preparatorio_id);
       const { data: preparatorios } = await supabase
         .from('preparatorios')
         .select('*')
-        .in('id', prepIds);
+        .in('id', prepIds)
+        .eq('is_active', true);
 
       const prepMap = new Map((preparatorios || []).map(p => [p.id, p]));
 
-      // Mapear para o tipo UserPreparatorio
-      const result = trails.map((item: any) => ({
-        id: item.id,
-        user_id: item.user_id,
-        preparatorio_id: item.preparatorio_id,
-        nivel_usuario: item.nivel_usuario,
-        current_round: item.current_round,
-        questoes_por_missao: item.questoes_por_missao || 20,
-        created_at: item.created_at,
-        preparatorio: prepMap.get(item.preparatorio_id) || ({} as Preparatorio),
-      }));
+      // Mapear para o tipo UserPreparatorio (apenas os que têm preparatório ativo)
+      const result = trails
+        .filter((item: any) => prepMap.has(item.preparatorio_id)) // Excluir trails de preparatórios excluídos
+        .map((item: any) => ({
+          id: item.id,
+          user_id: item.user_id,
+          preparatorio_id: item.preparatorio_id,
+          nivel_usuario: item.nivel_usuario,
+          current_round: item.current_round,
+          questoes_por_missao: item.questoes_por_missao || 20,
+          created_at: item.created_at,
+          preparatorio: prepMap.get(item.preparatorio_id)!,
+        }));
 
       console.log('[userPreparatoriosService] Preparatórios encontrados:', result.length);
       return result;

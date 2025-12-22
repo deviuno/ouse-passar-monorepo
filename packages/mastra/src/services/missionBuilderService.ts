@@ -121,6 +121,37 @@ export async function getBuilderState(preparatorioId: string): Promise<BuilderSt
         throw new Error(`Erro ao buscar rodadas: ${rodadasError.message}`);
     }
 
+    // Auto-criar primeira rodada se não existir nenhuma
+    let rodadasFinais = rodadas || [];
+    if (rodadasFinais.length === 0) {
+        console.log(`[Builder] Nenhuma rodada encontrada, tentando criar primeira automaticamente...`);
+        try {
+            await createRodada(preparatorioId);
+            console.log(`[Builder] Primeira rodada criada com sucesso`);
+        } catch (createError: any) {
+            // Se falhar por duplicata, significa que a rodada já existe
+            // (pode acontecer em race conditions)
+            console.log(`[Builder] Não foi possível criar rodada (pode já existir): ${createError.message}`);
+        }
+
+        // Buscar novamente (seja a recém-criada ou a que já existia)
+        const { data: novasRodadas } = await supabase
+            .from('rodadas')
+            .select(`
+                id, preparatorio_id, numero, titulo, ordem,
+                missoes (
+                    id, rodada_id, numero, tipo, materia, materia_id,
+                    assunto, instrucoes, tema, acao, assuntos_ids,
+                    revisao_parte, ordem
+                )
+            `)
+            .eq('preparatorio_id', preparatorioId)
+            .order('ordem', { ascending: true });
+
+        rodadasFinais = novasRodadas || [];
+    }
+
+
     // 3. Buscar matérias do edital_verticalizado_items (tipo = 'materia')
     const { data: materias, error: materiasError } = await supabase
         .from('edital_verticalizado_items')
@@ -159,7 +190,7 @@ export async function getBuilderState(preparatorioId: string): Promise<BuilderSt
             cargo: preparatorio.cargo || null,
             montagem_status: preparatorio.montagem_status || 'pendente',
         },
-        rodadas: (rodadas || []).map((r: any) => ({
+        rodadas: rodadasFinais.map((r: any) => ({
             ...r,
             missoes: r.missoes?.sort((a: Missao, b: Missao) => a.ordem - b.ordem) || [],
         })),
