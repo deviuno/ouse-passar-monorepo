@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Lock, RefreshCw, X, Zap, Target, BookOpen } from 'lucide-react';
+import { Check, Lock, RefreshCw, X, Zap, Target, BookOpen, User } from 'lucide-react';
 import { TrailMission } from '../../types';
 import { isMassificacao } from '../../services/massificacaoService';
 
@@ -431,13 +431,23 @@ export function TrailMap({
                                 Avançando!
                                 <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-emerald-500 rotate-45" />
                             </motion.div>
-                            <motion.img
-                                alt="User"
-                                className="w-10 h-10 rounded-full border-2 border-emerald-500 shadow-lg"
-                                src={userAvatar}
-                                animate={{ rotate: [0, -5, 5, -5, 0] }}
-                                transition={{ duration: 0.3, repeat: Infinity }}
-                            />
+                            {userAvatar ? (
+                                <motion.img
+                                    alt="User"
+                                    className="w-10 h-10 rounded-full border-2 border-emerald-500 shadow-lg object-cover"
+                                    src={userAvatar}
+                                    animate={{ rotate: [0, -5, 5, -5, 0] }}
+                                    transition={{ duration: 0.3, repeat: Infinity }}
+                                />
+                            ) : (
+                                <motion.div
+                                    className="w-10 h-10 rounded-full border-2 border-emerald-500 shadow-lg bg-zinc-800 flex items-center justify-center text-emerald-500"
+                                    animate={{ rotate: [0, -5, 5, -5, 0] }}
+                                    transition={{ duration: 0.3, repeat: Infinity }}
+                                >
+                                    <User size={20} />
+                                </motion.div>
+                            )}
                         </motion.div>
                     )}
 
@@ -493,12 +503,16 @@ export function TrailMap({
                                                 className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 rotate-45"
                                             ></motion.div>
                                         </motion.div>
-                                        {userAvatar && (
+                                        {userAvatar ? (
                                             <img
                                                 alt="User"
-                                                className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 ${isMassificacaoMission ? 'border-[#E74C3C]' : 'border-[#FFB800]'}`}
+                                                className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 object-cover ${isMassificacaoMission ? 'border-[#E74C3C]' : 'border-[#FFB800]'}`}
                                                 src={userAvatar}
                                             />
+                                        ) : (
+                                            <div className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 flex items-center justify-center bg-zinc-800 ${isMassificacaoMission ? 'border-[#E74C3C] text-[#E74C3C]' : 'border-[#FFB800] text-[#FFB800]'}`}>
+                                                <User size={16} />
+                                            </div>
                                         )}
                                     </motion.div>
                                 )}

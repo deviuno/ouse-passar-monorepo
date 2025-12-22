@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { UserProfile, UserOnboarding, OnboardingStepName } from '../types';
+import { useUserStore } from './useUserStore';
+
+import { STORAGE_KEYS } from '../constants';
 
 interface AuthState {
   user: User | null;
@@ -175,6 +178,14 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem('ousepassar_onboarding_data');
         localStorage.removeItem('auth-storage'); // Zustand persist
 
+        // Limpar dados da trilha e gamificação
+        Object.values(STORAGE_KEYS).forEach(key => {
+          localStorage.removeItem(key);
+        });
+
+        // Resetar store de usuário em memória
+        useUserStore.getState().reset();
+
         set({
           user: null,
           session: null,
@@ -225,7 +236,19 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (data) {
-            set({ profile: data as UserProfile });
+            const profileData = data as UserProfile;
+            set({ profile: profileData });
+
+            // Sincronizar dados com useUserStore
+            useUserStore.getState().setStats({
+              xp: profileData.xp,
+              coins: profileData.coins,
+              streak: profileData.streak,
+              level: profileData.level,
+              correctAnswers: profileData.correct_answers,
+              totalAnswered: profileData.total_answered,
+              avatarId: profileData.avatar_id,
+            });
           }
         } catch (err) {
           console.error('Error fetching profile:', err);

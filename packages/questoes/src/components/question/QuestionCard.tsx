@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ParsedQuestion, CommunityStats, StudyMode } from '../../types';
 import { COLORS, MOCK_STATS } from '../../constants';
-import { MessageCircle, AlertTriangle, BarChart2, X, Timer, Coffee, Zap, BrainCircuit } from 'lucide-react';
+import { MessageCircle, AlertTriangle, BarChart2, X, Timer, Coffee, Zap, BrainCircuit, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { generateExplanation } from '../../services/geminiService';
 import { getQuestionStatistics, QuestionStatistics } from '../../services/questionFeedbackService';
 import CommentsSection from './CommentsSection';
@@ -11,6 +11,7 @@ interface QuestionCardProps {
   question: ParsedQuestion;
   isLastQuestion: boolean;
   onNext: () => void;
+  onPrevious?: () => void;
   onOpenTutor: () => void;
   onAnswer: (letter: string) => void;
   onRateDifficulty?: (difficulty: 'easy' | 'medium' | 'hard') => void;
@@ -23,7 +24,7 @@ interface QuestionCardProps {
   userRole?: 'admin' | 'user';
 }
 
-const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onOpenTutor, onAnswer, onRateDifficulty, onTimeout, studyMode = 'zen', initialTime = 120, userId, onShowToast, savedDifficultyRating, userRole }) => {
+const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onPrevious, onOpenTutor, onAnswer, onRateDifficulty, onTimeout, studyMode = 'zen', initialTime = 120, userId, onShowToast, savedDifficultyRating, userRole }) => {
   const [selectedAlt, setSelectedAlt] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
@@ -248,15 +249,17 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
           <button
             key={alt.letter}
             onClick={() => handleSelect(alt.letter)}
-            className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start group ${getOptionStyle(alt.letter)}`}
+            className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start group relative ${getOptionStyle(alt.letter)}`}
             disabled={isSubmitted}
           >
             <span className={`font-bold mr-3 w-6 shrink-0 ${isSubmitted && alt.letter === question.gabarito ? 'text-[#2ECC71]' : ''}`}>
               {alt.letter}
             </span>
             <span className="text-sm flex-1">{alt.text}</span>
-            {!isSubmitted && userRole === 'admin' && alt.letter === question.gabarito && (
-              <div className="ml-2 w-1.5 h-1.5 rounded-full bg-[#FFB800]/30 self-center" title="Dica Admin: Correta" />
+            {userRole === 'admin' && alt.letter === question.gabarito && (
+              <div className="absolute top-2 right-2 text-[#FFB800]" title="Gabarito (Visível apenas para Admin)">
+                <Star size={16} fill="#FFB800" />
+              </div>
             )}
           </button>
         ))}
@@ -279,7 +282,56 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
         ) : (
           <div className="animate-fade-in-up">
 
-            {/* Feedback Box */}
+            {/* 1. Top Buttons Row: Stats & Difficulty */}
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              <button
+                onClick={() => handleRate('easy')}
+                className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'easy' ? 'bg-green-500/20 border-green-500 text-green-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
+              >
+                Fácil
+              </button>
+              <button
+                onClick={() => handleRate('medium')}
+                className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'medium' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
+              >
+                Médio
+              </button>
+              <button
+                onClick={() => handleRate('hard')}
+                className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'hard' ? 'bg-red-500/20 border-red-500 text-red-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
+              >
+                Difícil
+              </button>
+              <button
+                onClick={() => setShowStatsModal(true)}
+                className="p-2 rounded-lg text-xs font-bold border border-gray-700 text-[#FFB800] hover:bg-gray-800 flex flex-col items-center justify-center"
+              >
+                <BarChart2 size={16} />
+              </button>
+            </div>
+
+            {/* 2. Navigation Row: Previous / Next Highlighted */}
+            <div className="flex gap-3 mb-6">
+              <button
+                onClick={onPrevious}
+                disabled={!onPrevious}
+                className={`flex-1 flex items-center justify-center py-3 rounded-xl border-2 font-bold transition-all ${onPrevious
+                    ? 'border-gray-600 text-white hover:bg-gray-800'
+                    : 'border-transparent text-gray-600 cursor-not-allowed bg-gray-900/50'
+                  }`}
+              >
+                <ChevronLeft size={20} className="mr-1" /> Anterior
+              </button>
+
+              <button
+                onClick={onNext}
+                className="flex-1 flex items-center justify-center py-3 bg-[#FFB800] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,184,0,0.3)] hover:shadow-[0_0_25px_rgba(255,184,0,0.5)] transition-all border-2 border-[#FFB800]"
+              >
+                {isLastQuestion ? 'Finalizar' : 'Próxima'} <ChevronRight size={20} className="ml-1" />
+              </button>
+            </div>
+
+            {/* 3. Feedback Box (Lower down) */}
             <div className={`p-4 rounded-lg mb-4 border ${selectedAlt === question.gabarito ? 'border-green-900 bg-green-900/10' : 'border-red-900 bg-red-900/10'}`}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className={`font-bold ${selectedAlt === question.gabarito ? 'text-[#2ECC71]' : 'text-[#E74C3C]'}`}>
@@ -327,35 +379,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
               </div>
             </div>
 
-            {/* Post-Answer Action Buttons */}
-            <div className="grid grid-cols-4 gap-2 mb-6">
-              <button
-                onClick={() => handleRate('easy')}
-                className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'easy' ? 'bg-green-500/20 border-green-500 text-green-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
-              >
-                Fácil
-              </button>
-              <button
-                onClick={() => handleRate('medium')}
-                className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'medium' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
-              >
-                Médio
-              </button>
-              <button
-                onClick={() => handleRate('hard')}
-                className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'hard' ? 'bg-red-500/20 border-red-500 text-red-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
-              >
-                Difícil
-              </button>
-              <button
-                onClick={() => setShowStatsModal(true)}
-                className="p-2 rounded-lg text-xs font-bold border border-gray-700 text-[#FFB800] hover:bg-gray-800 flex flex-col items-center justify-center"
-              >
-                <BarChart2 size={16} />
-              </button>
-            </div>
-
-            {/* Main Nav Buttons */}
+            {/* 4. Bottom Nav Buttons */}
             <div className="flex space-x-3 pb-4 border-b border-gray-800 mb-6">
               <button
                 onClick={onOpenTutor}
@@ -364,11 +388,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                 <MessageCircle size={18} className="mr-2 text-[#FFB800]" />
                 Tirar Dúvida
               </button>
+
               <button
                 onClick={onNext}
-                className="flex-1 py-3 bg-[#FFB800] text-black rounded-full font-bold shadow-lg"
+                className="flex-1 py-3 bg-gray-800 text-gray-300 border border-gray-700 rounded-full font-medium hover:bg-gray-700"
               >
-                {isLastQuestion ? 'Finalizar' : 'Próxima'}
+                {isLastQuestion ? 'Finalizar' : 'Próxima Questão'}
               </button>
             </div>
 

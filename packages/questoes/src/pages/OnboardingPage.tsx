@@ -334,11 +334,7 @@ function ConcursoStep({
         Isso define qual edital será carregado na sua trilha.
       </p>
 
-      {/* Debug info - remover depois */}
-      <div className="bg-[#1A1A1A] border border-[#3A3A3A] rounded-lg p-2 mb-4 text-xs font-mono">
-        <p className="text-[#6E6E6E]">Debug: {debugInfo}</p>
-        <p className="text-[#6E6E6E]">Preparatórios: {preparatorios.length}</p>
-      </div>
+
 
       {preparatorios.length === 0 ? (
         <div className="text-center py-8">
@@ -354,26 +350,60 @@ function ConcursoStep({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {preparatorios.map((prep) => (
             <motion.button
               key={prep.id}
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onSelect(prep.id)}
               className={`
-                p-4 rounded-xl text-left transition-all
+                group relative flex flex-col items-start text-left
+                rounded-2xl overflow-hidden transition-all duration-200 h-full
                 ${selected === prep.id
-                  ? 'bg-[#FFB800]/20 border-2 border-[#FFB800]'
-                  : 'bg-[#252525] border-2 border-transparent hover:border-[#3A3A3A]'
+                  ? 'ring-2 ring-[#FFB800] ring-offset-2 ring-offset-[#121212]'
+                  : 'hover:ring-2 hover:ring-[#3A3A3A] hover:ring-offset-2 hover:ring-offset-[#121212]'
                 }
+                bg-[#252525]
               `}
             >
-              <span className="text-3xl block mb-2">{prep.icone || '📚'}</span>
-              <p className="text-white text-sm font-medium">{prep.nome}</p>
-              {prep.descricao && (
-                <p className="text-[#6E6E6E] text-xs line-clamp-2">{prep.descricao}</p>
-              )}
+              {/* Capa do Preparatório */}
+              <div className="w-full aspect-[4/3] bg-[#333] relative overflow-hidden">
+                {prep.imagem_capa ? (
+                  <img
+                    src={prep.imagem_capa}
+                    alt={prep.nome}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#333] to-[#252525]">
+                    <span className="text-4xl mb-2 filter drop-shadow-lg">{prep.icone || '📚'}</span>
+                  </div>
+                )}
+
+                {/* Overlay gradiente para legibilidade se tiver texto na imagem */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60" />
+
+                {/* Badge de Selecionado */}
+                {selected === prep.id && (
+                  <div className="absolute top-2 right-2 bg-[#FFB800] text-black p-1 rounded-full shadow-lg z-10">
+                    <Check size={14} strokeWidth={3} />
+                  </div>
+                )}
+              </div>
+
+              {/* Conteúdo do Card */}
+              <div className="p-3 w-full flex-1 flex flex-col">
+                <h3 className="text-white font-bold text-sm leading-tight mb-1 group-hover:text-[#FFB800] transition-colors">
+                  {prep.nome}
+                </h3>
+
+                {prep.descricao && (
+                  <p className="text-[#A0A0A0] text-xs line-clamp-3 leading-relaxed mt-auto">
+                    {prep.descricao}
+                  </p>
+                )}
+              </div>
             </motion.button>
           ))}
         </div>
@@ -1001,7 +1031,7 @@ export default function OnboardingPage() {
 
       {/* Content */}
       <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
+        <div className={`w-full ${currentStep === 'concurso' ? 'max-w-4xl' : 'max-w-md'}`}>
           <AnimatePresence mode="wait">
             <div key={currentStep}>{renderStep()}</div>
           </AnimatePresence>

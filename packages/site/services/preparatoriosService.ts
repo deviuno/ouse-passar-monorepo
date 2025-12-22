@@ -29,26 +29,31 @@ async function createSimuladoProduct(preparatorio: Preparatorio): Promise<void> 
       return;
     }
 
-    // Get default prices from settings
-    const { data: priceSettings } = await supabase
+    // Get simulado settings from system_settings
+    const { data: simuladoSettings } = await supabase
       .from('system_settings')
       .select('key, value')
-      .eq('category', 'store')
-      .in('key', ['default_simulado_price_coins', 'default_simulado_price_real']);
+      .eq('category', 'simulado')
+      .in('key', ['questions_per_simulado', 'time_limit_minutes']);
 
-    let priceCoins = 500;
-    let priceReal = 29.90;
+    let questionsPerSimulado = 120;
+    let timeLimitMinutes = 180;
 
-    if (priceSettings) {
-      for (const setting of priceSettings) {
-        if (setting.key === 'default_simulado_price_coins') {
-          priceCoins = parseInt(setting.value) || 500;
+    if (simuladoSettings) {
+      for (const setting of simuladoSettings) {
+        if (setting.key === 'questions_per_simulado') {
+          questionsPerSimulado = parseInt(setting.value) || 120;
         }
-        if (setting.key === 'default_simulado_price_real') {
-          priceReal = parseFloat(setting.value) || 29.90;
+        if (setting.key === 'time_limit_minutes') {
+          timeLimitMinutes = parseInt(setting.value) || 180;
         }
       }
     }
+
+    // Usar preço do preparatório (preco_simulados) ou valor padrão
+    // @ts-ignore - campo novo
+    const priceReal = (preparatorio as any).preco_simulados || 29.90;
+    const priceCoins = Math.round(priceReal * 20); // Conversão: 1 real = 20 moedas
 
     // Get simulados category
     const { data: category } = await supabase
@@ -62,8 +67,28 @@ async function createSimuladoProduct(preparatorio: Preparatorio): Promise<void> 
       return;
     }
 
-    // Create the simulado product
-    const { error } = await supabase
+    // 1. Create the simulado record (for the student panel)
+    const { data: simuladoRecord, error: simuladoError } = await supabase
+      .from('simulados')
+      .insert({
+        nome: `Simulado ${preparatorio.nome}`,
+        preparatorio_id: preparatorio.id,
+        duracao_minutos: timeLimitMinutes,
+        total_questoes: questionsPerSimulado,
+        is_premium: false,
+        preco: null
+      })
+      .select()
+      .single();
+
+    if (simuladoError) {
+      console.error('[createSimuladoProduct] Error creating simulado record:', simuladoError);
+    } else {
+      console.log('[createSimuladoProduct] Simulado record created for:', preparatorio.nome);
+    }
+
+    // 2. Create the simulado product (for the store)
+    const { error: productError } = await supabase
       .from('store_items')
       .insert({
         name: `Simulado ${preparatorio.nome}`,
@@ -80,14 +105,15 @@ async function createSimuladoProduct(preparatorio: Preparatorio): Promise<void> 
           preparatorio_id: preparatorio.id,
           preparatorio_slug: preparatorio.slug,
           preparatorio_nome: preparatorio.nome,
+          simulado_id: simuladoRecord?.id,
           banca: preparatorio.banca,
           orgao: preparatorio.orgao,
           cargo: preparatorio.cargo,
         }
       });
 
-    if (error) {
-      console.error('[createSimuladoProduct] Error creating product:', error);
+    if (productError) {
+      console.error('[createSimuladoProduct] Error creating product:', productError);
     } else {
       console.log('[createSimuladoProduct] Simulado product created for:', preparatorio.nome);
     }
@@ -108,9 +134,6 @@ export interface CreatePreparatorioInput {
   ordem?: number;
   imagem_capa?: string;
   logo_url?: string; // Logo quadrada do órgão
-  preco?: number | null;
-  preco_desconto?: number | null;
-  checkout_url?: string;
   descricao_curta?: string;
   descricao_vendas?: string;
   content_types?: string[];
@@ -131,6 +154,26 @@ export interface CreatePreparatorioInput {
   inscricoes_fim?: string | null;
   data_prevista?: string | null;
   ano_previsto?: number | null;
+  // Preços por produto
+  preco_planejador?: number | null;
+  preco_planejador_desconto?: number | null;
+  checkout_planejador?: string;
+  preco_8_questoes?: number | null;
+  preco_8_questoes_desconto?: number | null;
+  checkout_8_questoes?: string;
+  preco_simulados?: number | null;
+  preco_simulados_desconto?: number | null;
+  checkout_simulados?: string;
+  preco_reta_final?: number | null;
+  preco_reta_final_desconto?: number | null;
+  checkout_reta_final?: string;
+  preco_plataforma_completa?: number | null;
+  preco_plataforma_completa_desconto?: number | null;
+  checkout_plataforma_completa?: string;
+  // Campos legados
+  preco?: number | null;
+  preco_desconto?: number | null;
+  checkout_url?: string;
 }
 
 // Input para criar preparatório via N8N (sem slug obrigatório)
@@ -158,9 +201,6 @@ export interface UpdatePreparatorioInput {
   ordem?: number;
   imagem_capa?: string;
   logo_url?: string; // Logo quadrada do órgão
-  preco?: number | null;
-  preco_desconto?: number | null;
-  checkout_url?: string;
   descricao_curta?: string;
   descricao_vendas?: string;
   content_types?: string[];
@@ -181,6 +221,26 @@ export interface UpdatePreparatorioInput {
   inscricoes_fim?: string | null;
   data_prevista?: string | null;
   ano_previsto?: number | null;
+  // Preços por produto
+  preco_planejador?: number | null;
+  preco_planejador_desconto?: number | null;
+  checkout_planejador?: string;
+  preco_8_questoes?: number | null;
+  preco_8_questoes_desconto?: number | null;
+  checkout_8_questoes?: string;
+  preco_simulados?: number | null;
+  preco_simulados_desconto?: number | null;
+  checkout_simulados?: string;
+  preco_reta_final?: number | null;
+  preco_reta_final_desconto?: number | null;
+  checkout_reta_final?: string;
+  preco_plataforma_completa?: number | null;
+  preco_plataforma_completa_desconto?: number | null;
+  checkout_plataforma_completa?: string;
+  // Campos legados
+  preco?: number | null;
+  preco_desconto?: number | null;
+  checkout_url?: string;
 }
 
 export const preparatoriosService = {
@@ -284,12 +344,22 @@ export const preparatoriosService = {
   },
 
   async delete(id: string): Promise<void> {
+    // First, deactivate to ensure it won't show to students even if delete fails
+    await supabase
+      .from('preparatorios')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    // Then attempt hard delete
     const { error } = await supabase
       .from('preparatorios')
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      console.warn('[preparatoriosService.delete] Hard delete failed (may have dependent data), but preparatorio was deactivated:', error.message);
+      // Don't throw - the preparatorio is already deactivated and won't show to students
+    }
   },
 
   async toggleActive(id: string, is_active: boolean): Promise<void> {
@@ -459,7 +529,7 @@ export interface CreateRodadaInput {
   ordem?: number;
 }
 
-export interface UpdateRodadaInput extends Partial<Omit<CreateRodadaInput, 'preparatorio_id'>> {}
+export interface UpdateRodadaInput extends Partial<Omit<CreateRodadaInput, 'preparatorio_id'>> { }
 
 export const rodadasService = {
   async getByPreparatorio(preparatorioId: string): Promise<Rodada[]> {
@@ -896,7 +966,7 @@ export interface CreateMensagemIncentivoInput {
   is_active?: boolean;
 }
 
-export interface UpdateMensagemIncentivoInput extends Partial<Omit<CreateMensagemIncentivoInput, 'preparatorio_id'>> {}
+export interface UpdateMensagemIncentivoInput extends Partial<Omit<CreateMensagemIncentivoInput, 'preparatorio_id'>> { }
 
 export const mensagensIncentivoService = {
   async getByPreparatorio(preparatorioId: string, onlyActive = false): Promise<MensagemIncentivo[]> {

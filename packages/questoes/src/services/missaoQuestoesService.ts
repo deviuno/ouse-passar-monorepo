@@ -33,19 +33,19 @@ export async function getMissaoFiltros(missaoId: string): Promise<MissaoFiltros 
       .from('missao_questao_filtros')
       .select('*')
       .eq('missao_id', missaoId)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      // Tabela pode não existir ou missão não ter filtros
-      if (error.code === '42P01' || error.code === 'PGRST116') {
-        console.warn('[MissaoQuestoesService] Sem filtros para missão:', missaoId);
-        return null;
-      }
       console.error('[MissaoQuestoesService] Erro ao buscar filtros:', error);
       return null;
     }
 
-    return data?.filtros || null;
+    if (!data) {
+      console.warn('[MissaoQuestoesService] Sem filtros para missão:', missaoId);
+      return null;
+    }
+
+    return data.filtros || null;
   } catch (error) {
     console.error('[MissaoQuestoesService] Erro:', error);
     return null;

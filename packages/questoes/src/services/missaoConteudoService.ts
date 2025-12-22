@@ -36,44 +36,59 @@ const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_SERVER_URL || 'http://loca
 const audioRegenerationInProgress = new Set<string>();
 
 /**
- * Busca o conteúdo existente de uma missão
+ * Busca o conteúdo existente de uma missão com retry automático
  * Se o conteúdo existe mas não tem áudio, dispara geração em background
  */
-export async function getMissaoConteudo(missaoId: string): Promise<MissaoConteudo | null> {
+export async function getMissaoConteudo(missaoId: string, retryCount = 0): Promise<MissaoConteudo | null> {
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY = 500; // 500ms entre tentativas
+
   try {
+    // Usar select('*') em vez de single/maybeSingle para evitar erros de RLS silenciosos ou 406
     const { data, error } = await supabase
       .from('missao_conteudos')
       .select('*')
-      .eq('missao_id', missaoId)
-      .maybeSingle(); // Usa maybeSingle() para retornar null quando não encontra (evita erro 406)
+      .eq('missao_id', missaoId);
 
     if (error) {
-      // PGRST116 = não encontrado, 406 = Not Acceptable (também significa não encontrado com .single())
-      if (error.code === 'PGRST116' || error.message?.includes('406')) {
-        return null;
+      console.warn(`[MissaoConteudoService] Erro ao buscar conteúdo (Tentativa ${retryCount + 1}):`, error);
+
+      if (retryCount < MAX_RETRIES) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return getMissaoConteudo(missaoId, retryCount + 1);
       }
-      console.error('[MissaoConteudoService] Erro ao buscar conteúdo:', error);
       return null;
     }
 
+    if (!data || data.length === 0) {
+      // Realmente não existe
+      return null;
+    }
+
+    // Se houver mais de um (race condition), pega o primeiro completado ou o mais recente
+    const completed = data.find(c => c.status === 'completed');
+    const selected = completed || data[0];
+
     // Se o conteúdo está completo mas não tem áudio, tentar gerar em background
     // Usa deduplicação para evitar múltiplas chamadas paralelas
-    if (data && data.status === 'completed' && !data.audio_url && data.texto_content) {
+    if (selected && selected.status === 'completed' && !selected.audio_url && selected.texto_content) {
       if (!audioRegenerationInProgress.has(missaoId)) {
         console.log('[MissaoConteudoService] Conteúdo sem áudio detectado, disparando geração em background...');
         audioRegenerationInProgress.add(missaoId);
         // Usar setTimeout para garantir que as funções auxiliares estejam disponíveis
         setTimeout(() => {
-          regenerarAudioParaConteudo(data.id, data.texto_content, missaoId);
+          regenerarAudioParaConteudo(selected.id, selected.texto_content, missaoId);
         }, 0);
-      } else {
-        console.log('[MissaoConteudoService] Regeneração de áudio já em progresso para missão:', missaoId);
       }
     }
 
-    return data;
+    return selected;
   } catch (error) {
-    console.error('[MissaoConteudoService] Erro:', error);
+    console.error('[MissaoConteudoService] Exceção ao buscar conteúdo:', error);
+    if (retryCount < MAX_RETRIES) {
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      return getMissaoConteudo(missaoId, retryCount + 1);
+    }
     return null;
   }
 }
@@ -429,16 +444,16 @@ async function regenerarAudioParaConteudo(
 
 /**
  * Gera o conteúdo completo para uma missão
- * Esta é a função principal que orquestra todo o processo
+ * FIX 3: Migrado para servidor - agora apenas triggera e aguarda via polling
  */
 export async function gerarConteudoMissao(
   input: GeracaoConteudoInput
 ): Promise<MissaoConteudo | null> {
-  const { missaoId, userId, questoesPorMissao = 20 } = input;
+  const { missaoId } = input;
 
   console.log('[MissaoConteudoService] Iniciando geração para missão:', missaoId);
 
-  // 1. Verificar se já existe
+  // 1. Verificar se já existe e está completo
   const existente = await getMissaoConteudo(missaoId);
   if (existente) {
     if (existente.status === 'completed') {
@@ -449,69 +464,51 @@ export async function gerarConteudoMissao(
       }
       return existente;
     }
-    if (existente.status === 'generating') {
-      // Verificar se está travado (mais de 5 minutos)
-      const createdAt = new Date(existente.created_at);
-      const agora = new Date();
-      const minutosPassados = (agora.getTime() - createdAt.getTime()) / 1000 / 60;
-
-      if (minutosPassados > 5) {
-        console.log('[MissaoConteudoService] Geração travada há', Math.round(minutosPassados), 'minutos. Resetando...');
-        // Deletar o registro travado para tentar novamente
-        await supabase.from('missao_conteudos').delete().eq('id', existente.id);
-      } else {
-        console.log('[MissaoConteudoService] Conteúdo está sendo gerado há', Math.round(minutosPassados), 'minutos');
-        return existente;
-      }
-    }
-    if (existente.status === 'failed') {
-      console.log('[MissaoConteudoService] Geração anterior falhou, deletando para tentar novamente...');
-      await supabase.from('missao_conteudos').delete().eq('id', existente.id);
-    }
+    // Se está 'generating' ou 'failed', o servidor vai lidar com isso
   }
 
-  // 2. Marcar como gerando (evita duplicação)
-  const conteudoId = await marcarComoGerando(missaoId, userId);
-  if (!conteudoId) {
-    // Já existe ou está sendo gerado - aguardar até completar
-    console.log('[MissaoConteudoService] Aguardando geração em andamento...');
+  // 2. Triggerar geração no servidor (fire-and-forget)
+  console.log('[MissaoConteudoService] Disparando geração no servidor...');
+  try {
+    await fetch(`${MASTRA_SERVER_URL}/api/missao/gerar-conteudo-background`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missao_id: missaoId }),
+    });
+  } catch (err) {
+    console.error('[MissaoConteudoService] Erro ao triggerar servidor:', err);
+  }
 
-    // Polling para esperar a geração completar (máx 3 minutos)
-    const maxWait = 180000; // 3 minutos
-    const pollInterval = 3000; // 3 segundos
-    const startTime = Date.now();
+  // 3. Polling para esperar a geração completar (máx 5 minutos)
+  const maxWait = 300000; // 5 minutos
+  const pollInterval = 3000; // 3 segundos
+  const startTime = Date.now();
 
-    while (Date.now() - startTime < maxWait) {
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-      const conteudo = await getMissaoConteudo(missaoId);
+  while (Date.now() - startTime < maxWait) {
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
 
-      if (conteudo?.status === 'completed') {
-        console.log('[MissaoConteudoService] Conteúdo completado por outro processo');
+    const conteudo = await getMissaoConteudo(missaoId);
+
+    if (conteudo) {
+      if (conteudo.status === 'completed') {
+        console.log('[MissaoConteudoService] Conteúdo completado!');
         return conteudo;
       }
 
-      if (conteudo?.status === 'failed') {
-        console.log('[MissaoConteudoService] Geração falhou, tentando novamente...');
-        // Deletar registro falho e tentar novamente
-        await supabase.from('missao_conteudos').delete().eq('id', conteudo.id);
-        break; // Sair do loop para tentar gerar novamente
+      if (conteudo.status === 'failed') {
+        console.error('[MissaoConteudoService] Geração falhou:', conteudo.error_message);
+        return conteudo; // Retorna para UI mostrar erro
       }
 
-      console.log('[MissaoConteudoService] Ainda gerando, aguardando...');
+      console.log(`[MissaoConteudoService] Status: ${conteudo.status}. Aguardando... (${Math.round((Date.now() - startTime) / 1000)}s)`);
+    } else {
+      console.log('[MissaoConteudoService] Conteúdo ainda não criado, aguardando...');
     }
-
-    // Se saiu do loop sem completar, tentar criar novo registro
-    const novoConteudoId = await marcarComoGerando(missaoId, userId);
-    if (!novoConteudoId) {
-      // Ainda em progresso ou completou, retornar o que tiver
-      return await getMissaoConteudo(missaoId);
-    }
-    // Continuar com o novo ID para gerar
-    return await executarGeracao(missaoId, novoConteudoId, questoesPorMissao);
   }
 
-  // Executar a geração
-  return await executarGeracao(missaoId, conteudoId, questoesPorMissao);
+  // Timeout - tenta buscar novamente
+  console.warn('[MissaoConteudoService] Timeout na geração');
+  return await getMissaoConteudo(missaoId);
 }
 
 export default {

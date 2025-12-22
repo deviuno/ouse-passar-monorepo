@@ -12,17 +12,19 @@ import {
   HelpCircle,
   ChevronLeft,
   ChevronRight,
+  Bell,
 } from 'lucide-react';
-import { useAuthStore, useUserStore, useUIStore } from '../../stores';
+import { useAuthStore, useUserStore, useUIStore, useNotificationStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
 import { CircularProgress } from '../ui/Progress';
 import { calculateXPProgress } from '../../constants/levelConfig';
+import { NotificationPopover } from './NotificationPopover';
 
 const mainNavItems = [
   { path: '/', icon: Map, label: 'Minhas Trilhas' },
-  { path: '/praticar', icon: Target, label: 'Praticar Questoes' },
+  { path: '/praticar', icon: Target, label: 'Praticar Questões' },
   { path: '/simulados', icon: FileText, label: 'Meus Simulados' },
-  { path: '/estatisticas', icon: BarChart2, label: 'Estatisticas' },
+  { path: '/estatisticas', icon: BarChart2, label: 'Estatísticas' },
   { path: '/loja', icon: ShoppingBag, label: 'Loja' },
 ];
 
@@ -40,8 +42,14 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
   const navigate = useNavigate();
   const { profile, logout } = useAuthStore();
   const { stats } = useUserStore();
+  const { notifications } = useNotificationStore();
   const { toggleSidebar } = useUIStore();
+  const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
+  const [triggerRect, setTriggerRect] = React.useState<DOMRect | null>(null);
+  const notificationButtonRef = React.useRef<HTMLButtonElement>(null);
   const xpProgress = calculateXPProgress(stats.xp);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleLogout = async () => {
     await logout();
@@ -113,9 +121,32 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
                 <p className="text-white font-medium truncate text-sm">
                   {profile?.name || 'Estudante'}
                 </p>
-                <button className="text-[#A0A0A0] hover:text-[#FFB800] transition-colors p-0.5">
-                  <span className="text-xs">🔔</span>
-                </button>
+                <div className="relative">
+                  <button
+                    ref={notificationButtonRef}
+                    onClick={() => {
+                      if (notificationButtonRef.current) {
+                        setTriggerRect(notificationButtonRef.current.getBoundingClientRect());
+                      }
+                      setIsNotificationsOpen(!isNotificationsOpen);
+                    }}
+                    className={`relative transition-colors p-1 rounded-lg ${isNotificationsOpen ? 'text-[#FFB800] bg-[#FFB800]/10' : 'text-[#6E6E6E] hover:text-[#FFB800] hover:bg-[#3A3A3A]'}`}
+                    title="Notificações"
+                  >
+                    <Bell size={16} />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold flex items-center justify-center rounded-full border-2 border-[#1A1A1A]">
+                        {Math.min(unreadCount, 9)}
+                      </span>
+                    )}
+                  </button>
+
+                  <NotificationPopover
+                    isOpen={isNotificationsOpen}
+                    onClose={() => setIsNotificationsOpen(false)}
+                    triggerRect={triggerRect}
+                  />
+                </div>
               </div>
               <p className="text-[#A0A0A0] text-[11px] -mt-0.5">
                 {stats.xp} XP
@@ -126,7 +157,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
 
         {/* Stats Row - Only show when expanded */}
         {!isCollapsed && (
-          <div className="flex items-center justify-between mt-3 text-sm">
+          <div className="flex items-center justify-between mt-3 text-sm max-w-[170px]">
             <div className="flex items-center gap-1">
               <span className="text-xl">🔥</span>
               <span className="text-white font-medium">{stats.streak}</span>
@@ -161,16 +192,17 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
                     transition-colors duration-200
                     ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
                     ${isActive
-                      ? 'bg-[#FFB800]/10 text-[#FFB800]'
+                      ? 'bg-black/50 text-[#FFB800]'
                       : 'text-[#A0A0A0] hover:bg-[#3A3A3A] hover:text-white'
                     }
                   `}
                 >
                   {isActive && (
                     <motion.div
-                      layoutId="activeSidebarItem"
                       className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#FFB800] rounded-r-full"
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      initial={{ opacity: 0, scale: 0.8, y: '-50%' }}
+                      animate={{ opacity: 1, scale: 1, y: '-50%' }}
+                      transition={{ duration: 0.2 }}
                     />
                   )}
                   <Icon size={20} />

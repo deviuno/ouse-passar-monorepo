@@ -15,6 +15,12 @@ import { getFilterOptions } from '../../services/externalQuestionsService';
 import { PreparatorioImageUpload, PreparatorioImageUploadRef } from './PreparatorioImageUpload';
 
 // Types
+export interface ProductPricing {
+  preco: string;
+  precoDesconto: string;
+  checkoutUrl: string;
+}
+
 export interface PreparatorioWizardData {
   // Step 1: Informações Gerais
   nome: string;
@@ -24,6 +30,7 @@ export interface PreparatorioWizardData {
   // Step 2: Informações Técnicas
   banca: string;
   orgao: string;
+  logoUrl: string; // Logo quadrada do órgão
   cargo: string;
   nivel: 'fundamental' | 'medio' | 'superior';
   escolaridade: string;
@@ -40,12 +47,35 @@ export interface PreparatorioWizardData {
   dataPrevista: string;
   anoPrevisto: string;
 
-  // Step 4: Vendas
+  // Step 4: Vendas - Preços por Produto
+  // Planejador
+  precoPlanejador: string;
+  precoPlanejadorDesconto: string;
+  checkoutPlanejador: string;
+  // 8 Questões
+  preco8Questoes: string;
+  preco8QuestoesDesconto: string;
+  checkout8Questoes: string;
+  // Simulados
+  precoSimulados: string;
+  precoSimuladosDesconto: string;
+  checkoutSimulados: string;
+  // Reta Final
+  precoRetaFinal: string;
+  precoRetaFinalDesconto: string;
+  checkoutRetaFinal: string;
+  // Plataforma Completa
+  precoPlataformaCompleta: string;
+  precoPlataformaCompletaDesconto: string;
+  checkoutPlataformaCompleta: string;
+  // Descrições
+  descricaoCurta: string;
+  descricaoVendas: string;
+
+  // Campos legados (mantidos para compatibilidade)
   preco: string;
   precoDesconto: string;
   checkoutUrl: string;
-  descricaoCurta: string;
-  descricaoVendas: string;
 }
 
 interface PreparatorioWizardProps {
@@ -129,6 +159,83 @@ interface SearchableSelectProps {
   loading?: boolean;
   allowCustom?: boolean;
 }
+
+// Componente de card de preço de produto - definido fora para evitar re-criação
+interface ProductPriceCardProps {
+  title: string;
+  icon: string;
+  description: string;
+  precoValue: string;
+  descontoValue: string;
+  checkoutValue: string;
+  onPrecoChange: (value: string) => void;
+  onDescontoChange: (value: string) => void;
+  onCheckoutChange: (value: string) => void;
+}
+
+const ProductPriceCard: React.FC<ProductPriceCardProps> = ({
+  title,
+  icon,
+  description,
+  precoValue,
+  descontoValue,
+  checkoutValue,
+  onPrecoChange,
+  onDescontoChange,
+  onCheckoutChange,
+}) => (
+  <div className="bg-brand-dark/50 border border-white/10 rounded-lg p-4 hover:border-white/20 transition-colors">
+    <div className="flex items-center gap-3 mb-4">
+      <span className="text-2xl">{icon}</span>
+      <div>
+        <h4 className="text-white font-bold">{title}</h4>
+        <p className="text-gray-500 text-xs">{description}</p>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+          Preço (R$)
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          value={precoValue}
+          onChange={(e) => onPrecoChange(e.target.value)}
+          placeholder="0,00"
+          className="w-full bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white text-sm focus:outline-none focus:border-brand-yellow placeholder-gray-600"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+          Desconto (R$)
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          value={descontoValue}
+          onChange={(e) => onDescontoChange(e.target.value)}
+          placeholder="Opcional"
+          className="w-full bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white text-sm focus:outline-none focus:border-brand-yellow placeholder-gray-600"
+        />
+      </div>
+    </div>
+
+    <div>
+      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+        Link de Checkout
+      </label>
+      <input
+        type="url"
+        value={checkoutValue}
+        onChange={(e) => onCheckoutChange(e.target.value)}
+        placeholder="https://checkout.com/..."
+        className="w-full bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white text-sm focus:outline-none focus:border-brand-yellow placeholder-gray-600"
+      />
+    </div>
+  </div>
+);
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
   options,
@@ -227,9 +334,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                     key={opt}
                     type="button"
                     onClick={() => handleSelect(opt)}
-                    className={`w-full text-left px-4 py-2 hover:bg-white/5 transition-colors ${
-                      opt === value ? 'text-brand-yellow bg-brand-yellow/10' : 'text-white'
-                    }`}
+                    className={`w-full text-left px-4 py-2 hover:bg-white/5 transition-colors ${opt === value ? 'text-brand-yellow bg-brand-yellow/10' : 'text-white'
+                      }`}
                   >
                     {opt}
                   </button>
@@ -268,6 +374,8 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const [loadingLogo, setLoadingLogo] = useState(false);
+  const [logoSource, setLogoSource] = useState<'google_search' | 'ai_generated' | null>(null);
   const imageUploadRef = useRef<PreparatorioImageUploadRef>(null);
   const [filterOptions, setFilterOptions] = useState<{
     bancas: string[];
@@ -285,6 +393,7 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
     imagemCapa: initialData?.imagemCapa || '',
     banca: initialData?.banca || '',
     orgao: initialData?.orgao || '',
+    logoUrl: initialData?.logoUrl || '',
     cargo: initialData?.cargo || '',
     nivel: initialData?.nivel || 'medio',
     escolaridade: initialData?.escolaridade || '',
@@ -298,11 +407,28 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
     inscricoesFim: initialData?.inscricoesFim || '',
     dataPrevista: initialData?.dataPrevista || '',
     anoPrevisto: initialData?.anoPrevisto || '',
+    // Preços por produto
+    precoPlanejador: initialData?.precoPlanejador || '',
+    precoPlanejadorDesconto: initialData?.precoPlanejadorDesconto || '',
+    checkoutPlanejador: initialData?.checkoutPlanejador || '',
+    preco8Questoes: initialData?.preco8Questoes || '',
+    preco8QuestoesDesconto: initialData?.preco8QuestoesDesconto || '',
+    checkout8Questoes: initialData?.checkout8Questoes || '',
+    precoSimulados: initialData?.precoSimulados || '',
+    precoSimuladosDesconto: initialData?.precoSimuladosDesconto || '',
+    checkoutSimulados: initialData?.checkoutSimulados || '',
+    precoRetaFinal: initialData?.precoRetaFinal || '',
+    precoRetaFinalDesconto: initialData?.precoRetaFinalDesconto || '',
+    checkoutRetaFinal: initialData?.checkoutRetaFinal || '',
+    precoPlataformaCompleta: initialData?.precoPlataformaCompleta || '',
+    precoPlataformaCompletaDesconto: initialData?.precoPlataformaCompletaDesconto || '',
+    checkoutPlataformaCompleta: initialData?.checkoutPlataformaCompleta || '',
+    descricaoCurta: initialData?.descricaoCurta || '',
+    descricaoVendas: initialData?.descricaoVendas || '',
+    // Campos legados
     preco: initialData?.preco || '',
     precoDesconto: initialData?.precoDesconto || '',
     checkoutUrl: initialData?.checkoutUrl || '',
-    descricaoCurta: initialData?.descricaoCurta || '',
-    descricaoVendas: initialData?.descricaoVendas || '',
   });
 
   // Load filter options from questions database
@@ -330,6 +456,37 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
     value: PreparatorioWizardData[K]
   ) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Buscar logo do órgão via Google Search ou gerar com IA
+  const buscarLogoOrgao = async () => {
+    if (!formData.orgao.trim()) {
+      return;
+    }
+
+    setLoadingLogo(true);
+    setLogoSource(null);
+
+    try {
+      const response = await fetch('http://localhost:4000/api/preparatorio/buscar-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgao: formData.orgao }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.logoUrl) {
+        updateField('logoUrl', data.logoUrl);
+        setLogoSource(data.source);
+      } else {
+        console.error('Erro ao buscar logo:', data.error);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar logo:', error);
+    } finally {
+      setLoadingLogo(false);
+    }
   };
 
   const validateStep = (step: number): boolean => {
@@ -372,22 +529,20 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
           <button
             type="button"
             onClick={() => setCurrentStep(step.id)}
-            className={`flex items-center gap-3 ${
-              step.id === currentStep
+            className={`flex items-center gap-3 ${step.id === currentStep
                 ? 'text-brand-yellow'
                 : step.id < currentStep
-                ? 'text-green-500'
-                : 'text-gray-500'
-            }`}
+                  ? 'text-green-500'
+                  : 'text-gray-500'
+              }`}
           >
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
-                step.id === currentStep
+              className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${step.id === currentStep
                   ? 'border-brand-yellow bg-brand-yellow/10'
                   : step.id < currentStep
-                  ? 'border-green-500 bg-green-500/10'
-                  : 'border-gray-600 bg-transparent'
-              }`}
+                    ? 'border-green-500 bg-green-500/10'
+                    : 'border-gray-600 bg-transparent'
+                }`}
             >
               {step.id < currentStep ? (
                 <Check className="w-5 h-5" />
@@ -402,9 +557,8 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
           </button>
           {index < STEPS.length - 1 && (
             <div
-              className={`flex-1 h-0.5 mx-4 ${
-                step.id < currentStep ? 'bg-green-500' : 'bg-gray-700'
-              }`}
+              className={`flex-1 h-0.5 mx-4 ${step.id < currentStep ? 'bg-green-500' : 'bg-gray-700'
+                }`}
             />
           )}
         </React.Fragment>
@@ -485,6 +639,67 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
           label="Órgão"
           loading={loadingOptions}
         />
+      </div>
+
+      {/* Logo do Órgão */}
+      <div className="bg-brand-dark/50 border border-white/10 rounded-lg p-4">
+        <div className="flex items-start gap-4">
+          {/* Preview da Logo */}
+          <div className="flex-shrink-0">
+            {formData.logoUrl ? (
+              <div className="relative group">
+                <img
+                  src={formData.logoUrl}
+                  alt="Logo do órgão"
+                  className="w-20 h-20 object-contain rounded-lg bg-white/10 p-2"
+                />
+                <button
+                  type="button"
+                  onClick={() => updateField('logoUrl', '')}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={14} className="text-white" />
+                </button>
+              </div>
+            ) : (
+              <div className="w-20 h-20 rounded-lg bg-white/5 border border-dashed border-white/20 flex items-center justify-center">
+                <Building2 size={32} className="text-gray-500" />
+              </div>
+            )}
+          </div>
+
+          {/* Informações e Botão */}
+          <div className="flex-1">
+            <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">
+              Logo do Órgão
+            </label>
+            <p className="text-sm text-gray-500 mb-3">
+              {logoSource === 'google_search'
+                ? 'Logo encontrada na internet'
+                : logoSource === 'ai_generated'
+                  ? 'Logo gerada por IA'
+                  : 'Miniatura quadrada que aparece no header da trilha'}
+            </p>
+            <button
+              type="button"
+              onClick={buscarLogoOrgao}
+              disabled={loadingLogo || !formData.orgao.trim()}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-yellow/10 hover:bg-brand-yellow/20 text-brand-yellow rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingLogo ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Buscando...</span>
+                </>
+              ) : (
+                <>
+                  <Search size={16} />
+                  <span>Buscar Logo</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -669,77 +884,111 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
 
   const renderStep4 = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-            Preço (R$)
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            value={formData.preco}
-            onChange={(e) => updateField('preco', e.target.value)}
-            placeholder="0,00 (deixe vazio para gratuito)"
-            className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-            Preço com Desconto (R$)
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            value={formData.precoDesconto}
-            onChange={(e) => updateField('precoDesconto', e.target.value)}
-            placeholder="Opcional"
-            className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-          URL do Checkout
-        </label>
-        <input
-          type="url"
-          value={formData.checkoutUrl}
-          onChange={(e) => updateField('checkoutUrl', e.target.value)}
-          placeholder="https://checkout.com/seu-produto"
-          className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-          Descrição Curta
-        </label>
-        <input
-          type="text"
-          value={formData.descricaoCurta}
-          onChange={(e) => updateField('descricaoCurta', e.target.value)}
-          placeholder="Uma linha descrevendo o preparatório..."
-          maxLength={150}
-          className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          {formData.descricaoCurta.length}/150 caracteres
+      {/* Header explicativo */}
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+        <p className="text-blue-400 text-sm">
+          <strong>Configure os preços de cada produto.</strong> Cada forma de consumir o preparatório pode ter seu próprio preço e link de checkout.
+          Deixe em branco os produtos que não deseja disponibilizar.
         </p>
       </div>
 
-      <div>
-        <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-          Descrição de Vendas
-        </label>
-        <textarea
-          value={formData.descricaoVendas}
-          onChange={(e) => updateField('descricaoVendas', e.target.value)}
-          rows={6}
-          placeholder="Descrição detalhada para a página de vendas (suporta markdown)..."
-          className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600 resize-none"
+      {/* Grid de produtos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ProductPriceCard
+          title="Planejador"
+          icon="📅"
+          description="Planejamento personalizado de estudos"
+          precoValue={formData.precoPlanejador}
+          descontoValue={formData.precoPlanejadorDesconto}
+          checkoutValue={formData.checkoutPlanejador}
+          onPrecoChange={(v) => updateField('precoPlanejador', v)}
+          onDescontoChange={(v) => updateField('precoPlanejadorDesconto', v)}
+          onCheckoutChange={(v) => updateField('checkoutPlanejador', v)}
         />
+
+        <ProductPriceCard
+          title="Ouse Questões"
+          icon="❓"
+          description="Questões diárias para praticar"
+          precoValue={formData.preco8Questoes}
+          descontoValue={formData.preco8QuestoesDesconto}
+          checkoutValue={formData.checkout8Questoes}
+          onPrecoChange={(v) => updateField('preco8Questoes', v)}
+          onDescontoChange={(v) => updateField('preco8QuestoesDesconto', v)}
+          onCheckoutChange={(v) => updateField('checkout8Questoes', v)}
+        />
+
+        <ProductPriceCard
+          title="Simulados"
+          icon="📝"
+          description="Simulados no formato da prova"
+          precoValue={formData.precoSimulados}
+          descontoValue={formData.precoSimuladosDesconto}
+          checkoutValue={formData.checkoutSimulados}
+          onPrecoChange={(v) => updateField('precoSimulados', v)}
+          onDescontoChange={(v) => updateField('precoSimuladosDesconto', v)}
+          onCheckoutChange={(v) => updateField('checkoutSimulados', v)}
+        />
+
+        <ProductPriceCard
+          title="Reta Final"
+          icon="🎯"
+          description="Revisão intensiva pré-prova"
+          precoValue={formData.precoRetaFinal}
+          descontoValue={formData.precoRetaFinalDesconto}
+          checkoutValue={formData.checkoutRetaFinal}
+          onPrecoChange={(v) => updateField('precoRetaFinal', v)}
+          onDescontoChange={(v) => updateField('precoRetaFinalDesconto', v)}
+          onCheckoutChange={(v) => updateField('checkoutRetaFinal', v)}
+        />
+      </div>
+
+      {/* Plataforma Completa */}
+      <ProductPriceCard
+        title="Plataforma Completa"
+        icon="🚀"
+        description="Acesso a todos os produtos acima + recursos exclusivos"
+        precoValue={formData.precoPlataformaCompleta}
+        descontoValue={formData.precoPlataformaCompletaDesconto}
+        checkoutValue={formData.checkoutPlataformaCompleta}
+        onPrecoChange={(v) => updateField('precoPlataformaCompleta', v)}
+        onDescontoChange={(v) => updateField('precoPlataformaCompletaDesconto', v)}
+        onCheckoutChange={(v) => updateField('checkoutPlataformaCompleta', v)}
+      />
+
+      {/* Descrições */}
+      <div className="border-t border-white/10 pt-6 space-y-4">
+        <h4 className="text-white font-bold uppercase text-sm tracking-wide">Textos de Venda</h4>
+
+        <div>
+          <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+            Descrição Curta
+          </label>
+          <input
+            type="text"
+            value={formData.descricaoCurta}
+            onChange={(e) => updateField('descricaoCurta', e.target.value)}
+            placeholder="Uma linha descrevendo o preparatório..."
+            maxLength={150}
+            className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            {formData.descricaoCurta.length}/150 caracteres
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+            Descrição de Vendas
+          </label>
+          <textarea
+            value={formData.descricaoVendas}
+            onChange={(e) => updateField('descricaoVendas', e.target.value)}
+            rows={4}
+            placeholder="Descrição detalhada para a página de vendas (suporta markdown)..."
+            className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600 resize-none"
+          />
+        </div>
       </div>
     </div>
   );

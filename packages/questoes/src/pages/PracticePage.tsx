@@ -236,7 +236,7 @@ function MultiSelectDropdown({
 }
 
 export default function PracticePage() {
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { incrementStats } = useUserStore();
   const { addToast } = useUIStore();
 
@@ -535,6 +535,12 @@ export default function PracticePage() {
     }
   };
 
+  const handlePrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
+
   const handleBack = () => {
     if (mode === 'practicing') {
       if (answers.size > 0) {
@@ -585,6 +591,7 @@ export default function PracticePage() {
             question={currentQuestion}
             isLastQuestion={currentIndex === questions.length - 1}
             onNext={handleNext}
+            onPrevious={currentIndex > 0 ? handlePrevious : undefined}
             onOpenTutor={() => setShowMentorChat(true)}
             onAnswer={handleAnswer}
             onRateDifficulty={handleRateDifficulty}
@@ -592,7 +599,7 @@ export default function PracticePage() {
             studyMode={studyMode}
             initialTime={studyMode === 'hard' ? 3 : undefined}
             userId={user?.id}
-            userRole={useAuthStore.getState().profile?.role}
+            userRole={profile?.role}
             onShowToast={handleShowToast}
           />
         </div>
@@ -735,8 +742,8 @@ export default function PracticePage() {
               <button
                 onClick={() => setToggleFilters(prev => ({ ...prev, apenasRevisadas: !prev.apenasRevisadas }))}
                 className={`flex items-center gap-3 p-3 rounded-lg transition-all ${toggleFilters.apenasRevisadas
-                    ? 'bg-[#2ECC71]/10 border border-[#2ECC71]'
-                    : 'bg-[#252525] border border-[#3A3A3A] hover:border-[#4A4A4A]'
+                  ? 'bg-[#2ECC71]/10 border border-[#2ECC71]'
+                  : 'bg-[#252525] border border-[#3A3A3A] hover:border-[#4A4A4A]'
                   }`}
               >
                 <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${toggleFilters.apenasRevisadas ? 'bg-[#2ECC71] border-[#2ECC71]' : 'border-[#4A4A4A]'
@@ -756,8 +763,8 @@ export default function PracticePage() {
               <button
                 onClick={() => setToggleFilters(prev => ({ ...prev, apenasComComentario: !prev.apenasComComentario }))}
                 className={`flex items-center gap-3 p-3 rounded-lg transition-all ${toggleFilters.apenasComComentario
-                    ? 'bg-[#3498DB]/10 border border-[#3498DB]'
-                    : 'bg-[#252525] border border-[#3A3A3A] hover:border-[#4A4A4A]'
+                  ? 'bg-[#3498DB]/10 border border-[#3498DB]'
+                  : 'bg-[#252525] border border-[#3A3A3A] hover:border-[#4A4A4A]'
                   }`}
               >
                 <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${toggleFilters.apenasComComentario ? 'bg-[#3498DB] border-[#3498DB]' : 'border-[#4A4A4A]'

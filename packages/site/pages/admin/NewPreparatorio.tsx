@@ -54,6 +54,7 @@ export const NewPreparatorio: React.FC = () => {
         slug,
         descricao: data.descricao || undefined,
         imagem_capa: data.imagemCapa || undefined,
+        logo_url: data.logoUrl || undefined,
         // Technical fields
         banca: data.banca || undefined,
         orgao: data.orgao || undefined,
@@ -71,10 +72,26 @@ export const NewPreparatorio: React.FC = () => {
         inscricoes_fim: parseDate(data.inscricoesFim),
         data_prevista: parseDate(data.dataPrevista),
         ano_previsto: data.anoPrevisto ? parseInt(data.anoPrevisto, 10) : null,
-        // Sales fields
-        preco: parseNumber(data.preco),
-        preco_desconto: parseNumber(data.precoDesconto),
-        checkout_url: data.checkoutUrl || undefined,
+        // Preços por produto
+        preco_planejador: parseNumber(data.precoPlanejador),
+        preco_planejador_desconto: parseNumber(data.precoPlanejadorDesconto),
+        checkout_planejador: data.checkoutPlanejador || undefined,
+        preco_8_questoes: parseNumber(data.preco8Questoes),
+        preco_8_questoes_desconto: parseNumber(data.preco8QuestoesDesconto),
+        checkout_8_questoes: data.checkout8Questoes || undefined,
+        preco_simulados: parseNumber(data.precoSimulados),
+        preco_simulados_desconto: parseNumber(data.precoSimuladosDesconto),
+        checkout_simulados: data.checkoutSimulados || undefined,
+        preco_reta_final: parseNumber(data.precoRetaFinal),
+        preco_reta_final_desconto: parseNumber(data.precoRetaFinalDesconto),
+        checkout_reta_final: data.checkoutRetaFinal || undefined,
+        preco_plataforma_completa: parseNumber(data.precoPlataformaCompleta),
+        preco_plataforma_completa_desconto: parseNumber(data.precoPlataformaCompletaDesconto),
+        checkout_plataforma_completa: data.checkoutPlataformaCompleta || undefined,
+        // Campos legados (para compatibilidade) - usa planejador como padrão
+        preco: parseNumber(data.precoPlanejador),
+        preco_desconto: parseNumber(data.precoPlanejadorDesconto),
+        checkout_url: data.checkoutPlanejador || undefined,
         descricao_curta: data.descricaoCurta || undefined,
         descricao_vendas: data.descricaoVendas || undefined,
         // Default settings

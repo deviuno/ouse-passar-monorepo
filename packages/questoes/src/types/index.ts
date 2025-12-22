@@ -178,4 +178,15 @@ export interface SimuladoResult {
   completed_at: string;
 }
 
+// Notificações
+export interface AppNotification {
+  id: string;
+  title: string;
+  description: string;
+  time: string;
+  read: boolean;
+  type: 'info' | 'success' | 'warning' | 'error';
+  link?: string;
+}
+
 // Preparatorio é exportado de ./trail

@@ -62,10 +62,16 @@ export function PreparatorioDropdown({
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 group"
       >
-        {/* Icone do preparatorio */}
-        {selectedPrep?.preparatorio.icone && (
+        {/* Logo ou Icone do preparatorio */}
+        {selectedPrep?.preparatorio.logo_url ? (
+          <img
+            src={selectedPrep.preparatorio.logo_url}
+            alt=""
+            className="w-8 h-8 object-contain rounded-lg"
+          />
+        ) : selectedPrep?.preparatorio.icone ? (
           <span className="text-xl">{selectedPrep.preparatorio.icone}</span>
-        )}
+        ) : null}
 
         {/* Nome do preparatorio */}
         <h1 className="text-white font-bold text-xl">
@@ -119,12 +125,18 @@ export function PreparatorioDropdown({
                         ${isSelected ? 'bg-black/30' : 'hover:bg-black/20'}
                       `}
                     >
-                      {/* Icone */}
+                      {/* Logo ou Icone */}
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
                         style={{ backgroundColor: `${iconeBg}20` }}
                       >
-                        {prep.preparatorio.icone ? (
+                        {prep.preparatorio.logo_url ? (
+                          <img
+                            src={prep.preparatorio.logo_url}
+                            alt=""
+                            className="w-8 h-8 object-contain"
+                          />
+                        ) : prep.preparatorio.icone ? (
                           <span className="text-xl">{prep.preparatorio.icone}</span>
                         ) : (
                           <BookOpen size={20} style={{ color: iconeBg }} />

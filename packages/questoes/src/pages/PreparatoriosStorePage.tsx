@@ -7,11 +7,8 @@ import {
   Check,
   Loader2,
   ShoppingCart,
-  Star,
-  Users,
-  Clock,
 } from 'lucide-react';
-import { Button, Card, Modal } from '../components/ui';
+import { Button, Modal } from '../components/ui';
 import { Preparatorio, UserLevel } from '../types';
 import { userPreparatoriosService } from '../services';
 import { useAuthStore, useTrailStore, useUIStore } from '../stores';
@@ -135,7 +132,7 @@ export default function PreparatoriosStorePage() {
             </p>
 
             {/* Grid de preparatórios */}
-            <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {availablePreparatorios.map((prep, index) => (
                 <PreparatorioCard
                   key={prep.id}
@@ -155,68 +152,90 @@ export default function PreparatoriosStorePage() {
           <Modal
             isOpen={showConfirmModal}
             onClose={() => setShowConfirmModal(false)}
-            title="Adicionar Preparatório"
+            title=""
           >
-            <div className="p-4">
-              {/* Preview do preparatório */}
-              <div className="bg-[#1E1E1E] rounded-2xl p-4 mb-6">
-                <div className="flex items-start gap-4">
+            <div className="overflow-hidden -mt-4 -mx-4">
+              {/* Cover Image Section */}
+              <div className="relative h-40 w-full">
+                {selectedPrep.imagem_capa ? (
+                  <img
+                    src={selectedPrep.imagem_capa}
+                    alt={selectedPrep.nome}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
                   <div
-                    className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: `${selectedPrep.cor || '#FFB800'}20` }}
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ backgroundColor: selectedPrep.cor || '#FFB800' }}
                   >
                     {selectedPrep.icone ? (
-                      <span className="text-3xl">{selectedPrep.icone}</span>
+                      <span className="text-6xl">{selectedPrep.icone}</span>
                     ) : (
-                      <BookOpen size={32} style={{ color: selectedPrep.cor || '#FFB800' }} />
+                      <BookOpen size={64} className="text-white/50" />
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-white font-bold text-lg">{selectedPrep.nome}</h3>
-                    {selectedPrep.descricao && (
-                      <p className="text-[#A0A0A0] text-sm mt-1">{selectedPrep.descricao}</p>
-                    )}
-                    {selectedPrep.banca && (
-                      <p className="text-[#6E6E6E] text-xs mt-2">Banca: {selectedPrep.banca}</p>
-                    )}
+                )}
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-transparent to-transparent" />
+              </div>
+
+              {/* Content */}
+              <div className="p-6 -mt-8 relative z-10">
+                {/* Title & Badge */}
+                <div className="mb-4">
+                  {selectedPrep.banca && (
+                    <span className="inline-block px-3 py-1 bg-[#FFB800]/20 text-[#FFB800] text-xs font-medium rounded-full mb-2">
+                      {selectedPrep.banca}
+                    </span>
+                  )}
+                  <h3 className="text-xl font-bold text-white leading-tight">
+                    {selectedPrep.nome}
+                  </h3>
+                  {selectedPrep.orgao && (
+                    <p className="text-[#A0A0A0] text-sm mt-1">{selectedPrep.orgao}</p>
+                  )}
+                </div>
+
+                {/* Features Grid */}
+                <div className="grid grid-cols-3 gap-2 mb-6">
+                  <div className="bg-[#252525] rounded-xl p-3 text-center">
+                    <div className="w-8 h-8 bg-[#2ECC71]/20 rounded-lg flex items-center justify-center mx-auto mb-2">
+                      <Check size={16} className="text-[#2ECC71]" />
+                    </div>
+                    <p className="text-[10px] text-[#A0A0A0] leading-tight">Trilha Personalizada</p>
+                  </div>
+                  <div className="bg-[#252525] rounded-xl p-3 text-center">
+                    <div className="w-8 h-8 bg-[#3498DB]/20 rounded-lg flex items-center justify-center mx-auto mb-2">
+                      <BookOpen size={16} className="text-[#3498DB]" />
+                    </div>
+                    <p className="text-[10px] text-[#A0A0A0] leading-tight">Questões Comentadas</p>
+                  </div>
+                  <div className="bg-[#252525] rounded-xl p-3 text-center">
+                    <div className="w-8 h-8 bg-[#9B59B6]/20 rounded-lg flex items-center justify-center mx-auto mb-2">
+                      <Check size={16} className="text-[#9B59B6]" />
+                    </div>
+                    <p className="text-[10px] text-[#A0A0A0] leading-tight">Simulados & Revisões</p>
                   </div>
                 </div>
-              </div>
 
-              {/* Info */}
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center gap-3 text-[#A0A0A0]">
-                  <Check size={18} className="text-[#2ECC71]" />
-                  <span className="text-sm">Trilha personalizada para seu nível</span>
+                {/* Actions */}
+                <div className="space-y-2">
+                  <Button
+                    fullWidth
+                    onClick={handleAcquirePrep}
+                    isLoading={isAcquiring}
+                    className="py-3 text-base font-bold"
+                  >
+                    {isAcquiring ? 'Adicionando...' : '🚀 Começar Agora'}
+                  </Button>
+                  <button
+                    onClick={() => setShowConfirmModal(false)}
+                    disabled={isAcquiring}
+                    className="w-full py-2 text-sm text-[#A0A0A0] hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    Voltar
+                  </button>
                 </div>
-                <div className="flex items-center gap-3 text-[#A0A0A0]">
-                  <Check size={18} className="text-[#2ECC71]" />
-                  <span className="text-sm">Questões comentadas</span>
-                </div>
-                <div className="flex items-center gap-3 text-[#A0A0A0]">
-                  <Check size={18} className="text-[#2ECC71]" />
-                  <span className="text-sm">Simulados e revisões</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3">
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  onClick={() => setShowConfirmModal(false)}
-                  disabled={isAcquiring}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  fullWidth
-                  onClick={handleAcquirePrep}
-                  isLoading={isAcquiring}
-                  leftIcon={!isAcquiring ? <ShoppingCart size={18} /> : undefined}
-                >
-                  Adicionar
-                </Button>
               </div>
             </div>
           </Modal>
@@ -226,7 +245,7 @@ export default function PreparatoriosStorePage() {
   );
 }
 
-// Card de preparatório
+// Card de preparatório - estilo igual ao onboarding
 function PreparatorioCard({
   preparatorio,
   index,
@@ -236,84 +255,73 @@ function PreparatorioCard({
   index: number;
   onSelect: () => void;
 }) {
-  const iconeBg = preparatorio.cor || '#FFB800';
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onSelect}
+      className={`
+        group relative flex flex-col items-start text-left cursor-pointer
+        rounded-2xl overflow-hidden transition-all duration-200 h-full
+        hover:ring-2 hover:ring-[#FFB800] hover:ring-offset-2 hover:ring-offset-[#121212]
+        bg-[#252525]
+      `}
     >
-      <Card
-        padding="none"
-        className="overflow-hidden hover:border-[#FFB800]/50 transition-all cursor-pointer group"
-        onClick={onSelect}
-      >
-        {/* Imagem de capa (se houver) */}
-        {preparatorio.imagem_capa && (
-          <div className="h-32 overflow-hidden">
-            <img
-              src={preparatorio.imagem_capa}
-              alt={preparatorio.nome}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
+      {/* Capa do Preparatório */}
+      <div className="w-full aspect-[4/3] bg-[#333] relative overflow-hidden">
+        {preparatorio.imagem_capa ? (
+          <img
+            src={preparatorio.imagem_capa}
+            alt={preparatorio.nome}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#333] to-[#252525]">
+            <span className="text-4xl mb-2 filter drop-shadow-lg">{preparatorio.icone || '📚'}</span>
           </div>
         )}
 
-        <div className="p-4">
-          <div className="flex items-start gap-4">
-            {/* Ícone */}
-            <div
-              className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: `${iconeBg}20` }}
-            >
-              {preparatorio.icone ? (
-                <span className="text-3xl">{preparatorio.icone}</span>
-              ) : (
-                <BookOpen size={28} style={{ color: iconeBg }} />
-              )}
-            </div>
+        {/* Overlay gradiente para legibilidade */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60" />
+      </div>
 
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-white font-bold text-lg truncate">
-                {preparatorio.nome}
-              </h3>
-              {preparatorio.descricao && (
-                <p className="text-[#A0A0A0] text-sm line-clamp-2 mt-1">
-                  {preparatorio.descricao}
-                </p>
-              )}
+      {/* Conteúdo do Card */}
+      <div className="p-3 w-full flex-1 flex flex-col">
+        <h3 className="text-white font-bold text-sm leading-tight mb-1 group-hover:text-[#FFB800] transition-colors">
+          {preparatorio.nome}
+        </h3>
 
-              {/* Tags */}
-              <div className="flex flex-wrap gap-2 mt-3">
-                {preparatorio.banca && (
-                  <span className="px-2 py-1 bg-[#3A3A3A] rounded-full text-xs text-[#A0A0A0]">
-                    {preparatorio.banca}
-                  </span>
-                )}
-                {preparatorio.orgao && (
-                  <span className="px-2 py-1 bg-[#3A3A3A] rounded-full text-xs text-[#A0A0A0]">
-                    {preparatorio.orgao}
-                  </span>
-                )}
-              </div>
-            </div>
+        {preparatorio.descricao && (
+          <p className="text-[#A0A0A0] text-xs line-clamp-2 leading-relaxed mt-auto">
+            {preparatorio.descricao}
+          </p>
+        )}
 
-            {/* Botão */}
-            <Button
-              size="sm"
-              className="flex-shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect();
-              }}
-            >
-              Adicionar
-            </Button>
-          </div>
+        {/* Tags */}
+        <div className="flex flex-wrap gap-1 mt-2">
+          {preparatorio.banca && (
+            <span className="px-2 py-0.5 bg-[#3A3A3A] rounded-full text-[10px] text-[#A0A0A0]">
+              {preparatorio.banca}
+            </span>
+          )}
         </div>
-      </Card>
+
+        {/* Botão */}
+        <Button
+          size="sm"
+          className="w-full mt-3"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
+        >
+          Adicionar
+        </Button>
+      </div>
     </motion.div>
   );
 }
+

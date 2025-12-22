@@ -21,6 +21,7 @@ export interface Preparatorio {
   is_active: boolean;
   ordem?: number;
   imagem_capa?: string;
+  logo_url?: string; // Logo quadrada do órgão (ex: PRF, PF)
   created_at?: string;
   updated_at?: string;
 }

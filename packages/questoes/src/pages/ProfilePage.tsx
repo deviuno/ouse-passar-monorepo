@@ -130,8 +130,8 @@ export default function ProfilePage() {
       emoji: '🎯',
       title: 'Primeiro Passo',
       description: 'Concluiu sua primeira missão na trilha.',
-      unlocked: true,
-      progress: 100,
+      unlocked: stats.totalAnswered > 0, // TODO: Implement specific mission tracking in UserStats
+      progress: stats.totalAnswered > 0 ? 100 : 0,
     },
     {
       id: 'streak-3',
@@ -154,8 +154,8 @@ export default function ProfilePage() {
       emoji: '⭐',
       title: 'Perfeccionista',
       description: 'Acertou 10 questões seguidas sem errar.',
-      unlocked: false,
-      progress: 40,
+      unlocked: false, // TODO: Track current correct streak in UserStats
+      progress: 0,
     },
     {
       id: 'league-pioneer',

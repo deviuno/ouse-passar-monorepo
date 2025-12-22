@@ -25,7 +25,8 @@ import { ParsedQuestion, TrailMission, MissionStatus } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
 import { CompactTrailMap } from '../components/trail/CompactTrailMap';
 import { MentorChat } from '../components/question/MentorChat';
-import { XP_PER_CORRECT, COINS_PER_MISSION, PASSING_SCORE
+import {
+  XP_PER_CORRECT, COINS_PER_MISSION, PASSING_SCORE
 } from '../constants';
 import {
   saveUserAnswer,
@@ -509,11 +510,10 @@ function ContentPhase({
                         e.stopPropagation();
                         handleSpeedSelect(speed);
                       }}
-                      className={`block w-full px-4 py-2 text-xs font-medium text-left transition-colors whitespace-nowrap ${
-                        playbackRate === speed
-                          ? 'bg-[#FFB800] text-black'
-                          : 'text-white hover:bg-[#3A3A3A]'
-                      }`}
+                      className={`block w-full px-4 py-2 text-xs font-medium text-left transition-colors whitespace-nowrap ${playbackRate === speed
+                        ? 'bg-[#FFB800] text-black'
+                        : 'text-white hover:bg-[#3A3A3A]'
+                        }`}
                     >
                       {speed}x {speed === 1 && '(Normal)'}
                     </button>
@@ -545,104 +545,102 @@ function ContentPhase({
         {/* Audio Player */}
         {content?.audio_url && (
           <div ref={playerRef}>
-          <Card className="mb-4">
-            <audio
-              ref={audioRef}
-              src={content.audio_url}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={() => {
-                handleLoadedMetadata();
-                setAudioLoading(false);
-                setAudioError(false);
-              }}
-              onEnded={() => setIsPlaying(false)}
-              onError={(e) => {
-                console.error('[Audio] Error loading audio:', e, content.audio_url);
-                setAudioError(true);
-                setAudioLoading(false);
-              }}
-              onCanPlay={() => {
-                console.log('[Audio] Can play:', content.audio_url);
-                setAudioLoading(false);
-              }}
-              onLoadStart={() => setAudioLoading(true)}
-              preload="auto"
-            />
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handlePlayPause}
-                disabled={audioLoading || audioError}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
-                  audioLoading || audioError
+            <Card className="mb-4">
+              <audio
+                ref={audioRef}
+                src={content.audio_url}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={() => {
+                  handleLoadedMetadata();
+                  setAudioLoading(false);
+                  setAudioError(false);
+                }}
+                onEnded={() => setIsPlaying(false)}
+                onError={(e) => {
+                  console.error('[Audio] Error loading audio:', e, content.audio_url);
+                  setAudioError(true);
+                  setAudioLoading(false);
+                }}
+                onCanPlay={() => {
+                  console.log('[Audio] Can play:', content.audio_url);
+                  setAudioLoading(false);
+                }}
+                onLoadStart={() => setAudioLoading(true)}
+                preload="auto"
+              />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handlePlayPause}
+                  disabled={audioLoading || audioError}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${audioLoading || audioError
                     ? 'bg-[#3A3A3A] cursor-not-allowed'
                     : 'bg-[#FFB800] hover:bg-[#E5A600]'
-                }`}
-              >
-                {audioLoading ? (
-                  <Loader2 size={20} className="text-[#A0A0A0] animate-spin" />
-                ) : audioError ? (
-                  <Volume2 size={20} className="text-[#E74C3C]" />
-                ) : isPlaying ? (
-                  <Pause size={20} className="text-black" />
-                ) : (
-                  <Play size={20} className="text-black ml-0.5" />
-                )}
-              </button>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-white text-sm">
-                    {audioLoading ? 'Carregando áudio...' : audioError ? 'Erro ao carregar' : 'Ouvir conteúdo'}
-                  </p>
-                  {audioDuration > 0 && !audioError && (
-                    <span className="text-[#6E6E6E] text-xs">
-                      {formatTime(audioRef.current?.currentTime || 0)} / {formatTime(audioDuration)}
-                    </span>
+                    }`}
+                >
+                  {audioLoading ? (
+                    <Loader2 size={20} className="text-[#A0A0A0] animate-spin" />
+                  ) : audioError ? (
+                    <Volume2 size={20} className="text-[#E74C3C]" />
+                  ) : isPlaying ? (
+                    <Pause size={20} className="text-black" />
+                  ) : (
+                    <Play size={20} className="text-black ml-0.5" />
                   )}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="text-white text-sm">
+                      {audioLoading ? 'Carregando áudio...' : audioError ? 'Erro ao carregar' : 'Ouvir conteúdo'}
+                    </p>
+                    {audioDuration > 0 && !audioError && (
+                      <span className="text-[#6E6E6E] text-xs">
+                        {formatTime(audioRef.current?.currentTime || 0)} / {formatTime(audioDuration)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="h-1 bg-[#3A3A3A] rounded-full">
+                    <div
+                      className={`h-full rounded-full transition-all ${audioError ? 'bg-[#E74C3C]' : 'bg-[#FFB800]'}`}
+                      style={{ width: audioError ? '100%' : `${audioProgress}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-1 bg-[#3A3A3A] rounded-full">
-                  <div
-                    className={`h-full rounded-full transition-all ${audioError ? 'bg-[#E74C3C]' : 'bg-[#FFB800]'}`}
-                    style={{ width: audioError ? '100%' : `${audioProgress}%` }}
-                  />
-                </div>
-              </div>
-              {/* Speed Control Dropdown */}
-              {!audioLoading && !audioError && (
-                <div className="relative">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowSpeedMenu(!showSpeedMenu);
-                    }}
-                    className="px-2 py-1.5 bg-[#3A3A3A] hover:bg-[#4A4A4A] rounded text-xs font-bold text-[#FFB800] flex-shrink-0 transition-colors min-w-[44px]"
-                    title="Velocidade de reprodução"
-                  >
-                    {playbackRate}x
-                  </button>
-                  {showSpeedMenu && (
-                    <div className="absolute top-full right-0 mt-1 bg-[#2D2D2D] border border-[#3A3A3A] rounded-lg shadow-xl overflow-hidden z-50">
-                      {PLAYBACK_SPEEDS.map((speed) => (
-                        <button
-                          key={speed}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSpeedSelect(speed);
-                          }}
-                          className={`block w-full px-4 py-2 text-xs font-medium text-left transition-colors whitespace-nowrap ${
-                            playbackRate === speed
+                {/* Speed Control Dropdown */}
+                {!audioLoading && !audioError && (
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowSpeedMenu(!showSpeedMenu);
+                      }}
+                      className="px-2 py-1.5 bg-[#3A3A3A] hover:bg-[#4A4A4A] rounded text-xs font-bold text-[#FFB800] flex-shrink-0 transition-colors min-w-[44px]"
+                      title="Velocidade de reprodução"
+                    >
+                      {playbackRate}x
+                    </button>
+                    {showSpeedMenu && (
+                      <div className="absolute top-full right-0 mt-1 bg-[#2D2D2D] border border-[#3A3A3A] rounded-lg shadow-xl overflow-hidden z-50">
+                        {PLAYBACK_SPEEDS.map((speed) => (
+                          <button
+                            key={speed}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSpeedSelect(speed);
+                            }}
+                            className={`block w-full px-4 py-2 text-xs font-medium text-left transition-colors whitespace-nowrap ${playbackRate === speed
                               ? 'bg-[#FFB800] text-black'
                               : 'text-white hover:bg-[#3A3A3A]'
-                          }`}
-                        >
-                          {speed}x {speed === 1 && '(Normal)'}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
+                              }`}
+                          >
+                            {speed}x {speed === 1 && '(Normal)'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Card>
           </div>
         )}
 
@@ -944,7 +942,7 @@ export default function MissionPage() {
   }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuthStore();
+  const { user, profile: userProfile } = useAuthStore();
   const { addToast } = useUIStore();
   const { incrementStats, stats } = useUserStore();
   const {
@@ -1624,11 +1622,13 @@ export default function MissionPage() {
                       question={currentQuestion}
                       isLastQuestion={currentQuestionIndex === questions.length - 1}
                       onNext={handleNext}
+                      onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(prev => prev - 1) : undefined}
                       onOpenTutor={() => setShowMentorChat(true)}
                       onAnswer={handleAnswer}
                       onRateDifficulty={handleRateDifficulty}
                       studyMode={selectedStudyMode}
                       userId={user?.id}
+                      userRole={userProfile?.role}
                       onShowToast={handleShowToast}
                     />
                   </motion.div>
@@ -1668,19 +1668,19 @@ export default function MissionPage() {
           contentContext={
             phase === 'questions' && currentQuestion
               ? {
-                  title: currentQuestion.assunto || currentQuestion.materia,
-                  text: `QUESTÃO:\n${currentQuestion.enunciado}\n\nALTERNATIVAS:\n${currentQuestion.parsedAlternativas?.map(a => `${a.letter}) ${a.text}`).join('\n') || ''}\n\nGABARITO: ${currentQuestion.gabarito}\n\nCOMENTÁRIO:\n${currentQuestion.comentario || 'Sem comentário disponível'}`,
-                  question: currentQuestion
-                }
+                title: currentQuestion.assunto || currentQuestion.materia,
+                text: `QUESTÃO:\n${currentQuestion.enunciado}\n\nALTERNATIVAS:\n${currentQuestion.parsedAlternativas?.map(a => `${a.letter}) ${a.text}`).join('\n') || ''}\n\nGABARITO: ${currentQuestion.gabarito}\n\nCOMENTÁRIO:\n${currentQuestion.comentario || 'Sem comentário disponível'}`,
+                question: currentQuestion
+              }
               : {
-                  // Extrair título: assunto pode ser objeto (TrailMission) ou string (Missao)
-                  // Usamos 'as any' porque a missão pode ter campos extras vindos de _missaoOriginal
-                  title: (typeof currentMission?.assunto === 'string' ? currentMission?.assunto : currentMission?.assunto?.nome)
-                    || (currentMission as any)?.tema
-                    || (typeof currentMission?.materia === 'string' ? currentMission?.materia : currentMission?.materia?.materia)
-                    || 'Aula',
-                  text: missaoConteudo?.texto_content || `Conteúdo sobre ${(typeof currentMission?.assunto === 'string' ? currentMission?.assunto : currentMission?.assunto?.nome) || (currentMission as any)?.tema || 'o tema'}`
-                }
+                // Extrair título: assunto pode ser objeto (TrailMission) ou string (Missao)
+                // Usamos 'as any' porque a missão pode ter campos extras vindos de _missaoOriginal
+                title: (typeof currentMission?.assunto === 'string' ? currentMission?.assunto : currentMission?.assunto?.nome)
+                  || (currentMission as any)?.tema
+                  || (typeof currentMission?.materia === 'string' ? currentMission?.materia : currentMission?.materia?.materia)
+                  || 'Aula',
+                text: missaoConteudo?.texto_content || `Conteúdo sobre ${(typeof currentMission?.assunto === 'string' ? currentMission?.assunto : currentMission?.assunto?.nome) || (currentMission as any)?.tema || 'o tema'}`
+              }
           }
           userContext={{
             name: user?.user_metadata?.name,
@@ -1723,11 +1723,10 @@ export default function MissionPage() {
                       if (viewingRoundIndex > 0) setViewingRoundIndex(viewingRoundIndex - 1);
                     }}
                     disabled={viewingRoundIndex === 0}
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      viewingRoundIndex > 0
-                        ? 'hover:bg-[#3A3A3A] text-[#A0A0A0]'
-                        : 'text-[#3A3A3A] cursor-not-allowed'
-                    }`}
+                    className={`p-1.5 rounded-lg transition-colors ${viewingRoundIndex > 0
+                      ? 'hover:bg-[#3A3A3A] text-[#A0A0A0]'
+                      : 'text-[#3A3A3A] cursor-not-allowed'
+                      }`}
                   >
                     <ChevronLeft size={16} />
                   </button>
@@ -1739,11 +1738,10 @@ export default function MissionPage() {
                       if (viewingRoundIndex < displayRounds.length - 1) setViewingRoundIndex(viewingRoundIndex + 1);
                     }}
                     disabled={viewingRoundIndex >= displayRounds.length - 1}
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      viewingRoundIndex < displayRounds.length - 1
-                        ? 'hover:bg-[#3A3A3A] text-[#A0A0A0]'
-                        : 'text-[#3A3A3A] cursor-not-allowed'
-                    }`}
+                    className={`p-1.5 rounded-lg transition-colors ${viewingRoundIndex < displayRounds.length - 1
+                      ? 'hover:bg-[#3A3A3A] text-[#A0A0A0]'
+                      : 'text-[#3A3A3A] cursor-not-allowed'
+                      }`}
                   >
                     <ChevronRight size={16} />
                   </button>

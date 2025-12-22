@@ -6,33 +6,33 @@ import { LeadDifficulty, LeadGender, EducationLevel, Lead, Preparatorio } from '
 
 // Utilitário para máscara de telefone brasileiro
 const formatPhoneBR = (value: string): string => {
-  // Remove tudo que não é número
-  const numbers = value.replace(/\D/g, '');
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, '');
 
-  // Limita a 11 dígitos
-  const limited = numbers.slice(0, 11);
+    // Limita a 11 dígitos
+    const limited = numbers.slice(0, 11);
 
-  // Aplica a máscara
-  if (limited.length <= 2) {
-    return limited.length > 0 ? `(${limited}` : '';
-  } else if (limited.length <= 7) {
-    return `(${limited.slice(0, 2)}) ${limited.slice(2)}`;
-  } else if (limited.length <= 11) {
-    // Celular: (XX) XXXXX-XXXX
-    if (limited.length > 10) {
-      return `(${limited.slice(0, 2)}) ${limited.slice(2, 7)}-${limited.slice(7)}`;
+    // Aplica a máscara
+    if (limited.length <= 2) {
+        return limited.length > 0 ? `(${limited}` : '';
+    } else if (limited.length <= 7) {
+        return `(${limited.slice(0, 2)}) ${limited.slice(2)}`;
+    } else if (limited.length <= 11) {
+        // Celular: (XX) XXXXX-XXXX
+        if (limited.length > 10) {
+            return `(${limited.slice(0, 2)}) ${limited.slice(2, 7)}-${limited.slice(7)}`;
+        }
+        // Fixo: (XX) XXXX-XXXX
+        return `(${limited.slice(0, 2)}) ${limited.slice(2, 6)}-${limited.slice(6)}`;
     }
-    // Fixo: (XX) XXXX-XXXX
-    return `(${limited.slice(0, 2)}) ${limited.slice(2, 6)}-${limited.slice(6)}`;
-  }
-  return value;
+    return value;
 };
 
 // Validação de telefone brasileiro
 const isValidPhoneBR = (phone: string): boolean => {
-  const numbers = phone.replace(/\D/g, '');
-  // Deve ter 10 ou 11 dígitos
-  return numbers.length === 10 || numbers.length === 11;
+    const numbers = phone.replace(/\D/g, '');
+    // Deve ter 10 ou 11 dígitos
+    return numbers.length === 10 || numbers.length === 11;
 };
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -951,9 +951,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                                                 value={formData.telefone || ''}
                                                 onChange={(e) => handlePhoneChange(e.target.value)}
                                                 placeholder="(00) 00000-0000"
-                                                className={`w-full bg-brand-dark border p-3 text-white focus:border-brand-yellow outline-none transition-colors placeholder:text-gray-600 ${
-                                                    phoneError ? 'border-red-500' : 'border-white/10'
-                                                }`}
+                                                className={`w-full bg-brand-dark border p-3 text-white focus:border-brand-yellow outline-none transition-colors placeholder:text-gray-600 ${phoneError ? 'border-red-500' : 'border-white/10'
+                                                    }`}
                                                 required
                                             />
                                             {phoneError && (
@@ -1119,8 +1118,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, onSuccess, vendedorId, con
                                             <label
                                                 key={opt.value}
                                                 className={`flex items-center gap-2 cursor-pointer p-3 rounded-sm border transition-colors ${formData.principais_dificuldades?.includes(opt.value)
-                                                        ? 'bg-brand-yellow/10 border-brand-yellow/50'
-                                                        : 'bg-brand-dark/50 border-white/10 hover:border-white/20'
+                                                    ? 'bg-brand-yellow/10 border-brand-yellow/50'
+                                                    : 'bg-brand-dark/50 border-white/10 hover:border-white/20'
                                                     }`}
                                             >
                                                 <input
@@ -1217,6 +1216,8 @@ interface PlanejamentoType {
     title: string;
     subtitle: string;
     description: string;
+    descricao_curta: string | null;
+    imagem_capa: string | null;
     icon: React.ReactNode;
     features: string[];
     concurso: string;
@@ -1264,6 +1265,8 @@ export const Planejamentos: React.FC = () => {
                     title: prep.slug.toUpperCase(),
                     subtitle: prep.nome,
                     description: prep.descricao || `Planejamento completo e personalizado para aprovação no concurso. Metodologia exclusiva Ouse Passar com foco em resultados.`,
+                    descricao_curta: prep.descricao_curta,
+                    imagem_capa: prep.imagem_capa,
                     icon: getIconForPreparatorio(prep.nome),
                     features: [
                         'Cronograma personalizado',
@@ -1429,72 +1432,72 @@ export const Planejamentos: React.FC = () => {
                         <div
                             key={planejamento.id}
                             onClick={() => handleCardClick(planejamento)}
-                            className={`bg-brand-card border rounded-sm overflow-hidden transition-all duration-300 ${planejamento.available
-                                    ? 'border-white/10 hover:border-brand-yellow/50 cursor-pointer hover:transform hover:scale-[1.02]'
-                                    : 'border-white/5 opacity-60 cursor-not-allowed'
+                            className={`group bg-brand-card border rounded-sm overflow-hidden transition-all duration-300 flex flex-col h-full ${planejamento.available
+                                ? 'border-white/10 hover:border-brand-yellow/50 cursor-pointer hover:transform hover:scale-[1.02] hover:shadow-2xl hover:shadow-brand-yellow/5'
+                                : 'border-white/5 opacity-60 cursor-not-allowed'
                                 }`}
                         >
-                            {/* Header do Card */}
-                            <div className={`p-6 ${planejamento.available ? 'bg-brand-yellow/10' : 'bg-white/5'}`}>
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className={`w-14 h-14 rounded-full flex items-center justify-center ${planejamento.available ? 'bg-brand-yellow/20 text-brand-yellow' : 'bg-white/10 text-gray-500'
-                                        }`}>
-                                        {planejamento.icon}
+                            {/* Imagem de Capa ou Placeholder */}
+                            <div className="relative h-48 overflow-hidden bg-brand-dark flex-shrink-0">
+                                {planejamento.imagem_capa ? (
+                                    <img
+                                        src={planejamento.imagem_capa}
+                                        alt={planejamento.subtitle}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-brand-yellow/5">
+                                        <div className="text-brand-yellow/20">
+                                            {planejamento.icon}
+                                        </div>
                                     </div>
+                                )}
+
+                                {/* Badge de Disponibilidade */}
+                                <div className="absolute top-4 right-4">
                                     {planejamento.available ? (
-                                        <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-bold uppercase rounded border border-green-500/30">
+                                        <span className="px-3 py-1 bg-green-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase rounded-full shadow-lg border border-green-400/20">
                                             Disponível
                                         </span>
                                     ) : (
-                                        <span className="px-3 py-1 bg-white/10 text-gray-500 text-xs font-bold uppercase rounded border border-white/10">
+                                        <span className="px-3 py-1 bg-white/10 backdrop-blur-md text-gray-400 text-[10px] font-black uppercase rounded-full border border-white/10">
                                             Em breve
                                         </span>
                                     )}
                                 </div>
-                                <h3 className="text-2xl font-black text-white uppercase">{planejamento.title}</h3>
-                                <p className={`text-sm font-medium ${planejamento.available ? 'text-brand-yellow' : 'text-gray-500'}`}>
+
+                                {/* Gradiente sobre a imagem */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-brand-card via-transparent to-transparent opacity-60" />
+                            </div>
+
+                            {/* Conteúdo do Card */}
+                            <div className="p-6 flex-1 flex flex-col">
+                                <h3 className="text-xl font-black text-white uppercase mb-1 leading-tight group-hover:text-brand-yellow transition-colors">
                                     {planejamento.subtitle}
-                                </p>
-                            </div>
+                                </h3>
 
-                            {/* Body do Card */}
-                            <div className="p-6">
-                                <p className="text-gray-400 text-sm mb-4 line-clamp-3">
-                                    {planejamento.description}
+                                <p className="text-gray-400 text-sm mb-4 line-clamp-2 leading-relaxed">
+                                    {planejamento.descricao_curta || planejamento.description}
                                 </p>
 
-                                <div className="space-y-2">
-                                    <p className="text-xs text-gray-500 uppercase font-bold mb-2">Inclui:</p>
-                                    {planejamento.features.map((feature, index) => (
-                                        <div key={index} className="flex items-center text-sm">
-                                            <Check className={`w-4 h-4 mr-2 flex-shrink-0 ${planejamento.available ? 'text-green-400' : 'text-gray-600'
-                                                }`} />
-                                            <span className={planejamento.available ? 'text-gray-300' : 'text-gray-600'}>
-                                                {feature}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Footer do Card */}
-                            <div className={`p-4 border-t ${planejamento.available ? 'border-white/10' : 'border-white/5'}`}>
-                                <button
-                                    disabled={!planejamento.available}
-                                    className={`w-full py-3 font-bold uppercase text-sm transition-colors flex items-center justify-center gap-2 ${planejamento.available
-                                            ? 'bg-brand-yellow text-brand-darker hover:bg-brand-yellow/90'
+                                <div className="mt-auto pt-6 border-t border-white/5">
+                                    <button
+                                        disabled={!planejamento.available}
+                                        className={`w-full py-3.5 font-bold uppercase text-xs transition-all duration-300 flex items-center justify-center gap-2 rounded-sm ${planejamento.available
+                                            ? 'bg-brand-yellow text-brand-darker hover:bg-brand-yellow/90 group-hover:shadow-lg'
                                             : 'bg-white/5 text-gray-600 cursor-not-allowed'
-                                        }`}
-                                >
-                                    {planejamento.available ? (
-                                        <>
-                                            <Plus className="w-4 h-4" />
-                                            Gerar Planejamento
-                                        </>
-                                    ) : (
-                                        'Em breve'
-                                    )}
-                                </button>
+                                            }`}
+                                    >
+                                        {planejamento.available ? (
+                                            <>
+                                                <Plus className="w-4 h-4" />
+                                                Gerar Planejamento
+                                            </>
+                                        ) : (
+                                            'Em breve'
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
