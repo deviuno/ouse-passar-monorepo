@@ -300,6 +300,9 @@ export const questionsService = {
   fetchAssuntosByMaterias,
   getQuestionsCount,
   parseRawQuestion,
+  OPTIONS_ESCOLARIDADE,
+  OPTIONS_MODALIDADE,
+  OPTIONS_DIFICULDADE,
 };
 
 export default questionsService;
