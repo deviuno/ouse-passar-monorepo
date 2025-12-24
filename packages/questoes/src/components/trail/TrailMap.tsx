@@ -746,7 +746,7 @@ export function TrailMap({
                                                                 ? 'border-purple-500'
                                                                 : mission.tipo === 'tecnica'
                                                                     ? 'border-blue-500'
-                                                                    : 'border-[#FFB800]'}`}
+                                                                    : 'border-[#e7cb00]'}`}
                                                 src={userAvatar}
                                             />
                                         ) : (
@@ -759,7 +759,7 @@ export function TrailMap({
                                                             ? 'border-purple-500 text-purple-500'
                                                             : mission.tipo === 'tecnica'
                                                                 ? 'border-blue-500 text-blue-500'
-                                                                : 'border-[#FFB800] text-[#FFB800]'}`}>
+                                                                : 'border-[#e7cb00] text-[#e7cb00]'}`}>
                                                 <User size={16} />
                                             </div>
                                         )}
@@ -796,7 +796,7 @@ export function TrailMap({
                                                     ? 'border-white bg-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.35)]'
                                                     : mission.tipo === 'tecnica'
                                                         ? 'border-white bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.35)]'
-                                                        : 'border-yellow-200 bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.35)]'
+                                                        : 'border-[#e7cb00] bg-[#d59a01] shadow-[0_0_15px_rgba(213,154,1,0.35)]'
                                             : ''}
                                         ${isActive && isMassificacaoMission ? 'border-white bg-[#E74C3C] shadow-[0_0_15px_rgba(231,76,60,0.35)]' : ''}
 
@@ -843,7 +843,7 @@ export function TrailMap({
                                                 ? 'bg-white border-purple-500 text-purple-500 dark:bg-zinc-700 dark:text-purple-500 translate-y-1'
                                                 : mission.tipo === 'tecnica'
                                                     ? 'bg-white border-blue-500 text-blue-500 dark:bg-zinc-700 dark:text-blue-500 translate-y-1'
-                                                    : 'bg-white border-yellow-500 text-yellow-600 dark:bg-zinc-700 dark:text-yellow-500 translate-y-1'
+                                                    : 'bg-white border-[#e7cb00] text-[#d59a01] dark:bg-zinc-700 dark:text-[#e7cb00] translate-y-1'
                                         : ''}
                                     ${isActive && isMassificacaoMission ? 'bg-white border-[#E74C3C] text-[#E74C3C] dark:bg-zinc-700 dark:text-[#E74C3C] translate-y-1' : ''}
                                     ${status === 'locked' ? 'bg-zinc-50/80 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 opacity-70' : ''}
