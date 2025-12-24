@@ -1126,16 +1126,6 @@ export default function MissionPage() {
   // Local state for this page
   const [phase, setPhase] = useState<'content' | 'questions' | 'result' | 'massification'>('content');
   const [questions, setQuestions] = useState<ParsedQuestion[]>([]);
-
-  // Read tab parameter from URL and set initial phase
-  useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam === 'questoes') {
-      setPhase('questions');
-    } else if (tabParam === 'teoria') {
-      setPhase('content');
-    }
-  }, []); // Run only once on mount
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Map<number, { letter: string; correct: boolean }>>(new Map());
@@ -1163,7 +1153,18 @@ export default function MissionPage() {
 
   // Reset state when mission changes
   React.useEffect(() => {
-    setPhase('content');
+    // Read tab parameter from URL to set initial phase
+    const tabParam = searchParams.get('tab');
+
+    // Set phase based on tab parameter, or default to content
+    if (tabParam === 'questoes') {
+      setPhase('questions');
+    } else if (tabParam === 'teoria') {
+      setPhase('content');
+    } else {
+      setPhase('content');
+    }
+
     setCurrentQuestionIndex(0);
     setAnswers(new Map());
     setShowCelebration(false);
@@ -1173,8 +1174,11 @@ export default function MissionPage() {
     setIsGeneratingContent(false);
     setContentStatus('idle');
     setSelectedStudyMode('zen');
-    // Clear phase from URL
-    setSearchParams({}, { replace: true });
+
+    // Only clear search params if there's no tab parameter
+    if (!tabParam) {
+      setSearchParams({}, { replace: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedMissionId]); // Removido setSearchParams para evitar loop
 
