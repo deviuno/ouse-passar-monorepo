@@ -26,9 +26,8 @@ import { TrailMap } from '../components/trail/TrailMap';
 import { CompactTrailMap } from '../components/trail/CompactTrailMap';
 import { RoundSelector } from '../components/trail/RoundSelector';
 import { MentorChat } from '../components/question/MentorChat';
-import {
-  XP_PER_CORRECT, COINS_PER_MISSION, PASSING_SCORE
-} from '../constants';
+import { PASSING_SCORE } from '../constants';
+import { calculateXpReward, calculateCoinsReward } from '../services/gamificationSettingsService';
 import {
   saveUserAnswer,
   saveDifficultyRating,
@@ -1412,10 +1411,18 @@ export default function MissionPage() {
 
         // Se for massificação, não dá recompensas
         if (!isMissaoMassificacao) {
-          const xpEarned = correctCount * XP_PER_CORRECT;
+          // Get gamification rewards from settings service
+          const xpPerCorrect = await calculateXpReward('correct_answer');
+          const coinsPerCorrect = await calculateCoinsReward('correct_answer');
+
+          const xpEarned = correctCount * xpPerCorrect;
+          const coinsEarned = correctCount * coinsPerCorrect;
+
+          console.log(`[MissionPage] Mission completed! XP: ${xpEarned} (${correctCount} × ${xpPerCorrect}), Coins: ${coinsEarned} (${correctCount} × ${coinsPerCorrect})`);
+
           incrementStats({
             xp: xpEarned,
-            coins: COINS_PER_MISSION,
+            coins: coinsEarned,
             correctAnswers: correctCount,
             totalAnswered: questions.length,
           });

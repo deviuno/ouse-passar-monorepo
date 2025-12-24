@@ -59,16 +59,21 @@ export function getQuestionsLimit(materia: string, nivel: UserLevel): number {
 export const PASSING_SCORE = 50;
 
 // XP por questao correta
-export const XP_PER_CORRECT = 10;
+// DEPRECATED: Use gamificationSettingsService.calculateXpReward() instead
+// These values are kept for reference only
+export const XP_PER_CORRECT = 50; // Updated from 10 to match gamification_settings
 export const XP_BONUS_STREAK = 5;
 export const XP_BONUS_PERFECT = 50;
 
-// Coins por missao
-export const COINS_PER_MISSION = 5;
+// Coins por questao/missao
+// DEPRECATED: Use gamificationSettingsService.calculateCoinsReward() instead
+// These values are kept for reference only
+export const COINS_PER_CORRECT = 10; // Updated from COINS_PER_MISSION = 5
 export const COINS_BONUS_FIRST_TRY = 10;
 
 // Niveis de XP
-export const XP_PER_LEVEL = 100;
+// DEPRECATED: Use gamificationSettingsService.getGamificationSettings() instead
+export const XP_PER_LEVEL = 1000; // Updated from 100 to match gamification_settings
 
 export function calculateLevel(xp: number): number {
   return Math.floor(xp / XP_PER_LEVEL) + 1;
