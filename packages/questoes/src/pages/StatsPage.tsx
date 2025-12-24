@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   BarChart2,
@@ -8,27 +8,48 @@ import {
   Clock,
   Award,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { Card, Progress, CircularProgress, StaggerContainer, StaggerItem } from '../components/ui';
 import { useUserStore } from '../stores';
+import { useAuthStore } from '../stores/useAuthStore';
+import {
+  getUserMateriaStats,
+  getUserWeeklyEvolution,
+  getUserPercentile,
+  MateriaStats,
+  WeeklyStats
+} from '../services/statsService';
 
-// Mock data for demonstration
-const MATERIA_STATS = [
-  { materia: 'Língua Portuguesa', acertos: 45, total: 60, percentual: 75, status: 'forte' as const },
-  { materia: 'Direito Constitucional', acertos: 38, total: 50, percentual: 76, status: 'forte' as const },
-  { materia: 'Direito Administrativo', acertos: 22, total: 40, percentual: 55, status: 'medio' as const },
-  { materia: 'Informática', acertos: 18, total: 30, percentual: 60, status: 'medio' as const },
-  { materia: 'Raciocínio Lógico', acertos: 8, total: 25, percentual: 32, status: 'fraco' as const },
-];
+function HeatMapCard({ stats, isLoading }: { stats: MateriaStats[]; isLoading?: boolean }) {
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart2 size={20} className="text-[#FFB800]" />
+          <h3 className="text-white font-semibold">Mapa de Calor</h3>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="animate-spin text-[#FFB800]" size={32} />
+        </div>
+      </Card>
+    );
+  }
 
-const WEEKLY_EVOLUTION = [
-  { semana: 'Sem 1', questoes: 50, acerto: 62 },
-  { semana: 'Sem 2', questoes: 75, acerto: 68 },
-  { semana: 'Sem 3', questoes: 60, acerto: 71 },
-  { semana: 'Sem 4', questoes: 90, acerto: 74 },
-];
-
-function HeatMapCard({ stats }: { stats: typeof MATERIA_STATS }) {
+  if (stats.length === 0) {
+    return (
+      <Card>
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart2 size={20} className="text-[#FFB800]" />
+          <h3 className="text-white font-semibold">Mapa de Calor</h3>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-[#6E6E6E]">Nenhuma estatística disponível ainda.</p>
+          <p className="text-[#6E6E6E] text-sm mt-2">Complete algumas missões para ver seu progresso!</p>
+        </div>
+      </Card>
+    );
+  }
   const getStatusColor = (status: 'forte' | 'medio' | 'fraco') => {
     switch (status) {
       case 'forte':
@@ -100,7 +121,21 @@ function HeatMapCard({ stats }: { stats: typeof MATERIA_STATS }) {
   );
 }
 
-function ComparisonCard() {
+function ComparisonCard({ percentile, isLoading }: { percentile: number; isLoading?: boolean }) {
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="flex items-center gap-2 mb-4">
+          <Target size={20} className="text-[#3498DB]" />
+          <h3 className="text-white font-semibold">Comparativo</h3>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="animate-spin text-[#3498DB]" size={32} />
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <div className="flex items-center gap-2 mb-4">
@@ -110,7 +145,7 @@ function ComparisonCard() {
 
       <div className="text-center mb-4">
         <p className="text-[#A0A0A0] text-sm mb-1">Você está acima de</p>
-        <p className="text-4xl font-bold text-[#2ECC71]">68%</p>
+        <p className="text-4xl font-bold text-[#2ECC71]">{percentile}%</p>
         <p className="text-[#A0A0A0] text-sm">dos estudantes</p>
       </div>
 
@@ -141,7 +176,32 @@ function ComparisonCard() {
   );
 }
 
-function EvolutionChart({ data }: { data: typeof WEEKLY_EVOLUTION }) {
+function EvolutionChart({ data, isLoading }: { data: WeeklyStats[]; isLoading?: boolean }) {
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-semibold">Evolução Semanal</h3>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="animate-spin text-[#FFB800]" size={32} />
+        </div>
+      </Card>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-semibold">Evolução Semanal</h3>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-[#6E6E6E]">Nenhum dado de evolução disponível ainda.</p>
+        </div>
+      </Card>
+    );
+  }
   const maxQuestoes = Math.max(...data.map((d) => d.questoes));
 
   return (
@@ -187,11 +247,43 @@ function EvolutionChart({ data }: { data: typeof WEEKLY_EVOLUTION }) {
 
 export default function StatsPage() {
   const { stats } = useUserStore();
+  const { user } = useAuthStore();
+
+  const [materiaStats, setMateriaStats] = useState<MateriaStats[]>([]);
+  const [weeklyEvolution, setWeeklyEvolution] = useState<WeeklyStats[]>([]);
+  const [percentile, setPercentile] = useState<number>(50);
+  const [isLoading, setIsLoading] = useState(true);
 
   const globalAccuracy =
     stats.totalAnswered > 0
       ? Math.round((stats.correctAnswers / stats.totalAnswered) * 100)
       : 0;
+
+  // Load statistics data
+  useEffect(() => {
+    async function loadStats() {
+      if (!user?.id) return;
+
+      setIsLoading(true);
+      try {
+        const [materia, weekly, userPercentile] = await Promise.all([
+          getUserMateriaStats(user.id),
+          getUserWeeklyEvolution(user.id),
+          getUserPercentile(user.id),
+        ]);
+
+        setMateriaStats(materia);
+        setWeeklyEvolution(weekly);
+        setPercentile(userPercentile);
+      } catch (error) {
+        console.error('[StatsPage] Error loading stats:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadStats();
+  }, [user?.id]);
 
   return (
     <div className="p-4 pb-24">
@@ -256,17 +348,17 @@ export default function StatsPage() {
 
       {/* Heat Map */}
       <div className="mb-6">
-        <HeatMapCard stats={MATERIA_STATS} />
+        <HeatMapCard stats={materiaStats} isLoading={isLoading} />
       </div>
 
       {/* Comparison */}
       <div className="mb-6">
-        <ComparisonCard />
+        <ComparisonCard percentile={percentile} isLoading={isLoading} />
       </div>
 
       {/* Evolution */}
       <div className="mb-6">
-        <EvolutionChart data={WEEKLY_EVOLUTION} />
+        <EvolutionChart data={weeklyEvolution} isLoading={isLoading} />
       </div>
 
       {/* Action Items */}
