@@ -1,6 +1,7 @@
 // Service for persisting user stats to Supabase
 import { supabase } from './supabaseClient';
 import { UserStats } from '../types';
+import { calculateLevel } from './gamificationSettingsService';
 
 /**
  * Update user stats in Supabase
@@ -99,10 +100,10 @@ export async function getUserStats(userId: string): Promise<UserStats | null> {
 
 /**
  * Calculate and update user level based on XP
- * Levels are calculated as: level = floor(XP / 100) + 1
+ * Uses gamification settings to determine level formula
  */
 export async function updateUserLevel(userId: string, currentXP: number): Promise<void> {
-  const newLevel = Math.floor(currentXP / 100) + 1;
+  const newLevel = await calculateLevel(currentXP);
 
   try {
     const { error } = await supabase

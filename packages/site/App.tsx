@@ -63,6 +63,7 @@ import { PlannerPerformanceView } from './pages/PlannerPerformanceView';
 import { PlannerPerfilView } from './pages/PlannerPerfilView';
 import { PlannerLayout } from './components/PlannerLayout';
 import { Users } from './pages/admin/Users';
+import { UserDetails } from './pages/admin/UserDetails';
 import { Planejamentos as PlanejamentosAdmin } from './pages/admin/Planejamentos';
 import { Leads } from './pages/admin/Leads';
 import { Profile } from './pages/admin/Profile';
@@ -85,6 +86,9 @@ import {
   AchievementsPage,
   PlanejamentoAchievementsPage,
 } from './pages/admin/gamification';
+
+// Legal Texts Admin
+import { LegalTextsPage } from './pages/admin/LegalTexts';
 
 // Store Admin
 import { StoreDashboard } from './pages/admin/StoreDashboard';
@@ -234,6 +238,7 @@ const App: React.FC = () => {
               >
                 <Route index element={<AdminIndex />} />
                 <Route path="users" element={<AdminOnlyRoute><Users /></AdminOnlyRoute>} />
+                <Route path="users/:userId" element={<AdminOnlyRoute><UserDetails /></AdminOnlyRoute>} />
                 <Route path="planejamentos" element={<PlanejamentosAdmin />} />
                 <Route path="leads" element={<Leads />} />
                 <Route path="profile" element={<Profile />} />
@@ -244,6 +249,7 @@ const App: React.FC = () => {
                 <Route path="articles/new-ai" element={<AdminOnlyRoute><NewArticleAI /></AdminOnlyRoute>} />
                 <Route path="articles/edit/:slug" element={<AdminOnlyRoute><ArticleEditor /></AdminOnlyRoute>} />
                 <Route path="settings" element={<AdminOnlyRoute><Settings /></AdminOnlyRoute>} />
+                <Route path="legal-texts" element={<AdminOnlyRoute><LegalTextsPage /></AdminOnlyRoute>} />
                 {/* Preparatórios - Sistema Unificado com Rodadas/Missões */}
                 <Route path="preparatorios" element={<AdminOnlyRoute><PreparatoriosPlanos /></AdminOnlyRoute>} />
                 <Route path="preparatorios/new" element={<AdminOnlyRoute><NewPreparatorio /></AdminOnlyRoute>} />

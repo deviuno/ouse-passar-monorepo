@@ -15,6 +15,8 @@ import StorePage from '../pages/StorePage';
 import InventoryPage from '../pages/InventoryPage';
 import PreparatoriosStorePage from '../pages/PreparatoriosStorePage';
 import ProfilePage from '../pages/ProfilePage';
+import TermsPage from '../pages/TermsPage';
+import PrivacyPage from '../pages/PrivacyPage';
 
 // Auth pages (will redirect from existing components)
 import AuthPage from '../pages/AuthPage';
@@ -46,6 +48,16 @@ export const router = createBrowserRouter([
   {
     path: '/onboarding',
     element: <OnboardingPage />,
+  },
+
+  // Legal pages (public)
+  {
+    path: '/termos-de-uso',
+    element: <TermsPage />,
+  },
+  {
+    path: '/politica-de-privacidade',
+    element: <PrivacyPage />,
   },
 
   // Main app routes (requires auth + onboarding)

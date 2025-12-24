@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { UserStats, Flashcard, ReviewItem, Course } from '../types';
 import { INITIAL_USER_STATS, STORAGE_KEYS } from '../constants';
 import { updateUserStats, updateUserLevel } from '../services/userStatsService';
+import { calculateLevel } from '../services/gamificationSettingsService';
 
 interface UserState {
   stats: UserStats;
@@ -56,21 +57,19 @@ export const useUserStore = create<UserState>()(
 
       incrementStats: async (increments) => {
         // Update local state immediately for responsive UI
-        set((state) => {
-          const newXP = state.stats.xp + (increments.xp || 0);
-          const newLevel = Math.floor(newXP / 100) + 1;
+        const newXP = get().stats.xp + (increments.xp || 0);
+        const newLevel = await calculateLevel(newXP);
 
-          return {
-            stats: {
-              ...state.stats,
-              xp: newXP,
-              coins: state.stats.coins + (increments.coins || 0),
-              correctAnswers: state.stats.correctAnswers + (increments.correctAnswers || 0),
-              totalAnswered: state.stats.totalAnswered + (increments.totalAnswered || 0),
-              level: newLevel,
-            },
-          };
-        });
+        set((state) => ({
+          stats: {
+            ...state.stats,
+            xp: newXP,
+            coins: state.stats.coins + (increments.coins || 0),
+            correctAnswers: state.stats.correctAnswers + (increments.correctAnswers || 0),
+            totalAnswered: state.stats.totalAnswered + (increments.totalAnswered || 0),
+            level: newLevel,
+          },
+        }));
 
         // Persist to Supabase asynchronously
         // Get userId from auth store

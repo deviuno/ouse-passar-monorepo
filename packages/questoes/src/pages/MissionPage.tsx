@@ -1686,6 +1686,7 @@ export default function MissionPage() {
                       studyMode={selectedStudyMode}
                       userId={user?.id}
                       userRole={userProfile?.role}
+                      showCorrectAnswers={userProfile?.show_answers || false}
                       onShowToast={handleShowToast}
                     />
                   </motion.div>

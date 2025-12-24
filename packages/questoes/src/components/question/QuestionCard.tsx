@@ -22,9 +22,10 @@ interface QuestionCardProps {
   onShowToast?: (message: string, type: 'success' | 'error' | 'info') => void;
   savedDifficultyRating?: 'easy' | 'medium' | 'hard' | null; // User's previous rating
   userRole?: 'admin' | 'user';
+  showCorrectAnswers?: boolean; // When true, shows star on correct answer (admin or user with permission)
 }
 
-const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onPrevious, onOpenTutor, onAnswer, onRateDifficulty, onTimeout, studyMode = 'zen', initialTime = 120, userId, onShowToast, savedDifficultyRating, userRole }) => {
+const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onPrevious, onOpenTutor, onAnswer, onRateDifficulty, onTimeout, studyMode = 'zen', initialTime = 120, userId, onShowToast, savedDifficultyRating, userRole, showCorrectAnswers = false }) => {
   const [selectedAlt, setSelectedAlt] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
@@ -256,8 +257,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
               {alt.letter}
             </span>
             <span className="text-sm flex-1">{alt.text}</span>
-            {userRole === 'admin' && alt.letter === question.gabarito && (
-              <div className="absolute top-2 right-2 text-[#FFB800]" title="Gabarito (Visível apenas para Admin)">
+            {(userRole === 'admin' || showCorrectAnswers) && alt.letter === question.gabarito && !isSubmitted && (
+              <div className="absolute top-2 right-2 text-[#FFB800]" title={userRole === 'admin' ? "Gabarito (Visível apenas para Admin)" : "Resposta correta"}>
                 <Star size={16} fill="#FFB800" />
               </div>
             )}

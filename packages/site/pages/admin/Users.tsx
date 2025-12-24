@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Plus, Edit2, Trash2, X, User, Shield, ShoppingBag, Calendar, ChevronRight, ChevronLeft, Camera, Loader2, Search, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, User, Shield, ShoppingBag, Calendar, ChevronRight, ChevronLeft, Camera, Loader2, Search, Filter, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
 import { adminUsersService } from '../../services/adminUsersService';
 import { vendedorScheduleService } from '../../services/schedulingService';
@@ -10,6 +11,7 @@ import { supabase } from '../../lib/supabase';
 
 export const Users: React.FC = () => {
     const { user: currentUser } = useAuth();
+    const navigate = useNavigate();
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
@@ -536,6 +538,15 @@ export const Users: React.FC = () => {
                                                             title="Configurar Agenda"
                                                         >
                                                             <Calendar className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    {user.role === 'cliente' && (
+                                                        <button
+                                                            onClick={() => navigate(`/admin/users/${user.id}`)}
+                                                            className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
+                                                            title="Ver Detalhes"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
                                                         </button>
                                                     )}
                                                     <button

@@ -1,7 +1,7 @@
 // Types para o sistema de trilha estilo Duolingo
 
 export type MissionStatus = 'locked' | 'available' | 'in_progress' | 'completed' | 'massification' | 'needs_massificacao';
-export type MissionType = 'normal' | 'revisao' | 'simulado_rodada' | 'massificacao';
+export type MissionType = 'normal' | 'revisao' | 'simulado_rodada' | 'tecnica' | 'massificacao';
 export type RoundStatus = 'locked' | 'active' | 'completed';
 export type RoundType = 'normal' | 'revisao' | 'simulado';
 export type UserLevel = 'iniciante' | 'intermediario' | 'avancado';

@@ -237,6 +237,28 @@ const RegisterView: React.FC<RegisterViewProps> = ({
             Faça login
           </button>
         </p>
+
+        {/* Terms and Privacy */}
+        <p className="mt-4 text-center text-gray-500 text-xs">
+          Ao criar uma conta, você concorda com nossos{' '}
+          <a
+            href="/termos-de-uso"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-[#FFB800] underline"
+          >
+            Termos de Uso
+          </a>
+          {' '}e{' '}
+          <a
+            href="/politica-de-privacidade"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-[#FFB800] underline"
+          >
+            Política de Privacidade
+          </a>
+        </p>
       </div>
     </div>
   );

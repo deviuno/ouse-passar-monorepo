@@ -71,6 +71,7 @@ export interface UserProfile {
   total_answered: number;
   avatar_id: string;
   league_tier: LeagueTier;
+  show_answers?: boolean; // When true, shows correct answers during practice (admin feature)
   created_at: string;
   updated_at: string;
 }
