@@ -776,7 +776,7 @@ export function TrailMap({
                                                 ? 'border-white bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
                                                 : mission.tipo === 'simulado_rodada'
                                                     ? 'border-white bg-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.5)]'
-                                                    : 'border-amber-200 bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]' /* Default/Technical Active = Yellow Body + Light Border */
+                                                    : 'border-yellow-200 bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]' /* Default/Technical Active = Yellow Body + Bright Border */
                                             : ''}
                                         ${isActive && isMassificacaoMission ? 'border-white bg-[#E74C3C] shadow-[0_0_15px_rgba(231,76,60,0.5)]' : ''}
                                         
@@ -792,21 +792,19 @@ export function TrailMap({
                                     `}
                                 >
                                     <div className="-rotate-45 text-white flex items-center justify-center">
-                                        {isCompleted && <Check size={32} className="text-white" strokeWidth={4} />}
+                                        {isCompleted && <Check size={32} className="text-white" strokeWidth={3} />}
 
                                         {(isActive || status === 'locked') && (
                                             isMassificacaoMission ? (
-                                                <RefreshCw size={32} className={`${status === 'locked' ? 'text-white/50' : 'text-white'}`} strokeWidth={2.5} />
+                                                <RefreshCw size={32} className={`${status === 'locked' ? 'text-red-300' : 'text-white'}`} strokeWidth={2} />
                                             ) : mission.tipo === 'revisao' ? (
-                                                <RotateCw size={32} className={`${status === 'locked' ? 'text-white/50' : 'text-white'}`} strokeWidth={2.5} />
+                                                <RotateCw size={32} className={`${status === 'locked' ? 'text-amber-300' : 'text-white'}`} strokeWidth={2} />
                                             ) : mission.tipo === 'simulado_rodada' ? (
-                                                <Trophy size={32} className={`${status === 'locked' ? 'text-white/50' : 'text-white'}`} strokeWidth={2.5} />
+                                                <Trophy size={32} className={`${status === 'locked' ? 'text-purple-300' : 'text-white'}`} strokeWidth={2} />
                                             ) : (
-                                                <GraduationCap size={32} className={`${status === 'locked' ? 'text-white/50' : 'text-white'}`} strokeWidth={2.5} />
+                                                <GraduationCap size={32} className={`${status === 'locked' ? 'text-zinc-400' : 'text-white'}`} strokeWidth={2} />
                                             )
                                         )}
-
-
                                     </div>
                                 </motion.button>
 
@@ -819,7 +817,7 @@ export function TrailMap({
                                             ? 'bg-white border-amber-500 text-amber-500 dark:bg-zinc-700 dark:text-amber-500 translate-y-1'
                                             : mission.tipo === 'simulado_rodada'
                                                 ? 'bg-white border-purple-500 text-purple-500 dark:bg-zinc-700 dark:text-purple-500 translate-y-1'
-                                                : 'bg-white border-[#FFB800] text-[#FFB800] dark:bg-zinc-700 dark:text-[#FFB800] translate-y-1'
+                                                : 'bg-white border-yellow-500 text-yellow-600 dark:bg-zinc-700 dark:text-yellow-500 translate-y-1'
                                         : ''}
                                     ${isActive && isMassificacaoMission ? 'bg-white border-[#E74C3C] text-[#E74C3C] dark:bg-zinc-700 dark:text-[#E74C3C] translate-y-1' : ''}
                                     ${status === 'locked' ? 'bg-zinc-50/80 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 opacity-70' : ''}
