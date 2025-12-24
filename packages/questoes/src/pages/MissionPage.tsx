@@ -1351,11 +1351,29 @@ export default function MissionPage() {
 
   const currentQuestion = questions[currentQuestionIndex];
 
+  // Scroll to top when question changes
+  useEffect(() => {
+    if (phase === 'questions' && questions.length > 0) {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  }, [currentQuestionIndex, phase, questions.length]);
+
   // Handler quando o usuário responde
   const handleAnswer = (letter: string) => {
     const question = questions[currentQuestionIndex];
     const isCorrect = letter === question.gabarito;
     setAnswers(new Map(answers.set(question.id, { letter, correct: isCorrect })));
+
+    // Scroll to show navigation buttons after answering
+    setTimeout(() => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth'
+      });
+    }, 100);
 
     // Save answer to database for statistics
     saveUserAnswer({
@@ -1370,6 +1388,13 @@ export default function MissionPage() {
     const question = questions[currentQuestionIndex];
     if (user?.id) {
       saveDifficultyRating(question.id, difficulty, user.id);
+    }
+  };
+
+  // Handler para voltar para questão anterior
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
     }
   };
 
@@ -1647,7 +1672,7 @@ export default function MissionPage() {
                       question={currentQuestion}
                       isLastQuestion={currentQuestionIndex === questions.length - 1}
                       onNext={handleNext}
-                      onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(prev => prev - 1) : undefined}
+                      onPrevious={currentQuestionIndex > 0 ? handlePrevious : undefined}
                       onOpenTutor={() => setShowMentorChat(true)}
                       onAnswer={handleAnswer}
                       onRateDifficulty={handleRateDifficulty}
