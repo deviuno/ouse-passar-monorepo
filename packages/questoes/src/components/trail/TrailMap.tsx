@@ -753,13 +753,30 @@ export function TrailMap({
                                 {/* The Button */}
                                 <motion.button
                                     initial={{ rotate: 45 }}
+                                    animate={isActive && isCurrent ? {
+                                        rotate: 45,
+                                        scale: [1, 1.05, 1],
+                                        boxShadow: [
+                                            '0 0 20px rgba(234,179,8,0.6)',
+                                            '0 0 35px rgba(234,179,8,0.8)',
+                                            '0 0 20px rgba(234,179,8,0.6)'
+                                        ]
+                                    } : { rotate: 45 }}
                                     whileHover={{ rotate: 45, scale: status !== 'locked' ? 1.1 : 1 }}
                                     whileTap={{ rotate: 45, scale: status !== 'locked' ? 0.95 : 1 }}
-                                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                    transition={isActive && isCurrent ? {
+                                        duration: 2,
+                                        repeat: Infinity,
+                                        ease: "easeInOut"
+                                    } : {
+                                        type: "spring",
+                                        stiffness: 300,
+                                        damping: 20
+                                    }}
                                     disabled={status === 'locked'}
                                     onClick={() => handleMissionClick(mission, index)}
                                     className={`
-                                        relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg border-2
+                                        relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg border-4
                                         ${/* COMPLETED STATE - Solid Colors */ ''}
                                         ${isCompleted && !isMassificacaoMission
                                             ? mission.tipo === 'revisao'
@@ -769,17 +786,17 @@ export function TrailMap({
                                                     : 'border-emerald-600 bg-emerald-600'
                                             : ''}
                                         ${isCompleted && isMassificacaoMission ? 'border-emerald-600 bg-emerald-600' : ''}
-                                        
-                                        ${/* ACTIVE STATE - Solid High Contrast Colors */ ''}
+
+                                        ${/* ACTIVE STATE - Enhanced High Contrast with Glow */ ''}
                                         ${isActive && !isMassificacaoMission
                                             ? mission.tipo === 'revisao'
-                                                ? 'border-white bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
+                                                ? 'border-white bg-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.7)]'
                                                 : mission.tipo === 'simulado_rodada'
-                                                    ? 'border-white bg-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.5)]'
-                                                    : 'border-yellow-200 bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]' /* Default/Technical Active = Yellow Body + Bright Border */
+                                                    ? 'border-white bg-purple-600 shadow-[0_0_30px_rgba(147,51,234,0.7)]'
+                                                    : 'border-yellow-200 bg-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.7)] ring-4 ring-yellow-400/30' /* Enhanced Active State */
                                             : ''}
-                                        ${isActive && isMassificacaoMission ? 'border-white bg-[#E74C3C] shadow-[0_0_15px_rgba(231,76,60,0.5)]' : ''}
-                                        
+                                        ${isActive && isMassificacaoMission ? 'border-white bg-[#E74C3C] shadow-[0_0_30px_rgba(231,76,60,0.7)]' : ''}
+
                                         ${/* LOCKED STATE - Solid Colors (No Opacity) */ ''}
                                         ${status === 'locked' && !isMassificacaoMission
                                             ? mission.tipo === 'revisao'
