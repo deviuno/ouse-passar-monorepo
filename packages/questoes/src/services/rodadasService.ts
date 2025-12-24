@@ -347,9 +347,16 @@ export async function countMissoesProgress(
  */
 export function missaoToTrailMission(missao: MissaoComProgresso): any {
   // Determinar o tipo de missão para o TrailMap
-  let tipo: 'normal' | 'revisao' | 'simulado_rodada' | 'massificacao' = 'normal';
+  let tipo: 'normal' | 'revisao' | 'simulado_rodada' | 'tecnica' | 'massificacao' = 'normal';
   if (missao.tipo === 'revisao') tipo = 'revisao';
-  else if (missao.tipo === 'acao') tipo = 'simulado_rodada';
+  else if (missao.tipo === 'acao') {
+    // Diferenciar entre técnica e simulado baseado no conteúdo da ação
+    if (missao.acao?.toUpperCase().includes('TÉCNICA')) {
+      tipo = 'tecnica';
+    } else {
+      tipo = 'simulado_rodada';
+    }
+  }
 
   // Criar nome do assunto baseado nos dados da missão
   let nomeAssunto = '';

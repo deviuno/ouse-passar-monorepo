@@ -175,14 +175,14 @@ export function generateRoundMissions(
     };
   }
 
-  // Adicionar missao de simulado no final da rodada
+  // Adicionar missao tecnica no final da rodada
   if (missions.length > 0) {
     const lastMission = missions[missions.length - 1];
     missions.push({
       assunto: lastMission.assunto, // Usar o ultimo assunto como referencia
       materia: lastMission.materia,
       slot: lastMission.slot === 'A' ? 'B' : 'A',
-      tipo: 'simulado_rodada' as MissionType,
+      tipo: 'tecnica' as MissionType,
     });
   }
 
