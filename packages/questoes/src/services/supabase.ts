@@ -1,5 +1,5 @@
-// Re-export from main services folder
-export { supabase } from '../../services/supabaseClient';
+// Re-export from local services folder
+export { supabase } from './supabaseClient';
 export type {
   DbUserProfile,
   DbQuestion,
@@ -8,4 +8,4 @@ export type {
   DbUserReview,
   DbUserFlashcard,
   DbStudySession,
-} from '../../services/supabaseClient';
+} from './supabaseClient';

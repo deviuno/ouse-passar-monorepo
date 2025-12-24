@@ -1,9 +1,9 @@
-// Re-export from main services folder
+// Re-export from questionsService
 export {
   fetchQuestions,
   fetchQuestionById,
   fetchFilterOptions,
   getQuestionsCount,
-} from '../../services/questionsService';
+} from './questionsService';
 
-export type { DbQuestion as Question } from '../../services/supabaseClient';
+export type { DbQuestion as Question } from './supabaseClient';
