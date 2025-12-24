@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useTrailStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
 import { PreparatorioDropdown } from '../trail/PreparatorioDropdown';
+import { RoundSelector } from '../trail/RoundSelector';
 import { UserPreparatorio } from '../../types';
 
 export function Header() {
@@ -18,6 +19,8 @@ export function Header() {
     getMissionById,
     getMissionByUrlParams,
     rounds,
+    viewingRoundIndex,
+    setViewingRoundIndex
   } = useTrailStore();
 
   // Get current phase from URL query params
@@ -140,13 +143,22 @@ export function Header() {
           )}
         </div>
 
-        {/* Right Side - Empty, content moved to sidebars */}
-        <div className="flex items-center gap-3 lg:hidden">
+        {/* Right Side - Round Selector for Trail Page */}
+        <div className="flex items-center gap-3">
+          {isHomePage && rounds.length > 0 && (
+            <RoundSelector
+              currentRoundIndex={viewingRoundIndex || 0}
+              totalRounds={rounds.length}
+              onRoundChange={setViewingRoundIndex}
+            />
+          )}
+
           {/* Mobile only - show page context if needed */}
+          <div className="flex items-center gap-3 lg:hidden">
+            {/* Mobile menu items can go here */}
+          </div>
         </div>
       </div>
     </header>
   );
 }
-
-export default Header;

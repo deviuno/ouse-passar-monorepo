@@ -6,6 +6,7 @@ import { useTrailStore, useAuthStore, useUIStore } from '../stores';
 import { Button, FadeIn } from '../components/ui';
 import { TrailMission } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
+import { RoundSelector } from '../components/trail/RoundSelector';
 import {
   userPreparatoriosService,
   getRodadasComProgresso,

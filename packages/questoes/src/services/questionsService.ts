@@ -85,12 +85,34 @@ export interface QuestionFilters {
   orgaos?: string[];
   cargos?: string[];
   anos?: number[];
+  dificuldade?: string[];
+  modalidade?: string[];
+  escolaridade?: string[];
   apenasRevisadas?: boolean;
   apenasComComentario?: boolean;
   limit?: number;
   offset?: number;
   shuffle?: boolean;
 }
+
+export const OPTIONS_DIFICULDADE = [
+  { value: 'Muito Fácil', label: 'Muito Fácil' },
+  { value: 'Fácil', label: 'Fácil' },
+  { value: 'Média', label: 'Média' },
+  { value: 'Difícil', label: 'Difícil' },
+  { value: 'Muito Difícil', label: 'Muito Difícil' },
+];
+
+export const OPTIONS_MODALIDADE = [
+  { value: 'Certo/Errado', label: 'Certo/Errado' },
+  { value: 'Múltipla Escolha', label: 'Múltipla Escolha' },
+];
+
+export const OPTIONS_ESCOLARIDADE = [
+  { value: 'Nível Médio', label: 'Nível Médio' },
+  { value: 'Nível Superior', label: 'Nível Superior' },
+];
+
 
 // Busca questões com filtros opcionais
 export const fetchQuestions = async (filters?: QuestionFilters): Promise<ParsedQuestion[]> => {

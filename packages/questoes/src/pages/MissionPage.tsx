@@ -24,6 +24,7 @@ import { QuestionCard } from '../components/question';
 import { ParsedQuestion, TrailMission, MissionStatus } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
 import { CompactTrailMap } from '../components/trail/CompactTrailMap';
+import { RoundSelector } from '../components/trail/RoundSelector';
 import { MentorChat } from '../components/question/MentorChat';
 import {
   XP_PER_CORRECT, COINS_PER_MISSION, PASSING_SCORE
@@ -963,6 +964,16 @@ export default function MissionPage() {
     setLoading: setStoreLoading,
   } = useTrailStore();
 
+  // Estado local para controle independente do sidebar
+  const [sidebarViewingRoundIndex, setSidebarViewingRoundIndex] = useState(viewingRoundIndex || 0);
+
+  // Sincronizar sidebar com visualização global apenas quando muda externamente
+  useEffect(() => {
+    if (typeof viewingRoundIndex === 'number') {
+      setSidebarViewingRoundIndex(viewingRoundIndex);
+    }
+  }, [viewingRoundIndex]);
+
   // Estado local para controlar se os dados foram carregados
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
@@ -1717,34 +1728,13 @@ export default function MissionPage() {
                   <ChevronRight size={18} className="text-[#A0A0A0]" />
                 </button>
                 {/* Round navigation - centered */}
-                <div className="flex-1 flex items-center justify-center gap-1">
-                  <button
-                    onClick={() => {
-                      if (viewingRoundIndex > 0) setViewingRoundIndex(viewingRoundIndex - 1);
-                    }}
-                    disabled={viewingRoundIndex === 0}
-                    className={`p-1.5 rounded-lg transition-colors ${viewingRoundIndex > 0
-                      ? 'hover:bg-[#3A3A3A] text-[#A0A0A0]'
-                      : 'text-[#3A3A3A] cursor-not-allowed'
-                      }`}
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <span className="text-sm font-medium text-white px-2 min-w-[80px] text-center">
-                    Rodada {viewingRoundIndex + 1}
-                  </span>
-                  <button
-                    onClick={() => {
-                      if (viewingRoundIndex < displayRounds.length - 1) setViewingRoundIndex(viewingRoundIndex + 1);
-                    }}
-                    disabled={viewingRoundIndex >= displayRounds.length - 1}
-                    className={`p-1.5 rounded-lg transition-colors ${viewingRoundIndex < displayRounds.length - 1
-                      ? 'hover:bg-[#3A3A3A] text-[#A0A0A0]'
-                      : 'text-[#3A3A3A] cursor-not-allowed'
-                      }`}
-                  >
-                    <ChevronRight size={16} />
-                  </button>
+                {/* Round navigation - centered */}
+                <div className="flex-1 flex justify-center">
+                  <RoundSelector
+                    currentRoundIndex={sidebarViewingRoundIndex}
+                    totalRounds={displayRounds.length}
+                    onRoundChange={setSidebarViewingRoundIndex}
+                  />
                 </div>
                 {/* Spacer to balance the collapse button */}
                 <div className="w-[30px] flex-shrink-0" />
@@ -1775,8 +1765,8 @@ export default function MissionPage() {
                     rounds={displayRounds}
                     onMissionClick={handleMissionClick}
                     userAvatar={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop"}
-                    viewingRoundIndex={viewingRoundIndex}
-                    onViewingRoundChange={setViewingRoundIndex}
+                    viewingRoundIndex={sidebarViewingRoundIndex}
+                    onViewingRoundChange={setSidebarViewingRoundIndex}
                   />
                 </motion.div>
               ) : (
@@ -1790,7 +1780,7 @@ export default function MissionPage() {
                   <CompactTrailMap
                     rounds={displayRounds}
                     onMissionClick={handleMissionClick}
-                    viewingRoundIndex={viewingRoundIndex}
+                    viewingRoundIndex={sidebarViewingRoundIndex}
                   />
                 </motion.div>
               )}

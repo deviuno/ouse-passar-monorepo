@@ -168,6 +168,16 @@ export interface Simulado {
   created_at: string;
 }
 
+export interface Caderno {
+  id: string;
+  user_id: string;
+  title: string;
+  filters: any; // Using any to avoid circular dependency with FilterOptions
+  questions_count: number;
+  is_favorite: boolean;
+  created_at: string;
+}
+
 export interface SimuladoResult {
   id: string;
   user_id: string;

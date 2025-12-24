@@ -2,21 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, FileText, Trophy, Lock, Play, CheckCircle, Loader2, Package } from 'lucide-react';
 import { Card, Button, StaggerContainer, StaggerItem } from '../components/ui';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores';
 import {
   getSimuladosWithUserData,
   getUserSimuladoStats,
-  SimuladoWithUserData,
 } from '../services/simuladosService';
+import { SimuladoWithUserData, SimuladoAttempt } from '../types';
+import { DownloadPDFButton } from '../components/simulado/DownloadPDFButton';
+import { getOptimizedImageUrl } from '../utils/image';
 
 function SimuladoCard({
   simulado,
-  onStart,
-  onViewResult,
+  onViewDetails,
 }: {
   simulado: SimuladoWithUserData;
-  onStart: (id: string) => void;
-  onViewResult: (id: string) => void;
+  onViewDetails: (id: string) => void;
 }) {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -27,21 +28,19 @@ function SimuladoCard({
   const isCompleted = simulado.isCompleted;
   const score = simulado.userResult?.score;
   const ranking = simulado.userResult?.ranking_position;
+  const hasActiveAttempt = !!simulado.activeAttempt;
 
   // Get cover image from preparatorio
-  const coverImage = simulado.preparatorio?.logo_url || simulado.preparatorio?.imagem_capa;
+  const rawCoverImage = simulado.preparatorio?.logo_url || simulado.preparatorio?.imagem_capa;
+  const coverImage = getOptimizedImageUrl(rawCoverImage, 400);
 
   return (
     <Card
       hoverable
       onClick={() => {
-        if (isCompleted) {
-          onViewResult(simulado.id);
-        } else if (!simulado.is_premium) {
-          onStart(simulado.id);
-        }
+        onViewDetails(simulado.id);
       }}
-      className="relative overflow-hidden h-full"
+      className="relative overflow-hidden h-full cursor-pointer group"
     >
       {/* Cover Image */}
       <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden mb-3 bg-[#3A3A3A]">
@@ -49,7 +48,7 @@ function SimuladoCard({
           <img
             src={coverImage}
             alt={simulado.preparatorio?.nome || simulado.nome}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#3498DB]/30 to-[#8B5CF6]/30">
@@ -72,6 +71,14 @@ function SimuladoCard({
           <div className="absolute top-2 left-2 bg-[#2ECC71] text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
             <CheckCircle size={12} />
             Realizado
+          </div>
+        )}
+
+        {/* Active Attempt Badge */}
+        {hasActiveAttempt && (
+          <div className="absolute top-2 left-2 bg-[#FFB800] text-black text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+            <Clock size={12} />
+            Em Andamento
           </div>
         )}
 
@@ -98,7 +105,7 @@ function SimuladoCard({
           <p className="text-[#6E6E6E] text-xs mb-1 truncate">{simulado.preparatorio.nome}</p>
         )}
 
-        <h3 className="text-white font-medium text-sm mb-2 line-clamp-2">{simulado.nome}</h3>
+        <h3 className="text-white font-medium text-sm mb-2 line-clamp-2group-hover:text-[#FFB800] transition-colors">{simulado.nome}</h3>
 
         <div className="flex items-center gap-3 text-xs text-[#6E6E6E] mt-auto">
           <div className="flex items-center gap-1">
@@ -114,35 +121,16 @@ function SimuladoCard({
 
       {/* Action Button */}
       <div className="mt-3 pt-3 border-t border-[#3A3A3A]">
-        {isCompleted ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            fullWidth
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewResult(simulado.id);
-            }}
-          >
-            Ver Resultado
-          </Button>
-        ) : simulado.is_premium ? (
-          <Button size="sm" variant="secondary" fullWidth leftIcon={<Lock size={14} />}>
-            Desbloquear
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            fullWidth
-            leftIcon={<Play size={14} />}
-            onClick={(e) => {
-              e.stopPropagation();
-              onStart(simulado.id);
-            }}
-          >
-            Iniciar
-          </Button>
-        )}
+        <Button
+          size="sm"
+          className="w-full bg-[#2A2A2A] hover:bg-[#333] text-white"
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewDetails(simulado.id);
+          }}
+        >
+          Ver Detalhes
+        </Button>
       </div>
     </Card>
   );
@@ -150,13 +138,17 @@ function SimuladoCard({
 
 export default function SimuladosPage() {
   const { profile } = useAuthStore();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState<string | null>(null);
   const [simulados, setSimulados] = useState<SimuladoWithUserData[]>([]);
   const [stats, setStats] = useState({
     totalCompleted: 0,
     averageScore: 0,
     bestRanking: null as number | null,
   });
+
+  // History Sidebar State Removed
 
   useEffect(() => {
     if (profile?.id) {
@@ -183,19 +175,16 @@ export default function SimuladosPage() {
     }
   };
 
-  const handleStart = (simuladoId: string) => {
-    // TODO: Navigate to simulado execution page
-    console.log('Start simulado:', simuladoId);
+  const handleViewDetails = async (simuladoId: string) => {
+    navigate(`/simulados/${simuladoId}`);
   };
 
-  const handleViewResult = (simuladoId: string) => {
-    // TODO: Navigate to result page
-    console.log('View result:', simuladoId);
-  };
+
 
   const completedSimulados = simulados.filter((s) => s.isCompleted);
-  const availableSimulados = simulados.filter((s) => !s.isCompleted && !s.is_premium);
-  const premiumSimulados = simulados.filter((s) => s.is_premium && !s.isCompleted);
+  const activeSimulados = simulados.filter((s) => s.activeAttempt);
+  const availableSimulados = simulados.filter((s) => !s.isCompleted && !s.is_premium && !s.activeAttempt);
+  const premiumSimulados = simulados.filter((s) => s.is_premium && !s.isCompleted && !s.activeAttempt);
 
   if (loading) {
     return (
@@ -244,6 +233,26 @@ export default function SimuladosPage() {
         </div>
       )}
 
+      {/* Active Simulados */}
+      {activeSimulados.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            Em Andamento
+            <div className="w-2 h-2 bg-[#FFB800] rounded-full animate-pulse" />
+          </h2>
+          <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {activeSimulados.map((simulado) => (
+              <StaggerItem key={simulado.id}>
+                <SimuladoCard
+                  simulado={simulado}
+                  onViewDetails={handleViewDetails}
+                />
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
+        </div>
+      )}
+
       {/* Available Simulados */}
       {availableSimulados.length > 0 && (
         <div className="mb-6">
@@ -253,8 +262,7 @@ export default function SimuladosPage() {
               <StaggerItem key={simulado.id}>
                 <SimuladoCard
                   simulado={simulado}
-                  onStart={handleStart}
-                  onViewResult={handleViewResult}
+                  onViewDetails={handleViewDetails}
                 />
               </StaggerItem>
             ))}
@@ -271,8 +279,7 @@ export default function SimuladosPage() {
               <StaggerItem key={simulado.id}>
                 <SimuladoCard
                   simulado={simulado}
-                  onStart={handleStart}
-                  onViewResult={handleViewResult}
+                  onViewDetails={handleViewDetails}
                 />
               </StaggerItem>
             ))}
@@ -292,14 +299,14 @@ export default function SimuladosPage() {
               <StaggerItem key={simulado.id}>
                 <SimuladoCard
                   simulado={simulado}
-                  onStart={handleStart}
-                  onViewResult={handleViewResult}
+                  onViewDetails={handleViewDetails}
                 />
               </StaggerItem>
             ))}
           </StaggerContainer>
         </div>
       )}
+
     </div>
   );
 }
