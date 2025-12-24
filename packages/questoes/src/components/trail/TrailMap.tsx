@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Lock, RefreshCw, X, Zap, Target, BookOpen, User, RotateCw, Trophy, GraduationCap } from 'lucide-react';
+import { Check, Lock, RefreshCw, X, Zap, Target, BookOpen, User, RotateCw, Trophy, GraduationCap, Cpu } from 'lucide-react';
 import { TrailMission, MissionType } from '../../types';
 import { isMassificacao } from '../../services/massificacaoService';
 
@@ -164,13 +164,21 @@ function MissionHoverCard({
                     headerBorder: 'border-purple-500/30',
                     icon: Trophy
                 };
-            default: // normal / técnica
+            case 'tecnica':
+                return {
+                    title: `Técnica ${index + 1}`,
+                    color: 'text-blue-500',
+                    dotColor: 'bg-blue-500',
+                    headerBorder: 'border-blue-500/30',
+                    icon: Cpu
+                };
+            default: // normal
                 return {
                     title: `Missão ${index + 1}`,
                     color: 'text-emerald-500',
                     dotColor: 'bg-emerald-500',
                     headerBorder: 'border-emerald-500/30',
-                    icon: GraduationCap // Changed from Target to GraduationCap
+                    icon: GraduationCap
                 };
         }
     };
@@ -702,7 +710,9 @@ export function TrailMap({
                                                         ? ["#F59E0B", "#D97706", "#F59E0B"]
                                                         : mission.tipo === 'simulado_rodada'
                                                             ? ["#A855F7", "#9333EA", "#A855F7"]
-                                                            : ["#059669", "#047857", "#059669"]
+                                                            : mission.tipo === 'tecnica'
+                                                                ? ["#3B82F6", "#2563EB", "#3B82F6"]
+                                                                : ["#059669", "#047857", "#059669"]
                                             }}
                                             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                                             className="text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg mb-1 whitespace-nowrap relative"
@@ -716,7 +726,9 @@ export function TrailMap({
                                                             ? ["#F59E0B", "#D97706", "#F59E0B"]
                                                             : mission.tipo === 'simulado_rodada'
                                                                 ? ["#A855F7", "#9333EA", "#A855F7"]
-                                                                : ["#059669", "#047857", "#059669"]
+                                                                : mission.tipo === 'tecnica'
+                                                                    ? ["#3B82F6", "#2563EB", "#3B82F6"]
+                                                                    : ["#059669", "#047857", "#059669"]
                                                 }}
                                                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                                                 className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 rotate-45"
@@ -725,25 +737,29 @@ export function TrailMap({
                                         {userAvatar ? (
                                             <img
                                                 alt="User"
-                                                className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 object-cover 
+                                                className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 object-cover
                                                     ${isMassificacaoMission
                                                         ? 'border-[#E74C3C]'
                                                         : mission.tipo === 'revisao'
                                                             ? 'border-amber-500'
                                                             : mission.tipo === 'simulado_rodada'
                                                                 ? 'border-purple-500'
-                                                                : 'border-[#FFB800]'}`}
+                                                                : mission.tipo === 'tecnica'
+                                                                    ? 'border-blue-500'
+                                                                    : 'border-[#FFB800]'}`}
                                                 src={userAvatar}
                                             />
                                         ) : (
-                                            <div className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 flex items-center justify-center bg-zinc-800 
+                                            <div className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 flex items-center justify-center bg-zinc-800
                                                 ${isMassificacaoMission
                                                     ? 'border-[#E74C3C] text-[#E74C3C]'
                                                     : mission.tipo === 'revisao'
                                                         ? 'border-amber-500 text-amber-500'
                                                         : mission.tipo === 'simulado_rodada'
                                                             ? 'border-purple-500 text-purple-500'
-                                                            : 'border-[#FFB800] text-[#FFB800]'}`}>
+                                                            : mission.tipo === 'tecnica'
+                                                                ? 'border-blue-500 text-blue-500'
+                                                                : 'border-[#FFB800] text-[#FFB800]'}`}>
                                                 <User size={16} />
                                             </div>
                                         )}
@@ -753,49 +769,36 @@ export function TrailMap({
                                 {/* The Button */}
                                 <motion.button
                                     initial={{ rotate: 45 }}
-                                    animate={isActive && isCurrent ? {
-                                        rotate: 45,
-                                        scale: [1, 1.05, 1],
-                                        boxShadow: [
-                                            '0 0 20px rgba(234,179,8,0.6)',
-                                            '0 0 35px rgba(234,179,8,0.8)',
-                                            '0 0 20px rgba(234,179,8,0.6)'
-                                        ]
-                                    } : { rotate: 45 }}
                                     whileHover={{ rotate: 45, scale: status !== 'locked' ? 1.1 : 1 }}
                                     whileTap={{ rotate: 45, scale: status !== 'locked' ? 0.95 : 1 }}
-                                    transition={isActive && isCurrent ? {
-                                        duration: 2,
-                                        repeat: Infinity,
-                                        ease: "easeInOut"
-                                    } : {
-                                        type: "spring",
-                                        stiffness: 300,
-                                        damping: 20
-                                    }}
+                                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
                                     disabled={status === 'locked'}
                                     onClick={() => handleMissionClick(mission, index)}
                                     className={`
-                                        relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg border-4
+                                        relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg border-2
                                         ${/* COMPLETED STATE - Solid Colors */ ''}
                                         ${isCompleted && !isMassificacaoMission
                                             ? mission.tipo === 'revisao'
                                                 ? 'border-amber-600 bg-amber-600'
                                                 : mission.tipo === 'simulado_rodada'
                                                     ? 'border-purple-600 bg-purple-600'
-                                                    : 'border-emerald-600 bg-emerald-600'
+                                                    : mission.tipo === 'tecnica'
+                                                        ? 'border-blue-600 bg-blue-600'
+                                                        : 'border-emerald-600 bg-emerald-600'
                                             : ''}
                                         ${isCompleted && isMassificacaoMission ? 'border-emerald-600 bg-emerald-600' : ''}
 
-                                        ${/* ACTIVE STATE - Enhanced High Contrast with Glow */ ''}
+                                        ${/* ACTIVE STATE - Subtle Glow */ ''}
                                         ${isActive && !isMassificacaoMission
                                             ? mission.tipo === 'revisao'
-                                                ? 'border-white bg-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.7)]'
+                                                ? 'border-white bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.35)]'
                                                 : mission.tipo === 'simulado_rodada'
-                                                    ? 'border-white bg-purple-600 shadow-[0_0_30px_rgba(147,51,234,0.7)]'
-                                                    : 'border-yellow-200 bg-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.7)] ring-4 ring-yellow-400/30' /* Enhanced Active State */
+                                                    ? 'border-white bg-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.35)]'
+                                                    : mission.tipo === 'tecnica'
+                                                        ? 'border-white bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.35)]'
+                                                        : 'border-yellow-200 bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.35)]'
                                             : ''}
-                                        ${isActive && isMassificacaoMission ? 'border-white bg-[#E74C3C] shadow-[0_0_30px_rgba(231,76,60,0.7)]' : ''}
+                                        ${isActive && isMassificacaoMission ? 'border-white bg-[#E74C3C] shadow-[0_0_15px_rgba(231,76,60,0.35)]' : ''}
 
                                         ${/* LOCKED STATE - Solid Colors (No Opacity) */ ''}
                                         ${status === 'locked' && !isMassificacaoMission
@@ -803,7 +806,9 @@ export function TrailMap({
                                                 ? 'border-amber-900 bg-amber-950 ring-2 ring-amber-900/20'
                                                 : mission.tipo === 'simulado_rodada'
                                                     ? 'border-purple-900 bg-purple-950 ring-2 ring-purple-900/20'
-                                                    : 'border-zinc-700 bg-zinc-900' /* Normal/Technical Locked */
+                                                    : mission.tipo === 'tecnica'
+                                                        ? 'border-blue-900 bg-blue-950 ring-2 ring-blue-900/20'
+                                                        : 'border-zinc-700 bg-zinc-900' /* Normal Locked */
                                             : ''}
                                         ${status === 'locked' && isMassificacaoMission ? 'border-red-900 bg-red-950 ring-2 ring-red-900/20' : ''}
                                     `}
@@ -818,6 +823,8 @@ export function TrailMap({
                                                 <RotateCw size={32} className={`${status === 'locked' ? 'text-amber-300' : 'text-white'}`} strokeWidth={2} />
                                             ) : mission.tipo === 'simulado_rodada' ? (
                                                 <Trophy size={32} className={`${status === 'locked' ? 'text-purple-300' : 'text-white'}`} strokeWidth={2} />
+                                            ) : mission.tipo === 'tecnica' ? (
+                                                <Cpu size={32} className={`${status === 'locked' ? 'text-blue-300' : 'text-white'}`} strokeWidth={2} />
                                             ) : (
                                                 <GraduationCap size={32} className={`${status === 'locked' ? 'text-zinc-400' : 'text-white'}`} strokeWidth={2} />
                                             )
@@ -834,7 +841,9 @@ export function TrailMap({
                                             ? 'bg-white border-amber-500 text-amber-500 dark:bg-zinc-700 dark:text-amber-500 translate-y-1'
                                             : mission.tipo === 'simulado_rodada'
                                                 ? 'bg-white border-purple-500 text-purple-500 dark:bg-zinc-700 dark:text-purple-500 translate-y-1'
-                                                : 'bg-white border-yellow-500 text-yellow-600 dark:bg-zinc-700 dark:text-yellow-500 translate-y-1'
+                                                : mission.tipo === 'tecnica'
+                                                    ? 'bg-white border-blue-500 text-blue-500 dark:bg-zinc-700 dark:text-blue-500 translate-y-1'
+                                                    : 'bg-white border-yellow-500 text-yellow-600 dark:bg-zinc-700 dark:text-yellow-500 translate-y-1'
                                         : ''}
                                     ${isActive && isMassificacaoMission ? 'bg-white border-[#E74C3C] text-[#E74C3C] dark:bg-zinc-700 dark:text-[#E74C3C] translate-y-1' : ''}
                                     ${status === 'locked' ? 'bg-zinc-50/80 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 opacity-70' : ''}
@@ -848,7 +857,9 @@ export function TrailMap({
                                             ? `Revisão ${globalIndex + 1}`
                                             : mission.tipo === 'simulado_rodada'
                                                 ? `Simulado ${globalIndex + 1}`
-                                                : `Missão ${globalIndex + 1}`
+                                                : mission.tipo === 'tecnica'
+                                                    ? `Técnica ${globalIndex + 1}`
+                                                    : `Missão ${globalIndex + 1}`
                                     }
                                 </div>
                             </div>
