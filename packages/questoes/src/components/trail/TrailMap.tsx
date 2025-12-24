@@ -113,7 +113,6 @@ function MassificacaoModal({
 }
 
 // Hover Card Component with smart positioning
-// Hover Card Component with smart positioning
 function MissionHoverCard({
     mission,
     index,
@@ -122,7 +121,9 @@ function MissionHoverCard({
     isMassificacao: isMassificacaoMission,
     placement = 'top',
     horizontalPosition = 'center',
-    type = 'normal'
+    type = 'normal',
+    onMouseEnter,
+    onMouseLeave
 }: {
     mission: TrailMission;
     index: number;
@@ -132,6 +133,8 @@ function MissionHoverCard({
     placement?: 'top' | 'bottom';
     horizontalPosition?: 'left' | 'center' | 'right';
     type?: MissionType;
+    onMouseEnter?: () => void;
+    onMouseLeave?: () => void;
 }) {
     const isLocked = status === 'locked';
     const isTop = placement === 'top';
@@ -206,7 +209,9 @@ function MissionHoverCard({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: isTop ? 10 : -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className={`absolute w-64 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-[100] overflow-hidden pointer-events-none group-hover:pointer-events-auto ${horizontalClasses} ${isTop ? 'bottom-full mb-3' : 'top-full mt-3'}`}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
+            className={`absolute w-64 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-[100] overflow-hidden pointer-events-auto ${horizontalClasses} ${isTop ? 'bottom-full mb-3' : 'top-full mt-3'}`}
         >
             {/* Header */}
             <div className={`p-3 border-b border-zinc-800 ${isLocked ? 'bg-zinc-800/50' : 'bg-gradient-to-r from-zinc-800 to-zinc-900'}`}>
@@ -250,19 +255,12 @@ function MissionHoverCard({
                 </div>
 
                 {!isLocked && (
-                    <div className="space-y-2 mt-3 pt-3 border-t border-zinc-800">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onStudy(); }}
-                            className="w-full py-2 bg-[#FFB800] hover:bg-[#E5A600] text-black font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Zap size={14} /> Estudar Agora
-                        </button>
-
+                    <div className="mt-3 pt-3 border-t border-zinc-800">
                         <div className="grid grid-cols-2 gap-2">
-                            <button className="py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 flex items-center justify-center gap-1.5 transition-colors">
+                            <button className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 font-medium flex items-center justify-center gap-1.5 transition-colors">
                                 <BookOpen size={12} /> Teoria
                             </button>
-                            <button className="py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 flex items-center justify-center gap-1.5 transition-colors">
+                            <button className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 font-medium flex items-center justify-center gap-1.5 transition-colors">
                                 <Target size={12} /> Questões
                             </button>
                         </div>
@@ -351,6 +349,14 @@ export function TrailMap({
 
     // Hover state for mission cards
     const [hoveredMissionId, setHoveredMissionId] = useState<string | null>(null);
+    const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+
+    // Cleanup hover timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (hoverTimeout) clearTimeout(hoverTimeout);
+        };
+    }, [hoverTimeout]);
 
     // Use controlled index if provided, otherwise use internal state
     const viewingRoundIndex = controlledIndex !== undefined ? controlledIndex : internalViewingIndex;
@@ -676,8 +682,16 @@ export function TrailMap({
                                     left: `calc(50% + ${pos.x}px)`,
                                     zIndex
                                 }}
-                                onMouseEnter={() => setHoveredMissionId(mission.id)}
-                                onMouseLeave={() => setHoveredMissionId(null)}
+                                onMouseEnter={() => {
+                                    if (hoverTimeout) clearTimeout(hoverTimeout);
+                                    setHoveredMissionId(mission.id);
+                                }}
+                                onMouseLeave={() => {
+                                    const timeout = setTimeout(() => {
+                                        setHoveredMissionId(null);
+                                    }, 200);
+                                    setHoverTimeout(timeout);
+                                }}
                             >
                                 {/* Popup Card on Hover */}
                                 <AnimatePresence>
@@ -691,6 +705,16 @@ export function TrailMap({
                                             placement={index <= 1 ? 'bottom' : 'top'}
                                             horizontalPosition={pos.x < -40 ? 'left' : pos.x > 40 ? 'right' : 'center'}
                                             type={mission.tipo}
+                                            onMouseEnter={() => {
+                                                if (hoverTimeout) clearTimeout(hoverTimeout);
+                                                setHoveredMissionId(mission.id);
+                                            }}
+                                            onMouseLeave={() => {
+                                                const timeout = setTimeout(() => {
+                                                    setHoveredMissionId(null);
+                                                }, 200);
+                                                setHoverTimeout(timeout);
+                                            }}
                                         />
                                     )}
                                 </AnimatePresence>
