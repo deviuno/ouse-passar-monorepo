@@ -282,11 +282,12 @@ export default function HomePage() {
     return idx;
   }, [allMissions]);
 
-  const handleMissionClick = (mission: TrailMission) => {
+  const handleMissionClick = (mission: TrailMission, tab?: 'teoria' | 'questoes') => {
     if (mission.status === 'locked') return;
     setSelectedMissionId(mission.id);
     const url = getMissionUrl(mission);
-    navigate(url);
+    const finalUrl = tab ? `${url}?tab=${tab}` : url;
+    navigate(finalUrl);
   };
 
   const handleAddNewPreparatorio = useCallback(() => {

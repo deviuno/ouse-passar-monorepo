@@ -1126,6 +1126,16 @@ export default function MissionPage() {
   // Local state for this page
   const [phase, setPhase] = useState<'content' | 'questions' | 'result' | 'massification'>('content');
   const [questions, setQuestions] = useState<ParsedQuestion[]>([]);
+
+  // Read tab parameter from URL and set initial phase
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'questoes') {
+      setPhase('questions');
+    } else if (tabParam === 'teoria') {
+      setPhase('content');
+    }
+  }, []); // Run only once on mount
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Map<number, { letter: string; correct: boolean }>>(new Map());

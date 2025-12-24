@@ -128,7 +128,7 @@ function MissionHoverCard({
     mission: TrailMission;
     index: number;
     status: 'locked' | 'active' | 'completed';
-    onStudy: () => void;
+    onStudy: (tab?: 'teoria' | 'questoes') => void;
     isMassificacao: boolean;
     placement?: 'top' | 'bottom';
     horizontalPosition?: 'left' | 'center' | 'right';
@@ -257,10 +257,16 @@ function MissionHoverCard({
                 {!isLocked && (
                     <div className="mt-3 pt-3 border-t border-zinc-800">
                         <div className="grid grid-cols-2 gap-2">
-                            <button className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 font-medium flex items-center justify-center gap-1.5 transition-colors">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onStudy('teoria'); }}
+                                className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 font-medium flex items-center justify-center gap-1.5 transition-colors"
+                            >
                                 <BookOpen size={12} /> Teoria
                             </button>
-                            <button className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 font-medium flex items-center justify-center gap-1.5 transition-colors">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onStudy('questoes'); }}
+                                className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 font-medium flex items-center justify-center gap-1.5 transition-colors"
+                            >
                                 <Target size={12} /> Questões
                             </button>
                         </div>
@@ -294,7 +300,7 @@ interface TrailRound {
 interface TrailMapProps {
     rounds: TrailRound[];
     currentMissionIndex?: number;
-    onMissionClick: (mission: TrailMission) => void;
+    onMissionClick: (mission: TrailMission, tab?: 'teoria' | 'questoes') => void;
     userAvatar?: string;
     // External control for round navigation
     viewingRoundIndex?: number;
@@ -464,9 +470,9 @@ export function TrailMap({
     }, []);
 
     // Handle mission click - go directly to mission (no modal)
-    const handleMissionClick = useCallback((mission: TrailMission, index: number) => {
+    const handleMissionClick = useCallback((mission: TrailMission, index: number, tab?: 'teoria' | 'questoes') => {
         if (mission.status === 'locked') return;
-        onMissionClick(mission);
+        onMissionClick(mission, tab);
     }, [onMissionClick]);
 
     // Handle starting massification from modal
@@ -700,7 +706,7 @@ export function TrailMap({
                                             mission={mission}
                                             index={globalIndex}
                                             status={status}
-                                            onStudy={() => handleMissionClick(mission, index)}
+                                            onStudy={(tab) => handleMissionClick(mission, index, tab)}
                                             isMassificacao={isMassificacaoMission}
                                             placement={index <= 1 ? 'bottom' : 'top'}
                                             horizontalPosition={pos.x < -40 ? 'left' : pos.x > 40 ? 'right' : 'center'}
