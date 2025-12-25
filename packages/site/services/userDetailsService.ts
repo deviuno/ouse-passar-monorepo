@@ -20,6 +20,7 @@ export interface UserPreparatorio {
   logo_url?: string;
   purchased_at: string;
   status: string;
+  product_type: string; // 'Planejador', 'Simulado', 'Reta Final', 'Ouse Questões', etc.
 }
 
 export interface UserActivity {
@@ -83,16 +84,16 @@ export async function getUserDetails(userId: string): Promise<{
       return { data: null, error: 'User not found' };
     }
 
-    // Fetch user's preparatorios (from leads table)
-    const { data: leads, error: leadsError } = await supabase
+    // Fetch user's products from multiple sources
+    const preparatorios: UserPreparatorio[] = [];
+
+    // 1. Planejador (from leads table)
+    const { data: leads } = await supabase
       .from('leads')
       .select('id, created_at, planejamento_id')
       .eq('user_id', userId);
 
-    const preparatorios: UserPreparatorio[] = [];
-
-    if (leads && !leadsError && leads.length > 0) {
-      // Get unique planejamento IDs
+    if (leads && leads.length > 0) {
       const planejamentoIds = [...new Set(leads.map((l: any) => l.planejamento_id).filter(Boolean))];
 
       if (planejamentoIds.length > 0) {
@@ -112,8 +113,74 @@ export async function getUserDetails(userId: string): Promise<{
                 logo_url: planj.preparatorios.logo_url,
                 purchased_at: lead?.created_at || new Date().toISOString(),
                 status: 'active',
+                product_type: 'Planejador',
               });
             }
+          });
+        }
+      }
+    }
+
+    // 2. Courses (Simulados, Reta Final, Ouse Questões)
+    const { data: userCourses } = await supabase
+      .from('user_courses' as any)
+      .select('id, course_id, purchased_at')
+      .eq('user_id', userId);
+
+    if (userCourses && userCourses.length > 0) {
+      const courseIds = userCourses.map((uc: any) => uc.course_id);
+
+      if (courseIds.length > 0) {
+        const { data: courses } = await supabase
+          .from('courses' as any)
+          .select('id, title, image_url, course_type')
+          .in('id', courseIds);
+
+        if (courses) {
+          courses.forEach((course: any) => {
+            const userCourse = userCourses.find((uc: any) => uc.course_id === course.id);
+            preparatorios.push({
+              id: course.id,
+              nome: course.title,
+              slug: course.id,
+              logo_url: course.image_url,
+              purchased_at: (userCourse as any)?.purchased_at || new Date().toISOString(),
+              status: 'active',
+              product_type: course.course_type || 'Curso',
+            });
+          });
+        }
+      }
+    }
+
+    // 3. Store Items (produtos da loja com preparatório vinculado)
+    const { data: storePurchases } = await supabase
+      .from('store_purchases' as any)
+      .select('id, item_id, created_at')
+      .eq('user_id', userId);
+
+    if (storePurchases && storePurchases.length > 0) {
+      const itemIds = storePurchases.map((sp: any) => sp.item_id);
+
+      if (itemIds.length > 0) {
+        const { data: storeItems } = await supabase
+          .from('store_items' as any)
+          .select('id, name, image_url, product_type, preparatorio_id')
+          .in('id', itemIds)
+          .not('preparatorio_id', 'is', null);
+
+        if (storeItems) {
+          storeItems.forEach((item: any) => {
+            const purchase = storePurchases.find((sp: any) => sp.item_id === item.id);
+            preparatorios.push({
+              id: item.id,
+              nome: item.name,
+              slug: item.id,
+              logo_url: item.image_url,
+              purchased_at: (purchase as any)?.created_at || new Date().toISOString(),
+              status: 'active',
+              product_type: item.product_type || 'Produto',
+            });
           });
         }
       }

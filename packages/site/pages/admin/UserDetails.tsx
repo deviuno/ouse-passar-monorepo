@@ -398,7 +398,12 @@ export const UserDetails: React.FC = () => {
                     </div>
                   )}
                   <div className="flex-1">
-                    <p className="text-white font-medium">{prep.nome}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-white font-medium">{prep.nome}</p>
+                      <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs font-bold rounded">
+                        {prep.product_type}
+                      </span>
+                    </div>
                     <p className="text-gray-500 text-xs">
                       Adquirido em {new Date(prep.purchased_at).toLocaleDateString('pt-BR')}
                     </p>
