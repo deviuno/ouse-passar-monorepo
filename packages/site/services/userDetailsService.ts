@@ -8,6 +8,7 @@ export interface UserProfile {
   avatar_url?: string | null;
   role: string;
   is_active: boolean;
+  show_answers: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -68,8 +69,8 @@ export async function getUserDetails(userId: string): Promise<{
   try {
     // Fetch user profile from admin_users
     const { data: profile, error: profileError } = await supabase
-      .from('admin_users')
-      .select('*')
+      .from('admin_users' as any)
+      .select('id, email, name, role, is_active, show_answers, avatar_url, created_at, updated_at, created_by, last_login, password_hash')
       .eq('id', userId)
       .single();
 
@@ -175,12 +176,12 @@ export async function getUserDetails(userId: string): Promise<{
       totalQuestions: 0, // Not available in current structure
       correctAnswers: 0, // Not available in current structure
       accuracy: 0, // Not available in current structure
-      lastActivity: recentActivity.length > 0 ? recentActivity[0].timestamp : profile.updated_at,
+      lastActivity: recentActivity.length > 0 ? recentActivity[0].timestamp : (profile as any).updated_at,
     };
 
     return {
       data: {
-        profile,
+        profile: profile as unknown as UserProfile,
         stats,
         preparatorios,
         recentActivity: recentActivity.slice(0, 20),
@@ -213,6 +214,34 @@ export async function updateUserProfile(
 
     if (error) {
       console.error('[userDetailsService] Error updating profile:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('[userDetailsService] Exception:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Update user settings (is_active and show_answers)
+ */
+export async function updateUserSettings(
+  userId: string,
+  updates: {
+    is_active?: boolean;
+    show_answers?: boolean;
+  }
+): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const { error } = await supabase
+      .from('admin_users')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('[userDetailsService] Error updating settings:', error);
       return { success: false, error: error.message };
     }
 

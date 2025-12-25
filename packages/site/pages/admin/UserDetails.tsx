@@ -21,6 +21,7 @@ import { useToast } from '../../components/ui/Toast';
 import {
   getUserDetails,
   updateUserProfile,
+  updateUserSettings,
   UserDetailsData,
 } from '../../services/userDetailsService';
 
@@ -92,6 +93,48 @@ export const UserDetails: React.FC = () => {
     }
 
     setSaving(false);
+  };
+
+  const handleToggleActive = async (newValue: boolean) => {
+    if (!userId || !data) return;
+
+    const { success, error: err } = await updateUserSettings(userId, {
+      is_active: newValue,
+    });
+
+    if (err) {
+      toast.error(`Erro ao atualizar status: ${err}`);
+    } else if (success) {
+      toast.success(`Usuário ${newValue ? 'ativado' : 'desativado'} com sucesso!`);
+      setData({
+        ...data,
+        profile: {
+          ...data.profile,
+          is_active: newValue,
+        },
+      });
+    }
+  };
+
+  const handleToggleShowAnswers = async (newValue: boolean) => {
+    if (!userId || !data) return;
+
+    const { success, error: err } = await updateUserSettings(userId, {
+      show_answers: newValue,
+    });
+
+    if (err) {
+      toast.error(`Erro ao atualizar configuração: ${err}`);
+    } else if (success) {
+      toast.success(`Ver respostas ${newValue ? 'ativado' : 'desativado'} com sucesso!`);
+      setData({
+        ...data,
+        profile: {
+          ...data.profile,
+          show_answers: newValue,
+        },
+      });
+    }
   };
 
   if (loading) {
@@ -214,6 +257,61 @@ export const UserDetails: React.FC = () => {
                 Editar
               </button>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Settings Card */}
+      <div className="bg-brand-card border border-white/5 rounded-sm p-6">
+        <h3 className="text-white font-bold uppercase tracking-wide mb-4 flex items-center gap-2">
+          <Activity className="w-5 h-5 text-brand-yellow" />
+          Configurações
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Toggle Ativo/Inativo */}
+          <div className="flex items-center justify-between p-4 bg-brand-dark/50 rounded-sm">
+            <div>
+              <p className="text-white font-bold text-sm">Status do Usuário</p>
+              <p className="text-gray-500 text-xs mt-1">
+                {profile.is_active ? 'Usuário ativo e pode acessar o sistema' : 'Usuário inativo e sem acesso'}
+              </p>
+            </div>
+            <button
+              onClick={() => handleToggleActive(!profile.is_active)}
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                profile.is_active ? 'bg-green-500' : 'bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                  profile.is_active ? 'translate-x-7' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Toggle Ver Respostas */}
+          <div className="flex items-center justify-between p-4 bg-brand-dark/50 rounded-sm">
+            <div>
+              <p className="text-white font-bold text-sm">Ver Respostas</p>
+              <p className="text-gray-500 text-xs mt-1">
+                {profile.show_answers
+                  ? 'Usuário vê alternativa correta marcada com estrela'
+                  : 'Usuário não vê qual alternativa está correta'}
+              </p>
+            </div>
+            <button
+              onClick={() => handleToggleShowAnswers(!profile.show_answers)}
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                profile.show_answers ? 'bg-brand-yellow' : 'bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                  profile.show_answers ? 'translate-x-7' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
         </div>
       </div>
