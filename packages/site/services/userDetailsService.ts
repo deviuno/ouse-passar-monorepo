@@ -186,6 +186,38 @@ export async function getUserDetails(userId: string): Promise<{
       }
     }
 
+    // 4. Ouse Questões (user_trails - matrículas no app de questões)
+    const { data: userTrails } = await supabase
+      .from('user_trails' as any)
+      .select('id, preparatorio_id, created_at, is_reta_final')
+      .eq('user_id', userId);
+
+    if (userTrails && userTrails.length > 0) {
+      const trailPreparatorioIds = [...new Set(userTrails.map((ut: any) => ut.preparatorio_id).filter(Boolean))];
+
+      if (trailPreparatorioIds.length > 0) {
+        const { data: trailPreparatorios } = await supabase
+          .from('preparatorios')
+          .select('id, nome, slug, logo_url')
+          .in('id', trailPreparatorioIds);
+
+        if (trailPreparatorios) {
+          trailPreparatorios.forEach((prep: any) => {
+            const trail = userTrails.find((ut: any) => ut.preparatorio_id === prep.id);
+            preparatorios.push({
+              id: prep.id,
+              nome: prep.nome,
+              slug: prep.slug,
+              logo_url: prep.logo_url,
+              purchased_at: (trail as any)?.created_at || new Date().toISOString(),
+              status: 'active',
+              product_type: (trail as any)?.is_reta_final ? 'Reta Final' : 'Ouse Questões',
+            });
+          });
+        }
+      }
+    }
+
     // Fetch mission progress (simplified - based on actual table structure)
     const { data: missionsExecutadas, error: missionsError } = await supabase
       .from('missoes_executadas')
