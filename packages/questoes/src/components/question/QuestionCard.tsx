@@ -1,11 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ParsedQuestion, CommunityStats, StudyMode } from '../../types';
 import { COLORS, MOCK_STATS } from '../../constants';
 import { MessageCircle, AlertTriangle, BarChart2, X, Timer, Coffee, Zap, BrainCircuit, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { generateExplanation } from '../../services/geminiService';
 import { getQuestionStatistics, QuestionStatistics } from '../../services/questionFeedbackService';
 import CommentsSection from './CommentsSection';
+import { useHorizontalSwipe } from '../../hooks/useSwipe';
+import RippleEffect from '../ui/RippleEffect';
 
 interface QuestionCardProps {
   question: ParsedQuestion;
@@ -42,6 +44,29 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
 
   // Timer State
   const [timeLeft, setTimeLeft] = useState(initialTime * 60); // in seconds
+
+  // Ref para os botões de navegação principais
+  const navigationButtonsRef = useRef<HTMLDivElement>(null);
+
+  // Swipe gestures para navegação mobile (apenas se já respondeu)
+  const swipeHandlersRaw = useHorizontalSwipe(
+    () => {
+      // Swipe left = próxima questão
+      if (isSubmitted) {
+        onNext();
+      }
+    },
+    () => {
+      // Swipe right = questão anterior
+      if (isSubmitted && onPrevious) {
+        onPrevious();
+      }
+    }
+  );
+
+  // Extract only DOM-valid event handlers (remove isSwiping and swipeDirection to avoid React warnings)
+  const { onTouchStart, onTouchMove, onTouchEnd } = swipeHandlersRaw;
+  const swipeHandlers = { onTouchStart, onTouchMove, onTouchEnd };
 
   // Reset state when question changes
   useEffect(() => {
@@ -81,6 +106,32 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       return () => clearInterval(timer);
     }
   }, [studyMode, onTimeout]);
+
+  // Scroll para os botões de navegação após submissão (apenas se não estiverem visíveis)
+  useEffect(() => {
+    if (isSubmitted && navigationButtonsRef.current) {
+      // Pequeno delay para garantir que o DOM foi atualizado com o feedback
+      setTimeout(() => {
+        if (navigationButtonsRef.current) {
+          // Verifica se o elemento está visível no viewport
+          const rect = navigationButtonsRef.current.getBoundingClientRect();
+          const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+          const isVisible = (
+            rect.top >= 0 &&
+            rect.bottom <= viewportHeight
+          );
+
+          // Só rola se não estiver visível
+          if (!isVisible) {
+            navigationButtonsRef.current.scrollIntoView({
+              behavior: 'smooth',
+              block: 'nearest'
+            });
+          }
+        }
+      }, 100);
+    }
+  }, [isSubmitted]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -193,7 +244,10 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
   };
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-24 px-4 pt-6">
+    <div
+      className="flex flex-col h-full overflow-y-auto no-scrollbar pb-24 px-3 md:px-4 pt-4 md:pt-6"
+      {...(isSubmitted ? swipeHandlers : {})}
+    >
       {/* Header Info */}
       <div className="mb-5">
         <div className="flex justify-between items-start mb-2">
@@ -240,23 +294,23 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       </div>
 
       {/* Enunciado */}
-      <div className="text-base leading-relaxed mb-6 font-medium text-gray-100">
+      <div className="text-sm md:text-base leading-relaxed mb-4 md:mb-6 font-medium text-gray-100">
         {formatText(question.enunciado)}
       </div>
 
       {/* Alternatives */}
-      <div className="space-y-3 mb-6">
+      <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
         {question.parsedAlternativas.map((alt) => (
           <button
             key={alt.letter}
             onClick={() => handleSelect(alt.letter)}
-            className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start group relative ${getOptionStyle(alt.letter)}`}
+            className={`w-full p-3 md:p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start group relative ${getOptionStyle(alt.letter)}`}
             disabled={isSubmitted}
           >
-            <span className={`font-bold mr-3 w-6 shrink-0 ${isSubmitted && alt.letter === question.gabarito ? 'text-[#2ECC71]' : ''}`}>
+            <span className={`font-bold mr-2 md:mr-3 w-5 md:w-6 shrink-0 text-sm md:text-base ${isSubmitted && alt.letter === question.gabarito ? 'text-[#2ECC71]' : ''}`}>
               {alt.letter}
             </span>
-            <span className="text-sm flex-1">{alt.text}</span>
+            <span className="text-xs md:text-sm flex-1">{alt.text}</span>
             {(userRole === 'admin' || showCorrectAnswers) && alt.letter === question.gabarito && !isSubmitted && (
               <div className="absolute top-2 right-2 text-[#FFB800]" title={userRole === 'admin' ? "Gabarito (Visível apenas para Admin)" : "Resposta correta"}>
                 <Star size={16} fill="#FFB800" />
@@ -269,17 +323,19 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       {/* Actions / Feedback Area */}
       <div className="mt-auto">
         {!isSubmitted ? (
-          <button
-            onClick={handleSubmit}
-            disabled={!selectedAlt}
-            className={`w-full py-4 rounded-full font-bold text-black uppercase tracking-wide transition-all ${selectedAlt ? 'bg-[#FFB800] shadow-[0_0_15px_rgba(255,184,0,0.4)]' : 'bg-gray-700 cursor-not-allowed opacity-50'
-              }`}
-          >
-            {studyMode === 'hard'
-              ? (isLastQuestion ? 'Finalizar Simulado' : 'Confirmar Resposta')
-              : 'Responder'
-            }
-          </button>
+          <RippleEffect className="w-full rounded-full">
+            <button
+              onClick={handleSubmit}
+              disabled={!selectedAlt}
+              className={`w-full py-4 rounded-full font-bold text-black uppercase tracking-wide transition-all touch-feedback ${selectedAlt ? 'bg-[#FFB800] shadow-[0_0_15px_rgba(255,184,0,0.4)]' : 'bg-gray-700 cursor-not-allowed opacity-50'
+                }`}
+            >
+              {studyMode === 'hard'
+                ? (isLastQuestion ? 'Finalizar Simulado' : 'Confirmar Resposta')
+                : 'Responder'
+              }
+            </button>
+          </RippleEffect>
         ) : (
           <div className="animate-fade-in-up">
 
@@ -312,24 +368,28 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             </div>
 
             {/* 2. Navigation Row: Previous / Next Highlighted */}
-            <div className="flex gap-3 mb-6">
-              <button
-                onClick={onPrevious}
-                disabled={!onPrevious}
-                className={`flex-1 flex items-center justify-center py-3 rounded-xl border-2 font-bold transition-all ${onPrevious
-                    ? 'border-gray-600 text-white hover:bg-gray-800'
-                    : 'border-transparent text-gray-600 cursor-not-allowed bg-gray-900/50'
-                  }`}
-              >
-                <ChevronLeft size={20} className="mr-1" /> Anterior
-              </button>
+            <div ref={navigationButtonsRef} className="flex gap-3 mb-6">
+              <RippleEffect className="flex-1 rounded-xl">
+                <button
+                  onClick={onPrevious}
+                  disabled={!onPrevious}
+                  className={`w-full flex items-center justify-center py-3 rounded-xl border-2 font-bold transition-all touch-feedback ${onPrevious
+                      ? 'border-gray-600 text-white hover:bg-gray-800'
+                      : 'border-transparent text-gray-600 cursor-not-allowed bg-gray-900/50'
+                    }`}
+                >
+                  <ChevronLeft size={20} className="mr-1" /> Anterior
+                </button>
+              </RippleEffect>
 
-              <button
-                onClick={onNext}
-                className="flex-1 flex items-center justify-center py-3 bg-[#FFB800] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,184,0,0.3)] hover:shadow-[0_0_25px_rgba(255,184,0,0.5)] transition-all border-2 border-[#FFB800]"
-              >
-                {isLastQuestion ? 'Finalizar' : 'Próxima'} <ChevronRight size={20} className="ml-1" />
-              </button>
+              <RippleEffect className="flex-1 rounded-xl">
+                <button
+                  onClick={onNext}
+                  className="w-full flex items-center justify-center py-3 bg-[#FFB800] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,184,0,0.3)] hover:shadow-[0_0_25px_rgba(255,184,0,0.5)] transition-all border-2 border-[#FFB800] touch-feedback"
+                >
+                  {isLastQuestion ? 'Finalizar' : 'Próxima'} <ChevronRight size={20} className="ml-1" />
+                </button>
+              </RippleEffect>
             </div>
 
             {/* 3. Feedback Box (Lower down) */}

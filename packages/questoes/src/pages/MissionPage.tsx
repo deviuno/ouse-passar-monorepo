@@ -472,12 +472,12 @@ function ContentPhase({
           <div className="flex items-center gap-3">
             <button
               onClick={handlePlayPause}
-              className="w-8 h-8 rounded-full bg-[#FFB800] hover:bg-[#E5A600] flex items-center justify-center flex-shrink-0 transition-colors"
+              className="w-12 h-12 rounded-full bg-[#FFB800] hover:bg-[#E5A600] flex items-center justify-center flex-shrink-0 transition-colors"
             >
               {isPlaying ? (
-                <Pause size={16} className="text-black" />
+                <Pause size={28} strokeWidth={3} className="text-black" />
               ) : (
-                <Play size={16} className="text-black ml-0.5" />
+                <Play size={28} strokeWidth={3} className="text-black ml-0.5" />
               )}
             </button>
             <div className="flex-1 min-w-0">
@@ -572,19 +572,19 @@ function ContentPhase({
                 <button
                   onClick={handlePlayPause}
                   disabled={audioLoading || audioError}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${audioLoading || audioError
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors flex-shrink-0 p-0 ${audioLoading || audioError
                     ? 'bg-[#3A3A3A] cursor-not-allowed'
                     : 'bg-[#FFB800] hover:bg-[#E5A600]'
                     }`}
                 >
                   {audioLoading ? (
-                    <Loader2 size={20} className="text-[#A0A0A0] animate-spin" />
+                    <Loader2 size={27} strokeWidth={1.8} className="text-[#A0A0A0] animate-spin" />
                   ) : audioError ? (
-                    <Volume2 size={20} className="text-[#E74C3C]" />
+                    <Volume2 size={27} strokeWidth={1.8} className="text-[#E74C3C]" />
                   ) : isPlaying ? (
-                    <Pause size={20} className="text-black" />
+                    <Pause size={27} strokeWidth={1.8} className="text-black" />
                   ) : (
-                    <Play size={20} className="text-black ml-0.5" />
+                    <Play size={27} strokeWidth={1.8} className="text-black ml-1" />
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
@@ -646,7 +646,7 @@ function ContentPhase({
 
         {/* Text Content with Markdown and Mermaid diagrams */}
         <Card className="p-0 overflow-hidden">
-          <div className="mission-content p-6">
+          <div className="mission-content px-3 py-4 md:p-6">
             <MarkdownContent
               content={content?.texto_content || 'Conteúdo não disponível para esta missão.'}
             />
@@ -655,7 +655,7 @@ function ContentPhase({
       </div>
 
       {/* Continue Button */}
-      <div className="p-4 border-t border-[#3A3A3A]">
+      <div className="px-3 py-3 md:p-4 border-t border-[#3A3A3A]">
         <Button
           fullWidth
           size="lg"
@@ -1568,8 +1568,8 @@ export default function MissionPage() {
   return (
     <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A]">
       <div className={`flex flex-col min-w-0 relative transition-all duration-300 ${isMapExpanded ? 'xl:mr-[400px]' : 'xl:mr-[72px]'}`}>
-        <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-zinc-800">
-          <div className="w-full max-w-[800px] mx-auto flex flex-col min-h-full">
+        <div className="flex-1 overflow-y-auto px-0 md:px-4 py-4 md:py-6 scrollbar-thin scrollbar-thumb-zinc-800">
+          <div className="w-full md:max-w-[900px] mx-auto flex flex-col min-h-full">
             {/* Celebration */}
             <SuccessCelebration isActive={showCelebration} />
 
@@ -1842,6 +1842,7 @@ export default function MissionPage() {
         isOpen={showMentorChat}
         onClick={() => setShowMentorChat(!showMentorChat)}
         sidebarWidth={isMapExpanded ? 400 : 72}
+        isChatVisible={showMentorChat}
       />
 
       {/* Mentor Chat - controlled by FloatingChatButton */}

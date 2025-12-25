@@ -706,6 +706,7 @@ export default function PracticePage() {
             initialTime={studyMode === 'hard' ? 3 : undefined}
             userId={user?.id}
             userRole={profile?.role}
+            showCorrectAnswers={profile?.show_answers || false}
             onShowToast={handleShowToast}
           />
         </div>
@@ -727,6 +728,7 @@ export default function PracticePage() {
           isOpen={showMentorChat}
           onClick={() => setShowMentorChat(!showMentorChat)}
           sidebarWidth={0}
+          isChatVisible={showMentorChat}
         />
       </div>
     );
@@ -739,17 +741,17 @@ export default function PracticePage() {
   // RENDER: DASHBOARD "COCKPIT"
   // ==========================================
   return (
-    <div className="min-h-screen bg-[#121212] p-4 md:p-8 lg:p-12 font-sans text-white">
+    <div className="min-h-screen bg-[#121212] px-2 py-4 md:p-8 lg:p-12 font-sans text-white">
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="max-w-7xl mx-auto mb-6 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-white to-[#A0A0A0] bg-clip-text text-transparent">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-white to-[#A0A0A0] bg-clip-text text-transparent">
             Painel de Prática
           </h1>
-          <p className="text-[#A0A0A0] font-medium">
+          <p className="text-sm md:text-base text-[#A0A0A0] font-medium">
             Configure seu treino personalizado ou retome seus cadernos.
           </p>
         </motion.div>
