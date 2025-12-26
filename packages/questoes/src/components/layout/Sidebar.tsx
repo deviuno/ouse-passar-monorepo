@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -14,18 +14,20 @@ import {
   ChevronRight,
   Bell,
 } from 'lucide-react';
-import { useAuthStore, useUserStore, useUIStore, useNotificationStore } from '../../stores';
+import { useAuthStore, useUserStore, useUIStore, useNotificationStore, useTrailStore, useBatteryStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
 import { CircularProgress } from '../ui/Progress';
 import { calculateXPProgress } from '../../constants/levelConfig';
 import { NotificationPopover } from './NotificationPopover';
+import { BatteryIndicator } from '../battery/BatteryIndicator';
+import { BatteryEmptyModal } from '../battery/BatteryEmptyModal';
 
 const mainNavItems = [
-  { path: '/', icon: Map, label: 'Minhas Trilhas' },
-  { path: '/praticar', icon: Target, label: 'Praticar Questões' },
-  { path: '/simulados', icon: FileText, label: 'Meus Simulados' },
-  { path: '/estatisticas', icon: BarChart2, label: 'Estatísticas' },
-  { path: '/loja', icon: ShoppingBag, label: 'Loja' },
+  { path: '/', icon: Map, label: 'Minhas Trilhas', tourId: 'sidebar-trilha' },
+  { path: '/praticar', icon: Target, label: 'Praticar Questões', tourId: 'sidebar-praticar' },
+  { path: '/simulados', icon: FileText, label: 'Meus Simulados', tourId: 'sidebar-simulados' },
+  { path: '/estatisticas', icon: BarChart2, label: 'Estatísticas', tourId: 'sidebar-raiox' },
+  { path: '/loja', icon: ShoppingBag, label: 'Loja', tourId: 'sidebar-loja' },
 ];
 
 const secondaryNavItems = [
@@ -40,10 +42,18 @@ interface SidebarProps {
 export function Sidebar({ isCollapsed = false }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, logout } = useAuthStore();
+  const { user, profile, logout } = useAuthStore();
   const { stats } = useUserStore();
   const { notifications } = useNotificationStore();
   const { toggleSidebar } = useUIStore();
+  const { selectedPreparatorioId, getSelectedPreparatorio } = useTrailStore();
+  const selectedPrep = getSelectedPreparatorio();
+  const {
+    batteryStatus,
+    isEmptyModalOpen,
+    fetchBatteryStatus,
+    closeEmptyModal,
+  } = useBatteryStore();
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
   const [triggerRect, setTriggerRect] = React.useState<DOMRect | null>(null);
   const notificationButtonRef = React.useRef<HTMLButtonElement>(null);
@@ -51,10 +61,22 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // Fetch battery status when preparatório changes
+  // Use the actual preparatorio_id, not the user_trail id (selectedPreparatorioId)
+  useEffect(() => {
+    if (user?.id && selectedPrep?.preparatorio_id) {
+      fetchBatteryStatus(user.id, selectedPrep.preparatorio_id);
+    }
+  }, [user?.id, selectedPrep?.preparatorio_id, fetchBatteryStatus]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/auth');
   };
+
+  // Battery props
+  const showBattery = !!selectedPreparatorioId && batteryStatus;
+  const isPremium = batteryStatus?.is_premium || batteryStatus?.has_unlimited_battery;
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -155,6 +177,28 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
           )}
         </div>
 
+        {/* Battery Indicator - Only show when preparatório is selected */}
+        {showBattery && !isCollapsed && (
+          <div className="mt-3">
+            <BatteryIndicator
+              current={batteryStatus.battery_current}
+              max={batteryStatus.battery_max}
+              isPremium={isPremium}
+              compact={false}
+            />
+          </div>
+        )}
+        {showBattery && isCollapsed && (
+          <div className="mt-2 flex justify-center">
+            <BatteryIndicator
+              current={batteryStatus.battery_current}
+              max={batteryStatus.battery_max}
+              isPremium={isPremium}
+              compact={true}
+            />
+          </div>
+        )}
+
         {/* Stats Row - Only show when expanded */}
         {!isCollapsed && (
           <div className="flex items-center justify-between mt-3 text-sm max-w-[170px]">
@@ -187,6 +231,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
                 <NavLink
                   to={item.path}
                   title={isCollapsed ? item.label : undefined}
+                  data-tour={item.tourId}
                   className={`
                     relative flex items-center rounded-xl
                     transition-colors duration-200
@@ -261,6 +306,15 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
           {!isCollapsed && <span>Sair</span>}
         </button>
       </div>
+
+      {/* Battery Empty Modal */}
+      <BatteryEmptyModal
+        isOpen={isEmptyModalOpen}
+        onClose={closeEmptyModal}
+        checkoutUrl={selectedPrep?.preparatorio?.checkout_8_questoes}
+        price={selectedPrep?.preparatorio?.price_questoes}
+        preparatorioNome={selectedPrep?.preparatorio?.nome}
+      />
     </div>
   );
 }

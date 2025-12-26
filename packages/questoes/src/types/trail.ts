@@ -29,6 +29,14 @@ export interface Preparatorio {
   data_prova?: string; // Data da prova (formato: YYYY-MM-DD)
   edital_url?: string;
   checkout_url?: string; // URL de checkout para upsell de modos
+  // URLs de checkout por produto
+  checkout_8_questoes?: string; // Ouse Questões (bateria ilimitada)
+  checkout_planejador?: string;
+  checkout_simulados?: string;
+  checkout_reta_final?: string;
+  checkout_plataforma_completa?: string;
+  // Preços
+  price_questoes?: number;
   raio_x?: RaioXConcurso;
   is_active: boolean;
   ordem?: number;
@@ -241,7 +249,8 @@ export interface UserPreparatorio {
 // ==================== SISTEMA DE PLANEJAMENTO ====================
 
 // Tipos de missão do planejamento
-export type MissaoTipo = 'padrao' | 'revisao' | 'acao';
+// Inclui tipos novos (estudo, tecnicas, simulado) e legados (padrao, acao)
+export type MissaoTipo = 'padrao' | 'estudo' | 'revisao' | 'tecnicas' | 'simulado' | 'acao';
 
 // Rodada do planejamento (tabela rodadas)
 export interface Rodada {

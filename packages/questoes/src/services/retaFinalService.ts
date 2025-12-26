@@ -164,7 +164,7 @@ export async function getUserModeAccess(
       .select('has_normal_access, has_reta_final_access, current_mode')
       .eq('user_id', userId)
       .eq('preparatorio_id', preparatorioId)
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       // Default: only normal access

@@ -106,12 +106,14 @@ export const userPreparatoriosService = {
         `)
         .eq('user_id', userId)
         .eq('preparatorio_id', preparatorioId)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        if (error.code !== 'PGRST116') {
-          console.error('Erro ao buscar preparatório:', error.message);
-        }
+        console.error('Erro ao buscar preparatório:', error.message);
+        return null;
+      }
+
+      if (!data) {
         return null;
       }
 

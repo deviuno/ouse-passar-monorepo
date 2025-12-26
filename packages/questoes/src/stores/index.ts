@@ -6,3 +6,4 @@ export { useMissionStore } from './useMissionStore';
 export { useOnboardingStore } from './useOnboardingStore';
 export { useUIStore, useToast } from './useUIStore';
 export { useNotificationStore } from './useNotificationStore';
+export { useBatteryStore } from './useBatteryStore';

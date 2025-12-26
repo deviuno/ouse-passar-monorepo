@@ -367,36 +367,44 @@ export async function countMissoesProgress(
  * Converte uma MissaoComProgresso para o formato TrailMission usado pelo TrailMap
  *
  * @param missao - A missão com progresso
- * @param indexInRound - Índice da missão dentro da rodada (0-based), usado para determinar se é técnica
+ * @param indexInRound - Índice da missão dentro da rodada (0-based)
  */
 export function missaoToTrailMission(missao: MissaoComProgresso, indexInRound?: number): any {
   // Determinar o tipo de missão para o TrailMap
+  // Mapear os tipos do banco para os tipos do TrailMap
   let tipo: 'normal' | 'revisao' | 'simulado_rodada' | 'tecnica' | 'massificacao' = 'normal';
 
-  // A 9ª missão de cada rodada (índice 8) é SEMPRE a missão técnica
-  // Isso tem prioridade sobre qualquer outro tipo
-  const isMissao9 = indexInRound === 8;
-
-  if (isMissao9) {
-    // Missão 9 de cada rodada é SEMPRE técnica, independente do tipo no banco
+  // Tipos novos (formato atual do banco)
+  if (missao.tipo === 'tecnicas') {
     tipo = 'tecnica';
+  } else if (missao.tipo === 'simulado') {
+    tipo = 'simulado_rodada';
   } else if (missao.tipo === 'revisao') {
     tipo = 'revisao';
+  } else if (missao.tipo === 'estudo' || missao.tipo === 'padrao') {
+    tipo = 'normal';
   } else if (missao.tipo === 'acao') {
-    // Outras missões de ação (não a 9ª) são simulados
-    if (missao.acao?.toUpperCase().includes('TÉCNICA')) {
+    // Tipos legados - verificar pelo campo acao
+    const acaoUpper = missao.acao?.toUpperCase() || '';
+    if (acaoUpper.includes('TÉCNICA') || acaoUpper.includes('TECNICA')) {
       tipo = 'tecnica';
-    } else {
+    } else if (acaoUpper.includes('SIMULADO')) {
       tipo = 'simulado_rodada';
+    } else {
+      tipo = 'normal';
     }
   }
 
   // Criar nome do assunto baseado nos dados da missão
   let nomeAssunto = '';
-  if (missao.tipo === 'padrao') {
+  if (missao.tipo === 'padrao' || missao.tipo === 'estudo') {
     nomeAssunto = missao.assunto || missao.materia || 'Estudo';
   } else if (missao.tipo === 'revisao') {
-    nomeAssunto = missao.tema || 'Revisão';
+    nomeAssunto = missao.tema || missao.materia || 'Revisão';
+  } else if (missao.tipo === 'tecnicas') {
+    nomeAssunto = missao.tema || 'Técnicas Ouse Passar';
+  } else if (missao.tipo === 'simulado') {
+    nomeAssunto = missao.tema || 'Simulado da Rodada';
   } else if (missao.tipo === 'acao') {
     nomeAssunto = missao.acao || 'Ação';
   }
