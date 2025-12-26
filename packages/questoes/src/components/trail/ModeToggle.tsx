@@ -42,7 +42,7 @@ export function ModeToggle({
   const isRetaFinalActive = currentMode === 'reta_final';
 
   return (
-    <div className="flex items-center gap-1 p-1 rounded-full bg-[#1F1F1F] border border-[#333]">
+    <div className="flex items-center gap-1 p-1 rounded-full bg-transparent">
       {/* Normal Mode Button */}
       <button
         onClick={() => handleModeClick('normal')}
@@ -124,7 +124,7 @@ export function ModeToggleCompact({
   const isRetaFinalActive = currentMode === 'reta_final';
 
   return (
-    <div className="flex items-center gap-0.5 p-0.5 rounded-full bg-[#1F1F1F] border border-[#333]">
+    <div className="flex items-center gap-0.5 p-0.5 rounded-full bg-transparent">
       {/* Normal Mode */}
       <button
         onClick={() => handleModeClick('normal')}
