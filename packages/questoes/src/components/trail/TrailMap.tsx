@@ -154,7 +154,7 @@ function MissionHoverCard({
         switch (type) {
             case 'revisao':
                 return {
-                    title: `Revisão ${index + 1}`,
+                    title: 'Revisão',
                     color: 'text-amber-500',
                     dotColor: 'bg-amber-500',
                     headerBorder: 'border-amber-500/30',
@@ -162,7 +162,7 @@ function MissionHoverCard({
                 };
             case 'simulado_rodada':
                 return {
-                    title: `Simulado ${index + 1}`,
+                    title: 'Simulado',
                     color: 'text-purple-500',
                     dotColor: 'bg-purple-500',
                     headerBorder: 'border-purple-500/30',
@@ -170,7 +170,7 @@ function MissionHoverCard({
                 };
             case 'tecnica':
                 return {
-                    title: `Técnica ${index + 1}`,
+                    title: 'Técnica',
                     color: 'text-blue-500',
                     dotColor: 'bg-blue-500',
                     headerBorder: 'border-blue-500/30',
@@ -954,11 +954,11 @@ export function TrailMap({
                                         : isMassificacaoMission
                                             ? getMassificacaoLabel(mission, globalIndex)
                                             : mission.tipo === 'revisao'
-                                                ? `Revisão ${globalIndex + 1}`
+                                                ? 'Revisão'
                                                 : mission.tipo === 'simulado_rodada'
-                                                    ? `Simulado ${globalIndex + 1}`
+                                                    ? 'Simulado'
                                                     : mission.tipo === 'tecnica'
-                                                        ? `Técnica ${globalIndex + 1}`
+                                                        ? 'Técnica'
                                                         : `Missão ${globalIndex + 1}`
                                     }
                                 </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { Button } from '../ui';
 
 export interface TourStep {
@@ -8,43 +8,39 @@ export interface TourStep {
   target: string; // data-tour attribute value
   title: string;
   description: string;
-  position?: 'top' | 'bottom' | 'left' | 'right' | 'auto';
+  position?: 'top' | 'bottom' | 'left' | 'right' | 'center';
+  mobileOnly?: boolean;
+  desktopOnly?: boolean;
 }
 
-const TOUR_STEPS: TourStep[] = [
+// Steps for mobile (uses MobileNav at bottom)
+const MOBILE_STEPS: TourStep[] = [
+  {
+    id: 'welcome',
+    target: 'tour-welcome',
+    title: 'Bem-vindo ao Ouse Questões! 🎉',
+    description: 'Vou te guiar pelos principais recursos do app. Em poucos passos você vai dominar tudo!',
+    position: 'center',
+  },
   {
     id: 'preparatorio-selector',
     target: 'preparatorio-selector',
-    title: 'Seus Preparatorios',
-    description: 'Aqui voce vê seus preparatorios. Arraste para alternar entre eles ou adicione novos clicando em "Novo Preparatorio".',
-    position: 'bottom',
-  },
-  {
-    id: 'welcome',
-    target: 'trail-header',
-    title: 'Sua Trilha de Estudos',
-    description: 'Veja o progresso do preparatorio selecionado: quantas missoes voce completou e quantas faltam.',
-    position: 'bottom',
-  },
-  {
-    id: 'gamification',
-    target: 'gamification-stats',
-    title: 'Gamificacao',
-    description: 'Acompanhe sua ofensiva de estudos, moedas conquistadas e XP acumulado. Mantenha o foco para subir de nivel!',
+    title: 'Seus Preparatórios',
+    description: 'Toque aqui para alternar entre seus preparatórios ou adicionar um novo.',
     position: 'bottom',
   },
   {
     id: 'trail-map',
     target: 'trail-map',
     title: 'Mapa da Trilha',
-    description: 'Cada bolinha e uma missao. Complete as missoes para avancar na trilha e desbloquear novos conteudos.',
+    description: 'Cada círculo é uma missão. Complete-as para avançar e desbloquear novos conteúdos!',
     position: 'top',
   },
   {
     id: 'continue-button',
     target: 'continue-button',
     title: 'Continuar Estudando',
-    description: 'Clique aqui para ir direto para a proxima missao disponivel. Pratico e rapido!',
+    description: 'Toque aqui para ir direto para sua próxima missão. Prático e rápido!',
     position: 'top',
   },
   {
@@ -53,34 +49,111 @@ const TOUR_STEPS: TourStep[] = [
     title: 'Trilha',
     description: 'Volte para a tela principal da trilha a qualquer momento.',
     position: 'top',
+    mobileOnly: true,
   },
   {
     id: 'nav-praticar',
     target: 'nav-praticar',
     title: 'Praticar',
-    description: 'Resolva questoes avulsas com filtros por materia, banca e nivel de dificuldade.',
+    description: 'Resolva questões avulsas com filtros por matéria, banca e dificuldade.',
     position: 'top',
+    mobileOnly: true,
   },
   {
     id: 'nav-simulados',
     target: 'nav-simulados',
     title: 'Simulados',
-    description: 'Faca simulados completos para testar seus conhecimentos em condicoes reais de prova.',
+    description: 'Faça simulados completos para testar seus conhecimentos.',
     position: 'top',
+    mobileOnly: true,
   },
   {
     id: 'nav-raiox',
     target: 'nav-raiox',
     title: 'Raio-X',
-    description: 'Veja estatisticas detalhadas do seu desempenho, pontos fortes e fracos.',
+    description: 'Veja estatísticas detalhadas do seu desempenho.',
     position: 'top',
+    mobileOnly: true,
   },
   {
     id: 'nav-loja',
     target: 'nav-loja',
     title: 'Loja',
-    description: 'Use suas moedas para comprar power-ups, avatares e outros itens.',
+    description: 'Use suas moedas para comprar power-ups e itens especiais.',
     position: 'top',
+    mobileOnly: true,
+  },
+];
+
+// Steps for desktop (uses Sidebar on left)
+const DESKTOP_STEPS: TourStep[] = [
+  {
+    id: 'welcome',
+    target: 'tour-welcome',
+    title: 'Bem-vindo ao Ouse Questões! 🎉',
+    description: 'Vou te guiar pelos principais recursos da plataforma. Em poucos passos você vai dominar tudo!',
+    position: 'center',
+  },
+  {
+    id: 'preparatorio-selector',
+    target: 'preparatorio-selector',
+    title: 'Seus Preparatórios',
+    description: 'Clique aqui para alternar entre seus preparatórios ou adicionar um novo.',
+    position: 'bottom',
+  },
+  {
+    id: 'trail-map',
+    target: 'trail-map',
+    title: 'Mapa da Trilha',
+    description: 'Cada círculo é uma missão. Complete-as para avançar e desbloquear novos conteúdos!',
+    position: 'top',
+  },
+  {
+    id: 'continue-button',
+    target: 'continue-button',
+    title: 'Continuar Estudando',
+    description: 'Clique aqui para ir direto para sua próxima missão disponível.',
+    position: 'top',
+  },
+  {
+    id: 'sidebar-trilha',
+    target: 'sidebar-trilha',
+    title: 'Menu Trilha',
+    description: 'Acesse a trilha de estudos por aqui.',
+    position: 'right',
+    desktopOnly: true,
+  },
+  {
+    id: 'sidebar-praticar',
+    target: 'sidebar-praticar',
+    title: 'Praticar Questões',
+    description: 'Resolva questões avulsas com filtros personalizados.',
+    position: 'right',
+    desktopOnly: true,
+  },
+  {
+    id: 'sidebar-simulados',
+    target: 'sidebar-simulados',
+    title: 'Simulados',
+    description: 'Faça simulados completos para testar seus conhecimentos.',
+    position: 'right',
+    desktopOnly: true,
+  },
+  {
+    id: 'sidebar-raiox',
+    target: 'sidebar-raiox',
+    title: 'Raio-X',
+    description: 'Acompanhe suas estatísticas e evolução.',
+    position: 'right',
+    desktopOnly: true,
+  },
+  {
+    id: 'sidebar-loja',
+    target: 'sidebar-loja',
+    title: 'Loja',
+    description: 'Use suas moedas para comprar power-ups e itens especiais.',
+    position: 'right',
+    desktopOnly: true,
   },
 ];
 
@@ -89,8 +162,6 @@ interface TargetRect {
   left: number;
   width: number;
   height: number;
-  bottom: number;
-  right: number;
 }
 
 interface ProductTourProps {
@@ -103,100 +174,70 @@ export function ProductTour({ isActive, onComplete, onSkip }: ProductTourProps) 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const [isMobile, setIsMobile] = useState(false);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const currentStep = TOUR_STEPS[currentStepIndex];
-  const isLastStep = currentStepIndex === TOUR_STEPS.length - 1;
-  const isFirstStep = currentStepIndex === 0;
-
-  // Check if element is fixed or sticky (sticky behaves like fixed when stuck)
-  const isFixedOrSticky = useCallback((element: Element): boolean => {
-    const computedStyle = window.getComputedStyle(element);
-    const position = computedStyle.position;
-
-    // Fixed elements always use viewport coordinates
-    if (position === 'fixed') return true;
-
-    // Sticky elements use viewport coordinates when they're stuck
-    if (position === 'sticky') {
-      // Check if element or any parent has sticky position
-      // For sticky, we treat it as fixed for positioning purposes
-      return true;
-    }
-
-    // Check parent elements for fixed/sticky positioning
-    let parent = element.parentElement;
-    while (parent) {
-      const parentStyle = window.getComputedStyle(parent);
-      if (parentStyle.position === 'fixed' || parentStyle.position === 'sticky') {
-        return true;
-      }
-      parent = parent.parentElement;
-    }
-
-    return false;
+  // Detect mobile vs desktop
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Get absolute position of element (accounting for scroll)
-  const getAbsoluteRect = useCallback((element: Element): TargetRect => {
+  // Get appropriate steps based on device
+  const steps = isMobile ? MOBILE_STEPS : DESKTOP_STEPS;
+  const currentStep = steps[currentStepIndex];
+  const isLastStep = currentStepIndex === steps.length - 1;
+  const isFirstStep = currentStepIndex === 0;
+
+  // Find element and get its position
+  const getElementRect = useCallback((target: string): TargetRect | null => {
+    // Special case for welcome step - no target element
+    if (target === 'tour-welcome') {
+      return null;
+    }
+
+    const element = document.querySelector(`[data-tour="${target}"]`);
+    if (!element) {
+      console.warn(`[Tour] Element not found: ${target}`);
+      return null;
+    }
+
     const rect = element.getBoundingClientRect();
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+    return {
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height,
+    };
+  }, []);
 
-    // Check if element has fixed or sticky positioning
-    const isFixed = isFixedOrSticky(element);
+  // Calculate tooltip position
+  const getTooltipStyle = useCallback((rect: TargetRect | null, position: string): React.CSSProperties => {
+    const padding = 16;
+    const tooltipWidth = isMobile ? Math.min(300, window.innerWidth - 32) : 320;
+    const tooltipHeight = 180; // Approximate
 
-    if (isFixed) {
-      // For fixed/sticky elements, use viewport coordinates directly
+    // Center position (for welcome step)
+    if (position === 'center' || !rect) {
       return {
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-        bottom: rect.bottom,
-        right: rect.right,
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: tooltipWidth,
       };
     }
 
-    // For non-fixed elements, add scroll offset
-    return {
-      top: rect.top + scrollTop,
-      left: rect.left + scrollLeft,
-      width: rect.width,
-      height: rect.height,
-      bottom: rect.bottom + scrollTop,
-      right: rect.right + scrollLeft,
-    };
-  }, [isFixedOrSticky]);
-
-  // Calculate tooltip position
-  const calculateTooltipPosition = useCallback((rect: TargetRect, preferredPosition: string) => {
-    const padding = 16;
-    const tooltipWidth = 300;
-    const tooltipHeight = 200;
-    const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-
-    // Check if element is fixed/sticky (use viewport coords) or absolute (use scroll coords)
-    const targetElement = document.querySelector(`[data-tour="${currentStep?.target}"]`);
-    const isFixed = targetElement ? isFixedOrSticky(targetElement) : false;
-
-    // For fixed/sticky elements, we need to position tooltip in viewport coordinates
-    // For absolute elements, we use scroll-adjusted coordinates
-    const scrollTop = isFixed ? 0 : (window.pageYOffset || document.documentElement.scrollTop);
+    const viewportHeight = window.innerHeight;
 
     let top = 0;
     let left = 0;
-
-    // Determine best position
-    let position = preferredPosition;
-    if (position === 'auto' || !position) {
-      // Auto-detect best position
-      const spaceAbove = rect.top - scrollTop;
-      const spaceBelow = viewportHeight - (rect.bottom - scrollTop);
-      position = spaceBelow > spaceAbove ? 'bottom' : 'top';
-    }
 
     switch (position) {
       case 'top':
@@ -204,7 +245,7 @@ export function ProductTour({ isActive, onComplete, onSkip }: ProductTourProps) 
         left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
         break;
       case 'bottom':
-        top = rect.bottom + padding;
+        top = rect.top + rect.height + padding;
         left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
         break;
       case 'left':
@@ -213,82 +254,71 @@ export function ProductTour({ isActive, onComplete, onSkip }: ProductTourProps) 
         break;
       case 'right':
         top = rect.top + (rect.height / 2) - (tooltipHeight / 2);
-        left = rect.right + padding;
+        left = rect.left + rect.width + padding;
         break;
     }
 
-    // Keep tooltip on screen (viewport bounds)
-    const minTop = scrollTop + padding;
-    const maxTop = scrollTop + viewportHeight - tooltipHeight - padding;
-    const minLeft = padding;
-    const maxLeft = viewportWidth - tooltipWidth - padding;
+    // Keep tooltip within viewport
+    top = Math.max(padding, Math.min(top, viewportHeight - tooltipHeight - padding));
+    left = Math.max(padding, Math.min(left, viewportWidth - tooltipWidth - padding));
 
-    top = Math.max(minTop, Math.min(top, maxTop));
-    left = Math.max(minLeft, Math.min(left, maxLeft));
+    return {
+      position: 'fixed',
+      top,
+      left,
+      width: tooltipWidth,
+    };
+  }, [isMobile]);
 
-    return { top, left };
-  }, [currentStep, isFixedOrSticky]);
-
-  // Find and highlight the target element
-  const updateTargetPosition = useCallback(() => {
+  // Update target position
+  const updatePosition = useCallback(() => {
     if (!currentStep || !isActive) return;
 
-    const targetElement = document.querySelector(`[data-tour="${currentStep.target}"]`);
+    const rect = getElementRect(currentStep.target);
+    setTargetRect(rect);
+    setIsVisible(true);
 
-    if (targetElement) {
-      const rect = getAbsoluteRect(targetElement);
-      setTargetRect(rect);
+    // Scroll element into view if needed (not for fixed elements like nav)
+    if (rect && currentStep.target !== 'tour-welcome') {
+      const element = document.querySelector(`[data-tour="${currentStep.target}"]`);
+      if (element) {
+        const isFixed = window.getComputedStyle(element).position === 'fixed' ||
+                       element.closest('[class*="fixed"]') !== null;
 
-      const position = calculateTooltipPosition(rect, currentStep.position || 'auto');
-      setTooltipPosition(position);
-
-      setIsVisible(true);
-
-      // Scroll element into view if needed (only for non-fixed/sticky elements)
-      if (!isFixedOrSticky(targetElement)) {
-        const viewportRect = targetElement.getBoundingClientRect();
-        if (viewportRect.top < 100 || viewportRect.bottom > window.innerHeight - 100) {
-          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (!isFixed && (rect.top < 80 || rect.top > window.innerHeight - 150)) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
           // Update position after scroll
           setTimeout(() => {
-            const newRect = getAbsoluteRect(targetElement);
+            const newRect = getElementRect(currentStep.target);
             setTargetRect(newRect);
-            const newPosition = calculateTooltipPosition(newRect, currentStep.position || 'auto');
-            setTooltipPosition(newPosition);
           }, 400);
         }
       }
-    } else {
-      console.warn(`Tour target not found: ${currentStep.target}`);
-      // Skip this step if element not found
-      if (currentStepIndex < TOUR_STEPS.length - 1) {
-        setTimeout(() => setCurrentStepIndex(prev => prev + 1), 100);
-      } else {
-        onComplete();
-      }
     }
-  }, [currentStep, currentStepIndex, isActive, getAbsoluteRect, calculateTooltipPosition, onComplete, isFixedOrSticky]);
+  }, [currentStep, isActive, getElementRect]);
 
-  // Initial setup and step changes
+  // Handle step changes
   useEffect(() => {
-    if (isActive) {
+    if (!isActive) {
+      setCurrentStepIndex(0);
       setIsVisible(false);
-      // Clear any pending timeout
+      return;
+    }
+
+    setIsVisible(false);
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    updateTimeoutRef.current = setTimeout(updatePosition, 300);
+
+    return () => {
       if (updateTimeoutRef.current) {
         clearTimeout(updateTimeoutRef.current);
       }
-      // Small delay to ensure DOM is ready
-      updateTimeoutRef.current = setTimeout(updateTargetPosition, 300);
+    };
+  }, [isActive, currentStepIndex, updatePosition]);
 
-      return () => {
-        if (updateTimeoutRef.current) {
-          clearTimeout(updateTimeoutRef.current);
-        }
-      };
-    }
-  }, [isActive, currentStepIndex, updateTargetPosition]);
-
-  // Update position on resize/scroll
+  // Handle resize/scroll
   useEffect(() => {
     if (!isActive || !isVisible) return;
 
@@ -296,7 +326,7 @@ export function ProductTour({ isActive, onComplete, onSkip }: ProductTourProps) 
       if (updateTimeoutRef.current) {
         clearTimeout(updateTimeoutRef.current);
       }
-      updateTimeoutRef.current = setTimeout(updateTargetPosition, 50);
+      updateTimeoutRef.current = setTimeout(updatePosition, 100);
     };
 
     window.addEventListener('resize', handleUpdate);
@@ -305,11 +335,26 @@ export function ProductTour({ isActive, onComplete, onSkip }: ProductTourProps) 
     return () => {
       window.removeEventListener('resize', handleUpdate);
       window.removeEventListener('scroll', handleUpdate, true);
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
     };
-  }, [isActive, isVisible, updateTargetPosition]);
+  }, [isActive, isVisible, updatePosition]);
+
+  // Skip to next valid step if current element not found
+  useEffect(() => {
+    if (!isActive || !isVisible || !currentStep) return;
+
+    // Welcome step doesn't need element
+    if (currentStep.target === 'tour-welcome') return;
+
+    const element = document.querySelector(`[data-tour="${currentStep.target}"]`);
+    if (!element) {
+      // Skip this step
+      if (currentStepIndex < steps.length - 1) {
+        setTimeout(() => setCurrentStepIndex(prev => prev + 1), 100);
+      } else {
+        onComplete();
+      }
+    }
+  }, [isActive, isVisible, currentStep, currentStepIndex, steps.length, onComplete]);
 
   const handleNext = () => {
     if (isLastStep) {
@@ -327,133 +372,164 @@ export function ProductTour({ isActive, onComplete, onSkip }: ProductTourProps) 
     }
   };
 
-  const handleSkip = () => {
-    onSkip();
-  };
+  if (!isActive || !isVisible || !currentStep) return null;
 
-  if (!isActive || !targetRect || !isVisible) return null;
-
-  // Check if target is fixed or sticky position
-  const targetElement = document.querySelector(`[data-tour="${currentStep.target}"]`);
-  const isTargetFixed = targetElement ? isFixedOrSticky(targetElement) : false;
-
-  // For the highlight, we need viewport coordinates
-  const highlightRect = isTargetFixed ? targetRect : {
-    top: targetRect.top - (window.pageYOffset || document.documentElement.scrollTop),
-    left: targetRect.left - (window.pageXOffset || document.documentElement.scrollLeft),
-    width: targetRect.width,
-    height: targetRect.height,
-  };
+  const isWelcomeStep = currentStep.target === 'tour-welcome';
+  const tooltipStyle = getTooltipStyle(targetRect, currentStep.position || 'bottom');
 
   return (
     <AnimatePresence>
       {isVisible && (
-        <div className="fixed inset-0 z-[100] pointer-events-none">
-          {/* Overlay with hole for target */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-auto">
-            <defs>
-              <mask id="tour-mask">
-                <rect width="100%" height="100%" fill="white" />
-                <rect
-                  x={Math.max(0, highlightRect.left - 8)}
-                  y={Math.max(0, highlightRect.top - 8)}
-                  width={highlightRect.width + 16}
-                  height={highlightRect.height + 16}
-                  rx="12"
-                  fill="black"
-                />
-              </mask>
-            </defs>
-            <rect
-              width="100%"
-              height="100%"
-              fill="rgba(0, 0, 0, 0.8)"
-              mask="url(#tour-mask)"
-            />
-          </svg>
-
-          {/* Highlight border around target (viewport positioned) */}
+        <div className="fixed inset-0 z-[9999]">
+          {/* Overlay */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="absolute border-2 border-[#FFB800] rounded-xl pointer-events-none"
-            style={{
-              top: highlightRect.top - 8,
-              left: highlightRect.left - 8,
-              width: highlightRect.width + 16,
-              height: highlightRect.height + 16,
-              boxShadow: '0 0 0 4px rgba(255, 184, 0, 0.3), 0 0 20px rgba(255, 184, 0, 0.4)',
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/80"
+            onClick={(e) => e.stopPropagation()}
           />
 
-          {/* Tooltip (fixed position) */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="fixed bg-[#252525] rounded-2xl p-5 shadow-2xl border border-[#3A3A3A] pointer-events-auto"
-            style={{
-              top: tooltipPosition.top,
-              left: tooltipPosition.left,
-              width: 300,
-              zIndex: 101,
-            }}
-          >
-            {/* Skip button */}
-            <button
-              onClick={handleSkip}
-              className="absolute top-3 right-3 p-1 rounded-full hover:bg-[#3A3A3A] text-[#6E6E6E] hover:text-white transition-colors"
-            >
-              <X size={18} />
-            </button>
-
-            {/* Progress indicator */}
-            <div className="flex gap-1 mb-3">
-              {TOUR_STEPS.map((_, idx) => (
-                <div
-                  key={idx}
-                  className={`h-1 flex-1 rounded-full transition-colors ${
-                    idx <= currentStepIndex ? 'bg-[#FFB800]' : 'bg-[#3A3A3A]'
-                  }`}
+          {/* Highlight cutout - only if we have a target */}
+          {targetRect && !isWelcomeStep && (
+            <>
+              {/* SVG mask for cutout */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                <defs>
+                  <mask id="tour-highlight-mask">
+                    <rect width="100%" height="100%" fill="white" />
+                    <rect
+                      x={targetRect.left - 8}
+                      y={targetRect.top - 8}
+                      width={targetRect.width + 16}
+                      height={targetRect.height + 16}
+                      rx="12"
+                      fill="black"
+                    />
+                  </mask>
+                </defs>
+                <rect
+                  width="100%"
+                  height="100%"
+                  fill="rgba(0, 0, 0, 0.8)"
+                  mask="url(#tour-highlight-mask)"
                 />
-              ))}
-            </div>
+              </svg>
 
-            {/* Content */}
-            <h3 className="text-white font-bold text-lg mb-2">{currentStep.title}</h3>
-            <p className="text-[#A0A0A0] text-sm mb-4 leading-relaxed">
-              {currentStep.description}
-            </p>
+              {/* Highlight border */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="absolute pointer-events-none rounded-xl"
+                style={{
+                  top: targetRect.top - 8,
+                  left: targetRect.left - 8,
+                  width: targetRect.width + 16,
+                  height: targetRect.height + 16,
+                  border: '2px solid #FFB800',
+                  boxShadow: '0 0 0 4px rgba(255, 184, 0, 0.3), 0 0 30px rgba(255, 184, 0, 0.4)',
+                }}
+              />
+            </>
+          )}
 
-            {/* Navigation */}
-            <div className="flex items-center justify-between">
+          {/* Tooltip */}
+          <motion.div
+            ref={tooltipRef}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="bg-[#1F1F1F] rounded-2xl shadow-2xl border border-[#3A3A3A] overflow-hidden"
+            style={tooltipStyle}
+          >
+            {/* Header with icon */}
+            {isWelcomeStep && (
+              <div className="bg-gradient-to-r from-[#FFB800]/20 to-[#FF8C00]/20 p-4 flex justify-center">
+                <motion.div
+                  animate={{ rotate: [0, 10, -10, 0] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                >
+                  <Sparkles size={40} className="text-[#FFB800]" />
+                </motion.div>
+              </div>
+            )}
+
+            <div className="p-5">
+              {/* Close button */}
               <button
-                onClick={handleSkip}
-                className="text-[#6E6E6E] hover:text-white text-sm transition-colors"
+                onClick={onSkip}
+                className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-[#3A3A3A] text-[#6E6E6E] hover:text-white transition-colors"
               >
-                Pular tour
+                <X size={18} />
               </button>
 
-              <div className="flex items-center gap-2">
-                {!isFirstStep && (
-                  <button
-                    onClick={handlePrev}
-                    className="p-2 rounded-lg hover:bg-[#3A3A3A] text-[#A0A0A0] hover:text-white transition-colors"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                )}
-                <Button onClick={handleNext} size="sm">
-                  {isLastStep ? 'Concluir' : 'Proximo'}
-                </Button>
+              {/* Progress bar */}
+              <div className="flex gap-1 mb-4">
+                {steps.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                      idx < currentStepIndex
+                        ? 'bg-[#FFB800]'
+                        : idx === currentStepIndex
+                        ? 'bg-[#FFB800]'
+                        : 'bg-[#3A3A3A]'
+                    }`}
+                  />
+                ))}
               </div>
-            </div>
 
-            {/* Step counter */}
-            <p className="text-center text-[#6E6E6E] text-xs mt-3">
-              {currentStepIndex + 1} de {TOUR_STEPS.length}
-            </p>
+              {/* Content */}
+              <h3 className="text-white font-bold text-lg mb-2 pr-6">
+                {currentStep.title}
+              </h3>
+              <p className="text-[#A0A0A0] text-sm leading-relaxed mb-5">
+                {currentStep.description}
+              </p>
+
+              {/* Navigation */}
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={onSkip}
+                  className="text-[#6E6E6E] hover:text-white text-sm transition-colors"
+                >
+                  Pular tour
+                </button>
+
+                <div className="flex items-center gap-2">
+                  {!isFirstStep && (
+                    <button
+                      onClick={handlePrev}
+                      className="p-2 rounded-lg hover:bg-[#3A3A3A] text-[#A0A0A0] hover:text-white transition-colors"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                  )}
+                  <Button
+                    onClick={handleNext}
+                    size="sm"
+                    className="min-w-[100px]"
+                  >
+                    {isLastStep ? (
+                      <>
+                        Começar!
+                        <ChevronRight size={16} className="ml-1" />
+                      </>
+                    ) : (
+                      <>
+                        Próximo
+                        <ChevronRight size={16} className="ml-1" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Step counter */}
+              <p className="text-center text-[#6E6E6E] text-xs mt-4">
+                Passo {currentStepIndex + 1} de {steps.length}
+              </p>
+            </div>
           </motion.div>
         </div>
       )}

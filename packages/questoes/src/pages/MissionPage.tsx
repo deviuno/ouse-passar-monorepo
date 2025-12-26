@@ -18,9 +18,10 @@ import {
   Zap,
   Flame
 } from 'lucide-react';
-import { useMissionStore, useTrailStore, useUserStore, useUIStore } from '../stores';
+import { useMissionStore, useTrailStore, useUserStore, useUIStore, useBatteryStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
 import { Button, Card, Progress, CircularProgress, SuccessCelebration, FadeIn, FloatingChatButton, MarkdownContent } from '../components/ui';
+import { BatteryEmptyModal } from '../components/battery';
 import { QuestionCard } from '../components/question';
 import { ParsedQuestion, TrailMission, MissionStatus, StudyMode } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
@@ -969,7 +970,20 @@ export default function MissionPage() {
     setCurrentTrail,
     isLoading: isStoreLoading,
     setLoading: setStoreLoading,
+    selectedPreparatorioId,
   } = useTrailStore();
+
+  // Battery store
+  const {
+    batteryStatus,
+    isEmptyModalOpen,
+    closeEmptyModal,
+    consumeBattery,
+    fetchBatteryStatus,
+  } = useBatteryStore();
+
+  // Ref para rastrear missoes que ja consumiram bateria (evita consumir multiplas vezes)
+  const batteryConsumedMissions = useRef<Set<string>>(new Set());
 
   // Estado local para controle independente do sidebar
   const [sidebarViewingRoundIndex, setSidebarViewingRoundIndex] = useState(viewingRoundIndex || 0);
@@ -1349,6 +1363,25 @@ export default function MissionPage() {
         const preparatorio = getSelectedPreparatorio();
         const questoesPorMissao = preparatorio?.questoes_por_missao || 20;
 
+        // Verificar e consumir bateria se necessario (apenas uma vez por missao)
+        if (user?.id && selectedPreparatorioId && !batteryConsumedMissions.current.has(resolvedMissionId)) {
+          const batteryResult = await consumeBattery(
+            user.id,
+            selectedPreparatorioId,
+            'mission_start',
+            { mission_id: resolvedMissionId }
+          );
+
+          if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
+            console.log('[MissionPage] Bateria insuficiente');
+            setIsLoadingQuestions(false);
+            return; // Modal sera aberto automaticamente pelo store
+          }
+
+          // Marcar esta missao como ja cobrada
+          batteryConsumedMissions.current.add(resolvedMissionId);
+        }
+
         console.log('[MissionPage] Carregando questoes para missao:', resolvedMissionId, '- Quantidade:', questoesPorMissao, '- Modo:', currentTrailMode);
         const fetchedQuestions = await getQuestoesParaMissao(resolvedMissionId, questoesPorMissao, currentTrailMode);
 
@@ -1370,7 +1403,8 @@ export default function MissionPage() {
     }
 
     loadQuestions();
-  }, [resolvedMissionId, getSelectedPreparatorio, currentTrailMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedMissionId, getSelectedPreparatorio, currentTrailMode, user?.id, selectedPreparatorioId]);
 
   const currentQuestion = questions[currentQuestionIndex];
 
@@ -1897,6 +1931,14 @@ export default function MissionPage() {
 
       {/* Mentor Chat - controlled by FloatingChatButton */}
 
+      {/* Battery Empty Modal */}
+      <BatteryEmptyModal
+        isOpen={isEmptyModalOpen}
+        onClose={closeEmptyModal}
+        checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_8_questoes}
+        price={getSelectedPreparatorio()?.preparatorio?.price_questoes}
+        preparatorioNome={getSelectedPreparatorio()?.preparatorio?.nome}
+      />
     </div>
   );
 }

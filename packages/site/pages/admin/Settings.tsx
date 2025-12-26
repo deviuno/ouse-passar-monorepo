@@ -33,6 +33,8 @@ import {
   EyeOff,
   ChevronDown,
   BookOpen,
+  Battery,
+  HelpCircle,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/Toast';
@@ -66,6 +68,12 @@ import {
   PlanejamentoConquista,
   PlanejamentoConquistaRequisitoTipo,
 } from '../../lib/database.types';
+import {
+  getAllLegalTexts,
+  updateLegalText,
+  LegalText,
+  LegalTextId,
+} from '../../services/legalTextsService';
 
 // ============================================================================
 // TYPES
@@ -143,6 +151,16 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; 
     icon: Flame,
     description: 'Modo de estudo intensivo para provas próximas',
   },
+  battery: {
+    label: 'Bateria',
+    icon: Battery,
+    description: 'Sistema de energia para usuarios gratuitos',
+  },
+  legal_texts: {
+    label: 'Textos Legais',
+    icon: FileText,
+    description: 'Termos de Uso e Politica de Privacidade',
+  },
   general: {
     label: 'Geral',
     icon: Globe,
@@ -194,6 +212,84 @@ const SETTING_LABELS: Record<string, string> = {
   is_enabled: 'Reta Final Habilitado',
   question_percentage: 'Porcentagem de Questões (%)',
   min_questions_per_mission: 'Mínimo de Questões por Missão',
+
+  // Battery
+  max_battery: 'Capacidade Máxima',
+  daily_recharge: 'Recarga Diária',
+  recharge_hour: 'Hora da Recarga (0-23)',
+  cost_per_question: 'Custo por Questão',
+  cost_per_mission_start: 'Custo por Iniciar Missão',
+  cost_per_chat_message: 'Custo por Mensagem no Chat',
+  cost_per_notebook_create: 'Custo por Criar Caderno',
+  cost_per_practice_session: 'Custo por Sessão de Prática',
+  max_preparatorios_free: 'Max Preparatórios (Gratuito)',
+  chat_enabled_free: 'Chat Habilitado (Gratuito)',
+  chat_requires_practice: 'Chat Requer Prática',
+  chat_min_questions: 'Mínimo de Questões para Chat',
+  notebooks_enabled_free: 'Cadernos Habilitados (Gratuito)',
+  notebooks_max_free: 'Max Cadernos (Gratuito)',
+  practice_enabled_free: 'Prática Habilitada (Gratuito)',
+  unlimited_duration_months: 'Duração Bateria Ilimitada (meses)',
+};
+
+// Tooltips de ajuda para todos os campos de configuração
+const SETTING_TOOLTIPS: Record<string, string> = {
+  // ===== SIMULADO =====
+  questions_per_simulado: 'Quantidade total de questões em cada simulado gerado. Recomendado: entre 60 e 120 questões.',
+  max_attempts: 'Número máximo de vezes que o usuário pode refazer o simulado. Use -1 para tentativas ilimitadas.',
+  different_exams_per_user: 'Quantidade de versões diferentes do simulado disponíveis para cada usuário.',
+  allow_chat: 'Se ativado, o usuário poderá usar o chat com IA durante o simulado para tirar dúvidas.',
+  time_limit_minutes: 'Tempo máximo para completar o simulado. 0 = sem limite de tempo.',
+  show_answers_after: 'Quando mostrar o gabarito: "always" (sempre), "never" (nunca), ou "after_submit" (após enviar).',
+  allow_review: 'Se ativado, o usuário pode revisar suas respostas antes de finalizar o simulado.',
+  randomize_questions: 'Se ativado, a ordem das questões será diferente para cada tentativa.',
+  randomize_options: 'Se ativado, a ordem das alternativas (A, B, C, D, E) será embaralhada.',
+
+  // ===== GAMIFICAÇÃO =====
+  xp_per_correct_answer: 'Pontos de XP ganhos por cada questão respondida corretamente.',
+  xp_per_mission_complete: 'Bônus de XP ao completar uma missão inteira.',
+  coins_per_correct_answer: 'Moedas ganhas por cada questão respondida corretamente.',
+  streak_bonus_multiplier: 'Multiplicador aplicado às recompensas durante sequências de acertos.',
+  daily_goal_xp: 'Meta diária de XP para manter a ofensiva (streak) ativa.',
+
+  // ===== LOJA =====
+  auto_create_simulado_product: 'Se ativado, um produto de simulado será criado automaticamente ao criar um novo preparatório.',
+
+  // ===== TRILHA =====
+  questions_per_mission: 'Quantidade padrão de questões em cada missão da trilha.',
+  missions_per_round: 'Número de missões que compõem uma rodada de estudos.',
+  min_score_to_pass: 'Porcentagem mínima de acertos para passar na missão (ex: 70 = 70%).',
+  allow_retry: 'Se ativado, o usuário pode refazer missões que já completou.',
+  show_explanation: 'Se ativado, mostra a explicação da questão após responder.',
+
+  // ===== GERAL =====
+  maintenance_mode: 'Se ativado, apenas administradores podem acessar o sistema. Usuários veem uma tela de manutenção.',
+  allow_new_registrations: 'Se desativado, novos usuários não poderão se cadastrar na plataforma.',
+  require_email_verification: 'Se ativado, o usuário precisa confirmar o email antes de acessar a plataforma.',
+  max_preparatorios_per_user: 'Limite máximo de preparatórios por usuário (para usuários premium). 0 = ilimitado.',
+
+  // ===== RETA FINAL =====
+  is_enabled: 'Habilita ou desabilita o modo Reta Final globalmente para todos os preparatórios.',
+  question_percentage: 'Porcentagem de questões no modo Reta Final em relação ao modo normal (ex: 50 = metade).',
+  min_questions_per_mission: 'Número mínimo de questões por missão no modo Reta Final, independente da porcentagem.',
+
+  // ===== BATERIA =====
+  max_battery: 'Quantidade máxima de energia que um usuário gratuito pode ter. A energia é consumida ao realizar ações.',
+  daily_recharge: 'Quantidade de energia restaurada automaticamente a cada dia. Não ultrapassa a capacidade máxima.',
+  recharge_hour: 'Hora do dia em que a recarga automática acontece (formato 24h, ex: 0 = meia-noite, 12 = meio-dia).',
+  cost_per_question: 'Energia consumida cada vez que o usuário responde uma questão.',
+  cost_per_mission_start: 'Energia consumida ao iniciar uma missão de estudo.',
+  cost_per_chat_message: 'Energia consumida ao enviar uma mensagem no chat com IA.',
+  cost_per_notebook_create: 'Energia consumida ao criar um novo caderno de questões.',
+  cost_per_practice_session: 'Energia consumida ao iniciar uma sessão de prática.',
+  max_preparatorios_free: 'Número máximo de preparatórios que um usuário gratuito pode ter ativos simultaneamente.',
+  chat_enabled_free: 'Se desativado, usuários gratuitos não terão acesso ao chat com IA.',
+  chat_requires_practice: 'Se ativado, o usuário precisa praticar questões antes de poder usar o chat.',
+  chat_min_questions: 'Número mínimo de questões que o usuário deve responder antes de liberar o chat.',
+  notebooks_enabled_free: 'Se desativado, usuários gratuitos não poderão criar cadernos de questões.',
+  notebooks_max_free: 'Número máximo de cadernos que um usuário gratuito pode criar.',
+  practice_enabled_free: 'Se desativado, usuários gratuitos não terão acesso ao modo prática.',
+  unlimited_duration_months: 'Tempo de validade da bateria ilimitada após a compra do Ouse Questões. Padrão: 12 meses.',
 };
 
 // Gamification sub-tabs
@@ -346,7 +442,7 @@ function SettingInput({ setting, value, onChange }: SettingInputProps) {
     return (
       <input
         type="number"
-        value={value}
+        value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         className="w-32 bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white focus:outline-none focus:border-brand-yellow"
       />
@@ -356,7 +452,7 @@ function SettingInput({ setting, value, onChange }: SettingInputProps) {
   return (
     <input
       type="text"
-      value={value}
+      value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
       className="w-full max-w-xs bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white focus:outline-none focus:border-brand-yellow"
     />
@@ -645,6 +741,257 @@ const SettingSection: React.FC<SettingSectionProps> = ({ title, icon, children }
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div>
   </div>
 );
+
+// ============================================================================
+// LEGAL TEXTS SECTION
+// ============================================================================
+
+const LEGAL_TEXT_LABELS: Record<LegalTextId, string> = {
+  terms_of_service: 'Termos de Uso',
+  privacy_policy: 'Politica de Privacidade',
+};
+
+function LegalTextsSection() {
+  const toast = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [texts, setTexts] = useState<LegalText[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState<{ title: string; content: string }>({
+    title: '',
+    content: '',
+  });
+
+  useEffect(() => {
+    loadTexts();
+  }, []);
+
+  const loadTexts = async () => {
+    setLoading(true);
+    setError(null);
+    const { texts: data, error: err } = await getAllLegalTexts();
+    if (err) {
+      setError(err);
+    } else {
+      setTexts(data);
+    }
+    setLoading(false);
+  };
+
+  const handleEdit = (text: LegalText) => {
+    setEditingId(text.id);
+    setPreviewId(null);
+    setFormData({
+      title: text.title,
+      content: text.content,
+    });
+  };
+
+  const handlePreview = (text: LegalText) => {
+    setPreviewId(previewId === text.id ? null : text.id);
+    setEditingId(null);
+  };
+
+  const handleSave = async (id: string) => {
+    setSaving(id);
+    const { success, error: err } = await updateLegalText(id as LegalTextId, formData);
+
+    if (err) {
+      toast.error(err);
+    } else if (success) {
+      toast.success('Texto legal atualizado com sucesso!');
+      setTexts(
+        texts.map((t) =>
+          t.id === id
+            ? { ...t, ...formData, last_updated: new Date().toISOString() }
+            : t
+        )
+      );
+      setEditingId(null);
+    }
+    setSaving(null);
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setFormData({ title: '', content: '' });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 text-brand-yellow animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {error && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-sm p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-yellow-500" />
+          <p className="text-yellow-500">
+            Erro ao carregar textos legais. Execute a migracao SQL primeiro.
+          </p>
+        </div>
+      )}
+
+      {/* Legal Texts List */}
+      {texts.map((text) => (
+        <div
+          key={text.id}
+          className="bg-brand-card border border-white/5 rounded-sm overflow-hidden"
+        >
+          {/* Header */}
+          <div className="p-6 border-b border-white/5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-white">
+                  {LEGAL_TEXT_LABELS[text.id as LegalTextId] || text.title}
+                </h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  Ultima atualizacao:{' '}
+                  {new Date(text.last_updated).toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {editingId !== text.id && (
+                  <>
+                    <button
+                      onClick={() => handlePreview(text)}
+                      className="px-4 py-2 border border-white/10 text-gray-400 rounded-sm font-bold uppercase text-sm tracking-wide hover:text-white hover:border-white/20 transition-colors flex items-center gap-2"
+                    >
+                      <EyeOff className="w-4 h-4" />
+                      {previewId === text.id ? 'Ocultar' : 'Visualizar'}
+                    </button>
+                    <button
+                      onClick={() => handleEdit(text)}
+                      className="px-4 py-2 bg-brand-yellow text-brand-darker rounded-sm font-bold uppercase text-sm tracking-wide hover:bg-white transition-colors flex items-center gap-2"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      Editar
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Content - Preview Mode */}
+          {previewId === text.id && editingId !== text.id && (
+            <div className="p-6 bg-brand-dark/30">
+              <div className="prose prose-invert max-w-none">
+                <div className="whitespace-pre-wrap text-gray-300 text-sm leading-relaxed">
+                  {text.content}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Content - Edit Mode */}
+          {editingId === text.id && (
+            <div className="p-6">
+              <div className="space-y-4">
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+                    Titulo
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
+                    className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow"
+                  />
+                </div>
+
+                {/* Content */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+                    Conteudo (Markdown)
+                  </label>
+                  <textarea
+                    value={formData.content}
+                    onChange={(e) =>
+                      setFormData({ ...formData, content: e.target.value })
+                    }
+                    rows={20}
+                    className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow font-mono text-sm"
+                    placeholder="Digite o conteudo em Markdown..."
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Suporta Markdown: # Titulo, ## Subtitulo, **negrito**,
+                    *italico*, - lista
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => handleSave(text.id)}
+                    disabled={saving === text.id}
+                    className="px-6 py-2 bg-brand-yellow text-brand-darker rounded-sm font-bold uppercase tracking-wide hover:bg-white transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {saving === text.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Salvar Alteracoes
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    disabled={saving === text.id}
+                    className="px-4 py-2 border border-white/10 text-gray-400 rounded-sm font-bold uppercase tracking-wide hover:text-white hover:border-white/20 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Info Box */}
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-sm p-6">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5" />
+          <div>
+            <h3 className="text-blue-400 font-bold mb-2">Sobre os Textos Legais</h3>
+            <ul className="text-blue-300 text-sm space-y-1 list-disc list-inside">
+              <li>Os textos sao exibidos para os usuarios durante o cadastro</li>
+              <li>Use Markdown para formatacao (titulos, listas, negrito, etc.)</li>
+              <li>
+                Sempre atualize a data no topo do documento ao fazer alteracoes
+                significativas
+              </li>
+              <li>
+                Consulte um advogado para garantir conformidade com LGPD e outras leis
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function GamificationSection() {
   const toast = useToast();
@@ -1555,7 +1902,7 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const categories = ['simulado', 'gamification', 'store', 'trail', 'general', 'blog'];
+  const categories = ['simulado', 'gamification', 'store', 'trail', 'reta_final', 'battery', 'legal_texts', 'general', 'blog'];
   const filteredSettings = settings.filter((s) => s.category === activeCategory);
   const hasChanges = modifiedSettings.size > 0;
 
@@ -1589,7 +1936,7 @@ export const Settings: React.FC = () => {
             <RefreshCw className="w-4 h-4" />
             Atualizar
           </button>
-          {activeCategory !== 'blog' && activeCategory !== 'gamification' && (
+          {activeCategory !== 'blog' && activeCategory !== 'gamification' && activeCategory !== 'legal_texts' && (
             <button
               onClick={handleSaveSystemSettings}
               disabled={saving || !hasChanges}
@@ -1610,7 +1957,7 @@ export const Settings: React.FC = () => {
         </div>
       </div>
 
-      {hasChanges && activeCategory !== 'blog' && activeCategory !== 'gamification' && (
+      {hasChanges && activeCategory !== 'blog' && activeCategory !== 'gamification' && activeCategory !== 'legal_texts' && (
         <div className="bg-brand-yellow/10 border border-brand-yellow/30 rounded-sm p-4 flex items-center gap-3">
           <Info className="w-5 h-5 text-brand-yellow flex-shrink-0" />
           <p className="text-brand-yellow text-sm">
@@ -1668,6 +2015,8 @@ export const Settings: React.FC = () => {
             />
           ) : activeCategory === 'gamification' ? (
             <GamificationSection />
+          ) : activeCategory === 'legal_texts' ? (
+            <LegalTextsSection />
           ) : (
             <>
               <div className="bg-brand-card border border-white/10 rounded-sm">
@@ -1700,6 +2049,7 @@ export const Settings: React.FC = () => {
                     const label = SETTING_LABELS[setting.key] || setting.key;
                     const value = getValue(setting);
                     const isModified = modifiedSettings.has(`${setting.category}:${setting.key}`);
+                    const tooltip = SETTING_TOOLTIPS[setting.key];
 
                     return (
                       <div
@@ -1711,6 +2061,17 @@ export const Settings: React.FC = () => {
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <span className="text-white font-medium">{label}</span>
+                            {tooltip && (
+                              <div className="group relative">
+                                <HelpCircle className="w-4 h-4 text-gray-500 hover:text-brand-yellow cursor-help transition-colors" />
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 pointer-events-none">
+                                  <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl border border-white/10 w-64 text-center">
+                                    {tooltip}
+                                  </div>
+                                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              </div>
+                            )}
                             {isModified && (
                               <CheckCircle className="w-4 h-4 text-brand-yellow" />
                             )}
