@@ -23,7 +23,7 @@ import {
 import {
     getBuilderState,
     getTopicosDisponiveis,
-    createMissao,
+    createMissao,s
     deleteMissao,
     createRodada,
     deleteRodada,
@@ -2801,7 +2801,7 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
     }
 });
 
-// ==================== ENDPOINT SSE PARA CRIAÇÃO COM VALIDAÇÃO DE RODADAS ====================
+// ==================== ENDPOINT JSON PARA CRIAÇÃO COM VALIDAÇÃO DE RODADAS ====================
 
 /**
  * POST /api/preparatorio/from-pdf-preview
@@ -2810,62 +2810,33 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
  * Fase 1 (este endpoint): Analisa PDF → Cria preparatório → Cria edital → Gera preview das rodadas
  * Fase 2 (confirm-rodadas): Usuário valida ordem → Persiste rodadas → Finaliza
  *
- * Eventos SSE:
- * - progress: { etapas, currentStep }
- * - preview: { preparatorioId, materias, rodadasPreview, estatisticas } - Aguarda confirmação do usuário
- * - error: { error, etapas }
+ * Retorna JSON com os dados do preview ou erro
  */
 app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req, res) => {
-    // Configurar SSE
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.flushHeaders();
-
-    const sendEvent = (event: string, data: any) => {
-        res.write(`event: ${event}\n`);
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
-    };
-
     const startTime = Date.now();
     let preparatorioId: string | null = null;
-
-    const etapas: EtapaProgresso[] = [
-        { etapa: 'Analisando PDF', status: 'pending' },
-        { etapa: 'Criando preparatório', status: 'pending' },
-        { etapa: 'Gerando imagem de capa', status: 'pending' },
-        { etapa: 'Criando edital verticalizado', status: 'pending' },
-        { etapa: 'Gerando prévia das rodadas', status: 'pending' },
-    ];
-
-    const updateEtapa = (index: number, status: EtapaProgresso['status'], detalhes?: string) => {
-        etapas[index].status = status;
-        if (detalhes) etapas[index].detalhes = detalhes;
-        sendEvent('progress', { etapas, currentStep: index });
-    };
 
     try {
         // Validar arquivo PDF
         if (!req.file) {
-            sendEvent('error', { error: 'Arquivo PDF é obrigatório', etapas });
-            res.end();
-            return;
+            return res.status(400).json({
+                success: false,
+                error: 'Arquivo PDF é obrigatório',
+            });
         }
 
         console.log(`[FromPDF-Preview] Iniciando processo com arquivo de ${(req.file.size / 1024 / 1024).toFixed(2)}MB`);
 
         // ========== ETAPA 1: ANÁLISE DO PDF ==========
-        updateEtapa(0, 'in_progress');
         console.log('[FromPDF-Preview] Etapa 1: Analisando PDF com IA...');
 
         const agent = mastra.getAgent("editalFullAnalyzerAgent");
 
         if (!agent) {
-            updateEtapa(0, 'error', 'Agente não encontrado');
-            sendEvent('error', { error: 'Agente editalFullAnalyzerAgent não encontrado', etapas });
-            res.end();
-            return;
+            return res.status(500).json({
+                success: false,
+                error: 'Agente editalFullAnalyzerAgent não encontrado',
+            });
         }
 
         const pdfBase64 = req.file.buffer.toString('base64');
@@ -2884,51 +2855,47 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
 
         if (!jsonMatch) {
-            updateEtapa(0, 'error', 'Não foi possível extrair informações do PDF');
-            sendEvent('error', { error: 'Não foi possível extrair informações do PDF', etapas });
-            res.end();
-            return;
+            return res.status(400).json({
+                success: false,
+                error: 'Não foi possível extrair informações do PDF',
+            });
         }
 
         let analise;
         try {
             analise = JSON.parse(jsonMatch[0]);
         } catch {
-            updateEtapa(0, 'error', 'Erro ao processar resposta da IA');
-            sendEvent('error', { error: 'Erro ao processar a análise do PDF', etapas });
-            res.end();
-            return;
+            return res.status(400).json({
+                success: false,
+                error: 'Erro ao processar a análise do PDF',
+            });
         }
 
         if (!analise.infoBasica || !analise.estrutura) {
-            updateEtapa(0, 'error', 'Estrutura do edital incompleta');
-            sendEvent('error', { error: 'A análise não retornou a estrutura esperada', etapas });
-            res.end();
-            return;
+            return res.status(400).json({
+                success: false,
+                error: 'A análise não retornou a estrutura esperada',
+            });
         }
 
-        updateEtapa(0, 'completed', `${analise.estrutura.blocos?.length || 0} blocos identificados`);
         console.log(`[FromPDF-Preview] Análise concluída: ${analise.estrutura.blocos?.length || 0} blocos`);
 
         // ========== ETAPA 2: CRIAR PREPARATÓRIO ==========
-        updateEtapa(1, 'in_progress');
         console.log('[FromPDF-Preview] Etapa 2: Criando preparatório...');
 
         const resultadoPrep = await criarPreparatorio(analise.infoBasica);
 
         if (!resultadoPrep.success || !resultadoPrep.preparatorio_id) {
-            updateEtapa(1, 'error', resultadoPrep.error);
-            sendEvent('error', { error: resultadoPrep.error || 'Erro ao criar preparatório', etapas });
-            res.end();
-            return;
+            return res.status(500).json({
+                success: false,
+                error: resultadoPrep.error || 'Erro ao criar preparatório',
+            });
         }
 
         preparatorioId = resultadoPrep.preparatorio_id;
-        updateEtapa(1, 'completed', `Slug: ${resultadoPrep.slug}`);
         console.log(`[FromPDF-Preview] Preparatório criado: ${preparatorioId}`);
 
         // ========== ETAPA 3: GERAR IMAGEM DE CAPA ==========
-        updateEtapa(2, 'in_progress');
         console.log('[FromPDF-Preview] Etapa 3: Gerando imagem de capa...');
 
         const imagemUrl = await gerarImagemCapa({
@@ -2939,42 +2906,35 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
             preparatorioId,
         });
 
-        if (imagemUrl) {
-            updateEtapa(2, 'completed', 'Imagem gerada com sucesso');
-        } else {
-            updateEtapa(2, 'completed', 'Usando imagem padrão');
-        }
+        console.log(`[FromPDF-Preview] Imagem: ${imagemUrl ? 'gerada' : 'usando padrão'}`);
 
         // ========== ETAPA 4: CRIAR EDITAL VERTICALIZADO ==========
-        updateEtapa(3, 'in_progress');
         console.log('[FromPDF-Preview] Etapa 4: Criando edital verticalizado...');
 
         const resultadoEdital = await criarEditalVerticalizado(preparatorioId, analise.estrutura);
 
         if (!resultadoEdital.success) {
-            updateEtapa(3, 'error', resultadoEdital.error);
             await deletarPreparatorio(preparatorioId);
-            sendEvent('error', { error: resultadoEdital.error || 'Erro ao criar edital', etapas });
-            res.end();
-            return;
+            return res.status(500).json({
+                success: false,
+                error: resultadoEdital.error || 'Erro ao criar edital',
+            });
         }
 
-        updateEtapa(3, 'completed', `${resultadoEdital.blocos_criados} blocos, ${resultadoEdital.materias_criadas} matérias, ${resultadoEdital.topicos_criados} tópicos`);
         console.log(`[FromPDF-Preview] Edital criado`);
 
         // ========== ETAPA 5: GERAR PRÉVIA DAS RODADAS ==========
-        updateEtapa(4, 'in_progress');
         console.log('[FromPDF-Preview] Etapa 5: Gerando prévia das rodadas...');
 
         // Buscar matérias com tópicos (já ordenadas com Português primeiro)
         const materias = await buscarMateriasComTopicos(preparatorioId);
 
         if (materias.length === 0) {
-            updateEtapa(4, 'error', 'Nenhuma matéria com tópicos encontrada');
             await deletarPreparatorio(preparatorioId);
-            sendEvent('error', { error: 'Nenhuma matéria com tópicos foi encontrada', etapas });
-            res.end();
-            return;
+            return res.status(400).json({
+                success: false,
+                error: 'Nenhuma matéria com tópicos foi encontrada',
+            });
         }
 
         // Gerar rodadas sem persistir
@@ -2990,21 +2950,19 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
         const resultadoRodadas = gerarRodadas(materias, config);
 
         if (!resultadoRodadas.success) {
-            updateEtapa(4, 'error', resultadoRodadas.error);
             await deletarPreparatorio(preparatorioId);
-            sendEvent('error', { error: resultadoRodadas.error || 'Erro ao gerar rodadas', etapas });
-            res.end();
-            return;
+            return res.status(500).json({
+                success: false,
+                error: resultadoRodadas.error || 'Erro ao gerar rodadas',
+            });
         }
-
-        updateEtapa(4, 'completed', `${resultadoRodadas.estatisticas.total_rodadas} rodadas, ${resultadoRodadas.estatisticas.total_missoes} missões`);
-        console.log(`[FromPDF-Preview] Prévia gerada: ${resultadoRodadas.estatisticas.total_rodadas} rodadas`);
 
         const tempoTotal = Date.now() - startTime;
         console.log(`[FromPDF-Preview] Análise concluída em ${(tempoTotal / 1000).toFixed(1)}s - Aguardando confirmação`);
 
-        // Enviar preview para o usuário validar/reordenar
-        sendEvent('preview', {
+        // Retornar preview para o usuário validar/reordenar
+        return res.json({
+            success: true,
             preparatorioId,
             preparatorioInfo: {
                 slug: resultadoPrep.slug,
@@ -3029,10 +2987,7 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
                 missoes: resultadoRodadas.estatisticas.total_missoes,
                 tempo_analise_ms: tempoTotal,
             },
-            etapas,
         });
-
-        res.end();
 
     } catch (error: any) {
         console.error('[FromPDF-Preview] Erro:', error);
@@ -3042,18 +2997,10 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
             await deletarPreparatorio(preparatorioId);
         }
 
-        const etapaAtual = etapas.find(e => e.status === 'in_progress');
-        if (etapaAtual) {
-            etapaAtual.status = 'error';
-            etapaAtual.detalhes = error.message;
-        }
-
-        sendEvent('error', {
+        return res.status(500).json({
+            success: false,
             error: error.message || 'Erro interno ao processar PDF',
-            etapas,
         });
-
-        res.end();
     }
 });
 
@@ -3193,7 +3140,6 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
 
         console.log(`[ConfirmRodadas] Rodadas persistidas: ${resultadoPersistencia.rodadas_criadas}`);
 
-        // Salvar raio-x
         const raioX = {
             analise_automatica: true,
             data_analise: new Date().toISOString(),
