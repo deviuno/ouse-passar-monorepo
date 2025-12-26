@@ -69,14 +69,7 @@ export function RetaFinalUpsellModal({
               </button>
 
               {/* Header with icon */}
-              <div
-                className="pt-8 pb-6 px-6 text-center"
-                style={{
-                  background: isRetaFinal
-                    ? `linear-gradient(135deg, ${RETA_FINAL_THEME.colors.primary}20 0%, transparent 100%)`
-                    : 'linear-gradient(135deg, #FFB80020 0%, transparent 100%)',
-                }}
-              >
+              <div className="pt-8 pb-6 px-6 text-center">
                 <div
                   className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
                   style={{
