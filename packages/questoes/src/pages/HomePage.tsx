@@ -232,7 +232,7 @@ export default function HomePage() {
     setUpsellModal({ isOpen: false, targetMode: 'reta_final' });
   }, []);
 
-  // Handle unlock (for testing: auto-grant access)
+  // Handle unlock (for testing: auto-grant access and switch to mode)
   const handleUnlock = useCallback(async () => {
     if (!user?.id || !selectedPrep) return;
 
@@ -254,25 +254,32 @@ export default function HomePage() {
         }
       }
 
-      // Update local state
+      // Switch to the unlocked mode
+      await switchUserMode(user.id, selectedPrep.preparatorio_id, targetMode);
+
+      // Update local state with access and current mode
       const updatedPreparatorios = userPreparatorios.map((p) =>
         p.id === selectedPreparatorioId
           ? {
               ...p,
               has_reta_final_access: targetMode === 'reta_final' ? true : p.has_reta_final_access,
               has_normal_access: targetMode === 'normal' ? true : p.has_normal_access,
+              current_mode: targetMode,
             }
           : p
       );
       setUserPreparatorios(updatedPreparatorios);
 
-      addToast('success', `Modo ${targetMode === 'reta_final' ? 'Reta Final' : 'Normal'} desbloqueado!`);
+      // Clear rounds to force reload with new mode
+      setRounds([]);
+
+      addToast('success', `Modo ${targetMode === 'reta_final' ? 'Reta Final' : 'Normal'} ativado!`);
       handleCloseUpsell();
     } catch (err) {
       console.error('Error unlocking mode:', err);
       addToast('error', 'Erro ao desbloquear modo');
     }
-  }, [user?.id, selectedPrep, upsellModal.targetMode, selectedPreparatorioId, userPreparatorios, setUserPreparatorios, addToast, handleCloseUpsell]);
+  }, [user?.id, selectedPrep, upsellModal.targetMode, selectedPreparatorioId, userPreparatorios, setUserPreparatorios, setRounds, addToast, handleCloseUpsell]);
 
   // Carregar preparatórios do usuário
   useEffect(() => {
