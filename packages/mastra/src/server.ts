@@ -3112,6 +3112,8 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
  * Retorna JSON com os dados do preview ou erro
  */
 app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req, res) => {
+    req.setTimeout(5 * 60 * 1000);
+
     const startTime = Date.now();
     let preparatorioId: string | null = null;
 
@@ -4270,7 +4272,7 @@ const mcpHttpServer = http.createServer(async (req, res) => {
     }
 });
 
-mcpHttpServer.timeout = 60 * 5000;
+mcpHttpServer.setTimeout(5 * 60 * 1000);
 
 mcpHttpServer.listen(MCP_PORT, () => {
     console.log(`MCP Server running on http://localhost:${MCP_PORT}/mcp`);
