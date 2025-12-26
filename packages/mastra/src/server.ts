@@ -23,7 +23,7 @@ import {
 import {
     getBuilderState,
     getTopicosDisponiveis,
-    createMissao,s
+    createMissao,
     deleteMissao,
     createRodada,
     deleteRodada,
