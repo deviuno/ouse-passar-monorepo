@@ -724,11 +724,19 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                 </div>
               </div>
 
-              {/* Aviso */}
+              {/* Aviso sobre ordem */}
               <div className="bg-blue-500/10 border border-blue-500/30 rounded-sm p-4">
                 <p className="text-blue-400 text-sm">
                   <strong>Dica:</strong> A ordem das matérias afeta a sequência de estudo nas rodadas.
                   Matérias no topo serão estudadas primeiro e terão suas revisões mais cedo.
+                </p>
+              </div>
+
+              {/* Aviso sobre tempo de processamento */}
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-sm p-4">
+                <p className="text-amber-400 text-sm">
+                  <strong>⏱️ Importante:</strong> Ao confirmar, o sistema irá gerar o conteúdo das primeiras missões.
+                  Isso pode levar até 2 minutos. O preparatório só ficará disponível para os alunos após a conclusão.
                 </p>
               </div>
 
@@ -944,7 +952,7 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                 {isConfirming ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Preparando...
+                    Gerando conteúdo... (pode levar até 2 min)
                   </>
                 ) : (
                   <>

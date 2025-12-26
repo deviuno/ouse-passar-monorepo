@@ -2718,39 +2718,44 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
         etapas[5].detalhes = `${resultadoMensagens.mensagens_criadas} mensagens`;
         console.log(`[FromPDF] Mensagens criadas: ${resultadoMensagens.mensagens_criadas}`);
 
-        // ========== ETAPA 7: FINALIZAR ==========
+        // ========== ETAPA 7: GERAR CONTEÚDO DAS PRIMEIRAS MISSÕES ==========
         etapas[6].status = 'in_progress';
-        console.log('[FromPDF] Etapa 7: Finalizando...');
+        console.log('[FromPDF] Etapa 7: Gerando conteúdo das primeiras missões...');
 
-        // Ativar preparatório
-        const ativado = await ativarPreparatorio(preparatorioId);
-
-        if (!ativado) {
-            console.warn('[FromPDF] Preparatório não foi ativado automaticamente');
+        // Gerar conteúdo das primeiras missões ANTES de ativar o preparatório
+        // Isso garante que o usuário não acesse um preparatório sem conteúdo
+        const missoes = await getPrimeirasMissoes(preparatorioId, 2);
+        console.log(`[FromPDF] Gerando conteúdo para ${missoes.length} primeiras missões...`);
+        
+        let missoesGeradas = 0;
+        for (const missaoId of missoes) {
+            try {
+                const sucesso = await gerarConteudoMissaoBackground(missaoId);
+                if (sucesso) {
+                    missoesGeradas++;
+                    console.log(`[FromPDF] ✅ Missão ${missaoId} gerada com sucesso`);
+                } else {
+                    // Pode estar em andamento (race condition), considerar como sucesso
+                    missoesGeradas++;
+                    console.log(`[FromPDF] ⏳ Missão ${missaoId} já em andamento`);
+                }
+            } catch (err) {
+                console.error(`[FromPDF] ❌ Erro na missão ${missaoId}:`, err);
+                // Continua para próxima missão mesmo se uma falhar
+            }
         }
 
-        etapas[6].status = 'completed';
-        etapas[6].detalhes = 'Preparatório ativado';
-
-        // Trigger geração de conteúdo das primeiras missões em background (silencioso)
-        console.log('[FromPDF] Iniciando geração de conteúdo em background...');
-        (async () => {
-            const missoes = await getPrimeirasMissoes(preparatorioId, 2);
-            console.log(`[FromPDF] Background: Gerando conteúdo para ${missoes.length} missões`);
-            // Fix 4: Try/catch individual por missão - uma falha não impede as outras
-            for (const missaoId of missoes) {
-                try {
-                    const sucesso = await gerarConteudoMissaoBackground(missaoId);
-                    console.log(`[FromPDF] Missão ${missaoId}: ${sucesso ? '✅ Completa' : '⏳ Em andamento'}`);
-                } catch (err) {
-                    console.error(`[FromPDF] ❌ Erro na missão ${missaoId}:`, err);
-                    // Continua para próxima missão mesmo se uma falhar
-                }
-            }
-            console.log('[FromPDF] Background: Geração de conteúdo finalizada');
-        })().catch(err => {
-            console.error('[FromPDF] Erro fatal na geração de conteúdo em background:', err);
-        });
+        // Só ativar preparatório DEPOIS que as primeiras missões foram geradas
+        if (missoesGeradas > 0) {
+            await ativarPreparatorio(preparatorioId);
+            console.log(`[FromPDF] ✅ Preparatório ativado após ${missoesGeradas} missões geradas`);
+            etapas[6].status = 'completed';
+            etapas[6].detalhes = `${missoesGeradas} missões geradas, preparatório ativado`;
+        } else {
+            console.warn(`[FromPDF] ⚠️ Nenhuma missão foi gerada, preparatório permanece inativo`);
+            etapas[6].status = 'completed';
+            etapas[6].detalhes = 'Preparatório criado (inativo - sem missões)';
+        }
 
         const tempoTotal = Date.now() - startTime;
         console.log(`[FromPDF] Processo concluído em ${(tempoTotal / 1000).toFixed(1)}s`);
@@ -3028,25 +3033,42 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
         updateEtapa(5, 'completed', `${resultadoMensagens.mensagens_criadas} mensagens`);
         console.log(`[FromPDF-SSE] Mensagens criadas: ${resultadoMensagens.mensagens_criadas}`);
 
-        // ========== ETAPA 7: FINALIZAR ==========
+        // ========== ETAPA 7: GERAR CONTEÚDO DAS PRIMEIRAS MISSÕES ==========
         updateEtapa(6, 'in_progress');
-        console.log('[FromPDF-SSE] Etapa 7: Finalizando...');
+        console.log('[FromPDF-SSE] Etapa 7: Gerando conteúdo das primeiras missões...');
 
-        await ativarPreparatorio(preparatorioId);
-
-        updateEtapa(6, 'completed', 'Preparatório ativado');
-
-        // Trigger geração de conteúdo das primeiras missões em background (silencioso)
-        console.log('[FromPDF-SSE] Iniciando geração de conteúdo em background...');
-        (async () => {
-            const missoes = await getPrimeirasMissoes(preparatorioId, 2);
-            console.log(`[FromPDF-SSE] Background: Gerando conteúdo para ${missoes.length} missões`);
-            for (const missaoId of missoes) {
-                await gerarConteudoMissaoBackground(missaoId);
+        // Gerar conteúdo das primeiras missões ANTES de ativar o preparatório
+        // Isso garante que o usuário não acesse um preparatório sem conteúdo
+        const missoes = await getPrimeirasMissoes(preparatorioId, 2);
+        console.log(`[FromPDF-SSE] Gerando conteúdo para ${missoes.length} primeiras missões...`);
+        
+        let missoesGeradas = 0;
+        for (const missaoId of missoes) {
+            try {
+                const sucesso = await gerarConteudoMissaoBackground(missaoId);
+                if (sucesso) {
+                    missoesGeradas++;
+                    console.log(`[FromPDF-SSE] ✅ Missão ${missaoId} gerada com sucesso`);
+                } else {
+                    // Pode estar em andamento (race condition), considerar como sucesso
+                    missoesGeradas++;
+                    console.log(`[FromPDF-SSE] ⏳ Missão ${missaoId} já em andamento`);
+                }
+            } catch (err) {
+                console.error(`[FromPDF-SSE] ❌ Erro na missão ${missaoId}:`, err);
+                // Continua para próxima missão mesmo se uma falhar
             }
-        })().catch(err => {
-            console.error('[FromPDF-SSE] Erro na geração de conteúdo em background:', err);
-        });
+        }
+
+        // Só ativar preparatório DEPOIS que as primeiras missões foram geradas
+        if (missoesGeradas > 0) {
+            await ativarPreparatorio(preparatorioId);
+            console.log(`[FromPDF-SSE] ✅ Preparatório ativado após ${missoesGeradas} missões geradas`);
+            updateEtapa(6, 'completed', `${missoesGeradas} missões geradas, preparatório ativado`);
+        } else {
+            console.warn(`[FromPDF-SSE] ⚠️ Nenhuma missão foi gerada, preparatório permanece inativo`);
+            updateEtapa(6, 'completed', 'Preparatório criado (inativo - sem missões)');
+        }
 
         const tempoTotal = Date.now() - startTime;
         console.log(`[FromPDF-SSE] Processo concluído em ${(tempoTotal / 1000).toFixed(1)}s`);
@@ -3454,20 +3476,39 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
         const resultadoMensagens = await criarMensagensIncentivoPadrao(preparatorioId);
         console.log(`[ConfirmRodadas] Mensagens criadas: ${resultadoMensagens.mensagens_criadas}`);
 
-        // Ativar preparatório
-        await ativarPreparatorio(preparatorioId);
-        console.log(`[ConfirmRodadas] Preparatório ativado`);
+        // NÃO ativar preparatório ainda - aguardar geração das primeiras missões
+        console.log(`[ConfirmRodadas] Preparatório permanece inativo até missões serem geradas`);
 
-        // Trigger geração de conteúdo das primeiras missões em background (silencioso)
-        (async () => {
-            const missoes = await getPrimeirasMissoes(preparatorioId, 2);
-            console.log(`[ConfirmRodadas] Background: Gerando conteúdo para ${missoes.length} missões`);
-            for (const missaoId of missoes) {
-                await gerarConteudoMissaoBackground(missaoId);
+        // Gerar conteúdo das primeiras missões ANTES de ativar o preparatório
+        // Isso garante que o usuário não acesse um preparatório sem conteúdo
+        const missoes = await getPrimeirasMissoes(preparatorioId, 2);
+        console.log(`[ConfirmRodadas] Gerando conteúdo para ${missoes.length} primeiras missões...`);
+        
+        let missoesGeradas = 0;
+        for (const missaoId of missoes) {
+            try {
+                const sucesso = await gerarConteudoMissaoBackground(missaoId);
+                if (sucesso) {
+                    missoesGeradas++;
+                    console.log(`[ConfirmRodadas] ✅ Missão ${missaoId} gerada com sucesso`);
+                } else {
+                    // Pode estar em andamento (race condition), considerar como sucesso
+                    missoesGeradas++;
+                    console.log(`[ConfirmRodadas] ⏳ Missão ${missaoId} já em andamento`);
+                }
+            } catch (err) {
+                console.error(`[ConfirmRodadas] ❌ Erro na missão ${missaoId}:`, err);
+                // Continua para próxima missão mesmo se uma falhar
             }
-        })().catch(err => {
-            console.error('[ConfirmRodadas] Erro na geração de conteúdo em background:', err);
-        });
+        }
+
+        // Só ativar preparatório DEPOIS que as primeiras missões foram geradas
+        if (missoesGeradas > 0) {
+            await ativarPreparatorio(preparatorioId);
+            console.log(`[ConfirmRodadas] ✅ Preparatório ativado após ${missoesGeradas} missões geradas`);
+        } else {
+            console.warn(`[ConfirmRodadas] ⚠️ Nenhuma missão foi gerada, preparatório permanece inativo`);
+        }
 
         return res.json({
             success: true,
@@ -3477,6 +3518,7 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
                 vinculos: resultadoPersistencia.vinculos_criados,
                 filtros: resultadoPersistencia.filtros_criados,
                 mensagens_incentivo: resultadoMensagens.mensagens_criadas,
+                missoes_conteudo_gerado: missoesGeradas,
             },
         });
 
