@@ -58,7 +58,7 @@ import {
 import { RETA_FINAL_THEME } from '../services/retaFinalService';
 
 // URL do servidor Mastra para chamadas de background
-const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_SERVER_URL || 'http://localhost:4000';
+const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000';
 
 // Questions Loading Skeleton Component
 function QuestionsSkeleton() {

@@ -2,7 +2,7 @@
  * Service para geração automática de rodadas e missões via IA
  */
 
-const MASTRA_URL = 'http://localhost:4000';
+const MASTRA_URL = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000';
 
 // ==================== TIPOS ====================
 

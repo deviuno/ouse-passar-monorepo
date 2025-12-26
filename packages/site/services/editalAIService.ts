@@ -1,4 +1,4 @@
-const MASTRA_API_URL = import.meta.env.VITE_MASTRA_API_URL || 'http://localhost:4000';
+const MASTRA_API_URL = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000';
 
 // ==================== TIPOS ====================
 

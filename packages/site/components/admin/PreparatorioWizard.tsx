@@ -409,6 +409,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   );
 };
 
+const MASTRA_URL = import.meta.env.VITE_MASTRA_URL || "http://localhost:400"
+
 // Main Wizard Component
 export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
   initialData,
@@ -519,7 +521,7 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
     setLogoSource(null);
 
     try {
-      const response = await fetch('http://localhost:4000/api/preparatorio/buscar-logo', {
+      const response = await fetch(`${MASTRA_URL}/api/preparatorio/buscar-logo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orgao: formData.orgao }),

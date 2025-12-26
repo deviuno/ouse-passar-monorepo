@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } f
 import { Upload, X, Loader2, ZoomIn, Sparkles, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-const MASTRA_URL = 'http://localhost:4000';
+const MASTRA_URL = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000';
 
 interface PreparatorioImageUploadProps {
   value: string;

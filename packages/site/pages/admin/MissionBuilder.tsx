@@ -68,7 +68,7 @@ interface BuilderState {
   topicos_usados: string[];
 }
 
-const API_BASE = import.meta.env.VITE_MASTRA_API_URL || 'http://localhost:4000';
+const API_BASE = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000';
 
 export const MissionBuilder: React.FC = () => {
   const { preparatorioId } = useParams<{ preparatorioId: string }>();

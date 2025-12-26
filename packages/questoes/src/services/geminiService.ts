@@ -40,7 +40,7 @@ export const generateExplanation = async (question: ParsedQuestion): Promise<str
 };
 
 // URL do Tutor IA (Mastra Agent Server)
-const TUTOR_API_URL = import.meta.env.VITE_TUTOR_API_URL || 'http://localhost:4000/api/tutor';
+const TUTOR_API_URL = `${import.meta.env.VITE_MASTRA_URL}/api/tutor` ||  'http://localhost:4000/api/tutor';
 
 export interface TutorUserContext {
   id?: string;
@@ -175,7 +175,7 @@ export interface GeneratedAudio {
   duration?: number;
 }
 
-const AUDIO_API_URL = import.meta.env.VITE_TUTOR_API_URL?.replace('/tutor', '/audio') || 'http://localhost:4000/api/audio';
+const AUDIO_API_URL = `${import.meta.env.VITE_MASTRA_URL}/api/audio` ||  'http://localhost:4000/api/audio';
 
 export const generateAudioExplanation = async (
   title: string,

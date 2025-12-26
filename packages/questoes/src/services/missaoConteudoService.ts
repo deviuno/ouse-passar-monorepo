@@ -44,7 +44,7 @@ export interface ConteudoEfetivo {
 }
 
 // URL base do servidor Mastra (ajustar conforme ambiente)
-const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_SERVER_URL || 'http://localhost:4000';
+const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000';
 
 // Set para controlar deduplicação de regeneração de áudio
 // Evita múltiplas chamadas paralelas para a mesma missão
