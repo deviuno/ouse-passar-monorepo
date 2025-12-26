@@ -138,6 +138,11 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; 
     icon: MapIcon,
     description: 'Configurações das missões e rodadas',
   },
+  reta_final: {
+    label: 'Reta Final',
+    icon: Flame,
+    description: 'Modo de estudo intensivo para provas próximas',
+  },
   general: {
     label: 'Geral',
     icon: Globe,
@@ -184,6 +189,11 @@ const SETTING_LABELS: Record<string, string> = {
   allow_new_registrations: 'Permitir Novos Cadastros',
   require_email_verification: 'Verificação de Email',
   max_preparatorios_per_user: 'Max Preparatórios por Usuário',
+
+  // Reta Final
+  is_enabled: 'Reta Final Habilitado',
+  question_percentage: 'Porcentagem de Questões (%)',
+  min_questions_per_mission: 'Mínimo de Questões por Missão',
 };
 
 // Gamification sub-tabs
@@ -1752,6 +1762,19 @@ export const Settings: React.FC = () => {
                     <li>• <strong>Criar Simulado Automaticamente:</strong> Quando ativado, um produto simulado será criado automaticamente ao criar um preparatório</li>
                     <li>• <strong>Os preços são definidos por preparatório</strong> na etapa "Vendas" ao criar/editar um preparatório</li>
                     <li>• Cada preparatório tem preços individuais para: Planejador, 8 Questões, Simulados, Reta Final e Plataforma Completa</li>
+                  </ul>
+                </div>
+              )}
+
+              {activeCategory === 'reta_final' && filteredSettings.length > 0 && (
+                <div className="mt-6 bg-orange-500/10 border border-orange-500/30 rounded-sm p-4">
+                  <h3 className="text-orange-400 font-bold mb-2">Sobre o Modo Reta Final</h3>
+                  <ul className="text-orange-300 text-sm space-y-1">
+                    <li>• <strong>Porcentagem de Questões:</strong> Define quantas questões aparecem em relação ao modo normal. Ex: 50% = metade das questões</li>
+                    <li>• <strong>Mínimo de Questões:</strong> Garante um número mínimo de questões mesmo com a redução percentual</li>
+                    <li>• O conteúdo teórico também é resumido no modo Reta Final</li>
+                    <li>• O usuário pode alternar entre os modos se tiver acesso a ambos</li>
+                    <li>• Visual com tema de urgência (amarelo/laranja) para indicar a reta final</li>
                   </ul>
                 </div>
               )}

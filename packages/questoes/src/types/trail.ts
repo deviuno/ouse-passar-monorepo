@@ -6,6 +6,16 @@ export type RoundStatus = 'locked' | 'active' | 'completed';
 export type RoundType = 'normal' | 'revisao' | 'simulado';
 export type UserLevel = 'iniciante' | 'intermediario' | 'avancado';
 
+// Modo de estudo: Normal (completo) ou Reta Final (condensado)
+export type StudyMode = 'normal' | 'reta_final';
+
+// Configurações globais do Reta Final
+export interface RetaFinalSettings {
+  isEnabled: boolean;
+  questionPercentage: number; // 10-100, padrão 50
+  minQuestionsPerMission: number; // padrão 5
+}
+
 export interface Preparatorio {
   id: string;
   nome: string;
@@ -17,6 +27,7 @@ export interface Preparatorio {
   orgao?: string;
   ano_previsto?: number;
   edital_url?: string;
+  checkout_url?: string; // URL de checkout para upsell de modos
   raio_x?: RaioXConcurso;
   is_active: boolean;
   ordem?: number;
@@ -215,6 +226,14 @@ export interface UserPreparatorio {
   totalMissions?: number;
   completedMissions?: number;
   progressPercent?: number;
+  // Controle de acesso aos modos de estudo
+  has_normal_access?: boolean; // Acesso ao modo normal (padrão: true)
+  has_reta_final_access?: boolean; // Acesso ao modo Reta Final
+  current_mode?: StudyMode; // Modo ativo: 'normal' ou 'reta_final'
+  // Campos específicos do Reta Final
+  is_reta_final?: boolean; // Legacy: indica se está em modo reta final
+  data_prova?: string; // Data da prova (para countdown)
+  reta_final_started_at?: string; // Quando iniciou o modo reta final
 }
 
 // ==================== SISTEMA DE PLANEJAMENTO ====================

@@ -1,17 +1,19 @@
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Play } from 'lucide-react';
 import { useTrailStore, useAuthStore, useUIStore } from '../stores';
-import { Button, FadeIn } from '../components/ui';
-import { TrailMission } from '../types';
+import { Button, FadeIn, RetaFinalUpsellModal } from '../components/ui';
+import { TrailMission, StudyMode } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
 import { RoundSelector } from '../components/trail/RoundSelector';
+import { ModeToggle } from '../components/trail/ModeToggle';
 import {
   userPreparatoriosService,
   getRodadasComProgresso,
   rodadasToTrailRounds,
   countMissoesProgress,
+  switchUserMode,
 } from '../services';
 
 // Skeleton Loading Component for Trail
@@ -164,6 +166,70 @@ export default function HomePage() {
   const { user, profile } = useAuthStore();
   const { addToast, isSidebarOpen } = useUIStore();
 
+  // Mode toggle state
+  const [upsellModal, setUpsellModal] = useState<{
+    isOpen: boolean;
+    targetMode: StudyMode;
+  }>({ isOpen: false, targetMode: 'reta_final' });
+  const [isSwitchingMode, setIsSwitchingMode] = useState(false);
+
+  // Get the currently selected preparatorio with mode access info
+  const selectedPrep = useMemo(() => {
+    return userPreparatorios.find((p) => p.id === selectedPreparatorioId);
+  }, [userPreparatorios, selectedPreparatorioId]);
+
+  // Mode access from current preparatorio
+  const hasNormalAccess = selectedPrep?.has_normal_access ?? true;
+  const hasRetaFinalAccess = selectedPrep?.has_reta_final_access ?? false;
+  const currentMode: StudyMode = selectedPrep?.current_mode ?? 'normal';
+
+  // Handle mode change
+  const handleModeChange = useCallback(async (mode: StudyMode) => {
+    if (!user?.id || !selectedPrep) return;
+
+    setIsSwitchingMode(true);
+    try {
+      const result = await switchUserMode(user.id, selectedPrep.preparatorio_id, mode);
+
+      if (result.success) {
+        // Update local state by reloading preparatorios
+        const updatedPreparatorios = userPreparatorios.map((p) =>
+          p.id === selectedPreparatorioId
+            ? { ...p, current_mode: mode }
+            : p
+        );
+        setUserPreparatorios(updatedPreparatorios);
+
+        // Clear rounds to force reload with new mode
+        setRounds([]);
+
+        addToast(
+          'success',
+          mode === 'reta_final'
+            ? 'Modo Reta Final ativado!'
+            : 'Modo Normal ativado!'
+        );
+      } else {
+        addToast('error', result.error || 'Erro ao alternar modo');
+      }
+    } catch (err) {
+      console.error('Error switching mode:', err);
+      addToast('error', 'Erro ao alternar modo');
+    } finally {
+      setIsSwitchingMode(false);
+    }
+  }, [user?.id, selectedPrep, selectedPreparatorioId, userPreparatorios, setUserPreparatorios, setRounds, addToast]);
+
+  // Handle upsell click (when user doesn't have access)
+  const handleUpsellClick = useCallback((targetMode: StudyMode) => {
+    setUpsellModal({ isOpen: true, targetMode });
+  }, []);
+
+  // Close upsell modal
+  const handleCloseUpsell = useCallback(() => {
+    setUpsellModal({ isOpen: false, targetMode: 'reta_final' });
+  }, []);
+
   // Carregar preparatórios do usuário
   useEffect(() => {
     async function loadUserPreparatorios() {
@@ -312,7 +378,21 @@ export default function HomePage() {
         <EmptyTrailState />
       ) : (
         <FadeIn>
-          <div className="relative overflow-hidden pt-16" data-tour="trail-map">
+          {/* Mode Toggle - positioned above trail map, aligned right */}
+          {selectedPrep && (
+            <div className="flex justify-end px-4 pt-4 pb-2">
+              <ModeToggle
+                currentMode={currentMode}
+                hasNormalAccess={hasNormalAccess}
+                hasRetaFinalAccess={hasRetaFinalAccess}
+                onModeChange={handleModeChange}
+                onUpsellClick={handleUpsellClick}
+                isLoading={isSwitchingMode}
+              />
+            </div>
+          )}
+
+          <div className="relative overflow-hidden pt-8" data-tour="trail-map">
             <TrailMap
               rounds={displayRounds}
               onMissionClick={handleMissionClick}
@@ -351,6 +431,15 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Reta Final Upsell Modal */}
+      <RetaFinalUpsellModal
+        isOpen={upsellModal.isOpen}
+        onClose={handleCloseUpsell}
+        targetMode={upsellModal.targetMode}
+        preparatorioName={selectedPrep?.preparatorio?.nome || 'Preparatório'}
+        checkoutUrl={selectedPrep?.preparatorio?.checkout_url}
+      />
     </div>
   );
 }

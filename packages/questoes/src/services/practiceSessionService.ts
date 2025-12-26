@@ -1,10 +1,10 @@
 import { supabase } from './supabase';
-import { StudyMode } from '../types';
+import { PracticeMode } from '../types';
 
 export interface PracticeSession {
     id: string;
     user_id: string;
-    study_mode: StudyMode;
+    study_mode: PracticeMode;
     total_questions: number;
     correct_answers: number;
     wrong_answers: number;
@@ -18,7 +18,7 @@ export interface PracticeSession {
 
 export interface CreateSessionData {
     user_id: string;
-    study_mode: StudyMode;
+    study_mode: PracticeMode;
     total_questions: number;
     correct_answers: number;
     wrong_answers: number;

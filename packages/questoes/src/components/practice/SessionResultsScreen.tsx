@@ -2,13 +2,13 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Trophy, Target, Zap, Clock, TrendingUp, RotateCcw } from 'lucide-react';
 import { Button } from '../ui';
-import { StudyMode } from '../../types';
+import { PracticeMode } from '../../types';
 
 interface SessionResultsScreenProps {
   totalQuestions: number;
   correctAnswers: number;
   wrongAnswers: number;
-  studyMode: StudyMode;
+  studyMode: PracticeMode;
   timeSpent?: number; // em segundos
   xpEarned: number;
   onNewSession: () => void;

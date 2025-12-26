@@ -91,7 +91,8 @@ export interface Friend {
   online: boolean;
 }
 
-export type StudyMode = 'zen' | 'hard' | 'reta_final' | 'review';
+// Modo de prática/estudo de questões (diferente de StudyMode que é 'normal' | 'reta_final')
+export type PracticeMode = 'zen' | 'hard' | 'reta_final' | 'review';
 
 export type StoreItemType = 'avatar' | 'theme' | 'powerup';
 

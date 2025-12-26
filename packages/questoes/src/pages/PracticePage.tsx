@@ -34,7 +34,7 @@ import { Button, Card, Progress } from '../components/ui';
 import { QuestionCard } from '../components/question';
 import { MentorChat } from '../components/question/MentorChat';
 import { FloatingChatButton } from '../components/ui';
-import { ParsedQuestion, RawQuestion, StudyMode, Alternative } from '../types';
+import { ParsedQuestion, RawQuestion, PracticeMode, Alternative } from '../types';
 import { MOCK_QUESTIONS } from '../constants';
 import { useUserStore, useUIStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -309,7 +309,7 @@ export default function PracticePage() {
   const [questionCount, setQuestionCount] = useState(10);
 
   // Modo de estudo (padrão: zen)
-  const [studyMode, setStudyMode] = useState<StudyMode>('zen');
+  const [studyMode, setStudyMode] = useState<PracticeMode>('zen');
 
   // Estado da sessao de pratica
   const [questions, setQuestions] = useState<ParsedQuestion[]>([]);
@@ -334,7 +334,7 @@ export default function PracticePage() {
   const [editingDescription, setEditingDescription] = useState('');
 
   // Estado local para configurações editáveis de cada caderno
-  const [notebookSettings, setNotebookSettings] = useState<Record<string, { questionCount: number; studyMode: StudyMode }>>({});
+  const [notebookSettings, setNotebookSettings] = useState<Record<string, { questionCount: number; studyMode: PracticeMode }>>({});
 
   // Modal de visualização de filtros
   const [viewingNotebookFilters, setViewingNotebookFilters] = useState<Caderno | null>(null);
@@ -367,7 +367,7 @@ export default function PracticePage() {
       setNotebooks(data);
 
       // Inicializar configurações editáveis para cada caderno
-      const initialSettings: Record<string, { questionCount: number; studyMode: StudyMode }> = {};
+      const initialSettings: Record<string, { questionCount: number; studyMode: PracticeMode }> = {};
       data.forEach(notebook => {
         initialSettings[notebook.id] = {
           questionCount: notebook.settings?.questionCount || 10,
@@ -1271,7 +1271,7 @@ export default function PracticePage() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {notebooks.map((notebook) => {
-                      const settings = notebookSettings[notebook.id] || { questionCount: 10, studyMode: 'zen' as StudyMode };
+                      const settings = notebookSettings[notebook.id] || { questionCount: 10, studyMode: 'zen' as PracticeMode };
 
                       // Calcular total de filtros
                       const totalFilters =
@@ -1340,7 +1340,7 @@ export default function PracticePage() {
                                 const newMode = settings.studyMode === 'zen' ? 'hard' : 'zen';
                                 setNotebookSettings(prev => ({
                                   ...prev,
-                                  [notebook.id]: { ...prev[notebook.id], studyMode: newMode as StudyMode }
+                                  [notebook.id]: { ...prev[notebook.id], studyMode: newMode as PracticeMode }
                                 }));
                               }}
                               className="relative inline-flex items-center h-7 rounded-full w-36 bg-[#252525] border border-[#3A3A3A] transition-colors"

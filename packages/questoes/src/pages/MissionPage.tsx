@@ -21,12 +21,12 @@ import { useMissionStore, useTrailStore, useUserStore, useUIStore } from '../sto
 import { useAuthStore } from '../stores/useAuthStore';
 import { Button, Card, Progress, CircularProgress, SuccessCelebration, FadeIn, FloatingChatButton, MarkdownContent } from '../components/ui';
 import { QuestionCard } from '../components/question';
-import { ParsedQuestion, TrailMission, MissionStatus } from '../types';
+import { ParsedQuestion, TrailMission, MissionStatus, StudyMode } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
 import { CompactTrailMap } from '../components/trail/CompactTrailMap';
 import { RoundSelector } from '../components/trail/RoundSelector';
 import { MentorChat } from '../components/question/MentorChat';
-import { PASSING_SCORE } from '../constants';
+import { PASSING_SCORE, XP_PER_CORRECT, COINS_PER_CORRECT } from '../constants';
 import { calculateXpReward, calculateCoinsReward } from '../services/gamificationSettingsService';
 import {
   saveUserAnswer,
@@ -44,7 +44,9 @@ import { getQuestoesParaMissao } from '../services/missaoQuestoesService';
 import {
   getMissaoConteudo,
   gerarConteudoMissao,
+  getConteudoEfetivo,
   MissaoConteudo,
+  ConteudoEfetivo,
 } from '../services/missaoConteudoService';
 import {
   userPreparatoriosService,
@@ -741,7 +743,7 @@ function ResultPhase({
               <p className="text-[#6E6E6E] text-sm">XP</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-[#FFB800]">+{COINS_PER_MISSION}</p>
+              <p className="text-2xl font-bold text-[#FFB800]">+{correct * COINS_PER_CORRECT}</p>
               <p className="text-[#6E6E6E] text-sm">Moedas</p>
             </div>
           </div>
@@ -1137,9 +1139,16 @@ export default function MissionPage() {
 
   // Content generation state
   const [missaoConteudo, setMissaoConteudo] = useState<MissaoConteudo | null>(null);
+  const [conteudoEfetivo, setConteudoEfetivo] = useState<ConteudoEfetivo | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState(true); // Loading existing content from DB
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [contentStatus, setContentStatus] = useState<'idle' | 'generating' | 'completed' | 'failed'>('idle');
+
+  // Get current trail mode from preparatorio
+  const currentTrailMode: StudyMode = useMemo(() => {
+    const prep = getSelectedPreparatorio();
+    return prep?.current_mode ?? 'normal';
+  }, [getSelectedPreparatorio, userPreparatorios]);
 
   // Retrieve current mission info for display (moved up to be available earlier)
   const currentMission = useMemo(() => {
@@ -1169,6 +1178,7 @@ export default function MissionPage() {
     setShowCelebration(false);
     setShowMentorChat(false);
     setMissaoConteudo(null);
+    setConteudoEfetivo(null);
     setIsLoadingContent(true);
     setIsGeneratingContent(false);
     setContentStatus('idle');
@@ -1213,9 +1223,17 @@ export default function MissionPage() {
         const existingContent = await getMissaoConteudo(resolvedMissionId);
 
         if (existingContent) {
-          console.log('[MissionPage] Conteudo encontrado:', existingContent.status, 'audio:', !!existingContent.audio_url);
+          console.log('[MissionPage] Conteudo encontrado:', existingContent.status, 'audio:', !!existingContent.audio_url, 'mode:', currentTrailMode);
           setMissaoConteudo(existingContent);
           setContentStatus(existingContent.status as 'generating' | 'completed' | 'failed');
+
+          // Get effective content based on mode
+          const efetivo = await getConteudoEfetivo(resolvedMissionId, currentTrailMode);
+          if (efetivo) {
+            setConteudoEfetivo(efetivo);
+            console.log('[MissionPage] Conteudo efetivo:', efetivo.isRetaFinal ? 'Reta Final' : 'Normal');
+          }
+
           setIsLoadingContent(false);
 
           // If still generating, poll for updates
@@ -1308,7 +1326,7 @@ export default function MissionPage() {
     }
 
     loadOrGenerateContent();
-  }, [resolvedMissionId, user?.id, getSelectedPreparatorio]);
+  }, [resolvedMissionId, user?.id, getSelectedPreparatorio, currentTrailMode]);
 
   // Load questions for this mission
   useEffect(() => {
@@ -1325,8 +1343,8 @@ export default function MissionPage() {
         const preparatorio = getSelectedPreparatorio();
         const questoesPorMissao = preparatorio?.questoes_por_missao || 20;
 
-        console.log('[MissionPage] Carregando questoes para missao:', resolvedMissionId, '- Quantidade:', questoesPorMissao);
-        const fetchedQuestions = await getQuestoesParaMissao(resolvedMissionId, questoesPorMissao);
+        console.log('[MissionPage] Carregando questoes para missao:', resolvedMissionId, '- Quantidade:', questoesPorMissao, '- Modo:', currentTrailMode);
+        const fetchedQuestions = await getQuestoesParaMissao(resolvedMissionId, questoesPorMissao, currentTrailMode);
 
         if (fetchedQuestions.length > 0) {
           console.log('[MissionPage] Questoes carregadas:', fetchedQuestions.length);
@@ -1346,7 +1364,7 @@ export default function MissionPage() {
     }
 
     loadQuestions();
-  }, [resolvedMissionId, getSelectedPreparatorio]);
+  }, [resolvedMissionId, getSelectedPreparatorio, currentTrailMode]);
 
   const currentQuestion = questions[currentQuestionIndex];
 
@@ -1624,7 +1642,11 @@ export default function MissionPage() {
                 {phase === 'content' && (
                   <ContentPhase
                     key="content"
-                    content={missaoConteudo ? {
+                    content={conteudoEfetivo ? {
+                      title: currentMission?.assunto?.nome || 'Conteúdo Teórico',
+                      texto_content: conteudoEfetivo.texto,
+                      audio_url: conteudoEfetivo.audioUrl || undefined,
+                    } : missaoConteudo ? {
                       title: currentMission?.assunto?.nome || 'Conteúdo Teórico',
                       texto_content: missaoConteudo.texto_content,
                       audio_url: missaoConteudo.audio_url || undefined,

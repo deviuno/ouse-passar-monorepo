@@ -9,3 +9,4 @@ export { FloatingChatButton } from './FloatingChatButton';
 export { MermaidDiagram } from './MermaidDiagram';
 export { MarkdownContent } from './MarkdownContent';
 export { ScrollToTop } from './ScrollToTop';
+export { RetaFinalUpsellModal } from './RetaFinalUpsellModal';

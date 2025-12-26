@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ParsedQuestion, CommunityStats, StudyMode } from '../../types';
+import { ParsedQuestion, CommunityStats, PracticeMode } from '../../types';
 import { COLORS, MOCK_STATS } from '../../constants';
 import { MessageCircle, AlertTriangle, BarChart2, X, Timer, Coffee, Zap, BrainCircuit, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { generateExplanation } from '../../services/geminiService';
@@ -18,7 +18,7 @@ interface QuestionCardProps {
   onAnswer: (letter: string) => void;
   onRateDifficulty?: (difficulty: 'easy' | 'medium' | 'hard') => void;
   onTimeout?: () => void;
-  studyMode?: StudyMode;
+  studyMode?: PracticeMode;
   initialTime?: number; // Duration in minutes for Simulado mode
   userId?: string | null; // Para o sistema de comentários
   onShowToast?: (message: string, type: 'success' | 'error' | 'info') => void;
