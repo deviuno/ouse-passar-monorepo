@@ -4270,7 +4270,7 @@ const mcpHttpServer = http.createServer(async (req, res) => {
     }
 });
 
-mcpHttpServer.timeout = 60 * 1000;
+mcpHttpServer.timeout = 60 * 5000;
 
 mcpHttpServer.listen(MCP_PORT, () => {
     console.log(`MCP Server running on http://localhost:${MCP_PORT}/mcp`);
