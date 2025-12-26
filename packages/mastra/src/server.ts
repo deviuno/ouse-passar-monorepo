@@ -4229,13 +4229,13 @@ app.post('/api/admin/store/sync-preparatorios', async (req, res) => {
 });
 
 // Start the Express server
+app.timeout = 5000;
+
 app.listen(PORT, () => {
     console.log(`Mastra Agent Server running on http://localhost:${PORT}`);
 });
 
 // Start the MCP Server on a separate port for MCP clients using SSE transport
-const MCP_PORT = 4111;
-
 const mcpHttpServer = http.createServer(async (req, res) => {
     // Enable CORS for MCP clients
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -4268,6 +4268,8 @@ const mcpHttpServer = http.createServer(async (req, res) => {
         res.end('Not Found');
     }
 });
+
+mcpHttpServer.timeout = 60 * 1000;
 
 mcpHttpServer.listen(MCP_PORT, () => {
     console.log(`MCP Server running on http://localhost:${MCP_PORT}/mcp`);
