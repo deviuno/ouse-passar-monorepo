@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Flame } from 'lucide-react';
 import { useTrailStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
 import { PreparatorioDropdown } from '../trail/PreparatorioDropdown';
 import { RoundSelector } from '../trail/RoundSelector';
 import { UserPreparatorio } from '../../types';
+import { RETA_FINAL_THEME } from '../../services/retaFinalService';
 
 export function Header() {
   const navigate = useNavigate();
@@ -20,8 +21,15 @@ export function Header() {
     getMissionByUrlParams,
     rounds,
     viewingRoundIndex,
-    setViewingRoundIndex
+    setViewingRoundIndex,
+    getSelectedPreparatorio
   } = useTrailStore();
+
+  // Get current trail mode from selected preparatorio
+  const currentMode = useMemo(() => {
+    const prep = getSelectedPreparatorio();
+    return prep?.current_mode ?? 'normal';
+  }, [getSelectedPreparatorio, userPreparatorios]);
 
   // Get current phase from URL query params
   const currentPhase = searchParams.get('fase');
@@ -117,19 +125,46 @@ export function Header() {
               </button>
               {/* Mobile mission title - next to back button */}
               {isMissionPage && (
-                <h1 className="text-base font-semibold text-white lg:hidden">
-                  {getMissionTitle()}
-                </h1>
+                <div className="flex items-center gap-2 lg:hidden">
+                  <h1 className="text-base font-semibold text-white">
+                    {getMissionTitle()}
+                  </h1>
+                  {currentMode === 'reta_final' && (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold"
+                      style={{
+                        background: `linear-gradient(135deg, ${RETA_FINAL_THEME.colors.primary}30 0%, ${RETA_FINAL_THEME.colors.accent}30 100%)`,
+                        color: RETA_FINAL_THEME.colors.primary,
+                        border: `1px solid ${RETA_FINAL_THEME.colors.primary}50`,
+                      }}
+                    >
+                      <Flame size={10} />
+                      RETA FINAL
+                    </span>
+                  )}
+                </div>
               )}
             </>
           ) : (
             <>
-              {/* Mobile Logo */}
-              <img
-                src={LOGO_URL}
-                alt="Ouse Passar"
-                className="h-8 lg:hidden"
-              />
+              {/* Mobile: Show Preparatorio Dropdown on Home, Logo on other pages */}
+              {isHomePage && userPreparatorios.length > 0 ? (
+                <div className="lg:hidden">
+                  <PreparatorioDropdown
+                    preparatorios={userPreparatorios}
+                    selectedId={selectedPreparatorioId}
+                    onSelect={handlePreparatorioSelect}
+                    onAddNew={handleAddNewPreparatorio}
+                    isLoading={isTrailLoading}
+                  />
+                </div>
+              ) : (
+                <img
+                  src={LOGO_URL}
+                  alt="Ouse Passar"
+                  className="h-8 lg:hidden"
+                />
+              )}
             </>
           )}
 
@@ -145,14 +180,29 @@ export function Header() {
               />
             </div>
           ) : (
-            <h1 className="hidden lg:block text-lg font-semibold text-white">
-              {getPageTitle()}
-            </h1>
+            <div className="hidden lg:flex items-center gap-2">
+              <h1 className="text-lg font-semibold text-white">
+                {getPageTitle()}
+              </h1>
+              {isMissionPage && currentMode === 'reta_final' && (
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold"
+                  style={{
+                    background: `linear-gradient(135deg, ${RETA_FINAL_THEME.colors.primary}30 0%, ${RETA_FINAL_THEME.colors.accent}30 100%)`,
+                    color: RETA_FINAL_THEME.colors.primary,
+                    border: `1px solid ${RETA_FINAL_THEME.colors.primary}50`,
+                  }}
+                >
+                  <Flame size={10} />
+                  RETA FINAL
+                </span>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Right Side - Round Selector for Trail Page */}
-        <div className="flex items-center gap-3">
+        {/* Right Side - Round Selector for Trail Page (Desktop only) */}
+        <div className="hidden lg:flex items-center gap-3">
           {isHomePage && rounds.length > 0 && (
             <RoundSelector
               currentRoundIndex={viewingRoundIndex || 0}

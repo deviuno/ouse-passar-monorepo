@@ -262,6 +262,7 @@ function ContentPhase({
   generationStatus,
   onContinue,
   onBack,
+  isRetaFinal = false,
 }: {
   content: { texto_content?: string; audio_url?: string; title?: string } | null;
   isLoading: boolean;
@@ -269,6 +270,7 @@ function ContentPhase({
   generationStatus: 'idle' | 'generating' | 'completed' | 'failed';
   onContinue: (mode: 'zen' | 'hard') => void;
   onBack: () => void;
+  isRetaFinal?: boolean;
 }) {
   const [showModeModal, setShowModeModal] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -542,7 +544,9 @@ function ContentPhase({
           </Button>
           <div>
             <h2 className="text-white font-semibold">{content?.title || 'Conteúdo Teórico'}</h2>
-            <p className="text-[#6E6E6E] text-sm">Leia com atenção antes de praticar</p>
+            <p className="text-[#6E6E6E] text-sm">
+              {isRetaFinal ? 'Resumo focado no essencial' : 'Leia com atenção antes de praticar'}
+            </p>
           </div>
         </div>
 
@@ -1685,6 +1689,7 @@ export default function MissionPage() {
                       setPhase('questions');
                     }}
                     onBack={() => navigate('/')}
+                    isRetaFinal={conteudoEfetivo?.isRetaFinal || currentTrailMode === 'reta_final'}
                   />
                 )}
 

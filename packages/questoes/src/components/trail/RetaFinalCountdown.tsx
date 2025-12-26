@@ -122,8 +122,8 @@ export function RetaFinalCountdown({ dataProva, userName }: RetaFinalCountdownPr
       daysColor: 'text-orange-400',
     },
     medium: {
-      bg: `bg-gradient-to-r from-[${RETA_FINAL_THEME.colors.primary}20] to-[${RETA_FINAL_THEME.colors.accent}20]`,
-      border: `border-[${RETA_FINAL_THEME.colors.primary}50]`,
+      bg: 'bg-gradient-to-r from-yellow-900/20 to-orange-900/20',
+      border: 'border-yellow-500/40',
       icon: Flame,
       iconColor: 'text-yellow-400',
       daysColor: 'text-yellow-400',
@@ -143,12 +143,6 @@ export function RetaFinalCountdown({ dataProva, userName }: RetaFinalCountdownPr
   return (
     <div
       className={`rounded-xl p-4 border ${style.bg} ${style.border} mb-4`}
-      style={{
-        background: urgency === 'medium'
-          ? `linear-gradient(135deg, ${RETA_FINAL_THEME.colors.primary}15 0%, ${RETA_FINAL_THEME.colors.accent}15 100%)`
-          : undefined,
-        borderColor: urgency === 'medium' ? `${RETA_FINAL_THEME.colors.primary}40` : undefined,
-      }}
     >
       <div className="flex items-start gap-3">
         <div className={`p-2 rounded-lg ${urgency === 'critical' ? 'bg-red-500/20 animate-pulse' : 'bg-white/5'}`}>

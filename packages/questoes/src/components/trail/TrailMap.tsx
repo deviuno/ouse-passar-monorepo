@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Lock, RefreshCw, X, Zap, Target, BookOpen, User, RotateCw, Trophy, GraduationCap, Cpu } from 'lucide-react';
 import { TrailMission, MissionType } from '../../types';
 import { isMassificacao } from '../../services/massificacaoService';
+import { TecnicaMissionModal } from './TecnicaMissionModal';
 
 // Storage key for massification modal
 const MASSIFICACAO_MODAL_SHOWN_KEY = 'ouse_massificacao_modal_shown';
@@ -451,6 +452,33 @@ export function TrailMap({
         label: string;
     }>({ isOpen: false, mission: null, label: '' });
 
+    // Tecnica mission modal state
+    const [tecnicaModal, setTecnicaModal] = useState<{
+        isOpen: boolean;
+        tecnicaMission: TrailMission | null;
+    }>({ isOpen: false, tecnicaMission: null });
+
+    // Get all missions needing massification across all rounds
+    const missionsNeedingMassificacao = useMemo(() => {
+        const result: { mission: TrailMission; missionNumber: number; score: number }[] = [];
+        let globalIndex = 0;
+
+        rounds.forEach((round) => {
+            round.missions.forEach((mission) => {
+                if (mission.needsMassificacao) {
+                    result.push({
+                        mission,
+                        missionNumber: globalIndex + 1,
+                        score: mission.score || 0,
+                    });
+                }
+                globalIndex++;
+            });
+        });
+
+        return result;
+    }, [rounds]);
+
     // Check if user has seen massification modal before
     const hasSeenMassificacaoModal = useCallback(() => {
         try {
@@ -469,11 +497,39 @@ export function TrailMap({
         }
     }, []);
 
-    // Handle mission click - go directly to mission (no modal)
+    // Handle mission click - check if it's a tecnica mission and show modal if needed
     const handleMissionClick = useCallback((mission: TrailMission, index: number, tab?: 'teoria' | 'questoes') => {
-        if (mission.status === 'locked') return;
+        // Allow click on missions that need massification even if "locked"
+        if (mission.status === 'locked' && !mission.needsMassificacao) return;
+
+        // If it's a tecnica mission and there are missions needing massification, show modal
+        if (mission.tipo === 'tecnica' && missionsNeedingMassificacao.length > 0) {
+            setTecnicaModal({ isOpen: true, tecnicaMission: mission });
+            return;
+        }
+
+        // Otherwise, go directly to the mission
         onMissionClick(mission, tab);
+    }, [onMissionClick, missionsNeedingMassificacao]);
+
+    // Handle clicking on a mission from the tecnica modal
+    const handleTecnicaMissionSelect = useCallback((mission: TrailMission) => {
+        setTecnicaModal({ isOpen: false, tecnicaMission: null });
+        onMissionClick(mission);
     }, [onMissionClick]);
+
+    // Handle proceeding to tecnica mission from the modal
+    const handleProceedToTecnica = useCallback(() => {
+        if (tecnicaModal.tecnicaMission) {
+            setTecnicaModal({ isOpen: false, tecnicaMission: null });
+            onMissionClick(tecnicaModal.tecnicaMission);
+        }
+    }, [onMissionClick, tecnicaModal.tecnicaMission]);
+
+    // Close tecnica modal
+    const handleCloseTecnicaModal = useCallback(() => {
+        setTecnicaModal({ isOpen: false, tecnicaMission: null });
+    }, []);
 
     // Handle starting massification from modal
     const handleStartMassificacao = useCallback(() => {
@@ -669,8 +725,12 @@ export function TrailMap({
                         const isCurrent = index === currentMissionIndexInRound && isViewingActiveRound;
                         if (isCurrent) status = 'active';
 
-                        // Check if it's a massification mission (needs_massificacao status)
-                        const isMassificacaoMission = isMassificacao(mission) || effectiveStatus === 'needs_massificacao';
+                        // Check if this mission needs massification (new flag or old status check)
+                        // needsMassificacao: missão completada com score < 50%, pode ser refeita
+                        const needsMassificacaoFlag = mission.needsMassificacao === true;
+
+                        // Check if it's a massification mission (legacy check for old status)
+                        const isMassificacaoMission = isMassificacao(mission) || effectiveStatus === 'needs_massificacao' || needsMassificacaoFlag;
 
                         const isCompleted = status === 'completed';
                         const isActive = status === 'active';
@@ -802,12 +862,16 @@ export function TrailMap({
                                     whileHover={{ rotate: 45, scale: status !== 'locked' ? 1.1 : 1 }}
                                     whileTap={{ rotate: 45, scale: status !== 'locked' ? 0.95 : 1 }}
                                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                    disabled={status === 'locked'}
+                                    disabled={status === 'locked' && !needsMassificacaoFlag}
                                     onClick={() => handleMissionClick(mission, index)}
                                     className={`
                                         relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg border-2
+                                        ${/* COMPLETED STATE with NEEDS MASSIFICACAO - Red border/ring */ ''}
+                                        ${isCompleted && needsMassificacaoFlag
+                                            ? 'border-[#E74C3C] bg-emerald-600 ring-4 ring-[#E74C3C]/50 shadow-[0_0_20px_rgba(231,76,60,0.4)]'
+                                            : ''}
                                         ${/* COMPLETED STATE - Solid Colors */ ''}
-                                        ${isCompleted && !isMassificacaoMission
+                                        ${isCompleted && !needsMassificacaoFlag && !isMassificacaoMission
                                             ? mission.tipo === 'revisao'
                                                 ? 'border-amber-600 bg-amber-600'
                                                 : mission.tipo === 'simulado_rodada'
@@ -816,7 +880,7 @@ export function TrailMap({
                                                         ? 'border-blue-600 bg-blue-600'
                                                         : 'border-emerald-600 bg-emerald-600'
                                             : ''}
-                                        ${isCompleted && isMassificacaoMission ? 'border-emerald-600 bg-emerald-600' : ''}
+                                        ${isCompleted && isMassificacaoMission && !needsMassificacaoFlag ? 'border-emerald-600 bg-emerald-600' : ''}
 
                                         ${/* ACTIVE STATE - Subtle Glow */ ''}
                                         ${isActive && !isMassificacaoMission
@@ -831,7 +895,7 @@ export function TrailMap({
                                         ${isActive && isMassificacaoMission ? 'border-white bg-[#E74C3C] shadow-[0_0_15px_rgba(231,76,60,0.35)]' : ''}
 
                                         ${/* LOCKED STATE - Solid Colors (No Opacity) */ ''}
-                                        ${status === 'locked' && !isMassificacaoMission
+                                        ${status === 'locked' && !isMassificacaoMission && !needsMassificacaoFlag
                                             ? mission.tipo === 'revisao'
                                                 ? 'border-amber-900 bg-amber-950 ring-2 ring-amber-900/20'
                                                 : mission.tipo === 'simulado_rodada'
@@ -840,7 +904,7 @@ export function TrailMap({
                                                         ? 'border-blue-900 bg-blue-950 ring-2 ring-blue-900/20'
                                                         : 'border-zinc-700 bg-zinc-900' /* Normal Locked */
                                             : ''}
-                                        ${status === 'locked' && isMassificacaoMission ? 'border-red-900 bg-red-950 ring-2 ring-red-900/20' : ''}
+                                        ${status === 'locked' && (isMassificacaoMission || needsMassificacaoFlag) ? 'border-red-900 bg-red-950 ring-2 ring-red-900/20' : ''}
                                     `}
                                 >
                                     <div className="-rotate-45 text-white flex items-center justify-center">
@@ -862,10 +926,11 @@ export function TrailMap({
                                     </div>
                                 </motion.button>
 
-                                {/* Label - Shows "Missao X" */}
+                                {/* Label - Shows "Missao X" or massification indicator */}
                                 <div className={`
-                                    mt-8 px-3 py-1.5 rounded-lg backdrop-blur-md border text-xs font-semibold text-center transition-all duration-300 max-w-[120px] shadow-md
-                                    ${isCompleted ? 'bg-emerald-50/80 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400' : ''}
+                                    mt-8 px-3 py-1.5 rounded-lg backdrop-blur-md border text-xs font-semibold text-center transition-all duration-300 max-w-[140px] shadow-md
+                                    ${isCompleted && needsMassificacaoFlag ? 'bg-[#E74C3C]/10 border-[#E74C3C] text-[#E74C3C] dark:bg-[#E74C3C]/20 dark:border-[#E74C3C]/50 dark:text-[#E74C3C]' : ''}
+                                    ${isCompleted && !needsMassificacaoFlag ? 'bg-emerald-50/80 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400' : ''}
                                     ${isActive && !isMassificacaoMission
                                         ? mission.tipo === 'revisao'
                                             ? 'bg-white border-amber-500 text-amber-500 dark:bg-zinc-700 dark:text-amber-500 translate-y-1'
@@ -876,20 +941,25 @@ export function TrailMap({
                                                     : 'bg-white border-[#e7cb00] text-[#d59a01] dark:bg-zinc-700 dark:text-[#e7cb00] translate-y-1'
                                         : ''}
                                     ${isActive && isMassificacaoMission ? 'bg-white border-[#E74C3C] text-[#E74C3C] dark:bg-zinc-700 dark:text-[#E74C3C] translate-y-1' : ''}
-                                    ${status === 'locked' ? 'bg-zinc-50/80 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 opacity-70' : ''}
+                                    ${status === 'locked' && !needsMassificacaoFlag ? 'bg-zinc-50/80 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 opacity-70' : ''}
                                 `}>
-                                    {status === 'locked' && (
+                                    {status === 'locked' && !needsMassificacaoFlag && (
                                         <Lock size={12} className="inline-block mr-1 -mt-0.5" />
                                     )}
-                                    {isMassificacaoMission
-                                        ? getMassificacaoLabel(mission, globalIndex)
-                                        : mission.tipo === 'revisao'
-                                            ? `Revisão ${globalIndex + 1}`
-                                            : mission.tipo === 'simulado_rodada'
-                                                ? `Simulado ${globalIndex + 1}`
-                                                : mission.tipo === 'tecnica'
-                                                    ? `Técnica ${globalIndex + 1}`
-                                                    : `Missão ${globalIndex + 1}`
+                                    {needsMassificacaoFlag && (
+                                        <RefreshCw size={12} className="inline-block mr-1 -mt-0.5" />
+                                    )}
+                                    {needsMassificacaoFlag
+                                        ? `M${globalIndex + 1} - Refazer`
+                                        : isMassificacaoMission
+                                            ? getMassificacaoLabel(mission, globalIndex)
+                                            : mission.tipo === 'revisao'
+                                                ? `Revisão ${globalIndex + 1}`
+                                                : mission.tipo === 'simulado_rodada'
+                                                    ? `Simulado ${globalIndex + 1}`
+                                                    : mission.tipo === 'tecnica'
+                                                        ? `Técnica ${globalIndex + 1}`
+                                                        : `Missão ${globalIndex + 1}`
                                     }
                                 </div>
                             </div>
@@ -907,6 +977,15 @@ export function TrailMap({
                 onClose={handleCloseMassificacaoModal}
                 onStart={handleStartMassificacao}
                 missionLabel={massificacaoModal.label}
+            />
+
+            {/* Tecnica Mission Modal */}
+            <TecnicaMissionModal
+                isOpen={tecnicaModal.isOpen}
+                onClose={handleCloseTecnicaModal}
+                missionsNeedingMassificacao={missionsNeedingMassificacao}
+                onMissionClick={handleTecnicaMissionSelect}
+                onProceedToTecnica={handleProceedToTecnica}
             />
         </div>
     );

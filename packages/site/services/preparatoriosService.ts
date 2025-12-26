@@ -158,18 +158,23 @@ export interface CreatePreparatorioInput {
   preco_planejador?: number | null;
   preco_planejador_desconto?: number | null;
   checkout_planejador?: string;
+  guru_product_id_planejador?: string;
   preco_8_questoes?: number | null;
   preco_8_questoes_desconto?: number | null;
   checkout_8_questoes?: string;
+  guru_product_id_8_questoes?: string;
   preco_simulados?: number | null;
   preco_simulados_desconto?: number | null;
   checkout_simulados?: string;
+  guru_product_id_simulados?: string;
   preco_reta_final?: number | null;
   preco_reta_final_desconto?: number | null;
   checkout_reta_final?: string;
+  guru_product_id_reta_final?: string;
   preco_plataforma_completa?: number | null;
   preco_plataforma_completa_desconto?: number | null;
   checkout_plataforma_completa?: string;
+  guru_product_id_plataforma_completa?: string;
   // Campos legados
   preco?: number | null;
   preco_desconto?: number | null;
@@ -225,18 +230,23 @@ export interface UpdatePreparatorioInput {
   preco_planejador?: number | null;
   preco_planejador_desconto?: number | null;
   checkout_planejador?: string;
+  guru_product_id_planejador?: string;
   preco_8_questoes?: number | null;
   preco_8_questoes_desconto?: number | null;
   checkout_8_questoes?: string;
+  guru_product_id_8_questoes?: string;
   preco_simulados?: number | null;
   preco_simulados_desconto?: number | null;
   checkout_simulados?: string;
+  guru_product_id_simulados?: string;
   preco_reta_final?: number | null;
   preco_reta_final_desconto?: number | null;
   checkout_reta_final?: string;
+  guru_product_id_reta_final?: string;
   preco_plataforma_completa?: number | null;
   preco_plataforma_completa_desconto?: number | null;
   checkout_plataforma_completa?: string;
+  guru_product_id_plataforma_completa?: string;
   // Campos legados
   preco?: number | null;
   preco_desconto?: number | null;

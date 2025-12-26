@@ -19,6 +19,7 @@ export interface ProductPricing {
   preco: string;
   precoDesconto: string;
   checkoutUrl: string;
+  guruProductId: string;
 }
 
 export interface PreparatorioWizardData {
@@ -52,22 +53,27 @@ export interface PreparatorioWizardData {
   precoPlanejador: string;
   precoPlanejadorDesconto: string;
   checkoutPlanejador: string;
+  guruProductIdPlanejador: string;
   // 8 Questões
   preco8Questoes: string;
   preco8QuestoesDesconto: string;
   checkout8Questoes: string;
+  guruProductId8Questoes: string;
   // Simulados
   precoSimulados: string;
   precoSimuladosDesconto: string;
   checkoutSimulados: string;
+  guruProductIdSimulados: string;
   // Reta Final
   precoRetaFinal: string;
   precoRetaFinalDesconto: string;
   checkoutRetaFinal: string;
+  guruProductIdRetaFinal: string;
   // Plataforma Completa
   precoPlataformaCompleta: string;
   precoPlataformaCompletaDesconto: string;
   checkoutPlataformaCompleta: string;
+  guruProductIdPlataformaCompleta: string;
   // Descrições
   descricaoCurta: string;
   descricaoVendas: string;
@@ -168,9 +174,11 @@ interface ProductPriceCardProps {
   precoValue: string;
   descontoValue: string;
   checkoutValue: string;
+  guruProductIdValue: string;
   onPrecoChange: (value: string) => void;
   onDescontoChange: (value: string) => void;
   onCheckoutChange: (value: string) => void;
+  onGuruProductIdChange: (value: string) => void;
 }
 
 const ProductPriceCard: React.FC<ProductPriceCardProps> = ({
@@ -180,62 +188,100 @@ const ProductPriceCard: React.FC<ProductPriceCardProps> = ({
   precoValue,
   descontoValue,
   checkoutValue,
+  guruProductIdValue,
   onPrecoChange,
   onDescontoChange,
   onCheckoutChange,
-}) => (
-  <div className="bg-brand-dark/50 border border-white/10 rounded-lg p-4 hover:border-white/20 transition-colors">
-    <div className="flex items-center gap-3 mb-4">
-      <span className="text-2xl">{icon}</span>
-      <div>
-        <h4 className="text-white font-bold">{title}</h4>
-        <p className="text-gray-500 text-xs">{description}</p>
-      </div>
-    </div>
+  onGuruProductIdChange,
+}) => {
+  // Verifica se o produto está configurado (tem pelo menos preço e checkout)
+  const isConfigured = precoValue && checkoutValue;
 
-    <div className="grid grid-cols-2 gap-3 mb-3">
-      <div>
+  return (
+    <div className={`bg-brand-dark/50 border rounded-lg p-4 transition-colors ${
+      isConfigured
+        ? 'border-green-500/30 hover:border-green-500/50'
+        : 'border-white/10 hover:border-white/20'
+    }`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{icon}</span>
+          <div>
+            <h4 className="text-white font-bold">{title}</h4>
+            <p className="text-gray-500 text-xs">{description}</p>
+          </div>
+        </div>
+        {isConfigured ? (
+          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">
+            Ativo
+          </span>
+        ) : (
+          <span className="text-xs bg-gray-500/20 text-gray-500 px-2 py-1 rounded-full">
+            Oculto
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+            Preço (R$)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={precoValue}
+            onChange={(e) => onPrecoChange(e.target.value)}
+            placeholder="0,00"
+            className="w-full bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white text-sm focus:outline-none focus:border-brand-yellow placeholder-gray-600"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+            Desconto (R$)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={descontoValue}
+            onChange={(e) => onDescontoChange(e.target.value)}
+            placeholder="Opcional"
+            className="w-full bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white text-sm focus:outline-none focus:border-brand-yellow placeholder-gray-600"
+          />
+        </div>
+      </div>
+
+      <div className="mb-3">
         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-          Preço (R$)
+          Link de Checkout
         </label>
         <input
-          type="number"
-          step="0.01"
-          value={precoValue}
-          onChange={(e) => onPrecoChange(e.target.value)}
-          placeholder="0,00"
+          type="url"
+          value={checkoutValue}
+          onChange={(e) => onCheckoutChange(e.target.value)}
+          placeholder="https://pay.digitalmanager.guru/..."
           className="w-full bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white text-sm focus:outline-none focus:border-brand-yellow placeholder-gray-600"
         />
       </div>
+
       <div>
         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-          Desconto (R$)
+          ID do Produto (Guru)
         </label>
         <input
-          type="number"
-          step="0.01"
-          value={descontoValue}
-          onChange={(e) => onDescontoChange(e.target.value)}
-          placeholder="Opcional"
-          className="w-full bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white text-sm focus:outline-none focus:border-brand-yellow placeholder-gray-600"
+          type="text"
+          value={guruProductIdValue}
+          onChange={(e) => onGuruProductIdChange(e.target.value)}
+          placeholder="prod_abc123..."
+          className="w-full bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white text-sm focus:outline-none focus:border-brand-yellow placeholder-gray-600 font-mono"
         />
+        <p className="text-xs text-gray-600 mt-1">
+          Encontre em: Guru Admin → Produtos → ID do produto
+        </p>
       </div>
     </div>
-
-    <div>
-      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-        Link de Checkout
-      </label>
-      <input
-        type="url"
-        value={checkoutValue}
-        onChange={(e) => onCheckoutChange(e.target.value)}
-        placeholder="https://checkout.com/..."
-        className="w-full bg-brand-dark border border-white/10 rounded-sm py-2 px-3 text-white text-sm focus:outline-none focus:border-brand-yellow placeholder-gray-600"
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
   options,
@@ -411,18 +457,23 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
     precoPlanejador: initialData?.precoPlanejador || '',
     precoPlanejadorDesconto: initialData?.precoPlanejadorDesconto || '',
     checkoutPlanejador: initialData?.checkoutPlanejador || '',
+    guruProductIdPlanejador: initialData?.guruProductIdPlanejador || '',
     preco8Questoes: initialData?.preco8Questoes || '',
     preco8QuestoesDesconto: initialData?.preco8QuestoesDesconto || '',
     checkout8Questoes: initialData?.checkout8Questoes || '',
+    guruProductId8Questoes: initialData?.guruProductId8Questoes || '',
     precoSimulados: initialData?.precoSimulados || '',
     precoSimuladosDesconto: initialData?.precoSimuladosDesconto || '',
     checkoutSimulados: initialData?.checkoutSimulados || '',
+    guruProductIdSimulados: initialData?.guruProductIdSimulados || '',
     precoRetaFinal: initialData?.precoRetaFinal || '',
     precoRetaFinalDesconto: initialData?.precoRetaFinalDesconto || '',
     checkoutRetaFinal: initialData?.checkoutRetaFinal || '',
+    guruProductIdRetaFinal: initialData?.guruProductIdRetaFinal || '',
     precoPlataformaCompleta: initialData?.precoPlataformaCompleta || '',
     precoPlataformaCompletaDesconto: initialData?.precoPlataformaCompletaDesconto || '',
     checkoutPlataformaCompleta: initialData?.checkoutPlataformaCompleta || '',
+    guruProductIdPlataformaCompleta: initialData?.guruProductIdPlataformaCompleta || '',
     descricaoCurta: initialData?.descricaoCurta || '',
     descricaoVendas: initialData?.descricaoVendas || '',
     // Campos legados
@@ -888,7 +939,9 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p className="text-blue-400 text-sm">
           <strong>Configure os preços de cada produto.</strong> Cada forma de consumir o preparatório pode ter seu próprio preço e link de checkout.
-          Deixe em branco os produtos que não deseja disponibilizar.
+        </p>
+        <p className="text-blue-400/70 text-sm mt-2">
+          <strong>Produtos sem preço ou checkout serão ocultados</strong> na área do aluno. O ID do Produto (Guru) é necessário para processar pagamentos automaticamente.
         </p>
       </div>
 
@@ -901,9 +954,11 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
           precoValue={formData.precoPlanejador}
           descontoValue={formData.precoPlanejadorDesconto}
           checkoutValue={formData.checkoutPlanejador}
+          guruProductIdValue={formData.guruProductIdPlanejador}
           onPrecoChange={(v) => updateField('precoPlanejador', v)}
           onDescontoChange={(v) => updateField('precoPlanejadorDesconto', v)}
           onCheckoutChange={(v) => updateField('checkoutPlanejador', v)}
+          onGuruProductIdChange={(v) => updateField('guruProductIdPlanejador', v)}
         />
 
         <ProductPriceCard
@@ -913,9 +968,11 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
           precoValue={formData.preco8Questoes}
           descontoValue={formData.preco8QuestoesDesconto}
           checkoutValue={formData.checkout8Questoes}
+          guruProductIdValue={formData.guruProductId8Questoes}
           onPrecoChange={(v) => updateField('preco8Questoes', v)}
           onDescontoChange={(v) => updateField('preco8QuestoesDesconto', v)}
           onCheckoutChange={(v) => updateField('checkout8Questoes', v)}
+          onGuruProductIdChange={(v) => updateField('guruProductId8Questoes', v)}
         />
 
         <ProductPriceCard
@@ -925,9 +982,11 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
           precoValue={formData.precoSimulados}
           descontoValue={formData.precoSimuladosDesconto}
           checkoutValue={formData.checkoutSimulados}
+          guruProductIdValue={formData.guruProductIdSimulados}
           onPrecoChange={(v) => updateField('precoSimulados', v)}
           onDescontoChange={(v) => updateField('precoSimuladosDesconto', v)}
           onCheckoutChange={(v) => updateField('checkoutSimulados', v)}
+          onGuruProductIdChange={(v) => updateField('guruProductIdSimulados', v)}
         />
 
         <ProductPriceCard
@@ -937,9 +996,11 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
           precoValue={formData.precoRetaFinal}
           descontoValue={formData.precoRetaFinalDesconto}
           checkoutValue={formData.checkoutRetaFinal}
+          guruProductIdValue={formData.guruProductIdRetaFinal}
           onPrecoChange={(v) => updateField('precoRetaFinal', v)}
           onDescontoChange={(v) => updateField('precoRetaFinalDesconto', v)}
           onCheckoutChange={(v) => updateField('checkoutRetaFinal', v)}
+          onGuruProductIdChange={(v) => updateField('guruProductIdRetaFinal', v)}
         />
       </div>
 
@@ -951,9 +1012,11 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
         precoValue={formData.precoPlataformaCompleta}
         descontoValue={formData.precoPlataformaCompletaDesconto}
         checkoutValue={formData.checkoutPlataformaCompleta}
+        guruProductIdValue={formData.guruProductIdPlataformaCompleta}
         onPrecoChange={(v) => updateField('precoPlataformaCompleta', v)}
         onDescontoChange={(v) => updateField('precoPlataformaCompletaDesconto', v)}
         onCheckoutChange={(v) => updateField('checkoutPlataformaCompleta', v)}
+        onGuruProductIdChange={(v) => updateField('guruProductIdPlataformaCompleta', v)}
       />
 
       {/* Descrições */}

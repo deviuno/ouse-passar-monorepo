@@ -7,7 +7,7 @@ import { Button, FadeIn, RetaFinalUpsellModal } from '../components/ui';
 import { TrailMission, StudyMode } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
 import { RoundSelector } from '../components/trail/RoundSelector';
-import { ModeToggle } from '../components/trail/ModeToggle';
+import { ModeToggle, ModeToggleCompact } from '../components/trail/ModeToggle';
 import { RetaFinalCountdown } from '../components/trail/RetaFinalCountdown';
 import {
   userPreparatoriosService,
@@ -430,9 +430,38 @@ export default function HomePage() {
         <EmptyTrailState />
       ) : (
         <FadeIn>
-          {/* Mode Toggle - positioned above trail map, aligned right */}
-          {selectedPrep && (
-            <div className="flex justify-end px-4 pt-4 pb-2">
+          {/* Controls Row: RoundSelector + ModeToggle (mobile only - compact versions) */}
+          <div className={`flex px-4 pt-4 pb-2 lg:hidden ${
+            selectedPrep?.preparatorio?.data_prova
+              ? 'justify-between items-center'
+              : 'justify-center'
+          }`}>
+            {/* RoundSelector - mobile only (compact version) */}
+            {rounds.length > 0 && (
+              <RoundSelector
+                currentRoundIndex={viewingRoundIndex || 0}
+                totalRounds={rounds.length}
+                onRoundChange={setViewingRoundIndex}
+                compact
+              />
+            )}
+
+            {/* ModeToggle - only when preparatorio has data_prova (compact version) */}
+            {selectedPrep?.preparatorio?.data_prova && (
+              <ModeToggleCompact
+                currentMode={currentMode}
+                hasNormalAccess={hasNormalAccess}
+                hasRetaFinalAccess={hasRetaFinalAccess}
+                onModeChange={handleModeChange}
+                onUpsellClick={handleUpsellClick}
+                isLoading={isSwitchingMode}
+              />
+            )}
+          </div>
+
+          {/* ModeToggle for Desktop - only when preparatorio has data_prova */}
+          {selectedPrep?.preparatorio?.data_prova && (
+            <div className="hidden lg:flex justify-end px-4 pt-4 pb-2">
               <ModeToggle
                 currentMode={currentMode}
                 hasNormalAccess={hasNormalAccess}

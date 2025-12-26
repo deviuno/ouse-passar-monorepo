@@ -527,6 +527,16 @@ export async function gerarConteudoMissao(
 }
 
 /**
+ * Remove code fences de markdown se existirem
+ */
+function stripCodeFences(text: string): string {
+  return text
+    .replace(/^```(?:markdown)?\s*\n?/i, '')
+    .replace(/\n?```\s*$/i, '')
+    .trim();
+}
+
+/**
  * Busca o conteúdo efetivo baseado no modo de estudo
  * - Modo Normal: retorna texto_content e audio_url
  * - Modo Reta Final: retorna reta_final_content se disponível, senão texto_content
@@ -544,7 +554,7 @@ export async function getConteudoEfetivo(
   // Modo Normal: retorna conteúdo completo
   if (mode === 'normal') {
     return {
-      texto: conteudo.texto_content,
+      texto: stripCodeFences(conteudo.texto_content),
       audioUrl: conteudo.audio_url,
       status: conteudo.status,
       isRetaFinal: false,
@@ -555,7 +565,7 @@ export async function getConteudoEfetivo(
   // Se tem conteúdo resumido pronto, usa ele
   if (conteudo.reta_final_status === 'completed' && conteudo.reta_final_content) {
     return {
-      texto: conteudo.reta_final_content,
+      texto: stripCodeFences(conteudo.reta_final_content),
       audioUrl: conteudo.reta_final_audio_url,
       status: 'completed',
       isRetaFinal: true,
@@ -565,7 +575,7 @@ export async function getConteudoEfetivo(
   // Se está gerando o resumo, indica isso
   if (conteudo.reta_final_status === 'generating') {
     return {
-      texto: conteudo.texto_content, // Usa o completo temporariamente
+      texto: stripCodeFences(conteudo.texto_content), // Usa o completo temporariamente
       audioUrl: conteudo.audio_url,
       status: 'generating',
       isRetaFinal: false, // Não é o resumo ainda
@@ -582,7 +592,7 @@ export async function getConteudoEfetivo(
 
   // Enquanto isso, retorna o conteúdo completo
   return {
-    texto: conteudo.texto_content,
+    texto: stripCodeFences(conteudo.texto_content),
     audioUrl: conteudo.audio_url,
     status: conteudo.status,
     isRetaFinal: false,
@@ -634,9 +644,15 @@ ${textoOriginal}`,
     }
 
     const result = await response.json();
-    const resumo = result.text || result.content;
+    let resumo = result.text || result.content;
 
     if (resumo) {
+      // Remover code fences se a IA retornar envolvido em ```markdown ... ```
+      resumo = resumo
+        .replace(/^```(?:markdown)?\s*\n?/i, '')
+        .replace(/\n?```\s*$/i, '')
+        .trim();
+
       // Atualizar com o resumo
       await supabase
         .from('missao_conteudos')

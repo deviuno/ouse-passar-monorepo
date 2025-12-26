@@ -117,6 +117,7 @@ export interface TrailMission {
   massificacao_de?: string; // ID da missão original que gerou esta massificação
   tentativa_massificacao?: number; // Número da tentativa (1, 2, 3...)
   questoes_ids?: string[]; // IDs das questões originais para repetir exatamente as mesmas
+  needsMassificacao?: boolean; // Indica que a missão precisa de massificação (score < 50%)
   // Campos populated
   assunto?: Assunto;
   materia?: PreparatorioMateria;
@@ -302,4 +303,7 @@ export interface MissaoComProgresso extends Missao {
   // Campos calculados para a UI
   status: MissionStatus;
   isCurrentMission?: boolean;
+  // Campos para massificação
+  massificacao_attempts?: number;
+  needsMassificacao?: boolean; // Indica que a missão precisa de massificação (score < 50%)
 }
