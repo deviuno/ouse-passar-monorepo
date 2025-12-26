@@ -15,7 +15,8 @@ import {
   Sparkles,
   Target,
   BookOpen,
-  Zap
+  Zap,
+  Flame
 } from 'lucide-react';
 import { useMissionStore, useTrailStore, useUserStore, useUIStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -54,6 +55,7 @@ import {
   rodadasToTrailRounds,
   updateMissaoProgress,
 } from '../services';
+import { RETA_FINAL_THEME } from '../services/retaFinalService';
 
 // URL do servidor Mastra para chamadas de background
 const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_SERVER_URL || 'http://localhost:4000';
@@ -1593,16 +1595,36 @@ export default function MissionPage() {
 
             {/* Header - só aparece na fase de questões */}
             {phase === 'questions' && (
-              <div className="p-4 border-b border-[#3A3A3A] bg-[#1A1A1A]">
-                {/* Badge de massificação */}
-                {isMissaoMassificacao && (
-                  <div className="flex justify-center mb-2">
+              <div
+                className="p-4 border-b bg-[#1A1A1A]"
+                style={{
+                  borderColor: currentTrailMode === 'reta_final' ? RETA_FINAL_THEME.colors.primary : '#3A3A3A',
+                }}
+              >
+                {/* Badges de modo */}
+                <div className="flex justify-center gap-2 mb-2">
+                  {/* Badge de Reta Final */}
+                  {currentTrailMode === 'reta_final' && (
+                    <span
+                      className="text-xs px-3 py-1 rounded-full flex items-center gap-1 font-semibold"
+                      style={{
+                        background: `linear-gradient(135deg, ${RETA_FINAL_THEME.colors.primary}30 0%, ${RETA_FINAL_THEME.colors.accent}30 100%)`,
+                        color: RETA_FINAL_THEME.colors.primary,
+                        border: `1px solid ${RETA_FINAL_THEME.colors.primary}50`,
+                      }}
+                    >
+                      <Flame size={12} />
+                      RETA FINAL
+                    </span>
+                  )}
+                  {/* Badge de massificação */}
+                  {isMissaoMassificacao && (
                     <span className="bg-[#E74C3C]/20 text-[#E74C3C] text-xs px-3 py-1 rounded-full flex items-center gap-1">
                       <RefreshCw size={12} />
                       Massificação #{tentativaMassificacao}
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => {
@@ -1621,6 +1643,7 @@ export default function MissionPage() {
                   <Progress
                     value={((currentQuestionIndex + 1) / questions.length) * 100}
                     size="md"
+                    color={currentTrailMode === 'reta_final' ? 'retaFinal' : 'brand'}
                     className="flex-1"
                   />
                   <span className="text-[#A0A0A0] text-sm font-medium">

@@ -26,6 +26,7 @@ export interface Preparatorio {
   banca?: string;
   orgao?: string;
   ano_previsto?: number;
+  data_prova?: string; // Data da prova (formato: YYYY-MM-DD)
   edital_url?: string;
   checkout_url?: string; // URL de checkout para upsell de modos
   raio_x?: RaioXConcurso;

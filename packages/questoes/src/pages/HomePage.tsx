@@ -8,6 +8,7 @@ import { TrailMission, StudyMode } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
 import { RoundSelector } from '../components/trail/RoundSelector';
 import { ModeToggle } from '../components/trail/ModeToggle';
+import { RetaFinalCountdown } from '../components/trail/RetaFinalCountdown';
 import {
   userPreparatoriosService,
   getRodadasComProgresso,
@@ -439,6 +440,16 @@ export default function HomePage() {
                 onModeChange={handleModeChange}
                 onUpsellClick={handleUpsellClick}
                 isLoading={isSwitchingMode}
+              />
+            </div>
+          )}
+
+          {/* Reta Final Countdown - only shown when in Reta Final mode */}
+          {currentMode === 'reta_final' && selectedPrep?.preparatorio?.data_prova && (
+            <div className="px-4">
+              <RetaFinalCountdown
+                dataProva={selectedPrep.preparatorio.data_prova}
+                userName={profile?.full_name || user?.user_metadata?.full_name}
               />
             </div>
           )}
