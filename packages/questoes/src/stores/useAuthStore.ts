@@ -248,6 +248,7 @@ export const useAuthStore = create<AuthState>()(
               correctAnswers: profileData.correct_answers,
               totalAnswered: profileData.total_answered,
               avatarId: profileData.avatar_id,
+              lastPracticeDate: profileData.last_practice_date,
             });
           }
         } catch (err) {
