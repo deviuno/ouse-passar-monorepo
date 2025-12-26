@@ -392,7 +392,7 @@ export default function HomePage() {
             </div>
           )}
 
-          <div className="relative overflow-hidden pt-8" data-tour="trail-map">
+          <div className="relative overflow-hidden pt-12" data-tour="trail-map">
             <TrailMap
               rounds={displayRounds}
               onMissionClick={handleMissionClick}
