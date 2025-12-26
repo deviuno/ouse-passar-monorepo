@@ -14,6 +14,8 @@ import {
   rodadasToTrailRounds,
   countMissoesProgress,
   switchUserMode,
+  grantRetaFinalAccess,
+  grantNormalAccess,
 } from '../services';
 
 // Skeleton Loading Component for Trail
@@ -230,6 +232,48 @@ export default function HomePage() {
     setUpsellModal({ isOpen: false, targetMode: 'reta_final' });
   }, []);
 
+  // Handle unlock (for testing: auto-grant access)
+  const handleUnlock = useCallback(async () => {
+    if (!user?.id || !selectedPrep) return;
+
+    const targetMode = upsellModal.targetMode;
+
+    try {
+      // Grant access based on target mode
+      if (targetMode === 'reta_final') {
+        const result = await grantRetaFinalAccess(user.id, selectedPrep.preparatorio_id);
+        if (!result.success) {
+          addToast('error', result.error || 'Erro ao desbloquear');
+          return;
+        }
+      } else {
+        const result = await grantNormalAccess(user.id, selectedPrep.preparatorio_id);
+        if (!result.success) {
+          addToast('error', result.error || 'Erro ao desbloquear');
+          return;
+        }
+      }
+
+      // Update local state
+      const updatedPreparatorios = userPreparatorios.map((p) =>
+        p.id === selectedPreparatorioId
+          ? {
+              ...p,
+              has_reta_final_access: targetMode === 'reta_final' ? true : p.has_reta_final_access,
+              has_normal_access: targetMode === 'normal' ? true : p.has_normal_access,
+            }
+          : p
+      );
+      setUserPreparatorios(updatedPreparatorios);
+
+      addToast('success', `Modo ${targetMode === 'reta_final' ? 'Reta Final' : 'Normal'} desbloqueado!`);
+      handleCloseUpsell();
+    } catch (err) {
+      console.error('Error unlocking mode:', err);
+      addToast('error', 'Erro ao desbloquear modo');
+    }
+  }, [user?.id, selectedPrep, upsellModal.targetMode, selectedPreparatorioId, userPreparatorios, setUserPreparatorios, addToast, handleCloseUpsell]);
+
   // Carregar preparatórios do usuário
   useEffect(() => {
     async function loadUserPreparatorios() {
@@ -439,6 +483,7 @@ export default function HomePage() {
         targetMode={upsellModal.targetMode}
         preparatorioName={selectedPrep?.preparatorio?.nome || 'Preparatório'}
         checkoutUrl={selectedPrep?.preparatorio?.checkout_url}
+        onUnlock={handleUnlock}
       />
     </div>
   );

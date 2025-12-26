@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Flame, BookOpen, Zap, Clock, Target, ArrowRight, ExternalLink } from 'lucide-react';
+import { X, Flame, BookOpen, Zap, Clock, Target, ArrowRight, Loader2 } from 'lucide-react';
 import { StudyMode } from '../../types/trail';
 import { RETA_FINAL_THEME } from '../../services/retaFinalService';
 
@@ -10,6 +10,7 @@ interface RetaFinalUpsellModalProps {
   targetMode: StudyMode;
   preparatorioName: string;
   checkoutUrl?: string;
+  onUnlock?: () => Promise<void>; // For testing: auto-unlock mode
 }
 
 export function RetaFinalUpsellModal({
@@ -18,10 +19,24 @@ export function RetaFinalUpsellModal({
   targetMode,
   preparatorioName,
   checkoutUrl,
+  onUnlock,
 }: RetaFinalUpsellModalProps) {
   const isRetaFinal = targetMode === 'reta_final';
+  const [isUnlocking, setIsUnlocking] = useState(false);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
+    // For testing: if onUnlock is provided, use it to auto-unlock
+    if (onUnlock) {
+      setIsUnlocking(true);
+      try {
+        await onUnlock();
+      } finally {
+        setIsUnlocking(false);
+      }
+      return;
+    }
+
+    // Production: open checkout URL
     if (checkoutUrl) {
       window.open(checkoutUrl, '_blank');
     }
@@ -178,18 +193,24 @@ export function RetaFinalUpsellModal({
                 {/* CTA Button */}
                 <button
                   onClick={handleCheckout}
-                  className="w-full py-4 rounded-xl font-bold text-black flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                  disabled={isUnlocking}
+                  className="w-full py-4 rounded-xl font-bold text-black flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
                   style={{
                     background: isRetaFinal
                       ? `linear-gradient(135deg, ${RETA_FINAL_THEME.colors.primary} 0%, ${RETA_FINAL_THEME.colors.accent} 100%)`
                       : 'linear-gradient(135deg, #FFB800 0%, #2ECC71 100%)',
                   }}
                 >
-                  <span>Quero Desbloquear</span>
-                  {checkoutUrl ? (
-                    <ExternalLink className="w-5 h-5" />
+                  {isUnlocking ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Desbloqueando...</span>
+                    </>
                   ) : (
-                    <ArrowRight className="w-5 h-5" />
+                    <>
+                      <span>Quero Desbloquear</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </>
                   )}
                 </button>
 
