@@ -101,7 +101,7 @@ interface ResultadoCriacao {
   error?: string;
 }
 
-const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_SERVER_URL || 'http://localhost:4000';
+const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000';
 
 export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModalProps> = ({
   isOpen,
@@ -197,86 +197,67 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     setError(null);
     setResultado(null);
     setPreviewData(null);
-    setEtapas([
+
+    // Inicializar etapas com progresso fake
+    const etapasIniciais: EtapaProgresso[] = [
       { etapa: 'Analisando PDF', status: 'in_progress' },
       { etapa: 'Criando preparatório', status: 'pending' },
       { etapa: 'Gerando imagem de capa', status: 'pending' },
       { etapa: 'Criando edital verticalizado', status: 'pending' },
       { etapa: 'Gerando prévia das rodadas', status: 'pending' },
-    ]);
+    ];
+    setEtapas(etapasIniciais);
+
+    // Simular progresso fake enquanto aguarda a resposta
+    const temposEtapas = [8000, 3000, 5000, 4000, 3000]; // Tempos estimados por etapa em ms
+    let etapaAtual = 0;
+
+    const progressInterval = setInterval(() => {
+      if (etapaAtual < 4) {
+        etapaAtual++;
+        setEtapas(prev => prev.map((e, idx) => ({
+          ...e,
+          status: idx < etapaAtual ? 'completed' : idx === etapaAtual ? 'in_progress' : 'pending',
+        })));
+      }
+    }, temposEtapas[etapaAtual] || 4000);
 
     try {
       const formData = new FormData();
       formData.append('pdf', selectedFile);
 
-      // Usar novo endpoint que retorna preview para validação
       const response = await fetch(`${MASTRA_SERVER_URL}/api/preparatorio/from-pdf-preview`, {
         method: 'POST',
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error('Erro ao conectar com o servidor');
+      clearInterval(progressInterval);
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao processar o PDF');
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+      // Marcar todas as etapas como completas
+      setEtapas(prev => prev.map(e => ({ ...e, status: 'completed' })));
 
-      if (!reader) {
-        throw new Error('Não foi possível ler a resposta do servidor');
-      }
-
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // Processar eventos SSE do buffer
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        let currentEvent = '';
-        let currentData = '';
-
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.slice(7);
-          } else if (line.startsWith('data: ')) {
-            currentData = line.slice(6);
-
-            if (currentEvent && currentData) {
-              try {
-                const parsed = JSON.parse(currentData);
-
-                if (currentEvent === 'progress') {
-                  setEtapas(parsed.etapas);
-                } else if (currentEvent === 'preview') {
-                  // Preview recebido - mostrar tela de validação
-                  setPreviewData(parsed);
-                  setMateriasOrdenadas(parsed.materias);
-                  setEtapas(parsed.etapas);
-                  setIsProcessing(false);
-                } else if (currentEvent === 'error') {
-                  setError(parsed.error || 'Erro ao processar o PDF');
-                  if (parsed.etapas) setEtapas(parsed.etapas);
-                  setIsProcessing(false);
-                }
-              } catch (e) {
-                console.error('Erro ao parsear evento SSE:', e);
-              }
-              currentEvent = '';
-              currentData = '';
-            }
-          }
-        }
-      }
+      // Configurar preview
+      setPreviewData(data);
+      setMateriasOrdenadas(data.materias);
+      setIsProcessing(false);
 
     } catch (err: any) {
+      clearInterval(progressInterval);
       console.error('Erro ao processar PDF:', err);
+
+      // Marcar etapa atual como erro
+      setEtapas(prev => prev.map((e, idx) => ({
+        ...e,
+        status: e.status === 'in_progress' ? 'error' : e.status === 'pending' ? 'pending' : e.status,
+        detalhes: e.status === 'in_progress' ? err.message : undefined,
+      })));
+
       setError(err.message || 'Erro de conexão com o servidor');
       setIsProcessing(false);
     }
@@ -300,8 +281,7 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
             prioridade: idx + 1,
           })),
           banca: previewData.preparatorioInfo.banca,
-          // Indicar que vamos usar o sistema híbrido (não gerar missões automaticamente)
-          sistemaHibrido: true,
+          sistemaHibrido: false,
         }),
       });
 
