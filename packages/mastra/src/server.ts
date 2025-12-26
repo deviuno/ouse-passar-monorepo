@@ -4235,6 +4235,8 @@ app.listen(PORT, () => {
     console.log(`Mastra Agent Server running on http://localhost:${PORT}`);
 });
 
+const MCP_PORT = 4111;
+
 // Start the MCP Server on a separate port for MCP clients using SSE transport
 const mcpHttpServer = http.createServer(async (req, res) => {
     // Enable CORS for MCP clients
