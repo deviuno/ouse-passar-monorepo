@@ -4,6 +4,7 @@ import { MobileNav } from './MobileNav';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { ToastContainer } from '../ui/Toast';
+import { ScrollToTop } from '../ui';
 import { ProductTour } from '../tour';
 import { useUIStore } from '../../stores';
 
@@ -26,6 +27,9 @@ export function MainLayout() {
 
   return (
     <div className="min-h-screen bg-[#1A1A1A] text-white">
+      {/* Scroll to top on route change */}
+      <ScrollToTop />
+
       {/* Desktop Left Sidebar */}
       <aside
         className={`
@@ -52,7 +56,7 @@ export function MainLayout() {
 
         {/* Page Content */}
         <main className="flex-1 pb-20 lg:pb-4">
-          <Outlet />
+          <Outlet key={location.pathname} />
         </main>
 
         {/* Mobile Bottom Navigation */}

@@ -1,10 +1,12 @@
 /**
  * Serviço para buscar questões de uma missão baseado nos filtros do planejamento
+ * Suporta modo Reta Final com redução de questões
  */
 
 import { supabase } from './supabaseClient';
 import { questionsDb } from './questionsDbClient';
-import { ParsedQuestion, Alternative } from '../types';
+import { ParsedQuestion, Alternative, StudyMode } from '../types';
+import { getEffectiveQuestionCount } from './retaFinalService';
 
 // Filtros de questões salvos para uma missão
 interface MissaoFiltros {
@@ -308,19 +310,25 @@ async function fetchQuestionsWithFilters(
 /**
  * Busca questões para uma missão específica
  * Primeiro tenta usar os filtros salvos, depois os itens do edital
+ * @param missaoId - ID da missão
+ * @param limit - Número base de questões (será reduzido se modo Reta Final)
+ * @param mode - Modo de estudo ('normal' ou 'reta_final')
  */
 export async function getQuestoesParaMissao(
   missaoId: string,
-  limit: number = DEFAULT_QUESTIONS_PER_MISSION
+  limit: number = DEFAULT_QUESTIONS_PER_MISSION,
+  mode: StudyMode = 'normal'
 ): Promise<ParsedQuestion[]> {
-  console.log('[MissaoQuestoesService] Buscando questões para missão:', missaoId);
+  // Calcular número efetivo de questões baseado no modo
+  const effectiveLimit = await getEffectiveQuestionCount(limit, mode);
+  console.log(`[MissaoQuestoesService] Buscando questões para missão: ${missaoId} (modo: ${mode}, limit: ${effectiveLimit}/${limit})`);
 
   // 1. Tentar buscar filtros salvos
   const filtros = await getMissaoFiltros(missaoId);
 
   if (filtros && (filtros.assuntos?.length || filtros.materias?.length)) {
     console.log('[MissaoQuestoesService] Usando filtros salvos:', filtros);
-    const questoes = await fetchQuestionsWithFilters(filtros, limit);
+    const questoes = await fetchQuestionsWithFilters(filtros, effectiveLimit);
 
     if (questoes.length > 0) {
       console.log('[MissaoQuestoesService] Encontradas', questoes.length, 'questões via filtros');
@@ -337,7 +345,7 @@ export async function getQuestoesParaMissao(
 
     if (titulos.length > 0) {
       console.log('[MissaoQuestoesService] Títulos do edital:', titulos);
-      const questoes = await fetchQuestionsWithFilters({ assuntos: titulos }, limit);
+      const questoes = await fetchQuestionsWithFilters({ assuntos: titulos }, effectiveLimit);
 
       if (questoes.length > 0) {
         console.log('[MissaoQuestoesService] Encontradas', questoes.length, 'questões via edital');
@@ -366,7 +374,7 @@ export async function getQuestoesParaMissao(
 
       if (fallbackFiltros.materias?.length || fallbackFiltros.assuntos?.length) {
         console.log('[MissaoQuestoesService] Usando dados da missão:', fallbackFiltros);
-        const questoes = await fetchQuestionsWithFilters(fallbackFiltros, limit);
+        const questoes = await fetchQuestionsWithFilters(fallbackFiltros, effectiveLimit);
 
         if (questoes.length > 0) {
           console.log('[MissaoQuestoesService] Encontradas', questoes.length, 'questões via missão');
@@ -378,7 +386,7 @@ export async function getQuestoesParaMissao(
     console.error('[MissaoQuestoesService] Erro ao buscar missão:', error);
   }
 
-  console.warn('[MissaoQuestoesService] Nenhuma questão encontrada para missão:', missaoId);
+  console.warn(`[MissaoQuestoesService] Nenhuma questão encontrada para missão: ${missaoId} (modo: ${mode})`);
   return [];
 }
 

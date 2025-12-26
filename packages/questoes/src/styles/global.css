@@ -202,7 +202,7 @@ body {
 /* Mission Content Markdown Styles */
 .mission-content {
   color: #E0E0E0;
-  line-height: 1.8;
+  line-height: 1.6;
 }
 
 .mission-content h1 {
@@ -241,8 +241,8 @@ body {
 
 .mission-content p {
   color: #E0E0E0 !important;
-  margin-bottom: 1rem !important;
-  line-height: 1.8 !important;
+  margin-bottom: 0.75rem !important;
+  line-height: 1.5 !important;
 }
 
 .mission-content strong,
@@ -271,8 +271,8 @@ body {
 
 .mission-content li {
   color: #E0E0E0 !important;
-  margin-bottom: 0.5rem !important;
-  line-height: 1.7 !important;
+  margin-bottom: 0.35rem !important;
+  line-height: 1.5 !important;
 }
 
 .mission-content li::marker {
@@ -359,4 +359,311 @@ body {
   max-width: 100% !important;
   border-radius: 8px !important;
   margin: 1rem 0 !important;
+}
+
+/* ============================================
+   MOBILE-FIRST ANIMATIONS (App Nativo)
+   ============================================ */
+
+/* Ripple Effect Animation (Material Design / iOS-like) */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Fade In Up (Page transitions) */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Scale Bounce (Modals e Cards) */
+@keyframes scaleBounce {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-bounce {
+  animation: scaleBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Slide In From Bottom (Bottom Sheets) */
+@keyframes slideInFromBottom {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-from-bottom {
+  animation: slideInFromBottom 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Slide In From Right (Sidebars) */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-from-right {
+  animation: slideInFromRight 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Shimmer Loading Effect (Skeleton) */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    #2A2A2A 0%,
+    #3A3A3A 20%,
+    #2A2A2A 40%,
+    #2A2A2A 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* Shake Animation (Error feedback) */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+/* Success Bounce (Feedback positivo) */
+@keyframes successBounce {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-success-bounce {
+  animation: successBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Pull to Refresh Spinner */
+@keyframes pullToRefreshSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-ptr-spin {
+  animation: pullToRefreshSpin 1s linear infinite;
+}
+
+/* ============================================
+   TOUCH FEEDBACK & ACCESSIBILITY
+   ============================================ */
+
+/* Aumentar área de toque em elementos clicáveis (44px mínimo iOS) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Active state feedback para botões */
+.touch-feedback:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* Smooth transitions para todos os elementos interativos */
+button, a, [role="button"] {
+  transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* ============================================
+   MOBILE OPTIMIZATIONS
+   ============================================ */
+
+/* Prevent text selection on buttons and interactive elements */
+button, .no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Smooth momentum scrolling on iOS */
+.momentum-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: scroll;
+}
+
+/* Hide scrollbar but keep functionality (iOS-like) */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area for notch devices */
+@supports (padding: env(safe-area-inset-top)) {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ============================================
+   MOBILE-OPTIMIZED TYPOGRAPHY
+   ============================================ */
+
+/* Reduzir tamanhos de fonte em mobile para maximizar conteúdo */
+@media (max-width: 768px) {
+  /* Base font size menor em mobile */
+  html {
+    font-size: 15px;
+  }
+
+  /* Headers menores em mobile */
+  h1 {
+    font-size: 1.5rem; /* 24px */
+  }
+
+  h2 {
+    font-size: 1.25rem; /* 20px */
+  }
+
+  h3 {
+    font-size: 1.125rem; /* 18px */
+  }
+
+  h4 {
+    font-size: 1rem; /* 16px */
+  }
+
+  /* Body text otimizado */
+  p, span, div {
+    font-size: 0.9375rem; /* 15px */
+    line-height: 1.5;
+  }
+
+  /* Botões menores mas ainda tocáveis */
+  button {
+    font-size: 0.875rem; /* 14px */
+    padding: 0.625rem 1rem; /* 10px 16px */
+  }
+
+  /* Inputs e form elements */
+  input, textarea, select {
+    font-size: 0.9375rem; /* 15px - iOS zoom prevention */
+  }
+
+  /* Mission content otimizado para mobile */
+  .mission-content {
+    line-height: 1.5;
+  }
+
+  .mission-content h1 {
+    font-size: 1.35rem !important; /* 21.6px */
+    margin-bottom: 1rem !important;
+  }
+
+  .mission-content h2 {
+    font-size: 1.15rem !important; /* 18.4px */
+    margin-top: 1.25rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .mission-content h3 {
+    font-size: 1rem !important; /* 16px */
+    margin-top: 1rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .mission-content p {
+    margin-bottom: 0.625rem !important; /* 10px */
+    line-height: 1.5 !important;
+    font-size: 0.9375rem !important; /* 15px */
+  }
+
+  .mission-content li {
+    margin-bottom: 0.25rem !important; /* 4px */
+    line-height: 1.45 !important;
+    font-size: 0.9375rem !important; /* 15px */
+  }
+
+  .mission-content ul, .mission-content ol {
+    margin: 0.75rem 0 !important;
+    padding-left: 1.25rem !important;
+  }
 }

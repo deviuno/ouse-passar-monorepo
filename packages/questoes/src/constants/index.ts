@@ -38,6 +38,7 @@ export const INITIAL_USER_STATS: UserStats = {
   totalAnswered: 0,
   coins: 0,
   avatarId: 'default',
+  lastPracticeDate: undefined,
 };
 
 // Onboarding steps (conforme documentação)

@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { UserPreparatorio, Preparatorio, UserLevel } from '../types';
+import { UserPreparatorio, Preparatorio, UserLevel, StudyMode } from '../types';
 
 /**
  * Service para gerenciar os preparatórios do usuário
@@ -21,7 +21,13 @@ export const userPreparatoriosService = {
           nivel_usuario,
           current_round,
           questoes_por_missao,
-          created_at
+          created_at,
+          has_normal_access,
+          has_reta_final_access,
+          current_mode,
+          is_reta_final,
+          data_prova,
+          reta_final_started_at
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
@@ -58,6 +64,13 @@ export const userPreparatoriosService = {
           questoes_por_missao: item.questoes_por_missao || 20,
           created_at: item.created_at,
           preparatorio: prepMap.get(item.preparatorio_id)!,
+          // Campos de acesso ao modo
+          has_normal_access: item.has_normal_access ?? true,
+          has_reta_final_access: item.has_reta_final_access ?? false,
+          current_mode: (item.current_mode as StudyMode) ?? 'normal',
+          is_reta_final: item.is_reta_final ?? false,
+          data_prova: item.data_prova,
+          reta_final_started_at: item.reta_final_started_at,
         }));
 
       console.log('[userPreparatoriosService] Preparatórios encontrados:', result.length);
@@ -83,7 +96,13 @@ export const userPreparatoriosService = {
           nivel_usuario,
           current_round,
           questoes_por_missao,
-          created_at
+          created_at,
+          has_normal_access,
+          has_reta_final_access,
+          current_mode,
+          is_reta_final,
+          data_prova,
+          reta_final_started_at
         `)
         .eq('user_id', userId)
         .eq('preparatorio_id', preparatorioId)
@@ -112,6 +131,13 @@ export const userPreparatoriosService = {
         questoes_por_missao: data.questoes_por_missao || 20,
         created_at: data.created_at,
         preparatorio: prepData || ({} as Preparatorio),
+        // Campos de acesso ao modo
+        has_normal_access: data.has_normal_access ?? true,
+        has_reta_final_access: data.has_reta_final_access ?? false,
+        current_mode: (data.current_mode as StudyMode) ?? 'normal',
+        is_reta_final: data.is_reta_final ?? false,
+        data_prova: data.data_prova,
+        reta_final_started_at: data.reta_final_started_at,
       };
     } catch (err) {
       console.error('Erro ao buscar preparatório:', err);

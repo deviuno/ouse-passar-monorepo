@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { UserStats, Flashcard, ReviewItem, Course } from '../types';
 import { INITIAL_USER_STATS, STORAGE_KEYS } from '../constants';
+import { updateUserStats, updateUserLevel } from '../services/userStatsService';
+import { calculateLevel } from '../services/gamificationSettingsService';
 
 interface UserState {
   stats: UserStats;
@@ -53,16 +55,69 @@ export const useUserStore = create<UserState>()(
           stats: { ...state.stats, ...updates },
         })),
 
-      incrementStats: (increments) =>
+      incrementStats: async (increments) => {
+        // Update local state immediately for responsive UI
+        const newXP = get().stats.xp + (increments.xp || 0);
+        const newLevel = await calculateLevel(newXP);
+
+        // Calculate streak locally
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const currentStats = get().stats;
+        const lastPractice = currentStats.lastPracticeDate;
+        let newStreak = currentStats.streak;
+
+        if (!lastPractice) {
+          // First time practicing
+          newStreak = 1;
+        } else if (lastPractice === today) {
+          // Same day, keep current streak
+          newStreak = currentStats.streak;
+        } else {
+          // Check if yesterday
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+          if (lastPractice === yesterdayStr) {
+            // Consecutive day, increment streak
+            newStreak = currentStats.streak + 1;
+          } else {
+            // Skipped days, reset streak
+            newStreak = 1;
+          }
+        }
+
         set((state) => ({
           stats: {
             ...state.stats,
-            xp: state.stats.xp + (increments.xp || 0),
+            xp: newXP,
             coins: state.stats.coins + (increments.coins || 0),
             correctAnswers: state.stats.correctAnswers + (increments.correctAnswers || 0),
             totalAnswered: state.stats.totalAnswered + (increments.totalAnswered || 0),
+            level: newLevel,
+            streak: newStreak,
+            lastPracticeDate: today,
           },
-        })),
+        }));
+
+        // Persist to Supabase asynchronously
+        // Get userId from auth store
+        const { user } = await import('./useAuthStore').then(m => m.useAuthStore.getState());
+        if (user?.id) {
+          const result = await updateUserStats(user.id, increments);
+          if (!result.success) {
+            console.warn('[useUserStore] Failed to persist stats to Supabase:', result.error);
+          }
+
+          // Update level if XP changed
+          if (increments.xp) {
+            const currentStats = get().stats;
+            await updateUserLevel(user.id, currentStats.xp);
+          }
+        } else {
+          console.warn('[useUserStore] No user ID available, stats not persisted to Supabase');
+        }
+      },
 
       setFlashcards: (flashcards) => set({ flashcards }),
 

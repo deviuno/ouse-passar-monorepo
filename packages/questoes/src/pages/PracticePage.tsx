@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Filter,
@@ -22,12 +23,18 @@ import {
   Briefcase,
   CheckCircle,
   MessageSquare,
+  Save,
+  MoreVertical,
+  Trash2,
+  PenLine,
+  Eye,
+  Edit,
 } from 'lucide-react';
 import { Button, Card, Progress } from '../components/ui';
 import { QuestionCard } from '../components/question';
 import { MentorChat } from '../components/question/MentorChat';
 import { FloatingChatButton } from '../components/ui';
-import { ParsedQuestion, RawQuestion, StudyMode, Alternative } from '../types';
+import { ParsedQuestion, RawQuestion, PracticeMode, Alternative } from '../types';
 import { MOCK_QUESTIONS } from '../constants';
 import { useUserStore, useUIStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -37,12 +44,25 @@ import {
   fetchAssuntosByMaterias,
   getQuestionsCount,
   parseRawQuestion,
+  OPTIONS_ESCOLARIDADE,
+  OPTIONS_MODALIDADE,
+  OPTIONS_DIFICULDADE,
 } from '../services/questionsService';
+import {
+  createNotebook,
+  getUserNotebooks,
+  deleteNotebook,
+} from '../services/notebooksService';
+import { supabase } from '../services/supabase';
+import { Caderno } from '../types';
 import {
   saveUserAnswer,
   saveDifficultyRating,
   DifficultyRating,
 } from '../services/questionFeedbackService';
+import { createPracticeSession } from '../services/practiceSessionService';
+import { SessionResultsScreen } from '../components/practice/SessionResultsScreen';
+import { getGamificationSettings, GamificationSettings } from '../services/gamificationSettingsService';
 
 interface FilterOptions {
   materia: string[];
@@ -51,6 +71,9 @@ interface FilterOptions {
   orgao: string[];
   cargo: string[];
   ano: string[];
+  escolaridade: string[];
+  modalidade: string[];
+  dificuldade: string[];
 }
 
 interface ToggleFilters {
@@ -236,12 +259,19 @@ function MultiSelectDropdown({
 }
 
 export default function PracticePage() {
-  const { user, profile } = useAuthStore();
+  const location = useLocation();
+  const { user, profile, fetchProfile } = useAuthStore();
   const { incrementStats } = useUserStore();
   const { addToast } = useUIStore();
 
-  // Estado do modo
-  const [mode, setMode] = useState<'selection' | 'filters' | 'practicing'>('selection');
+  // Estado do dashboard
+  const [activeTab, setActiveTab] = useState<'new' | 'notebooks'>('new');
+
+  // Estado do modo (agora 'selection', 'practicing' ou 'results')
+  const [mode, setMode] = useState<'selection' | 'practicing' | 'results'>('selection');
+
+  // Controle de tempo da sessão
+  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
 
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
@@ -268,6 +298,9 @@ export default function PracticePage() {
     orgao: [],
     cargo: [],
     ano: [],
+    escolaridade: [],
+    modalidade: [],
+    dificuldade: [],
   });
   const [toggleFilters, setToggleFilters] = useState<ToggleFilters>({
     apenasRevisadas: false,
@@ -275,8 +308,8 @@ export default function PracticePage() {
   });
   const [questionCount, setQuestionCount] = useState(10);
 
-  // Modo de estudo
-  const [studyMode, setStudyMode] = useState<StudyMode>('zen');
+  // Modo de estudo (padrão: zen)
+  const [studyMode, setStudyMode] = useState<PracticeMode>('zen');
 
   // Estado da sessao de pratica
   const [questions, setQuestions] = useState<ParsedQuestion[]>([]);
@@ -287,29 +320,268 @@ export default function PracticePage() {
   // Estatisticas da sessao
   const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
 
-  // Carregar opcoes de filtro ao montar
+  // Gamification settings (loaded from database)
+  const [gamificationSettings, setGamificationSettings] = useState<GamificationSettings | null>(null);
+
+  // Notebooks (Cadernos)
+  const [notebooks, setNotebooks] = useState<Caderno[]>([]);
+  const [showSaveNotebookModal, setShowSaveNotebookModal] = useState(false);
+  const [newNotebookName, setNewNotebookName] = useState('');
+  const [newNotebookDescription, setNewNotebookDescription] = useState('');
+  const [isSavingNotebook, setIsSavingNotebook] = useState(false);
+  const [editingNotebook, setEditingNotebook] = useState<Caderno | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [editingDescription, setEditingDescription] = useState('');
+
+  // Estado local para configurações editáveis de cada caderno
+  const [notebookSettings, setNotebookSettings] = useState<Record<string, { questionCount: number; studyMode: PracticeMode }>>({});
+
+  // Modal de visualização de filtros
+  const [viewingNotebookFilters, setViewingNotebookFilters] = useState<Caderno | null>(null);
+
+  // Carregar cadernos
+  useEffect(() => {
+    if (user?.id) {
+      loadNotebooks();
+    }
+  }, [user?.id]);
+
+  // Carregar configurações de gamificação
+  useEffect(() => {
+    const loadGamificationSettings = async () => {
+      try {
+        const settings = await getGamificationSettings();
+        setGamificationSettings(settings);
+        console.log('[PracticePage] Gamification settings loaded:', settings);
+      } catch (error) {
+        console.error('[PracticePage] Error loading gamification settings:', error);
+      }
+    };
+    loadGamificationSettings();
+  }, []);
+
+  const loadNotebooks = async () => {
+    if (!user?.id) return;
+    try {
+      const data = await getUserNotebooks(user.id);
+      setNotebooks(data);
+
+      // Inicializar configurações editáveis para cada caderno
+      const initialSettings: Record<string, { questionCount: number; studyMode: PracticeMode }> = {};
+      data.forEach(notebook => {
+        initialSettings[notebook.id] = {
+          questionCount: notebook.settings?.questionCount || 10,
+          studyMode: notebook.settings?.studyMode || 'zen',
+        };
+      });
+      setNotebookSettings(initialSettings);
+    } catch (error) {
+      console.error('Erro ao carregar cadernos:', error);
+    }
+  };
+
+  const handleSaveNotebook = async () => {
+    if (!user?.id || !newNotebookName.trim()) return;
+
+    setIsSavingNotebook(true);
+    try {
+      const settings = {
+        questionCount,
+        studyMode,
+        toggleFilters
+      };
+
+      // Use filteredCount, but fallback to totalQuestions if no filters are applied
+      const questionsCount = filteredCount > 0 ? filteredCount : totalQuestions;
+
+      const newNotebook = await createNotebook(
+        user.id,
+        newNotebookName,
+        filters,
+        settings,
+        newNotebookDescription.trim() || undefined,
+        questionsCount
+      );
+
+      if (newNotebook) {
+        // Reload notebooks to get updated data
+        await loadNotebooks();
+
+        setShowSaveNotebookModal(false);
+        setNewNotebookName('');
+        setNewNotebookDescription('');
+        addToast('success', 'Caderno salvo com sucesso!');
+
+        // Scroll to top
+        window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+
+        // Switch to notebooks tab
+        setActiveTab('notebooks');
+      }
+    } catch (error) {
+      console.error('Erro ao salvar caderno:', error);
+      addToast('error', 'Erro ao salvar caderno.');
+    } finally {
+      setIsSavingNotebook(false);
+    }
+  };
+
+  const handleEditNotebookFilters = (notebook: Caderno) => {
+    // Load notebook filters
+    if (notebook.filters) setFilters(notebook.filters);
+    if (notebook.settings?.toggleFilters) setToggleFilters(notebook.settings.toggleFilters);
+
+    // Load settings into state
+    const settings = notebookSettings[notebook.id];
+    if (settings) {
+      setQuestionCount(settings.questionCount);
+      setStudyMode(settings.studyMode);
+    }
+
+    // Set editing mode with title and description
+    setEditingNotebook(notebook);
+    setEditingTitle(notebook.title);
+    setEditingDescription(notebook.description || '');
+
+    // Close modal and switch to edit mode
+    setViewingNotebookFilters(null);
+    setActiveTab('new');
+
+    // Scroll to top to see the filters
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingNotebook(null);
+    setEditingTitle('');
+    setEditingDescription('');
+    clearFilters();
+  };
+
+  const handleSaveEditedNotebook = async (andStart: boolean = false) => {
+    if (!user?.id || !editingNotebook || !editingTitle.trim()) return;
+
+    setIsSavingNotebook(true);
+    try {
+      // Use filteredCount, but fallback to totalQuestions if no filters are applied
+      const questionsCount = filteredCount > 0 ? filteredCount : totalQuestions;
+
+      // Update notebook in database
+      const { error } = await supabase
+        .from('cadernos')
+        .update({
+          title: editingTitle.trim(),
+          description: editingDescription.trim() || null,
+          filters,
+          settings: {
+            questionCount,
+            studyMode,
+            toggleFilters
+          },
+          questions_count: questionsCount
+        })
+        .eq('id', editingNotebook.id);
+
+      if (error) throw error;
+
+      // Reload notebooks
+      await loadNotebooks();
+
+      addToast('success', 'Caderno atualizado com sucesso!');
+
+      if (andStart) {
+        // Start practice with updated settings
+        setEditingNotebook(null);
+        setEditingTitle('');
+        setEditingDescription('');
+        await startPractice();
+      } else {
+        // Go back to notebooks tab
+        setEditingNotebook(null);
+        setEditingTitle('');
+        setEditingDescription('');
+        setActiveTab('notebooks');
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar caderno:', error);
+      addToast('error', 'Erro ao atualizar caderno.');
+    } finally {
+      setIsSavingNotebook(false);
+    }
+  };
+
+  const handleStartFromNotebook = async (notebook: Caderno, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    // Load notebook filters
+    if (notebook.filters) setFilters(notebook.filters);
+    if (notebook.settings?.toggleFilters) setToggleFilters(notebook.settings.toggleFilters);
+
+    // Use the editable settings from state
+    const settings = notebookSettings[notebook.id];
+    if (settings) {
+      setQuestionCount(settings.questionCount);
+      setStudyMode(settings.studyMode);
+    }
+
+    // Start practice immediately (modo já foi selecionado no toggle)
+    await startPractice();
+  };
+
+  const handleDeleteNotebook = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Excluir este caderno?')) return;
+
+    const success = await deleteNotebook(id);
+    if (success) {
+      setNotebooks(prev => prev.filter(n => n.id !== id));
+      addToast('success', 'Caderno excluido.');
+    }
+  };
+
+  // Reset state when component mounts or route changes (handles navigation)
+  useEffect(() => {
+    console.log('[PracticePage] Component mounted/route changed, resetting state...');
+    setMode('selection');
+    setQuestions([]);
+    setCurrentIndex(0);
+    setAnswers(new Map());
+    setSessionStats({ correct: 0, total: 0 });
+    setSessionStartTime(null);
+    setIsLoadingFilters(true); // Reset loading state for fresh filter load
+  }, [location.key]);
+
+  // Carregar opcoes de filtro ao montar ou quando a rota muda
   useEffect(() => {
     const loadFilterOptions = async () => {
-      setIsLoadingFilters(true);
+      console.log('[PracticePage] Carregando opções de filtro...');
+
       try {
         const [filterOptions, count] = await Promise.all([fetchFilterOptions(), getQuestionsCount()]);
 
-        if (count > 0) {
-          setTotalQuestions(count);
-          setFilteredCount(count);
-          setAvailableMaterias(filterOptions.materias.length > 0 ? filterOptions.materias : DEFAULT_MATERIAS);
-          setAvailableBancas(filterOptions.bancas.length > 0 ? filterOptions.bancas : DEFAULT_BANCAS);
-          setAvailableOrgaos(filterOptions.orgaos.length > 0 ? filterOptions.orgaos : DEFAULT_ORGAOS);
-          setAvailableCargos(filterOptions.cargos || []);
-          setAvailableAnos(filterOptions.anos.length > 0 ? filterOptions.anos.map(String) : DEFAULT_ANOS);
-          setUsingMockData(false);
-        } else {
-          setTotalQuestions(MOCK_QUESTIONS.length);
-          setFilteredCount(MOCK_QUESTIONS.length);
-          setUsingMockData(true);
+        console.log('[PracticePage] Filtros carregados:', {
+          materias: filterOptions.materias.length,
+          bancas: filterOptions.bancas.length,
+          count
+        });
+
+        // Sempre usar dados do banco se conseguimos carregar algo
+        setTotalQuestions(count);
+        setFilteredCount(count);
+        setAvailableMaterias(filterOptions.materias.length > 0 ? filterOptions.materias : DEFAULT_MATERIAS);
+        setAvailableBancas(filterOptions.bancas.length > 0 ? filterOptions.bancas : DEFAULT_BANCAS);
+        setAvailableOrgaos(filterOptions.orgaos.length > 0 ? filterOptions.orgaos : DEFAULT_ORGAOS);
+        setAvailableCargos(filterOptions.cargos || []);
+        setAvailableAnos(filterOptions.anos.length > 0 ? filterOptions.anos.map(String) : DEFAULT_ANOS);
+        setUsingMockData(false);
+
+        if (count === 0) {
+          console.warn('[PracticePage] Nenhuma questão encontrada no banco de dados');
+          addToast('info', 'Conectado ao banco, mas nenhuma questão encontrada.');
         }
       } catch (error) {
-        console.error('Erro ao carregar filtros:', error);
+        console.error('[PracticePage] Erro ao carregar filtros após retries:', error);
+        addToast('error', 'Erro ao conectar ao banco de questões. Usando dados de exemplo.');
         setTotalQuestions(MOCK_QUESTIONS.length);
         setFilteredCount(MOCK_QUESTIONS.length);
         setUsingMockData(true);
@@ -319,7 +591,7 @@ export default function PracticePage() {
     };
 
     loadFilterOptions();
-  }, []);
+  }, [location.key]);
 
   // Carregar assuntos quando materias sao selecionadas
   useEffect(() => {
@@ -417,7 +689,17 @@ export default function PracticePage() {
   };
 
   const clearFilters = () => {
-    setFilters({ materia: [], assunto: [], banca: [], orgao: [], cargo: [], ano: [] });
+    setFilters({
+      materia: [],
+      assunto: [],
+      banca: [],
+      orgao: [],
+      cargo: [],
+      ano: [],
+      escolaridade: [],
+      modalidade: [],
+      dificuldade: []
+    });
     setToggleFilters({ apenasRevisadas: false, apenasComComentario: false });
   };
 
@@ -428,6 +710,9 @@ export default function PracticePage() {
     filters.orgao.length +
     filters.cargo.length +
     filters.ano.length +
+    filters.escolaridade.length +
+    filters.modalidade.length +
+    filters.dificuldade.length +
     (toggleFilters.apenasRevisadas ? 1 : 0) +
     (toggleFilters.apenasComComentario ? 1 : 0);
 
@@ -462,6 +747,9 @@ export default function PracticePage() {
           orgaos: filters.orgao.length > 0 ? filters.orgao : undefined,
           cargos: filters.cargo.length > 0 ? filters.cargo : undefined,
           anos: filters.ano.length > 0 ? filters.ano.map(Number) : undefined,
+          escolaridade: filters.escolaridade.length > 0 ? filters.escolaridade : undefined,
+          modalidade: filters.modalidade.length > 0 ? filters.modalidade : undefined,
+          dificuldade: filters.dificuldade.length > 0 ? filters.dificuldade : undefined,
           apenasRevisadas: toggleFilters.apenasRevisadas || undefined,
           apenasComComentario: toggleFilters.apenasComComentario || undefined,
           limit: questionCount,
@@ -481,6 +769,7 @@ export default function PracticePage() {
       setCurrentIndex(0);
       setAnswers(new Map());
       setSessionStats({ correct: 0, total: 0 });
+      setSessionStartTime(Date.now()); // Iniciar cronômetro
       setMode('practicing');
     } catch (error) {
       console.error('Erro ao carregar questoes:', error);
@@ -490,6 +779,7 @@ export default function PracticePage() {
       setCurrentIndex(0);
       setAnswers(new Map());
       setSessionStats({ correct: 0, total: 0 });
+      setSessionStartTime(Date.now()); // Iniciar cronômetro
       setMode('practicing');
     } finally {
       setIsLoading(false);
@@ -504,10 +794,32 @@ export default function PracticePage() {
       correct: prev.correct + (isCorrect ? 1 : 0),
       total: prev.total + 1,
     }));
+
+    // Calculate rewards based on gamification settings
+    const isHardMode = studyMode === 'hard';
+    let xpReward = 0;
+    let coinsReward = 0;
+
+    if (isCorrect) {
+      if (gamificationSettings) {
+        xpReward = isHardMode
+          ? gamificationSettings.xp_per_correct_hard_mode
+          : gamificationSettings.xp_per_correct_answer;
+        coinsReward = isHardMode
+          ? gamificationSettings.coins_per_correct_hard_mode
+          : gamificationSettings.coins_per_correct_answer;
+      } else {
+        // Fallback values if settings not loaded
+        xpReward = isHardMode ? 100 : 50;
+        coinsReward = isHardMode ? 20 : 10;
+      }
+    }
+
     incrementStats({
       correctAnswers: isCorrect ? 1 : 0,
       totalAnswered: 1,
-      xp: isCorrect ? 10 : 2,
+      xp: xpReward,
+      coins: coinsReward,
     });
 
     // Save answer to database for statistics
@@ -525,13 +837,39 @@ export default function PracticePage() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      const accuracy = sessionStats.total > 0 ? Math.round((sessionStats.correct / sessionStats.total) * 100) : 0;
-      addToast('success', `Sessao finalizada! ${sessionStats.correct}/${sessionStats.total} (${accuracy}%)`);
-      setMode('selection');
+      // Finalizar sessão
+      const timeSpent = sessionStartTime ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
+
+      // Calculate XP earned based on gamification settings
+      const isHardMode = studyMode === 'hard';
+      const xpPerCorrect = gamificationSettings
+        ? (isHardMode ? gamificationSettings.xp_per_correct_hard_mode : gamificationSettings.xp_per_correct_answer)
+        : (isHardMode ? 100 : 50);
+      const xpEarned = sessionStats.correct * xpPerCorrect;
+
+      // Salvar sessão no banco de dados
+      if (user?.id) {
+        await createPracticeSession({
+          user_id: user.id,
+          study_mode: studyMode,
+          total_questions: sessionStats.total,
+          correct_answers: sessionStats.correct,
+          wrong_answers: sessionStats.total - sessionStats.correct,
+          time_spent_seconds: timeSpent,
+          filters: { ...filters, toggleFilters },
+          xp_earned: xpEarned,
+        });
+
+        // Refresh profile to sync streak and other stats from database
+        await fetchProfile();
+      }
+
+      // Mostrar tela de resultados
+      setMode('results');
     }
   };
 
@@ -550,8 +888,6 @@ export default function PracticePage() {
       } else {
         setMode('selection');
       }
-    } else if (mode === 'filters') {
-      setMode('selection');
     }
   };
 
@@ -600,6 +936,7 @@ export default function PracticePage() {
             initialTime={studyMode === 'hard' ? 3 : undefined}
             userId={user?.id}
             userRole={profile?.role}
+            showCorrectAnswers={profile?.show_answers || false}
             onShowToast={handleShowToast}
           />
         </div>
@@ -621,395 +958,844 @@ export default function PracticePage() {
           isOpen={showMentorChat}
           onClick={() => setShowMentorChat(!showMentorChat)}
           sidebarWidth={0}
+          isChatVisible={showMentorChat}
         />
       </div>
     );
   }
 
-  // Tela de filtros
-  if (mode === 'filters') {
+  // Tela de resultados
+  if (mode === 'results') {
+    const timeSpent = sessionStartTime ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
+    const xpEarned = (sessionStats.correct * 10) + (sessionStats.total * 2);
     return (
-      <div className="min-h-screen bg-[#121212] flex flex-col">
-        {/* Header */}
-        <div className="sticky top-0 z-20 bg-[#121212] border-b border-[#3A3A3A]">
-          <div className="flex items-center justify-between p-4">
-            <button onClick={handleBack} className="p-2 rounded-full hover:bg-[#252525] transition-colors">
-              <ChevronLeft size={24} className="text-white" />
-            </button>
-            <h1 className="text-white font-bold text-lg">Filtrar Questoes</h1>
-            <button onClick={clearFilters} className="text-[#E74C3C] text-sm font-medium">
-              Limpar
-            </button>
-          </div>
-
-          {/* Contador de questoes */}
-          <div className="px-4 pb-4">
-            <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-xl p-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {isLoadingCount ? (
-                  <Loader2 size={20} className="animate-spin text-[#FFB800]" />
-                ) : (
-                  <span className="text-xl font-bold text-white">{filteredCount.toLocaleString()}</span>
-                )}
-                <span className="text-[#6E6E6E] text-sm">
-                  {totalFilters > 0 ? `de ${totalQuestions.toLocaleString()} questoes` : 'questoes disponiveis'}
-                </span>
-              </div>
-              {totalFilters > 0 && (
-                <span className="px-2 py-1 bg-[#FFB800] text-black text-xs font-bold rounded">
-                  {totalFilters} filtros
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Filtros em Grid */}
-        <div className="flex-1 overflow-y-auto p-4 pb-32">
-          {/* Grid de dropdowns - 2 colunas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <MultiSelectDropdown
-              label="Materias"
-              icon={<BookOpen size={16} />}
-              items={availableMaterias}
-              selected={filters.materia}
-              onToggle={(item) => toggleFilter('materia', item)}
-              onClear={() => setFilters(prev => ({ ...prev, materia: [] }))}
-              placeholder="Todas as materias"
-            />
-
-            <MultiSelectDropdown
-              label="Assuntos"
-              icon={<FileText size={16} />}
-              items={availableAssuntos}
-              selected={filters.assunto}
-              onToggle={(item) => toggleFilter('assunto', item)}
-              onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
-              placeholder={filters.materia.length === 0 ? 'Selecione materias primeiro' : 'Todos os assuntos'}
-              isLoading={isLoadingAssuntos}
-              disabled={filters.materia.length === 0}
-            />
-
-            <MultiSelectDropdown
-              label="Orgaos"
-              icon={<Building2 size={16} />}
-              items={availableOrgaos}
-              selected={filters.orgao}
-              onToggle={(item) => toggleFilter('orgao', item)}
-              onClear={() => setFilters(prev => ({ ...prev, orgao: [] }))}
-              placeholder="Todos os orgaos"
-            />
-
-            <MultiSelectDropdown
-              label="Cargos"
-              icon={<Briefcase size={16} />}
-              items={availableCargos}
-              selected={filters.cargo}
-              onToggle={(item) => toggleFilter('cargo', item)}
-              onClear={() => setFilters(prev => ({ ...prev, cargo: [] }))}
-              placeholder="Todos os cargos"
-            />
-
-            <MultiSelectDropdown
-              label="Bancas"
-              icon={<GraduationCap size={16} />}
-              items={availableBancas}
-              selected={filters.banca}
-              onToggle={(item) => toggleFilter('banca', item)}
-              onClear={() => setFilters(prev => ({ ...prev, banca: [] }))}
-              placeholder="Todas as bancas"
-            />
-
-            <MultiSelectDropdown
-              label="Anos"
-              icon={<Calendar size={16} />}
-              items={availableAnos}
-              selected={filters.ano}
-              onToggle={(item) => toggleFilter('ano', item)}
-              onClear={() => setFilters(prev => ({ ...prev, ano: [] }))}
-              placeholder="Todos os anos"
-            />
-          </div>
-
-          {/* Filtros de Qualidade - Toggle switches em linha */}
-          <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-xl p-4">
-            <h3 className="text-white text-sm font-medium mb-3 flex items-center gap-2">
-              <SlidersHorizontal size={16} className="text-[#FFB800]" />
-              Filtros de Qualidade
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Apenas Revisadas */}
-              <button
-                onClick={() => setToggleFilters(prev => ({ ...prev, apenasRevisadas: !prev.apenasRevisadas }))}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-all ${toggleFilters.apenasRevisadas
-                  ? 'bg-[#2ECC71]/10 border border-[#2ECC71]'
-                  : 'bg-[#252525] border border-[#3A3A3A] hover:border-[#4A4A4A]'
-                  }`}
-              >
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${toggleFilters.apenasRevisadas ? 'bg-[#2ECC71] border-[#2ECC71]' : 'border-[#4A4A4A]'
-                  }`}>
-                  {toggleFilters.apenasRevisadas && <Check size={12} className="text-black" />}
-                </div>
-                <div className="text-left flex-1">
-                  <p className={`text-sm font-medium ${toggleFilters.apenasRevisadas ? 'text-[#2ECC71]' : 'text-white'}`}>
-                    Apenas Revisadas
-                  </p>
-                  <p className="text-[#6E6E6E] text-xs">18.086 questoes</p>
-                </div>
-                <CheckCircle size={16} className={toggleFilters.apenasRevisadas ? 'text-[#2ECC71]' : 'text-[#4A4A4A]'} />
-              </button>
-
-              {/* Com Comentário */}
-              <button
-                onClick={() => setToggleFilters(prev => ({ ...prev, apenasComComentario: !prev.apenasComComentario }))}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-all ${toggleFilters.apenasComComentario
-                  ? 'bg-[#3498DB]/10 border border-[#3498DB]'
-                  : 'bg-[#252525] border border-[#3A3A3A] hover:border-[#4A4A4A]'
-                  }`}
-              >
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${toggleFilters.apenasComComentario ? 'bg-[#3498DB] border-[#3498DB]' : 'border-[#4A4A4A]'
-                  }`}>
-                  {toggleFilters.apenasComComentario && <Check size={12} className="text-black" />}
-                </div>
-                <div className="text-left flex-1">
-                  <p className={`text-sm font-medium ${toggleFilters.apenasComComentario ? 'text-[#3498DB]' : 'text-white'}`}>
-                    Com Comentario
-                  </p>
-                  <p className="text-[#6E6E6E] text-xs">75.125 questoes</p>
-                </div>
-                <MessageSquare size={16} className={toggleFilters.apenasComComentario ? 'text-[#3498DB]' : 'text-[#4A4A4A]'} />
-              </button>
-            </div>
-          </div>
-
-          {/* Selecionados resumo */}
-          {totalFilters > 0 && (
-            <div className="mt-4 p-3 bg-[#1E1E1E] border border-[#3A3A3A] rounded-xl">
-              <p className="text-[#6E6E6E] text-xs mb-2">Filtros selecionados:</p>
-              <div className="flex flex-wrap gap-1.5">
-                {toggleFilters.apenasRevisadas && (
-                  <span className="px-2 py-1 bg-[#2ECC71]/20 text-[#2ECC71] text-xs rounded flex items-center gap-1">
-                    <CheckCircle size={10} /> Revisadas
-                  </span>
-                )}
-                {toggleFilters.apenasComComentario && (
-                  <span className="px-2 py-1 bg-[#3498DB]/20 text-[#3498DB] text-xs rounded flex items-center gap-1">
-                    <MessageSquare size={10} /> Com Comentario
-                  </span>
-                )}
-                {filters.materia.slice(0, 2).map(m => (
-                  <span key={m} className="px-2 py-1 bg-[#FFB800]/20 text-[#FFB800] text-xs rounded truncate max-w-[100px]">{m}</span>
-                ))}
-                {filters.materia.length > 2 && (
-                  <span className="px-2 py-1 bg-[#3A3A3A] text-[#A0A0A0] text-xs rounded">+{filters.materia.length - 2} materias</span>
-                )}
-                {filters.orgao.length > 0 && (
-                  <span className="px-2 py-1 bg-[#FFB800]/20 text-[#FFB800] text-xs rounded">{filters.orgao.length} orgao(s)</span>
-                )}
-                {filters.cargo.length > 0 && (
-                  <span className="px-2 py-1 bg-[#FFB800]/20 text-[#FFB800] text-xs rounded">{filters.cargo.length} cargo(s)</span>
-                )}
-                {filters.banca.length > 0 && (
-                  <span className="px-2 py-1 bg-[#FFB800]/20 text-[#FFB800] text-xs rounded">{filters.banca.length} banca(s)</span>
-                )}
-                {filters.ano.length > 0 && (
-                  <span className="px-2 py-1 bg-[#FFB800]/20 text-[#FFB800] text-xs rounded">{filters.ano.length} ano(s)</span>
-                )}
-                {filters.assunto.length > 0 && (
-                  <span className="px-2 py-1 bg-[#FFB800]/20 text-[#FFB800] text-xs rounded">{filters.assunto.length} assunto(s)</span>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer fixo */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#121212] via-[#121212] to-transparent z-10">
-          <Button fullWidth size="lg" onClick={() => setMode('selection')} disabled={filteredCount === 0}>
-            {filteredCount === 0 ? 'Nenhuma questao encontrada' : `Aplicar filtros (${filteredCount.toLocaleString()} questoes)`}
-          </Button>
-        </div>
-      </div>
+      <SessionResultsScreen
+        totalQuestions={sessionStats.total}
+        correctAnswers={sessionStats.correct}
+        wrongAnswers={sessionStats.total - sessionStats.correct}
+        studyMode={studyMode}
+        timeSpent={timeSpent}
+        xpEarned={xpEarned}
+        onNewSession={startPractice}
+        onBackToMenu={() => setMode('selection')}
+      />
     );
   }
 
-  // Tela de selecao
+  // ==========================================
+  // RENDER: DASHBOARD "COCKPIT"
+  // ==========================================
   return (
-    <div className="min-h-screen bg-[#121212] p-4 pb-32">
+    <div className="min-h-screen bg-[#121212] px-2 py-4 md:p-8 lg:p-12 font-sans text-white">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white mb-2">Praticar Questoes</h1>
-        <p className="text-[#A0A0A0]">Modo livre - pratique sem afetar sua trilha</p>
-      </div>
-
-      {/* Indicador de dados mock */}
-      {usingMockData && (
-        <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-          <p className="text-yellow-500 text-sm text-center">Usando questoes de exemplo</p>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <Card className="text-center">
-          {isLoadingFilters ? (
-            <Loader2 size={24} className="animate-spin text-white mx-auto" />
-          ) : (
-            <p className="text-2xl font-bold text-white">{filteredCount.toLocaleString()}</p>
-          )}
-          <p className="text-[#6E6E6E] text-xs">Questoes</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-2xl font-bold text-[#2ECC71]">{sessionStats.total}</p>
-          <p className="text-[#6E6E6E] text-xs">Respondidas</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-2xl font-bold text-[#FFB800]">
-            {sessionStats.total > 0 ? Math.round((sessionStats.correct / sessionStats.total) * 100) : 0}%
-          </p>
-          <p className="text-[#6E6E6E] text-xs">Acertos</p>
-        </Card>
-      </div>
-
-      {/* Botao de filtros */}
-      <button
-        onClick={() => setMode('filters')}
-        className="w-full mb-4 p-4 bg-[#1E1E1E] border border-[#3A3A3A] rounded-xl flex items-center justify-between hover:bg-[#252525] transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#FFB800]/10 flex items-center justify-center">
-            <SlidersHorizontal size={20} className="text-[#FFB800]" />
-          </div>
-          <div className="text-left">
-            <p className="text-white font-medium">Configurar filtros</p>
-            <p className="text-[#6E6E6E] text-sm">
-              {totalFilters > 0 ? `${totalFilters} filtros ativos` : 'Todas as questoes'}
-            </p>
-          </div>
-        </div>
-        <ChevronDown size={20} className="text-[#6E6E6E]" />
-      </button>
-
-      {/* Filtros ativos (chips) */}
-      {totalFilters > 0 && (
-        <div className="mb-4">
-          <div className="flex flex-wrap gap-2">
-            {/* Toggle filters chips */}
-            {toggleFilters.apenasRevisadas && (
-              <motion.button
-                key="revisadas"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                onClick={() => setToggleFilters(prev => ({ ...prev, apenasRevisadas: false }))}
-                className="flex items-center gap-1 px-3 py-1.5 bg-[#2ECC71]/20 text-[#2ECC71] rounded-full text-sm"
-              >
-                <CheckCircle size={14} />
-                <span>Revisadas</span>
-                <X size={14} />
-              </motion.button>
-            )}
-            {toggleFilters.apenasComComentario && (
-              <motion.button
-                key="comentario"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                onClick={() => setToggleFilters(prev => ({ ...prev, apenasComComentario: false }))}
-                className="flex items-center gap-1 px-3 py-1.5 bg-[#3498DB]/20 text-[#3498DB] rounded-full text-sm"
-              >
-                <MessageSquare size={14} />
-                <span>Com Comentario</span>
-                <X size={14} />
-              </motion.button>
-            )}
-            {/* Regular filter chips */}
-            {Object.entries(filters).map(([category, values]) =>
-              (values as string[]).slice(0, 2).map((value: string) => (
-                <motion.button
-                  key={`${category}-${value}`}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  onClick={() => toggleFilter(category as keyof FilterOptions, value)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-[#FFB800]/20 text-[#FFB800] rounded-full text-sm"
-                >
-                  <span className="truncate max-w-[120px]">{value}</span>
-                  <X size={14} />
-                </motion.button>
-              ))
-            )}
-            {totalFilters > 6 && (
-              <span className="px-3 py-1.5 bg-[#3A3A3A] text-[#A0A0A0] rounded-full text-sm">
-                +{totalFilters - 6} mais
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Modo de estudo */}
-      <Card className="mb-4">
-        <p className="text-white font-medium mb-3">Modo de Estudo</p>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => setStudyMode('zen')}
-            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${studyMode === 'zen' ? 'border-teal-500 bg-teal-500/10' : 'border-[#3A3A3A] hover:border-[#4A4A4A]'
-              }`}
-          >
-            <Coffee size={20} className={studyMode === 'zen' ? 'text-teal-400' : 'text-[#6E6E6E]'} />
-            <span className={`text-xs font-medium ${studyMode === 'zen' ? 'text-teal-400' : 'text-white'}`}>Zen</span>
-            <span className="text-[10px] text-[#6E6E6E]">Sem tempo</span>
-          </button>
-          <button
-            onClick={() => setStudyMode('reta_final')}
-            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${studyMode === 'reta_final' ? 'border-purple-500 bg-purple-500/10' : 'border-[#3A3A3A] hover:border-[#4A4A4A]'
-              }`}
-          >
-            <Zap size={20} className={studyMode === 'reta_final' ? 'text-purple-400' : 'text-[#6E6E6E]'} />
-            <span className={`text-xs font-medium ${studyMode === 'reta_final' ? 'text-purple-400' : 'text-white'}`}>
-              Reta Final
-            </span>
-            <span className="text-[10px] text-[#6E6E6E]">Resumido</span>
-          </button>
-          <button
-            onClick={() => setStudyMode('hard')}
-            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${studyMode === 'hard' ? 'border-red-500 bg-red-500/10' : 'border-[#3A3A3A] hover:border-[#4A4A4A]'
-              }`}
-          >
-            <Timer size={20} className={studyMode === 'hard' ? 'text-red-400' : 'text-[#6E6E6E]'} />
-            <span className={`text-xs font-medium ${studyMode === 'hard' ? 'text-red-400' : 'text-white'}`}>Simulado</span>
-            <span className="text-[10px] text-[#6E6E6E]">Com tempo</span>
-          </button>
-        </div>
-      </Card>
-
-      {/* Quantidade de questoes */}
-      <Card className="mb-6">
-        <p className="text-white font-medium mb-3">Quantidade de questoes</p>
-        <div className="flex gap-2">
-          {[5, 10, 20, 30, 50].map((count) => (
-            <button
-              key={count}
-              onClick={() => setQuestionCount(count)}
-              className={`flex-1 py-2 rounded-lg font-medium transition-colors ${questionCount === count ? 'bg-[#FFB800] text-black' : 'bg-[#3A3A3A] text-white hover:bg-[#4A4A4A]'
-                }`}
-            >
-              {count}
-            </button>
-          ))}
-        </div>
-      </Card>
-
-      {/* Botao de iniciar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#121212] via-[#121212] to-transparent">
-        <Button
-          fullWidth
-          size="lg"
-          leftIcon={isLoading ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} />}
-          onClick={startPractice}
-          disabled={isLoading || isLoadingFilters || filteredCount === 0}
+      <div className="max-w-7xl mx-auto mb-6 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
         >
-          {isLoading ? 'Carregando...' : filteredCount === 0 ? 'Nenhuma questao disponivel' : 'Comecar Pratica'}
-        </Button>
+          {editingNotebook ? (
+            <>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-[#FFB800]/10 rounded-lg">
+                  <PenLine size={24} className="text-[#FFB800]" />
+                </div>
+                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white to-[#A0A0A0] bg-clip-text text-transparent">
+                  Edição - {editingNotebook.title}
+                </h1>
+              </div>
+              <p className="text-sm md:text-base text-[#A0A0A0] font-medium">
+                Edite os parâmetros do seu caderno e depois clique em Salvar.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-white to-[#A0A0A0] bg-clip-text text-transparent">
+                Painel de Prática
+              </h1>
+              <p className="text-sm md:text-base text-[#A0A0A0] font-medium">
+                Configure seu treino personalizado ou retome seus cadernos.
+              </p>
+            </>
+          )}
+        </motion.div>
+
+        {/* User Quick Stats */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="hidden md:flex items-center gap-6 bg-[#1E1E1E]/50 border border-[#3A3A3A] p-3 rounded-2xl backdrop-blur-sm"
+        >
+          <div className="flex items-center gap-3 px-2">
+            <div className="p-2 bg-[#FFB800]/10 rounded-lg">
+              <Zap size={20} className="text-[#FFB800]" />
+            </div>
+            <div>
+              <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider">Nível</p>
+              <p className="font-bold text-lg leading-none">{profile?.level || 1}</p>
+            </div>
+          </div>
+          <div className="w-px h-8 bg-[#3A3A3A]" />
+          <div className="flex items-center gap-3 px-2">
+            <div className="p-2 bg-[#2ECC71]/10 rounded-lg">
+              <CheckCircle size={20} className="text-[#2ECC71]" />
+            </div>
+            <div>
+              <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider">Acertos</p>
+              <p className="font-bold text-lg leading-none">{profile?.correct_answers || 0}</p>
+            </div>
+          </div>
+        </motion.div>
       </div>
+
+      <div className="max-w-7xl mx-auto grid grid-cols-12 gap-6 lg:gap-8">
+
+        {/* LEFT COLUMN: Configuration */}
+        <div className={`col-span-12 space-y-6 ${activeTab === 'new' ? 'lg:col-span-8' : ''}`}>
+
+          {/* Tabs Navigation - Hidden when editing */}
+          {!editingNotebook && (
+            <div className="flex items-center gap-6 border-b border-[#3A3A3A] mb-4">
+              <button
+                onClick={() => setActiveTab('new')}
+                className={`pb-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 ${activeTab === 'new'
+                  ? 'text-[#FFB800] border-[#FFB800]'
+                  : 'text-[#6E6E6E] border-transparent hover:text-white'
+                  }`}
+              >
+                Nova Prática
+              </button>
+              <button
+                onClick={() => setActiveTab('notebooks')}
+                className={`pb-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 ${activeTab === 'notebooks'
+                  ? 'text-[#FFB800] border-[#FFB800]'
+                  : 'text-[#6E6E6E] border-transparent hover:text-white'
+                  }`}
+              >
+                Meus Cadernos ({notebooks.length})
+              </button>
+            </div>
+          )}
+
+          <AnimatePresence mode="wait">
+            {activeTab === 'new' ? (
+              <motion.div
+                key="tab-new"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-6"
+              >
+                {/* Editing: Title and Description */}
+                {editingNotebook && (
+                  <section>
+                    <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <PenLine size={14} /> Dados do Caderno
+                    </h3>
+                    <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-5 space-y-4">
+                      <div>
+                        <label className="text-white text-sm font-medium mb-2 block">Nome do Caderno</label>
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          placeholder="Nome do caderno"
+                          className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-white text-sm font-medium mb-2 block">Descrição (opcional)</label>
+                        <textarea
+                          value={editingDescription}
+                          onChange={(e) => setEditingDescription(e.target.value)}
+                          placeholder="Descrição do caderno"
+                          rows={2}
+                          className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors resize-none"
+                        />
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {/* Filters */}
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider flex items-center gap-2">
+                      <Filter size={14} /> Filtros
+                    </h3>
+                    <button onClick={clearFilters} className="text-xs text-[#E74C3C] hover:underline font-medium">
+                      Limpar Filtros
+                    </button>
+                  </div>
+
+                  <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-5 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <MultiSelectDropdown
+                        label="Matérias"
+                        icon={<BookOpen size={16} />}
+                        items={availableMaterias}
+                        selected={filters.materia}
+                        onToggle={(item) => toggleFilter('materia', item)}
+                        onClear={() => setFilters(prev => ({ ...prev, materia: [] }))}
+                        placeholder="Selecione matérias..."
+                      />
+                      <MultiSelectDropdown
+                        label="Bancas"
+                        icon={<Building2 size={16} />}
+                        items={availableBancas}
+                        selected={filters.banca}
+                        onToggle={(item) => toggleFilter('banca', item)}
+                        onClear={() => setFilters(prev => ({ ...prev, banca: [] }))}
+                        placeholder="Selecione bancas..."
+                      />
+                      <MultiSelectDropdown
+                        label="Assuntos"
+                        icon={<FileText size={16} />}
+                        items={availableAssuntos}
+                        selected={filters.assunto}
+                        onToggle={(item) => toggleFilter('assunto', item)}
+                        onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
+                        placeholder={filters.materia.length === 0 ? 'Selecione matérias primeiro' : 'Selecione assuntos...'}
+                        isLoading={isLoadingAssuntos}
+                        disabled={filters.materia.length === 0}
+                      />
+                      <MultiSelectDropdown
+                        label="Órgãos"
+                        icon={<Building2 size={16} />}
+                        items={availableOrgaos}
+                        selected={filters.orgao}
+                        onToggle={(item) => toggleFilter('orgao', item)}
+                        onClear={() => setFilters(prev => ({ ...prev, orgao: [] }))}
+                        placeholder="Selecione órgãos..."
+                      />
+                      <MultiSelectDropdown
+                        label="Anos"
+                        icon={<Calendar size={16} />}
+                        items={availableAnos}
+                        selected={filters.ano}
+                        onToggle={(item) => toggleFilter('ano', item)}
+                        onClear={() => setFilters(prev => ({ ...prev, ano: [] }))}
+                        placeholder="Selecione anos..."
+                      />
+                      <MultiSelectDropdown
+                        label="Cargos"
+                        icon={<Briefcase size={16} />}
+                        items={availableCargos}
+                        selected={filters.cargo}
+                        onToggle={(item) => toggleFilter('cargo', item)}
+                        onClear={() => setFilters(prev => ({ ...prev, cargo: [] }))}
+                        placeholder="Selecione cargos..."
+                      />
+                      <MultiSelectDropdown
+                        label="Escolaridade"
+                        icon={<GraduationCap size={16} />}
+                        items={OPTIONS_ESCOLARIDADE.map(opt => opt.value)}
+                        selected={filters.escolaridade}
+                        onToggle={(item) => toggleFilter('escolaridade', item)}
+                        onClear={() => setFilters(prev => ({ ...prev, escolaridade: [] }))}
+                        placeholder="Selecione escolaridade..."
+                      />
+                      <MultiSelectDropdown
+                        label="Modalidade"
+                        icon={<CheckCircle size={16} />}
+                        items={OPTIONS_MODALIDADE.map(opt => opt.value)}
+                        selected={filters.modalidade}
+                        onToggle={(item) => toggleFilter('modalidade', item)}
+                        onClear={() => setFilters(prev => ({ ...prev, modalidade: [] }))}
+                        placeholder="Selecione modalidade..."
+                      />
+                      <MultiSelectDropdown
+                        label="Dificuldade"
+                        icon={<Zap size={16} />}
+                        items={OPTIONS_DIFICULDADE.map(opt => opt.value)}
+                        selected={filters.dificuldade}
+                        onToggle={(item) => toggleFilter('dificuldade', item)}
+                        onClear={() => setFilters(prev => ({ ...prev, dificuldade: [] }))}
+                        placeholder="Selecione dificuldade..."
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* 3. Quantity Slider */}
+                <section>
+                  <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <SlidersHorizontal size={14} /> Quantidade
+                  </h3>
+                  <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-white font-medium">Questões por sessão</span>
+                      <span className="text-2xl font-bold text-[#FFB800]">{questionCount}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="5"
+                      max="120"
+                      step="5"
+                      value={questionCount}
+                      onChange={(e) => setQuestionCount(Number(e.target.value))}
+                      className="w-full h-2 bg-[#3A3A3A] rounded-lg appearance-none cursor-pointer accent-[#FFB800]"
+                    />
+                    <div className="flex justify-between mt-2 text-xs text-[#6E6E6E] font-medium">
+                      <span>5</span>
+                      <span>60</span>
+                      <span>120</span>
+                    </div>
+                  </div>
+                </section>
+
+              </motion.div>
+            ) : (
+              <motion.div
+                key="tab-notebooks"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* Notebooks Grid */}
+                {notebooks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[#3A3A3A] rounded-2xl bg-[#1E1E1E]/50">
+                    <BookOpen size={48} className="text-[#3A3A3A] mb-4" />
+                    <h3 className="text-xl font-bold text-white mb-2">Sem cadernos ainda</h3>
+                    <p className="text-[#A0A0A0] text-center max-w-xs mb-6">
+                      Configure filtros na aba "Nova Prática" e salve para acessar rapidamente aqui.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('new')}
+                      className="text-[#FFB800] hover:underline font-bold"
+                    >
+                      Criar meu primeiro caderno
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {notebooks.map((notebook) => {
+                      const settings = notebookSettings[notebook.id] || { questionCount: 10, studyMode: 'zen' as PracticeMode };
+
+                      // Calcular total de filtros
+                      const totalFilters =
+                        (notebook.filters?.materia?.length || 0) +
+                        (notebook.filters?.assunto?.length || 0) +
+                        (notebook.filters?.banca?.length || 0) +
+                        (notebook.filters?.orgao?.length || 0) +
+                        (notebook.filters?.cargo?.length || 0) +
+                        (notebook.filters?.ano?.length || 0) +
+                        (notebook.filters?.escolaridade?.length || 0) +
+                        (notebook.filters?.modalidade?.length || 0) +
+                        (notebook.filters?.dificuldade?.length || 0);
+
+                      return (
+                        <div
+                          key={notebook.id}
+                          className="relative bg-[#1E1E1E] border border-[#3A3A3A] rounded-xl p-3 transition-all hover:border-[#FFB800]/30"
+                        >
+                          {/* Header: Icon + Title + Available Questions Count */}
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <BookOpen size={18} className="text-[#FFB800] flex-shrink-0" />
+                              <h4 className="font-bold text-base text-white truncate">{notebook.title}</h4>
+                            </div>
+                            <span className="text-xs font-bold text-[#FFB800] flex-shrink-0">
+                              {(notebook.questions_count || 0).toLocaleString('pt-BR')} questões
+                            </span>
+                          </div>
+
+                          {/* Descrição */}
+                          {notebook.description && (
+                            <p className="text-xs text-[#6E6E6E] mb-3 line-clamp-2">{notebook.description}</p>
+                          )}
+                          {!notebook.description && <div className="mb-2" />}
+
+                          {/* Quantidade de Questões por Sessão - Slider */}
+                          <div className="mb-1">
+                            <input
+                              type="range"
+                              min="5"
+                              max="120"
+                              step="5"
+                              value={settings.questionCount}
+                              onChange={(e) => {
+                                const newCount = Number(e.target.value);
+                                setNotebookSettings(prev => ({
+                                  ...prev,
+                                  [notebook.id]: { ...prev[notebook.id], questionCount: newCount }
+                                }));
+                              }}
+                              className="w-full h-1 bg-[#3A3A3A] rounded-lg appearance-none cursor-pointer accent-[#FFB800]"
+                            />
+                          </div>
+
+                          {/* Quantidade por sessão */}
+                          <div className="flex items-center justify-between mb-3 text-xs">
+                            <span className="text-[#6E6E6E]">Por sessão</span>
+                            <span className="font-bold text-white">{settings.questionCount}</span>
+                          </div>
+
+                          {/* Modo de Estudo */}
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-white text-xs">Modo</span>
+                            <button
+                              onClick={() => {
+                                const newMode = settings.studyMode === 'zen' ? 'hard' : 'zen';
+                                setNotebookSettings(prev => ({
+                                  ...prev,
+                                  [notebook.id]: { ...prev[notebook.id], studyMode: newMode as PracticeMode }
+                                }));
+                              }}
+                              className="relative inline-flex items-center h-7 rounded-full w-36 bg-[#252525] border border-[#3A3A3A] transition-colors"
+                            >
+                              {/* Texto inativo - Simulado (lado direito) */}
+                              <span className={`absolute right-3 text-xs font-medium transition-opacity duration-300 ${
+                                settings.studyMode === 'zen' ? 'text-[#4A4A4A]' : 'opacity-0'
+                              }`}>
+                                Simulado
+                              </span>
+                              {/* Texto inativo - Zen (lado esquerdo) */}
+                              <span className={`absolute left-3 text-xs font-medium transition-opacity duration-300 ${
+                                settings.studyMode === 'hard' ? 'text-[#4A4A4A]' : 'opacity-0'
+                              }`}>
+                                Zen
+                              </span>
+                              {/* Botão ativo */}
+                              <span
+                                className={`absolute inline-flex items-center justify-center h-6 rounded-full text-xs font-bold transition-all duration-300 ${
+                                  settings.studyMode === 'zen'
+                                    ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[#2ECC71] text-black'
+                                    : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[#E74C3C] text-black'
+                                }`}
+                              >
+                                {settings.studyMode === 'zen' ? 'Zen' : 'Simulado'}
+                              </span>
+                            </button>
+                          </div>
+
+                          {/* Botões: Ver Detalhes + Iniciar */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setViewingNotebookFilters(notebook)}
+                              className="flex items-center justify-center w-10 h-10 bg-[#252525] border border-[#3A3A3A] rounded-xl text-[#A0A0A0] hover:text-white hover:border-[#4A4A4A] transition-colors flex-shrink-0"
+                              title="Ver detalhes"
+                            >
+                              <Eye size={18} />
+                            </button>
+                            <Button
+                              fullWidth
+                              onClick={(e) => handleStartFromNotebook(notebook, e)}
+                              className="h-10 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-bold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02] rounded-xl"
+                              rightIcon={<Play size={16} fill="currentColor" />}
+                            >
+                              Iniciar
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* RIGHT COLUMN: Stats & Action (Sticky) - Only show on "new" tab */}
+        {activeTab === 'new' && (
+          <div className="col-span-12 lg:col-span-4 space-y-6">
+            <div className="lg:sticky lg:top-8 space-y-6">
+
+            {/* Action Card */}
+            <Card className="border border-[#FFB800]/20 bg-[#1E1E1E] shadow-2xl shadow-black/50 p-6 relative overflow-hidden">
+              {/* Background Glow */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFB800]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+              <h3 className="text-lg font-bold text-white mb-4">
+                {editingNotebook ? 'Parâmetros do Caderno' : 'Resumo do Treino'}
+              </h3>
+
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#A0A0A0]">Questões disponíveis</span>
+                  {isLoadingCount ? (
+                    <Loader2 size={14} className="animate-spin text-[#FFB800]" />
+                  ) : (
+                    <span className="font-bold text-white">{filteredCount.toLocaleString()}</span>
+                  )}
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#A0A0A0]">Filtros ativos</span>
+                  <span className="font-bold text-[#FFB800]">{totalFilters}</span>
+                </div>
+                <div className="h-px bg-[#3A3A3A] my-2" />
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#A0A0A0]">Seleção atual</span>
+                  <span className="font-bold text-white">{questionCount} questões</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-[#A0A0A0]">Modo de Estudo</span>
+                  {/* Toggle entre Zen e Simulado */}
+                  <button
+                    onClick={() => setStudyMode(studyMode === 'zen' ? 'hard' : 'zen')}
+                    className="relative inline-flex items-center h-7 rounded-full w-36 bg-[#252525] border border-[#3A3A3A] transition-colors"
+                  >
+                    <span
+                      className={`absolute inline-flex items-center justify-center h-6 rounded-full text-xs font-bold transition-all duration-300 ${
+                        studyMode === 'zen'
+                          ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[#2ECC71] text-black'
+                          : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[#E74C3C] text-black'
+                      }`}
+                    >
+                      {studyMode === 'zen' ? 'Zen' : 'Simulado'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {editingNotebook ? (
+                <>
+                  <Button
+                    fullWidth
+                    size="lg"
+                    onClick={() => handleSaveEditedNotebook(false)}
+                    disabled={isSavingNotebook || isLoadingFilters || !editingTitle.trim()}
+                    className="mb-3 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
+                    leftIcon={<Save size={20} />}
+                  >
+                    {isSavingNotebook ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => handleSaveEditedNotebook(true)}
+                    disabled={isSavingNotebook || isLoadingFilters || filteredCount === 0 || !editingTitle.trim()}
+                    rightIcon={<Play size={18} fill="currentColor" />}
+                  >
+                    Salvar e Iniciar
+                  </Button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="w-full mt-3 text-sm text-[#6E6E6E] hover:text-white transition-colors"
+                  >
+                    Cancelar edição
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    fullWidth
+                    size="lg"
+                    onClick={startPractice}
+                    disabled={isLoading || isLoadingFilters || filteredCount === 0}
+                    className="mb-3 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
+                    rightIcon={<Play size={20} fill="currentColor" />}
+                  >
+                    INICIAR PRÁTICA
+                  </Button>
+
+                  {activeTab === 'new' && (
+                    <Button
+                      fullWidth
+                      variant="secondary"
+                      size="lg"
+                      onClick={() => setShowSaveNotebookModal(true)}
+                      leftIcon={<Save size={18} />}
+                    >
+                      Salvar como Caderno
+                    </Button>
+                  )}
+                </>
+              )}
+            </Card>
+
+            {/* Quick Tips or Last Session */}
+            <div className="bg-[#1E1E1E] rounded-xl p-5 border border-[#3A3A3A]">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-[#121212] rounded-lg">
+                  <GraduationCap size={18} className="text-[#A0A0A0]" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-sm mb-1">Dica do Dia</h4>
+                  <p className="text-xs text-[#A0A0A0] leading-relaxed">
+                    Alterne entre o Modo Zen para aprender com os comentários e o Modo Simulado para treinar seu tempo de prova.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modal Salvar Caderno */}
+      <AnimatePresence>
+        {showSaveNotebookModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSaveNotebookModal(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed bottom-[114px] left-0 right-0 mx-4 w-auto max-w-md bg-[#252525] rounded-3xl p-8 shadow-2xl z-50 border border-[#3A3A3A] lg:left-1/2 lg:right-auto lg:-translate-x-1/2"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-[#FFB800]/10 rounded-xl">
+                  <Save size={24} className="text-[#FFB800]" />
+                </div>
+                <h3 className="text-2xl font-bold text-white">Salvar Caderno</h3>
+              </div>
+
+              <div className="mb-4">
+                <label className="text-[#A0A0A0] text-sm font-bold uppercase tracking-wider mb-2 block">Nome do Caderno</label>
+                <input
+                  type="text"
+                  value={newNotebookName}
+                  onChange={(e) => setNewNotebookName(e.target.value)}
+                  placeholder="Ex: Constitucional - Revisão CPC"
+                  className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="text-[#A0A0A0] text-sm font-bold uppercase tracking-wider mb-2 block">Descrição (opcional)</label>
+                <textarea
+                  value={newNotebookDescription}
+                  onChange={(e) => setNewNotebookDescription(e.target.value)}
+                  placeholder="Ex: Questões de revisão para a prova da PF"
+                  rows={2}
+                  className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors resize-none"
+                />
+              </div>
+
+              <div className="bg-[#1A1A1A] rounded-xl p-4 mb-6 space-y-2 border border-[#3A3A3A]">
+                <div className="flex justify-between text-xs text-[#A0A0A0]">
+                  <span>Filtros ativos:</span>
+                  <span className="text-white">{totalFilters}</span>
+                </div>
+                <div className="flex justify-between text-xs text-[#A0A0A0]">
+                  <span>Questões disponíveis:</span>
+                  <span className="text-white">{filteredCount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs text-[#A0A0A0]">
+                  <span>Questões por sessão:</span>
+                  <span className="text-white">{questionCount}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  fullWidth
+                  variant="outline"
+                  onClick={() => setShowSaveNotebookModal(false)}
+                  className="rounded-xl py-3 border-[#3A3A3A] hover:bg-[#333]"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  fullWidth
+                  onClick={handleSaveNotebook}
+                  disabled={!newNotebookName.trim() || isSavingNotebook || isLoadingCount}
+                  className="rounded-xl py-3 bg-[#FFB800] text-black font-bold hover:bg-[#E5A600]"
+                >
+                  {isSavingNotebook ? <Loader2 className="animate-spin" size={20} /> : 'Salvar Caderno'}
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Visualizar Filtros do Caderno */}
+      <AnimatePresence>
+        {viewingNotebookFilters && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewingNotebookFilters(null)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed bottom-[114px] left-0 right-0 mx-4 w-auto max-w-2xl bg-[#1A1A1A] rounded-2xl border border-[#3A3A3A] p-4 lg:p-6 z-50 shadow-2xl max-h-[calc(100vh-180px)] overflow-y-auto lg:left-1/2 lg:right-auto lg:-translate-x-1/2"
+            >
+              <div className="flex items-center justify-between mb-4 lg:mb-6">
+                <h3 className="text-base lg:text-xl font-bold text-white pr-2">Filtros de "{viewingNotebookFilters.title}"</h3>
+                <button
+                  onClick={() => setViewingNotebookFilters(null)}
+                  className="p-2 text-[#6E6E6E] hover:text-white hover:bg-[#252525] rounded-lg transition-colors flex-shrink-0"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-3 lg:space-y-4 mb-4 lg:mb-6">
+                {/* Matérias */}
+                {viewingNotebookFilters.filters?.materia && viewingNotebookFilters.filters.materia.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Matérias ({viewingNotebookFilters.filters.materia.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.materia.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Assuntos */}
+                {viewingNotebookFilters.filters?.assunto && viewingNotebookFilters.filters.assunto.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Assuntos ({viewingNotebookFilters.filters.assunto.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.assunto.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bancas */}
+                {viewingNotebookFilters.filters?.banca && viewingNotebookFilters.filters.banca.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Bancas ({viewingNotebookFilters.filters.banca.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.banca.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Órgãos */}
+                {viewingNotebookFilters.filters?.orgao && viewingNotebookFilters.filters.orgao.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Órgãos ({viewingNotebookFilters.filters.orgao.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.orgao.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Anos */}
+                {viewingNotebookFilters.filters?.ano && viewingNotebookFilters.filters.ano.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Anos ({viewingNotebookFilters.filters.ano.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.ano.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cargos */}
+                {viewingNotebookFilters.filters?.cargo && viewingNotebookFilters.filters.cargo.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Cargos ({viewingNotebookFilters.filters.cargo.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.cargo.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Escolaridade */}
+                {viewingNotebookFilters.filters?.escolaridade && viewingNotebookFilters.filters.escolaridade.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Escolaridade ({viewingNotebookFilters.filters.escolaridade.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.escolaridade.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Modalidade */}
+                {viewingNotebookFilters.filters?.modalidade && viewingNotebookFilters.filters.modalidade.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Modalidade ({viewingNotebookFilters.filters.modalidade.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.modalidade.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dificuldade */}
+                {viewingNotebookFilters.filters?.dificuldade && viewingNotebookFilters.filters.dificuldade.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Dificuldade ({viewingNotebookFilters.filters.dificuldade.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.dificuldade.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex gap-3">
+                <Button
+                  fullWidth
+                  size="lg"
+                  onClick={() => handleEditNotebookFilters(viewingNotebookFilters)}
+                  className="bg-[#FFB800] hover:bg-[#E5A600] text-black font-bold text-sm lg:text-lg"
+                  leftIcon={<Edit size={16} className="lg:w-[18px] lg:h-[18px]" />}
+                >
+                  Editar
+                </Button>
+                <button
+                  onClick={(e) => {
+                    handleDeleteNotebook(viewingNotebookFilters.id, e);
+                    setViewingNotebookFilters(null);
+                  }}
+                  className="flex items-center justify-center w-12 h-12 bg-[#252525] border border-[#3A3A3A] rounded-lg text-[#E74C3C] hover:bg-[#E74C3C]/10 hover:border-[#E74C3C]/50 transition-colors flex-shrink-0"
+                  title="Excluir caderno"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

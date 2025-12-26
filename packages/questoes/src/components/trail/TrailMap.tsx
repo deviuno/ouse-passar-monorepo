@@ -1,9 +1,9 @@
-
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Lock, RefreshCw, X, Zap, Target, BookOpen, User } from 'lucide-react';
-import { TrailMission } from '../../types';
+import { Check, Lock, RefreshCw, X, Zap, Target, BookOpen, User, RotateCw, Trophy, GraduationCap, Cpu } from 'lucide-react';
+import { TrailMission, MissionType } from '../../types';
 import { isMassificacao } from '../../services/massificacaoService';
+import { TecnicaMissionModal } from './TecnicaMissionModal';
 
 // Storage key for massification modal
 const MASSIFICACAO_MODAL_SHOWN_KEY = 'ouse_massificacao_modal_shown';
@@ -113,6 +113,183 @@ function MassificacaoModal({
     );
 }
 
+// Hover Card Component with smart positioning
+function MissionHoverCard({
+    mission,
+    index,
+    status,
+    onStudy,
+    isMassificacao: isMassificacaoMission,
+    placement = 'top',
+    horizontalPosition = 'center',
+    type = 'normal',
+    onMouseEnter,
+    onMouseLeave
+}: {
+    mission: TrailMission;
+    index: number;
+    status: 'locked' | 'active' | 'completed';
+    onStudy: (tab?: 'teoria' | 'questoes') => void;
+    isMassificacao: boolean;
+    placement?: 'top' | 'bottom';
+    horizontalPosition?: 'left' | 'center' | 'right';
+    type?: MissionType;
+    onMouseEnter?: () => void;
+    onMouseLeave?: () => void;
+}) {
+    const isLocked = status === 'locked';
+    const isTop = placement === 'top';
+
+    // Type-based configuration
+    const getTypeConfig = () => {
+        if (isMassificacaoMission || type === 'massificacao') {
+            return {
+                title: 'Massificação',
+                color: 'text-red-500',
+                dotColor: 'bg-red-500',
+                headerBorder: 'border-red-500/30',
+                icon: RefreshCw
+            };
+        }
+        switch (type) {
+            case 'revisao':
+                return {
+                    title: `Revisão ${index + 1}`,
+                    color: 'text-amber-500',
+                    dotColor: 'bg-amber-500',
+                    headerBorder: 'border-amber-500/30',
+                    icon: RotateCw
+                };
+            case 'simulado_rodada':
+                return {
+                    title: `Simulado ${index + 1}`,
+                    color: 'text-purple-500',
+                    dotColor: 'bg-purple-500',
+                    headerBorder: 'border-purple-500/30',
+                    icon: Trophy
+                };
+            case 'tecnica':
+                return {
+                    title: `Técnica ${index + 1}`,
+                    color: 'text-blue-500',
+                    dotColor: 'bg-blue-500',
+                    headerBorder: 'border-blue-500/30',
+                    icon: Cpu
+                };
+            default: // normal
+                return {
+                    title: `Missão ${index + 1}`,
+                    color: 'text-emerald-500',
+                    dotColor: 'bg-emerald-500',
+                    headerBorder: 'border-emerald-500/30',
+                    icon: GraduationCap
+                };
+        }
+    };
+
+    const config = getTypeConfig();
+    const title = config.title;
+    const materiaName = mission.materia?.materia || 'Matéria Geral';
+    const assuntoName = mission.assunto?.nome || 'Assunto da Missão';
+
+    // Horizontal positioning logic
+    let horizontalClasses = 'left-1/2 -translate-x-1/2';
+    let arrowHorizontalClasses = 'left-1/2 -translate-x-1/2';
+
+    if (horizontalPosition === 'left') {
+        horizontalClasses = 'left-0 translate-x-[-10px]';
+        arrowHorizontalClasses = 'left-6';
+    } else if (horizontalPosition === 'right') {
+        horizontalClasses = 'right-0 translate-x-[10px]';
+        arrowHorizontalClasses = 'right-6';
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: isTop ? 10 : -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: isTop ? 10 : -10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
+            className={`absolute w-64 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-[100] overflow-hidden pointer-events-auto ${horizontalClasses} ${isTop ? 'bottom-full mb-3' : 'top-full mt-3'}`}
+        >
+            {/* Header */}
+            <div className={`p-3 border-b border-zinc-800 ${isLocked ? 'bg-zinc-800/50' : 'bg-gradient-to-r from-zinc-800 to-zinc-900'}`}>
+                <div className="flex items-center justify-end mb-1">
+                </div>
+                <div className="flex items-center gap-2 mb-0.5">
+                    <config.icon size={14} className={config.color} />
+                    <h3 className={`font-bold text-sm leading-tight text-white`}>{title}</h3>
+                </div>
+                <p className="text-xs text-zinc-400 line-clamp-1">{materiaName}</p>
+            </div>
+
+            {/* Body */}
+            <div className="p-3 bg-zinc-900">
+                <div className="mb-3">
+                    <p className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Assuntos Abordados:</p>
+                    {(() => {
+                        // Simple parser to split topics based on numeric patterns (e.g. "5.1 ", "5.2 ")
+                        // Looks for patterns like "1. ", "10. ", "5.1 ", "5.1. "
+                        const subjects = assuntoName
+                            .split(/(?=\b\d+\.\d+\s)|(?=\b\d+\.\s)/g)
+                            .map(s => s.trim())
+                            .filter(Boolean);
+
+                        // Fallback if no split happened (or just one item)
+                        const items = subjects.length > 0 ? subjects : [assuntoName];
+
+                        return (
+                            <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                                {items.map((subject, idx) => (
+                                    <div key={idx} className="flex items-start gap-2">
+                                        <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${config.dotColor}`} />
+                                        <p className="text-xs text-zinc-300 font-medium leading-snug">
+                                            {subject}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })()}
+                </div>
+
+                {!isLocked && (
+                    <div className="mt-3 pt-3 border-t border-zinc-800">
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onStudy('teoria'); }}
+                                className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 font-medium flex items-center justify-center gap-1.5 transition-colors"
+                            >
+                                <BookOpen size={12} /> Teoria
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onStudy('questoes'); }}
+                                className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 font-medium flex items-center justify-center gap-1.5 transition-colors"
+                            >
+                                <Target size={12} /> Questões
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {isLocked && (
+                    <div className="w-full py-2 bg-zinc-800 border border-dashed border-zinc-700 text-zinc-500 font-medium text-xs rounded-lg flex items-center justify-center gap-2 cursor-not-allowed">
+                        <Lock size={12} /> Bloqueado
+                    </div>
+                )}
+            </div>
+
+            {/* Arrow */}
+            <div className={`absolute w-3 h-3 bg-zinc-900 border-zinc-700 rotate-45 transform ${arrowHorizontalClasses} ${isTop
+                ? 'bottom-[-6px] border-r border-b'
+                : 'top-[-6px] border-l border-t'
+                }`}></div>
+        </motion.div>
+    );
+}
+
 interface TrailRound {
     id: string;
     round_number: number;
@@ -124,7 +301,7 @@ interface TrailRound {
 interface TrailMapProps {
     rounds: TrailRound[];
     currentMissionIndex?: number;
-    onMissionClick: (mission: TrailMission) => void;
+    onMissionClick: (mission: TrailMission, tab?: 'teoria' | 'questoes') => void;
     userAvatar?: string;
     // External control for round navigation
     viewingRoundIndex?: number;
@@ -177,6 +354,17 @@ export function TrailMap({
     // Internal state for viewing round (used if not controlled externally)
     const [internalViewingIndex, setInternalViewingIndex] = useState(currentActiveRoundIndex);
 
+    // Hover state for mission cards
+    const [hoveredMissionId, setHoveredMissionId] = useState<string | null>(null);
+    const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+
+    // Cleanup hover timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (hoverTimeout) clearTimeout(hoverTimeout);
+        };
+    }, [hoverTimeout]);
+
     // Use controlled index if provided, otherwise use internal state
     const viewingRoundIndex = controlledIndex !== undefined ? controlledIndex : internalViewingIndex;
     const setViewingRoundIndex = onViewingRoundChange || setInternalViewingIndex;
@@ -194,6 +382,15 @@ export function TrailMap({
     // Check if the viewed round is the active one
     const isViewingActiveRound = viewingRoundIndex === currentActiveRoundIndex;
     const isViewingFutureRound = viewingRoundIndex > currentActiveRoundIndex;
+
+    // Calculate global mission index start for current round
+    const startMissionIndex = useMemo(() => {
+        let count = 0;
+        for (let i = 0; i < viewingRoundIndex; i++) {
+            count += (rounds[i].missions?.length || 0);
+        }
+        return count;
+    }, [rounds, viewingRoundIndex]);
 
     // Configuration
     const CONFIG = {
@@ -255,6 +452,33 @@ export function TrailMap({
         label: string;
     }>({ isOpen: false, mission: null, label: '' });
 
+    // Tecnica mission modal state
+    const [tecnicaModal, setTecnicaModal] = useState<{
+        isOpen: boolean;
+        tecnicaMission: TrailMission | null;
+    }>({ isOpen: false, tecnicaMission: null });
+
+    // Get all missions needing massification across all rounds
+    const missionsNeedingMassificacao = useMemo(() => {
+        const result: { mission: TrailMission; missionNumber: number; score: number }[] = [];
+        let globalIndex = 0;
+
+        rounds.forEach((round) => {
+            round.missions.forEach((mission) => {
+                if (mission.needsMassificacao) {
+                    result.push({
+                        mission,
+                        missionNumber: globalIndex + 1,
+                        score: mission.score || 0,
+                    });
+                }
+                globalIndex++;
+            });
+        });
+
+        return result;
+    }, [rounds]);
+
     // Check if user has seen massification modal before
     const hasSeenMassificacaoModal = useCallback(() => {
         try {
@@ -273,11 +497,39 @@ export function TrailMap({
         }
     }, []);
 
-    // Handle mission click - go directly to mission (no modal)
-    const handleMissionClick = useCallback((mission: TrailMission, index: number) => {
-        if (mission.status === 'locked') return;
+    // Handle mission click - check if it's a tecnica mission and show modal if needed
+    const handleMissionClick = useCallback((mission: TrailMission, index: number, tab?: 'teoria' | 'questoes') => {
+        // Allow click on missions that need massification even if "locked"
+        if (mission.status === 'locked' && !mission.needsMassificacao) return;
+
+        // If it's a tecnica mission and there are missions needing massification, show modal
+        if (mission.tipo === 'tecnica' && missionsNeedingMassificacao.length > 0) {
+            setTecnicaModal({ isOpen: true, tecnicaMission: mission });
+            return;
+        }
+
+        // Otherwise, go directly to the mission
+        onMissionClick(mission, tab);
+    }, [onMissionClick, missionsNeedingMassificacao]);
+
+    // Handle clicking on a mission from the tecnica modal
+    const handleTecnicaMissionSelect = useCallback((mission: TrailMission) => {
+        setTecnicaModal({ isOpen: false, tecnicaMission: null });
         onMissionClick(mission);
     }, [onMissionClick]);
+
+    // Handle proceeding to tecnica mission from the modal
+    const handleProceedToTecnica = useCallback(() => {
+        if (tecnicaModal.tecnicaMission) {
+            setTecnicaModal({ isOpen: false, tecnicaMission: null });
+            onMissionClick(tecnicaModal.tecnicaMission);
+        }
+    }, [onMissionClick, tecnicaModal.tecnicaMission]);
+
+    // Close tecnica modal
+    const handleCloseTecnicaModal = useCallback(() => {
+        setTecnicaModal({ isOpen: false, tecnicaMission: null });
+    }, []);
 
     // Handle starting massification from modal
     const handleStartMassificacao = useCallback(() => {
@@ -294,10 +546,13 @@ export function TrailMap({
     }, []);
 
     // Helper to get massification label
-    const getMassificacaoLabel = useCallback((mission: TrailMission, index: number) => {
+    const getMassificacaoLabel = useCallback((mission: TrailMission, globalIndex: number) => {
         // Find the original mission to get its number
         const originalMissionIndex = missions.findIndex(m => m.id === mission.massificacao_de);
-        const missionNumber = originalMissionIndex >= 0 ? originalMissionIndex + 1 : index + 1;
+        const currentLocalIndex = missions.findIndex(m => m.id === mission.id);
+        const startIdx = globalIndex - currentLocalIndex;
+
+        const missionNumber = originalMissionIndex >= 0 ? startIdx + originalMissionIndex + 1 : globalIndex + 1;
         const tentativa = mission.tentativa_massificacao || 1;
 
         // If it's the first attempt, just show "Massificação M1"
@@ -453,6 +708,7 @@ export function TrailMap({
 
                     {/* Render Nodes */}
                     {missions.map((mission, index) => {
+                        const globalIndex = startMissionIndex + index;
                         const pos = positions[index];
 
                         // Override status if viewing future round
@@ -469,21 +725,66 @@ export function TrailMap({
                         const isCurrent = index === currentMissionIndexInRound && isViewingActiveRound;
                         if (isCurrent) status = 'active';
 
-                        // Check if it's a massification mission (needs_massificacao status)
-                        const isMassificacaoMission = isMassificacao(mission) || effectiveStatus === 'needs_massificacao';
+                        // Check if this mission needs massification (new flag or old status check)
+                        // needsMassificacao: missão completada com score < 50%, pode ser refeita
+                        const needsMassificacaoFlag = mission.needsMassificacao === true;
+
+                        // Check if it's a massification mission (legacy check for old status)
+                        const isMassificacaoMission = isMassificacao(mission) || effectiveStatus === 'needs_massificacao' || needsMassificacaoFlag;
 
                         const isCompleted = status === 'completed';
                         const isActive = status === 'active';
+                        const isHovered = hoveredMissionId === mission.id;
+
+                        // Calculate z-index: Hovered > Current > Others
+                        const zIndex = isHovered ? 50 : (isCurrent ? 20 : 10);
 
                         return (
                             <div
                                 key={mission.id}
-                                className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center group z-10"
+                                className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center group"
                                 style={{
                                     top: pos.y,
-                                    left: `calc(50% + ${pos.x}px)`
+                                    left: `calc(50% + ${pos.x}px)`,
+                                    zIndex
+                                }}
+                                onMouseEnter={() => {
+                                    if (hoverTimeout) clearTimeout(hoverTimeout);
+                                    setHoveredMissionId(mission.id);
+                                }}
+                                onMouseLeave={() => {
+                                    const timeout = setTimeout(() => {
+                                        setHoveredMissionId(null);
+                                    }, 200);
+                                    setHoverTimeout(timeout);
                                 }}
                             >
+                                {/* Popup Card on Hover */}
+                                <AnimatePresence>
+                                    {isHovered && (
+                                        <MissionHoverCard
+                                            mission={mission}
+                                            index={globalIndex}
+                                            status={status}
+                                            onStudy={(tab) => handleMissionClick(mission, index, tab)}
+                                            isMassificacao={isMassificacaoMission}
+                                            placement={index <= 1 ? 'bottom' : 'top'}
+                                            horizontalPosition={pos.x < -40 ? 'left' : pos.x > 40 ? 'right' : 'center'}
+                                            type={mission.tipo}
+                                            onMouseEnter={() => {
+                                                if (hoverTimeout) clearTimeout(hoverTimeout);
+                                                setHoveredMissionId(mission.id);
+                                            }}
+                                            onMouseLeave={() => {
+                                                const timeout = setTimeout(() => {
+                                                    setHoveredMissionId(null);
+                                                }, 200);
+                                                setHoverTimeout(timeout);
+                                            }}
+                                        />
+                                    )}
+                                </AnimatePresence>
+
                                 {/* Active Indicator (Avatar + "Voce esta aqui") - hidden during animation */}
                                 {isActive && isCurrent && !isAnimating && (
                                     <motion.div
@@ -492,13 +793,33 @@ export function TrailMap({
                                         className="absolute z-20 -top-16 flex flex-col items-center"
                                     >
                                         <motion.div
-                                            animate={{ backgroundColor: isMassificacaoMission ? ["#E74C3C", "#C0392B", "#E74C3C"] : ["#059669", "#047857", "#059669"] }}
+                                            animate={{
+                                                backgroundColor: isMassificacaoMission
+                                                    ? ["#E74C3C", "#C0392B", "#E74C3C"]
+                                                    : mission.tipo === 'revisao'
+                                                        ? ["#F59E0B", "#D97706", "#F59E0B"]
+                                                        : mission.tipo === 'simulado_rodada'
+                                                            ? ["#A855F7", "#9333EA", "#A855F7"]
+                                                            : mission.tipo === 'tecnica'
+                                                                ? ["#3B82F6", "#2563EB", "#3B82F6"]
+                                                                : ["#059669", "#047857", "#059669"]
+                                            }}
                                             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                                             className="text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg mb-1 whitespace-nowrap relative"
                                         >
                                             {isMassificacaoMission ? 'Massificação' : 'Você está aqui'}
                                             <motion.div
-                                                animate={{ backgroundColor: isMassificacaoMission ? ["#E74C3C", "#C0392B", "#E74C3C"] : ["#059669", "#047857", "#059669"] }}
+                                                animate={{
+                                                    backgroundColor: isMassificacaoMission
+                                                        ? ["#E74C3C", "#C0392B", "#E74C3C"]
+                                                        : mission.tipo === 'revisao'
+                                                            ? ["#F59E0B", "#D97706", "#F59E0B"]
+                                                            : mission.tipo === 'simulado_rodada'
+                                                                ? ["#A855F7", "#9333EA", "#A855F7"]
+                                                                : mission.tipo === 'tecnica'
+                                                                    ? ["#3B82F6", "#2563EB", "#3B82F6"]
+                                                                    : ["#059669", "#047857", "#059669"]
+                                                }}
                                                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                                                 className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 rotate-45"
                                             ></motion.div>
@@ -506,11 +827,29 @@ export function TrailMap({
                                         {userAvatar ? (
                                             <img
                                                 alt="User"
-                                                className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 object-cover ${isMassificacaoMission ? 'border-[#E74C3C]' : 'border-[#FFB800]'}`}
+                                                className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 object-cover
+                                                    ${isMassificacaoMission
+                                                        ? 'border-[#E74C3C]'
+                                                        : mission.tipo === 'revisao'
+                                                            ? 'border-amber-500'
+                                                            : mission.tipo === 'simulado_rodada'
+                                                                ? 'border-purple-500'
+                                                                : mission.tipo === 'tecnica'
+                                                                    ? 'border-blue-500'
+                                                                    : 'border-[#e7cb00]'}`}
                                                 src={userAvatar}
                                             />
                                         ) : (
-                                            <div className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 flex items-center justify-center bg-zinc-800 ${isMassificacaoMission ? 'border-[#E74C3C] text-[#E74C3C]' : 'border-[#FFB800] text-[#FFB800]'}`}>
+                                            <div className={`w-8 h-8 rounded-full border-2 shadow-lg mx-auto mb-2 flex items-center justify-center bg-zinc-800
+                                                ${isMassificacaoMission
+                                                    ? 'border-[#E74C3C] text-[#E74C3C]'
+                                                    : mission.tipo === 'revisao'
+                                                        ? 'border-amber-500 text-amber-500'
+                                                        : mission.tipo === 'simulado_rodada'
+                                                            ? 'border-purple-500 text-purple-500'
+                                                            : mission.tipo === 'tecnica'
+                                                                ? 'border-blue-500 text-blue-500'
+                                                                : 'border-[#e7cb00] text-[#e7cb00]'}`}>
                                                 <User size={16} />
                                             </div>
                                         )}
@@ -523,40 +862,104 @@ export function TrailMap({
                                     whileHover={{ rotate: 45, scale: status !== 'locked' ? 1.1 : 1 }}
                                     whileTap={{ rotate: 45, scale: status !== 'locked' ? 0.95 : 1 }}
                                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                    disabled={status === 'locked'}
+                                    disabled={status === 'locked' && !needsMassificacaoFlag}
                                     onClick={() => handleMissionClick(mission, index)}
                                     className={`
                                         relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg border-2
-                                        ${isCompleted && !isMassificacaoMission ? 'border-emerald-500 bg-emerald-500' : ''}
-                                        ${isCompleted && isMassificacaoMission ? 'border-emerald-500 bg-emerald-500' : ''}
-                                        ${isActive && !isMassificacaoMission ? 'border-[#FFB800] bg-zinc-50 dark:bg-zinc-600 ring-4 ring-[#FFB800]/20' : ''}
-                                        ${isActive && isMassificacaoMission ? 'border-[#E74C3C] bg-zinc-50 dark:bg-zinc-600 ring-4 ring-[#E74C3C]/20' : ''}
-                                        ${status === 'locked' ? 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80' : ''}
+                                        ${/* COMPLETED STATE with NEEDS MASSIFICACAO - Red border/ring */ ''}
+                                        ${isCompleted && needsMassificacaoFlag
+                                            ? 'border-[#E74C3C] bg-emerald-600 ring-4 ring-[#E74C3C]/50 shadow-[0_0_20px_rgba(231,76,60,0.4)]'
+                                            : ''}
+                                        ${/* COMPLETED STATE - Solid Colors */ ''}
+                                        ${isCompleted && !needsMassificacaoFlag && !isMassificacaoMission
+                                            ? mission.tipo === 'revisao'
+                                                ? 'border-amber-600 bg-amber-600'
+                                                : mission.tipo === 'simulado_rodada'
+                                                    ? 'border-purple-600 bg-purple-600'
+                                                    : mission.tipo === 'tecnica'
+                                                        ? 'border-blue-600 bg-blue-600'
+                                                        : 'border-emerald-600 bg-emerald-600'
+                                            : ''}
+                                        ${isCompleted && isMassificacaoMission && !needsMassificacaoFlag ? 'border-emerald-600 bg-emerald-600' : ''}
+
+                                        ${/* ACTIVE STATE - Subtle Glow */ ''}
+                                        ${isActive && !isMassificacaoMission
+                                            ? mission.tipo === 'revisao'
+                                                ? 'border-white bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.35)]'
+                                                : mission.tipo === 'simulado_rodada'
+                                                    ? 'border-white bg-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.35)]'
+                                                    : mission.tipo === 'tecnica'
+                                                        ? 'border-white bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.35)]'
+                                                        : 'border-[#e7cb00] bg-[#d59a01] shadow-[0_0_15px_rgba(213,154,1,0.35)]'
+                                            : ''}
+                                        ${isActive && isMassificacaoMission ? 'border-white bg-[#E74C3C] shadow-[0_0_15px_rgba(231,76,60,0.35)]' : ''}
+
+                                        ${/* LOCKED STATE - Solid Colors (No Opacity) */ ''}
+                                        ${status === 'locked' && !isMassificacaoMission && !needsMassificacaoFlag
+                                            ? mission.tipo === 'revisao'
+                                                ? 'border-amber-900 bg-amber-950 ring-2 ring-amber-900/20'
+                                                : mission.tipo === 'simulado_rodada'
+                                                    ? 'border-purple-900 bg-purple-950 ring-2 ring-purple-900/20'
+                                                    : mission.tipo === 'tecnica'
+                                                        ? 'border-blue-900 bg-blue-950 ring-2 ring-blue-900/20'
+                                                        : 'border-zinc-700 bg-zinc-900' /* Normal Locked */
+                                            : ''}
+                                        ${status === 'locked' && (isMassificacaoMission || needsMassificacaoFlag) ? 'border-red-900 bg-red-950 ring-2 ring-red-900/20' : ''}
                                     `}
                                 >
                                     <div className="-rotate-45 text-white flex items-center justify-center">
-                                        {isCompleted && <Check size={32} className="text-white" strokeWidth={4} />}
-                                        {isActive && !isMassificacaoMission && <span className="text-2xl font-bold text-[#FFB800] drop-shadow-sm">{index + 1}</span>}
-                                        {isActive && isMassificacaoMission && <RefreshCw size={24} className="text-[#E74C3C]" strokeWidth={2.5} />}
-                                        {status === 'locked' && (
-                                            <div className="relative">
-                                                <Lock size={20} className="text-zinc-400 dark:text-zinc-600" />
-                                            </div>
+                                        {isCompleted && <Check size={32} className="text-white" strokeWidth={3} />}
+
+                                        {(isActive || status === 'locked') && (
+                                            isMassificacaoMission ? (
+                                                <RefreshCw size={32} className={`${status === 'locked' ? 'text-red-300' : 'text-white'}`} strokeWidth={2} />
+                                            ) : mission.tipo === 'revisao' ? (
+                                                <RotateCw size={32} className={`${status === 'locked' ? 'text-amber-300' : 'text-white'}`} strokeWidth={2} />
+                                            ) : mission.tipo === 'simulado_rodada' ? (
+                                                <Trophy size={32} className={`${status === 'locked' ? 'text-purple-300' : 'text-white'}`} strokeWidth={2} />
+                                            ) : mission.tipo === 'tecnica' ? (
+                                                <Cpu size={32} className={`${status === 'locked' ? 'text-blue-300' : 'text-white'}`} strokeWidth={2} />
+                                            ) : (
+                                                <GraduationCap size={32} className={`${status === 'locked' ? 'text-zinc-400' : 'text-white'}`} strokeWidth={2} />
+                                            )
                                         )}
                                     </div>
                                 </motion.button>
 
-                                {/* Label - Shows "Missao X" */}
+                                {/* Label - Shows "Missao X" or massification indicator */}
                                 <div className={`
-                                    mt-8 px-3 py-1.5 rounded-lg backdrop-blur-md border text-xs font-semibold text-center transition-all duration-300 max-w-[120px] shadow-md
-                                    ${isCompleted ? 'bg-emerald-50/80 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400' : ''}
-                                    ${isActive && !isMassificacaoMission ? 'bg-white border-[#FFB800] text-[#FFB800] dark:bg-zinc-700 dark:text-[#FFB800] translate-y-1' : ''}
+                                    mt-8 px-3 py-1.5 rounded-lg backdrop-blur-md border text-xs font-semibold text-center transition-all duration-300 max-w-[140px] shadow-md
+                                    ${isCompleted && needsMassificacaoFlag ? 'bg-[#E74C3C]/10 border-[#E74C3C] text-[#E74C3C] dark:bg-[#E74C3C]/20 dark:border-[#E74C3C]/50 dark:text-[#E74C3C]' : ''}
+                                    ${isCompleted && !needsMassificacaoFlag ? 'bg-emerald-50/80 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400' : ''}
+                                    ${isActive && !isMassificacaoMission
+                                        ? mission.tipo === 'revisao'
+                                            ? 'bg-white border-amber-500 text-amber-500 dark:bg-zinc-700 dark:text-amber-500 translate-y-1'
+                                            : mission.tipo === 'simulado_rodada'
+                                                ? 'bg-white border-purple-500 text-purple-500 dark:bg-zinc-700 dark:text-purple-500 translate-y-1'
+                                                : mission.tipo === 'tecnica'
+                                                    ? 'bg-white border-blue-500 text-blue-500 dark:bg-zinc-700 dark:text-blue-500 translate-y-1'
+                                                    : 'bg-white border-[#e7cb00] text-[#d59a01] dark:bg-zinc-700 dark:text-[#e7cb00] translate-y-1'
+                                        : ''}
                                     ${isActive && isMassificacaoMission ? 'bg-white border-[#E74C3C] text-[#E74C3C] dark:bg-zinc-700 dark:text-[#E74C3C] translate-y-1' : ''}
-                                    ${status === 'locked' ? 'bg-zinc-50/80 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 opacity-70' : ''}
+                                    ${status === 'locked' && !needsMassificacaoFlag ? 'bg-zinc-50/80 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 opacity-70' : ''}
                                 `}>
-                                    {isMassificacaoMission
-                                        ? getMassificacaoLabel(mission, index)
-                                        : `Missão ${index + 1}`
+                                    {status === 'locked' && !needsMassificacaoFlag && (
+                                        <Lock size={12} className="inline-block mr-1 -mt-0.5" />
+                                    )}
+                                    {needsMassificacaoFlag && (
+                                        <RefreshCw size={12} className="inline-block mr-1 -mt-0.5" />
+                                    )}
+                                    {needsMassificacaoFlag
+                                        ? `M${globalIndex + 1} - Refazer`
+                                        : isMassificacaoMission
+                                            ? getMassificacaoLabel(mission, globalIndex)
+                                            : mission.tipo === 'revisao'
+                                                ? `Revisão ${globalIndex + 1}`
+                                                : mission.tipo === 'simulado_rodada'
+                                                    ? `Simulado ${globalIndex + 1}`
+                                                    : mission.tipo === 'tecnica'
+                                                        ? `Técnica ${globalIndex + 1}`
+                                                        : `Missão ${globalIndex + 1}`
                                     }
                                 </div>
                             </div>
@@ -574,6 +977,15 @@ export function TrailMap({
                 onClose={handleCloseMassificacaoModal}
                 onStart={handleStartMassificacao}
                 missionLabel={massificacaoModal.label}
+            />
+
+            {/* Tecnica Mission Modal */}
+            <TecnicaMissionModal
+                isOpen={tecnicaModal.isOpen}
+                onClose={handleCloseTecnicaModal}
+                missionsNeedingMassificacao={missionsNeedingMassificacao}
+                onMissionClick={handleTecnicaMissionSelect}
+                onProceedToTecnica={handleProceedToTecnica}
             />
         </div>
     );

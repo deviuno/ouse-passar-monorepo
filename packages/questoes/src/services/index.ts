@@ -15,3 +15,6 @@ export * from './missaoQuestoesService';
 
 // Content generation services
 export * from './missaoConteudoService';
+
+// Reta Final (modo intensivo)
+export * from './retaFinalService';

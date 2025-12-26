@@ -6,16 +6,41 @@ interface FloatingChatButtonProps {
   isOpen: boolean;
   onClick: () => void;
   sidebarWidth: number;
+  isChatVisible?: boolean;
 }
 
-export function FloatingChatButton({ isOpen, onClick, sidebarWidth = 0 }: FloatingChatButtonProps) {
+export function FloatingChatButton({ isOpen, onClick, sidebarWidth = 0, isChatVisible = false }: FloatingChatButtonProps) {
+  // Check if we're on mobile
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Only hide on mobile when chat is visible
+  const shouldHide = isMobile && isChatVisible;
+
   return (
     <motion.button
       data-floating-chat-button
       onClick={onClick}
-      className="fixed bottom-8 z-50"
-      initial={{ y: 100, opacity: 0, right: sidebarWidth + 32 }}
-      animate={{ y: 0, opacity: 1, right: sidebarWidth + 32 }}
+      className="fixed z-50"
+      style={{
+        bottom: '65px',
+        right: '0px',
+        pointerEvents: shouldHide ? 'none' : 'auto'
+      }}
+      initial={{ y: 100, opacity: 0 }}
+      animate={{
+        y: shouldHide ? 100 : 0,
+        opacity: shouldHide ? 0 : 1
+      }}
       exit={{ y: 100, opacity: 0 }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}

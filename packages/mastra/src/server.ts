@@ -1074,6 +1074,36 @@ app.post('/api/agents/audioScriptAgent/generate', async (req, res) => {
     }
 });
 
+// Endpoint para gerar resumo Reta Final (conteúdo condensado)
+app.post('/api/agents/contentSummaryAgent/generate', async (req, res) => {
+    try {
+        const { messages } = req.body;
+
+        const agent = mastra.getAgent("contentSummaryAgent");
+
+        if (!agent) {
+            res.status(500).json({ success: false, error: "Agent not found" });
+            return;
+        }
+
+        console.log(`[ContentSummary] Generating summary...`);
+
+        const result = await agent.generate(messages);
+
+        console.log(`[ContentSummary] Summary generated (${result.text?.length || 0} chars)`);
+
+        res.json({
+            success: true,
+            text: result.text,
+            content: result.text,
+        });
+
+    } catch (error: any) {
+        console.error("[ContentSummary] Error:", error);
+        res.status(500).json({ success: false, error: error.message || "Internal Server Error" });
+    }
+});
+
 // Endpoint para gerar TTS e fazer upload para Supabase Storage
 app.post('/api/tts/generate', async (req, res) => {
     try {
@@ -1358,6 +1388,165 @@ async function buscarQuestoesScrapping(
     }));
 }
 
+// Função auxiliar: Gerar resumo Reta Final a partir do conteúdo existente
+async function gerarResumoRetaFinal(missaoId: string, textoContent: string, diasParaProva: number = 30): Promise<void> {
+    console.log(`[RetaFinal] Gerando resumo para missão ${missaoId} (${diasParaProva} dias para prova)...`);
+
+    try {
+        // Verificar se já existe resumo
+        const { data: existing } = await supabase
+            .from('missao_conteudos')
+            .select('reta_final_status, reta_final_content')
+            .eq('missao_id', missaoId)
+            .maybeSingle();
+
+        if (existing?.reta_final_status === 'completed' && existing?.reta_final_content) {
+            console.log(`[RetaFinal] Resumo já existe para missão ${missaoId}`);
+            return;
+        }
+
+        // Marcar como gerando
+        await supabase
+            .from('missao_conteudos')
+            .update({ reta_final_status: 'generating' })
+            .eq('missao_id', missaoId);
+
+        // 1. Gerar resumo com contentSummaryAgent
+        const summaryAgent = mastra.getAgent("contentSummaryAgent");
+        if (!summaryAgent) {
+            console.warn('[RetaFinal] contentSummaryAgent não encontrado');
+            return;
+        }
+
+        const summaryPrompt = `
+## Conteúdo Original para Resumir
+
+${textoContent}
+
+---
+
+## Contexto
+- **Dias para a prova:** ${diasParaProva} dias
+- ${diasParaProva <= 7 ? 'URGÊNCIA MÁXIMA - Foque apenas no essencial!' : diasParaProva <= 14 ? 'Urgência alta - Resumo focado nos pontos principais.' : 'Resumo com boa cobertura dos conceitos.'}
+
+Crie um resumo Reta Final seguindo a estrutura e regras especificadas.
+`;
+
+        const summaryResult = await summaryAgent.generate([{ role: 'user', content: summaryPrompt }]);
+        let resumoContent = summaryResult.text || '';
+
+        // Remover code fences se a IA retornar envolvido em ```markdown ... ```
+        resumoContent = resumoContent
+            .replace(/^```(?:markdown)?\s*\n?/i, '')
+            .replace(/\n?```\s*$/i, '')
+            .trim();
+
+        console.log(`[RetaFinal] Resumo gerado (${resumoContent.length} chars) para missão ${missaoId}`);
+
+        // 2. Gerar áudio do resumo (opcional, se o resumo for grande o suficiente)
+        let audioUrl: string | null = null;
+        console.log(`[RetaFinal] Verificando áudio: resumo tem ${resumoContent.length} chars`);
+        if (resumoContent.length > 200) {
+            try {
+                const audioSummaryAgent = mastra.getAgent("audioSummaryAgent");
+                if (!audioSummaryAgent) {
+                    console.warn('[RetaFinal] audioSummaryAgent não encontrado');
+                } else {
+                    console.log('[RetaFinal] Gerando roteiro de áudio...');
+                    const audioResult = await audioSummaryAgent.generate([{
+                        role: 'user',
+                        content: `Adapte este resumo Reta Final para narração rápida em áudio:\n\n${resumoContent}`
+                    }]);
+                    const roteiro = audioResult.text || '';
+                    console.log(`[RetaFinal] Roteiro gerado: ${roteiro.length} chars`);
+
+                    if (roteiro.length > 100) {
+                        const client = getGeminiClient();
+                        if (!client) {
+                            console.warn('[RetaFinal] Gemini client não disponível');
+                        } else {
+                            console.log('[RetaFinal] Gerando TTS...');
+                            const audioResponse = await client.models.generateContent({
+                                model: 'gemini-2.5-flash-preview-tts',
+                                contents: [{ parts: [{ text: roteiro }] }],
+                                config: {
+                                    responseModalities: ['AUDIO'],
+                                    speechConfig: {
+                                        voiceConfig: {
+                                            prebuiltVoiceConfig: { voiceName: 'Kore' }
+                                        }
+                                    }
+                                }
+                            });
+
+                            const audioData = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                            console.log(`[RetaFinal] TTS response received, audioData: ${audioData ? 'presente' : 'ausente'}`);
+                            if (audioData) {
+                                const pcmBuffer = Buffer.from(audioData, 'base64');
+                                const wavHeader = Buffer.alloc(44);
+                                wavHeader.write('RIFF', 0);
+                                wavHeader.writeUInt32LE(36 + pcmBuffer.length, 4);
+                                wavHeader.write('WAVE', 8);
+                                wavHeader.write('fmt ', 12);
+                                wavHeader.writeUInt32LE(16, 16);
+                                wavHeader.writeUInt16LE(1, 20);
+                                wavHeader.writeUInt16LE(1, 22);
+                                wavHeader.writeUInt32LE(24000, 24);
+                                wavHeader.writeUInt32LE(48000, 28);
+                                wavHeader.writeUInt16LE(2, 32);
+                                wavHeader.writeUInt16LE(16, 34);
+                                wavHeader.write('data', 36);
+                                wavHeader.writeUInt32LE(pcmBuffer.length, 40);
+
+                                const audioBuffer = Buffer.concat([wavHeader, pcmBuffer]);
+                                const fileName = `missao-${missaoId}-reta-final-${Date.now()}.wav`;
+
+                                const { error: uploadError } = await supabase.storage
+                                    .from('missao-audios')
+                                    .upload(fileName, audioBuffer, {
+                                        contentType: 'audio/wav',
+                                        upsert: true,
+                                    });
+
+                                if (!uploadError) {
+                                    const { data: publicUrlData } = supabase.storage
+                                        .from('missao-audios')
+                                        .getPublicUrl(fileName);
+                                    audioUrl = publicUrlData?.publicUrl || null;
+                                    console.log(`[RetaFinal] Áudio resumo uploaded: ${audioUrl}`);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (ttsError) {
+                console.warn(`[RetaFinal] TTS falhou para resumo da missão ${missaoId}:`, ttsError);
+            }
+        }
+
+        // 3. Salvar resumo no banco
+        await supabase
+            .from('missao_conteudos')
+            .update({
+                reta_final_content: resumoContent,
+                reta_final_audio_url: audioUrl,
+                reta_final_status: 'completed',
+            })
+            .eq('missao_id', missaoId);
+
+        console.log(`[RetaFinal] ✅ Resumo gerado com sucesso para missão ${missaoId}`);
+
+    } catch (error: any) {
+        console.error(`[RetaFinal] ❌ Erro ao gerar resumo para missão ${missaoId}:`, error);
+        await supabase
+            .from('missao_conteudos')
+            .update({
+                reta_final_status: 'failed',
+            })
+            .eq('missao_id', missaoId);
+    }
+}
+
 // Função principal: Gerar conteúdo de uma missão em background
 async function gerarConteudoMissaoBackground(missaoId: string): Promise<boolean> {
     // Deduplicação em memória - evita múltiplas requisições paralelas
@@ -1625,6 +1814,14 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
         }
 
         console.log(`[BackgroundContent] ✅ Conteúdo gerado com sucesso para missão ${missaoId}`);
+
+        // 10. Gerar resumo Reta Final em background (não bloqueia o retorno)
+        if (textoContent && textoContent.length > 500) {
+            gerarResumoRetaFinal(missaoId, textoContent).catch(err => {
+                console.error(`[BackgroundContent] Erro ao gerar resumo Reta Final:`, err);
+            });
+        }
+
         return true;
 
     } catch (error: any) {
@@ -1806,6 +2003,108 @@ app.post('/api/missao/gerar-conteudo-background', async (req, res) => {
     // Executa em background
     gerarConteudoMissaoBackground(missao_id).catch(err => {
         console.error(`[BackgroundContent] Erro não tratado:`, err);
+    });
+});
+
+// Endpoint: Gerar resumo Reta Final para uma missão específica
+app.post('/api/missao/gerar-resumo-reta-final', async (req, res) => {
+    const { missao_id, dias_para_prova = 30 } = req.body;
+
+    if (!missao_id) {
+        res.status(400).json({ success: false, error: 'missao_id é obrigatório' });
+        return;
+    }
+
+    console.log(`[RetaFinal] Recebida requisição para missão ${missao_id}`);
+
+    // Buscar conteúdo existente
+    const { data: conteudo } = await supabase
+        .from('missao_conteudos')
+        .select('texto_content, reta_final_status')
+        .eq('missao_id', missao_id)
+        .single();
+
+    if (!conteudo?.texto_content) {
+        res.status(400).json({
+            success: false,
+            error: 'Missão não tem conteúdo gerado. Gere o conteúdo normal primeiro.'
+        });
+        return;
+    }
+
+    if (conteudo.reta_final_status === 'completed') {
+        res.json({ success: true, message: 'Resumo Reta Final já existe' });
+        return;
+    }
+
+    // Responde imediatamente
+    res.json({ success: true, message: 'Geração de resumo Reta Final iniciada em background' });
+
+    // Executa em background
+    gerarResumoRetaFinal(missao_id, conteudo.texto_content, dias_para_prova).catch(err => {
+        console.error(`[RetaFinal] Erro não tratado:`, err);
+    });
+});
+
+// Endpoint: Gerar resumos Reta Final para todas as missões de um preparatório
+app.post('/api/preparatorio/gerar-resumos-reta-final', async (req, res) => {
+    const { preparatorio_id, dias_para_prova = 30 } = req.body;
+
+    if (!preparatorio_id) {
+        res.status(400).json({ success: false, error: 'preparatorio_id é obrigatório' });
+        return;
+    }
+
+    console.log(`[RetaFinal] Gerando resumos para preparatório ${preparatorio_id}...`);
+
+    // Buscar todas as missões com conteúdo completo mas sem resumo Reta Final
+    const { data: missoes, error } = await supabase
+        .from('missao_conteudos')
+        .select(`
+            missao_id,
+            texto_content,
+            missoes!inner(
+                id,
+                rodadas!inner(
+                    preparatorio_id
+                )
+            )
+        `)
+        .eq('status', 'completed')
+        .neq('reta_final_status', 'completed')
+        .not('texto_content', 'is', null);
+
+    if (error) {
+        res.status(500).json({ success: false, error: error.message });
+        return;
+    }
+
+    // Filtrar pelo preparatório
+    const missoesFiltradas = (missoes || []).filter((m: any) =>
+        m.missoes?.rodadas?.preparatorio_id === preparatorio_id
+    );
+
+    if (missoesFiltradas.length === 0) {
+        res.json({ success: true, message: 'Todas as missões já têm resumo Reta Final' });
+        return;
+    }
+
+    // Responde imediatamente
+    res.json({
+        success: true,
+        message: `Geração de ${missoesFiltradas.length} resumos Reta Final iniciada em background`
+    });
+
+    // Executa em background (sequencialmente para não sobrecarregar)
+    (async () => {
+        for (const missao of missoesFiltradas) {
+            if (missao.texto_content) {
+                await gerarResumoRetaFinal(missao.missao_id, missao.texto_content, dias_para_prova);
+            }
+        }
+        console.log(`[RetaFinal] ✅ Resumos gerados para ${missoesFiltradas.length} missões`);
+    })().catch(err => {
+        console.error(`[RetaFinal] Erro ao gerar resumos em batch:`, err);
     });
 });
 

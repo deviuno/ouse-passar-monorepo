@@ -15,19 +15,20 @@ import {
   Sparkles,
   Target,
   BookOpen,
-  Zap
+  Zap,
+  Flame
 } from 'lucide-react';
 import { useMissionStore, useTrailStore, useUserStore, useUIStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
 import { Button, Card, Progress, CircularProgress, SuccessCelebration, FadeIn, FloatingChatButton, MarkdownContent } from '../components/ui';
 import { QuestionCard } from '../components/question';
-import { ParsedQuestion, TrailMission, MissionStatus } from '../types';
+import { ParsedQuestion, TrailMission, MissionStatus, StudyMode } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
 import { CompactTrailMap } from '../components/trail/CompactTrailMap';
+import { RoundSelector } from '../components/trail/RoundSelector';
 import { MentorChat } from '../components/question/MentorChat';
-import {
-  XP_PER_CORRECT, COINS_PER_MISSION, PASSING_SCORE
-} from '../constants';
+import { PASSING_SCORE, XP_PER_CORRECT, COINS_PER_CORRECT } from '../constants';
+import { calculateXpReward, calculateCoinsReward } from '../services/gamificationSettingsService';
 import {
   saveUserAnswer,
   saveDifficultyRating,
@@ -44,7 +45,9 @@ import { getQuestoesParaMissao } from '../services/missaoQuestoesService';
 import {
   getMissaoConteudo,
   gerarConteudoMissao,
+  getConteudoEfetivo,
   MissaoConteudo,
+  ConteudoEfetivo,
 } from '../services/missaoConteudoService';
 import {
   userPreparatoriosService,
@@ -52,6 +55,7 @@ import {
   rodadasToTrailRounds,
   updateMissaoProgress,
 } from '../services';
+import { RETA_FINAL_THEME } from '../services/retaFinalService';
 
 // URL do servidor Mastra para chamadas de background
 const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_SERVER_URL || 'http://localhost:4000';
@@ -258,6 +262,7 @@ function ContentPhase({
   generationStatus,
   onContinue,
   onBack,
+  isRetaFinal = false,
 }: {
   content: { texto_content?: string; audio_url?: string; title?: string } | null;
   isLoading: boolean;
@@ -265,6 +270,7 @@ function ContentPhase({
   generationStatus: 'idle' | 'generating' | 'completed' | 'failed';
   onContinue: (mode: 'zen' | 'hard') => void;
   onBack: () => void;
+  isRetaFinal?: boolean;
 }) {
   const [showModeModal, setShowModeModal] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -472,12 +478,12 @@ function ContentPhase({
           <div className="flex items-center gap-3">
             <button
               onClick={handlePlayPause}
-              className="w-8 h-8 rounded-full bg-[#FFB800] hover:bg-[#E5A600] flex items-center justify-center flex-shrink-0 transition-colors"
+              className="w-12 h-12 rounded-full bg-[#FFB800] hover:bg-[#E5A600] flex items-center justify-center flex-shrink-0 transition-colors"
             >
               {isPlaying ? (
-                <Pause size={16} className="text-black" />
+                <Pause size={28} strokeWidth={3} className="text-black" />
               ) : (
-                <Play size={16} className="text-black ml-0.5" />
+                <Play size={28} strokeWidth={3} className="text-black ml-0.5" />
               )}
             </button>
             <div className="flex-1 min-w-0">
@@ -532,13 +538,15 @@ function ContentPhase({
             variant="ghost"
             size="sm"
             onClick={onBack}
-            className="mr-2"
+            className="mr-2 hidden lg:flex"
           >
             <ChevronLeft size={20} />
           </Button>
           <div>
             <h2 className="text-white font-semibold">{content?.title || 'Conteúdo Teórico'}</h2>
-            <p className="text-[#6E6E6E] text-sm">Leia com atenção antes de praticar</p>
+            <p className="text-[#6E6E6E] text-sm">
+              {isRetaFinal ? 'Resumo focado no essencial' : 'Leia com atenção antes de praticar'}
+            </p>
           </div>
         </div>
 
@@ -572,19 +580,19 @@ function ContentPhase({
                 <button
                   onClick={handlePlayPause}
                   disabled={audioLoading || audioError}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${audioLoading || audioError
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors flex-shrink-0 p-0 ${audioLoading || audioError
                     ? 'bg-[#3A3A3A] cursor-not-allowed'
                     : 'bg-[#FFB800] hover:bg-[#E5A600]'
                     }`}
                 >
                   {audioLoading ? (
-                    <Loader2 size={20} className="text-[#A0A0A0] animate-spin" />
+                    <Loader2 size={27} strokeWidth={1.8} className="text-[#A0A0A0] animate-spin" />
                   ) : audioError ? (
-                    <Volume2 size={20} className="text-[#E74C3C]" />
+                    <Volume2 size={27} strokeWidth={1.8} className="text-[#E74C3C]" />
                   ) : isPlaying ? (
-                    <Pause size={20} className="text-black" />
+                    <Pause size={27} strokeWidth={1.8} className="text-black" />
                   ) : (
-                    <Play size={20} className="text-black ml-0.5" />
+                    <Play size={27} strokeWidth={1.8} className="text-black ml-1" />
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
@@ -646,7 +654,7 @@ function ContentPhase({
 
         {/* Text Content with Markdown and Mermaid diagrams */}
         <Card className="p-0 overflow-hidden">
-          <div className="mission-content p-6">
+          <div className="mission-content px-3 py-4 md:p-6">
             <MarkdownContent
               content={content?.texto_content || 'Conteúdo não disponível para esta missão.'}
             />
@@ -655,7 +663,7 @@ function ContentPhase({
       </div>
 
       {/* Continue Button */}
-      <div className="p-4 border-t border-[#3A3A3A]">
+      <div className="px-3 py-3 md:p-4 border-t border-[#3A3A3A]">
         <Button
           fullWidth
           size="lg"
@@ -741,7 +749,7 @@ function ResultPhase({
               <p className="text-[#6E6E6E] text-sm">XP</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-[#FFB800]">+{COINS_PER_MISSION}</p>
+              <p className="text-2xl font-bold text-[#FFB800]">+{correct * COINS_PER_CORRECT}</p>
               <p className="text-[#6E6E6E] text-sm">Moedas</p>
             </div>
           </div>
@@ -963,6 +971,16 @@ export default function MissionPage() {
     setLoading: setStoreLoading,
   } = useTrailStore();
 
+  // Estado local para controle independente do sidebar
+  const [sidebarViewingRoundIndex, setSidebarViewingRoundIndex] = useState(viewingRoundIndex || 0);
+
+  // Sincronizar sidebar com visualização global apenas quando muda externamente
+  useEffect(() => {
+    if (typeof viewingRoundIndex === 'number') {
+      setSidebarViewingRoundIndex(viewingRoundIndex);
+    }
+  }, [viewingRoundIndex]);
+
   // Estado local para controlar se os dados foram carregados
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
@@ -1127,9 +1145,16 @@ export default function MissionPage() {
 
   // Content generation state
   const [missaoConteudo, setMissaoConteudo] = useState<MissaoConteudo | null>(null);
+  const [conteudoEfetivo, setConteudoEfetivo] = useState<ConteudoEfetivo | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState(true); // Loading existing content from DB
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [contentStatus, setContentStatus] = useState<'idle' | 'generating' | 'completed' | 'failed'>('idle');
+
+  // Get current trail mode from preparatorio
+  const currentTrailMode: StudyMode = useMemo(() => {
+    const prep = getSelectedPreparatorio();
+    return prep?.current_mode ?? 'normal';
+  }, [getSelectedPreparatorio, userPreparatorios]);
 
   // Retrieve current mission info for display (moved up to be available earlier)
   const currentMission = useMemo(() => {
@@ -1142,18 +1167,33 @@ export default function MissionPage() {
 
   // Reset state when mission changes
   React.useEffect(() => {
-    setPhase('content');
+    // Read tab parameter from URL to set initial phase
+    const tabParam = searchParams.get('tab');
+
+    // Set phase based on tab parameter, or default to content
+    if (tabParam === 'questoes') {
+      setPhase('questions');
+    } else if (tabParam === 'teoria') {
+      setPhase('content');
+    } else {
+      setPhase('content');
+    }
+
     setCurrentQuestionIndex(0);
     setAnswers(new Map());
     setShowCelebration(false);
     setShowMentorChat(false);
     setMissaoConteudo(null);
+    setConteudoEfetivo(null);
     setIsLoadingContent(true);
     setIsGeneratingContent(false);
     setContentStatus('idle');
     setSelectedStudyMode('zen');
-    // Clear phase from URL
-    setSearchParams({}, { replace: true });
+
+    // Only clear search params if there's no tab parameter
+    if (!tabParam) {
+      setSearchParams({}, { replace: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedMissionId]); // Removido setSearchParams para evitar loop
 
@@ -1189,9 +1229,17 @@ export default function MissionPage() {
         const existingContent = await getMissaoConteudo(resolvedMissionId);
 
         if (existingContent) {
-          console.log('[MissionPage] Conteudo encontrado:', existingContent.status, 'audio:', !!existingContent.audio_url);
+          console.log('[MissionPage] Conteudo encontrado:', existingContent.status, 'audio:', !!existingContent.audio_url, 'mode:', currentTrailMode);
           setMissaoConteudo(existingContent);
           setContentStatus(existingContent.status as 'generating' | 'completed' | 'failed');
+
+          // Get effective content based on mode
+          const efetivo = await getConteudoEfetivo(resolvedMissionId, currentTrailMode);
+          if (efetivo) {
+            setConteudoEfetivo(efetivo);
+            console.log('[MissionPage] Conteudo efetivo:', efetivo.isRetaFinal ? 'Reta Final' : 'Normal');
+          }
+
           setIsLoadingContent(false);
 
           // If still generating, poll for updates
@@ -1284,7 +1332,7 @@ export default function MissionPage() {
     }
 
     loadOrGenerateContent();
-  }, [resolvedMissionId, user?.id, getSelectedPreparatorio]);
+  }, [resolvedMissionId, user?.id, getSelectedPreparatorio, currentTrailMode]);
 
   // Load questions for this mission
   useEffect(() => {
@@ -1301,8 +1349,8 @@ export default function MissionPage() {
         const preparatorio = getSelectedPreparatorio();
         const questoesPorMissao = preparatorio?.questoes_por_missao || 20;
 
-        console.log('[MissionPage] Carregando questoes para missao:', resolvedMissionId, '- Quantidade:', questoesPorMissao);
-        const fetchedQuestions = await getQuestoesParaMissao(resolvedMissionId, questoesPorMissao);
+        console.log('[MissionPage] Carregando questoes para missao:', resolvedMissionId, '- Quantidade:', questoesPorMissao, '- Modo:', currentTrailMode);
+        const fetchedQuestions = await getQuestoesParaMissao(resolvedMissionId, questoesPorMissao, currentTrailMode);
 
         if (fetchedQuestions.length > 0) {
           console.log('[MissionPage] Questoes carregadas:', fetchedQuestions.length);
@@ -1322,15 +1370,33 @@ export default function MissionPage() {
     }
 
     loadQuestions();
-  }, [resolvedMissionId, getSelectedPreparatorio]);
+  }, [resolvedMissionId, getSelectedPreparatorio, currentTrailMode]);
 
   const currentQuestion = questions[currentQuestionIndex];
+
+  // Scroll to top when question changes
+  useEffect(() => {
+    if (phase === 'questions' && questions.length > 0) {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  }, [currentQuestionIndex, phase, questions.length]);
 
   // Handler quando o usuário responde
   const handleAnswer = (letter: string) => {
     const question = questions[currentQuestionIndex];
     const isCorrect = letter === question.gabarito;
     setAnswers(new Map(answers.set(question.id, { letter, correct: isCorrect })));
+
+    // Scroll to show navigation buttons after answering
+    setTimeout(() => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth'
+      });
+    }, 100);
 
     // Save answer to database for statistics
     saveUserAnswer({
@@ -1348,6 +1414,13 @@ export default function MissionPage() {
     }
   };
 
+  // Handler para voltar para questão anterior
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
+    }
+  };
+
   // Handler para próxima questão ou finalizar
   const handleNext = async () => {
     if (currentQuestionIndex < questions.length - 1) {
@@ -1362,10 +1435,18 @@ export default function MissionPage() {
 
         // Se for massificação, não dá recompensas
         if (!isMissaoMassificacao) {
-          const xpEarned = correctCount * XP_PER_CORRECT;
+          // Get gamification rewards from settings service
+          const xpPerCorrect = await calculateXpReward('correct_answer');
+          const coinsPerCorrect = await calculateCoinsReward('correct_answer');
+
+          const xpEarned = correctCount * xpPerCorrect;
+          const coinsEarned = correctCount * coinsPerCorrect;
+
+          console.log(`[MissionPage] Mission completed! XP: ${xpEarned} (${correctCount} × ${xpPerCorrect}), Coins: ${coinsEarned} (${correctCount} × ${coinsPerCorrect})`);
+
           incrementStats({
             xp: xpEarned,
-            coins: COINS_PER_MISSION,
+            coins: coinsEarned,
             correctAnswers: correctCount,
             totalAnswered: questions.length,
           });
@@ -1511,23 +1592,43 @@ export default function MissionPage() {
   return (
     <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A]">
       <div className={`flex flex-col min-w-0 relative transition-all duration-300 ${isMapExpanded ? 'xl:mr-[400px]' : 'xl:mr-[72px]'}`}>
-        <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-zinc-800">
-          <div className="w-full max-w-[800px] mx-auto flex flex-col min-h-full">
+        <div className="flex-1 overflow-y-auto px-0 md:px-4 py-4 md:py-6 scrollbar-thin scrollbar-thumb-zinc-800">
+          <div className="w-full md:max-w-[900px] mx-auto flex flex-col min-h-full">
             {/* Celebration */}
             <SuccessCelebration isActive={showCelebration} />
 
             {/* Header - só aparece na fase de questões */}
             {phase === 'questions' && (
-              <div className="p-4 border-b border-[#3A3A3A] bg-[#1A1A1A]">
-                {/* Badge de massificação */}
-                {isMissaoMassificacao && (
-                  <div className="flex justify-center mb-2">
+              <div
+                className="p-4 border-b bg-[#1A1A1A]"
+                style={{
+                  borderColor: currentTrailMode === 'reta_final' ? RETA_FINAL_THEME.colors.primary : '#3A3A3A',
+                }}
+              >
+                {/* Badges de modo */}
+                <div className="flex justify-center gap-2 mb-2">
+                  {/* Badge de Reta Final */}
+                  {currentTrailMode === 'reta_final' && (
+                    <span
+                      className="text-xs px-3 py-1 rounded-full flex items-center gap-1 font-semibold"
+                      style={{
+                        background: `linear-gradient(135deg, ${RETA_FINAL_THEME.colors.primary}30 0%, ${RETA_FINAL_THEME.colors.accent}30 100%)`,
+                        color: RETA_FINAL_THEME.colors.primary,
+                        border: `1px solid ${RETA_FINAL_THEME.colors.primary}50`,
+                      }}
+                    >
+                      <Flame size={12} />
+                      RETA FINAL
+                    </span>
+                  )}
+                  {/* Badge de massificação */}
+                  {isMissaoMassificacao && (
                     <span className="bg-[#E74C3C]/20 text-[#E74C3C] text-xs px-3 py-1 rounded-full flex items-center gap-1">
                       <RefreshCw size={12} />
                       Massificação #{tentativaMassificacao}
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => {
@@ -1539,13 +1640,14 @@ export default function MissionPage() {
                         navigate('/');
                       }
                     }}
-                    className="p-2 rounded-full hover:bg-[#252525] transition-colors"
+                    className="p-2 rounded-full hover:bg-[#252525] transition-colors hidden lg:block"
                   >
                     <ChevronLeft size={24} className="text-[#A0A0A0]" />
                   </button>
                   <Progress
                     value={((currentQuestionIndex + 1) / questions.length) * 100}
                     size="md"
+                    color={currentTrailMode === 'reta_final' ? 'retaFinal' : 'brand'}
                     className="flex-1"
                   />
                   <span className="text-[#A0A0A0] text-sm font-medium">
@@ -1567,7 +1669,11 @@ export default function MissionPage() {
                 {phase === 'content' && (
                   <ContentPhase
                     key="content"
-                    content={missaoConteudo ? {
+                    content={conteudoEfetivo ? {
+                      title: currentMission?.assunto?.nome || 'Conteúdo Teórico',
+                      texto_content: conteudoEfetivo.texto,
+                      audio_url: conteudoEfetivo.audioUrl || undefined,
+                    } : missaoConteudo ? {
                       title: currentMission?.assunto?.nome || 'Conteúdo Teórico',
                       texto_content: missaoConteudo.texto_content,
                       audio_url: missaoConteudo.audio_url || undefined,
@@ -1583,6 +1689,7 @@ export default function MissionPage() {
                       setPhase('questions');
                     }}
                     onBack={() => navigate('/')}
+                    isRetaFinal={conteudoEfetivo?.isRetaFinal || currentTrailMode === 'reta_final'}
                   />
                 )}
 
@@ -1622,13 +1729,14 @@ export default function MissionPage() {
                       question={currentQuestion}
                       isLastQuestion={currentQuestionIndex === questions.length - 1}
                       onNext={handleNext}
-                      onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(prev => prev - 1) : undefined}
+                      onPrevious={currentQuestionIndex > 0 ? handlePrevious : undefined}
                       onOpenTutor={() => setShowMentorChat(true)}
                       onAnswer={handleAnswer}
                       onRateDifficulty={handleRateDifficulty}
                       studyMode={selectedStudyMode}
                       userId={user?.id}
                       userRole={userProfile?.role}
+                      showCorrectAnswers={userProfile?.show_answers || false}
                       onShowToast={handleShowToast}
                     />
                   </motion.div>
@@ -1717,34 +1825,13 @@ export default function MissionPage() {
                   <ChevronRight size={18} className="text-[#A0A0A0]" />
                 </button>
                 {/* Round navigation - centered */}
-                <div className="flex-1 flex items-center justify-center gap-1">
-                  <button
-                    onClick={() => {
-                      if (viewingRoundIndex > 0) setViewingRoundIndex(viewingRoundIndex - 1);
-                    }}
-                    disabled={viewingRoundIndex === 0}
-                    className={`p-1.5 rounded-lg transition-colors ${viewingRoundIndex > 0
-                      ? 'hover:bg-[#3A3A3A] text-[#A0A0A0]'
-                      : 'text-[#3A3A3A] cursor-not-allowed'
-                      }`}
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <span className="text-sm font-medium text-white px-2 min-w-[80px] text-center">
-                    Rodada {viewingRoundIndex + 1}
-                  </span>
-                  <button
-                    onClick={() => {
-                      if (viewingRoundIndex < displayRounds.length - 1) setViewingRoundIndex(viewingRoundIndex + 1);
-                    }}
-                    disabled={viewingRoundIndex >= displayRounds.length - 1}
-                    className={`p-1.5 rounded-lg transition-colors ${viewingRoundIndex < displayRounds.length - 1
-                      ? 'hover:bg-[#3A3A3A] text-[#A0A0A0]'
-                      : 'text-[#3A3A3A] cursor-not-allowed'
-                      }`}
-                  >
-                    <ChevronRight size={16} />
-                  </button>
+                {/* Round navigation - centered */}
+                <div className="flex-1 flex justify-center">
+                  <RoundSelector
+                    currentRoundIndex={sidebarViewingRoundIndex}
+                    totalRounds={displayRounds.length}
+                    onRoundChange={setSidebarViewingRoundIndex}
+                  />
                 </div>
                 {/* Spacer to balance the collapse button */}
                 <div className="w-[30px] flex-shrink-0" />
@@ -1775,8 +1862,8 @@ export default function MissionPage() {
                     rounds={displayRounds}
                     onMissionClick={handleMissionClick}
                     userAvatar={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop"}
-                    viewingRoundIndex={viewingRoundIndex}
-                    onViewingRoundChange={setViewingRoundIndex}
+                    viewingRoundIndex={sidebarViewingRoundIndex}
+                    onViewingRoundChange={setSidebarViewingRoundIndex}
                   />
                 </motion.div>
               ) : (
@@ -1790,7 +1877,7 @@ export default function MissionPage() {
                   <CompactTrailMap
                     rounds={displayRounds}
                     onMissionClick={handleMissionClick}
-                    viewingRoundIndex={viewingRoundIndex}
+                    viewingRoundIndex={sidebarViewingRoundIndex}
                   />
                 </motion.div>
               )}
@@ -1805,6 +1892,7 @@ export default function MissionPage() {
         isOpen={showMentorChat}
         onClick={() => setShowMentorChat(!showMentorChat)}
         sidebarWidth={isMapExpanded ? 400 : 72}
+        isChatVisible={showMentorChat}
       />
 
       {/* Mentor Chat - controlled by FloatingChatButton */}

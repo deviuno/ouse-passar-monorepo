@@ -8,6 +8,7 @@
   "scripts": {
     "dev:questoes": "npm run dev -w @ouse/questoes",
     "dev:site": "npm run dev -w @ouse/site",
+    "dev:mastra": "npm run dev -w @ouse/mastra",
     "build:questoes": "npm run build -w @ouse/questoes",
     "build:site": "npm run build -w @ouse/site",
     "build": "npm run build -ws",
@@ -19,7 +20,7 @@
     "prepare": "node -e \"if (!process.env.VERCEL) require('child_process').execSync('npx husky', {stdio: 'inherit'})\""
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=20.0.0"
   },
   "devDependencies": {
     "husky": "^9.1.7"

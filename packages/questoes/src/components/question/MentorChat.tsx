@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Zap, Mic, Square, MessageSquare, GripHorizontal, Sparkles, Headphones, Radio, FileText, Video, Loader2 } from 'lucide-react';
+import { Send, Zap, Mic, Square, MessageSquare, GripHorizontal, Sparkles, Headphones, Radio, FileText, Video, Loader2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { chatWithTutor, TutorUserContext, generateAudioExplanation, generatePodcast, GeneratedAudio } from '../../services/geminiService';
 import { ParsedQuestion } from '../../types';
@@ -616,7 +616,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
 
     return (
         <motion.div
-            className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pb-0 pointer-events-none"
+            className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pb-16 lg:pb-0 pointer-events-none"
             initial={false}
             animate={{}}
             transition={{ type: "spring", stiffness: 200, damping: 25 }}
@@ -652,7 +652,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                         style={{ height: isCollapsed ? COLLAPSED_HEIGHT : chatHeight }}
                         className="w-full max-w-[900px] bg-[#1A1A1A] border border-[#3A3A3A] rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-200"
                     >
-                        {/* Resize Handle - only show when expanded */}
+                        {/* Header with Close Button (Mobile) / Resize Handle (Desktop) */}
                         {!isCollapsed && (
                             <div
                                 onMouseDown={handleResizeStart}
@@ -660,7 +660,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                 className={`
                                     flex items-center justify-center h-6 cursor-ns-resize
                                     bg-[#1A1A1A] rounded-t-2xl
-                                    hover:bg-[#252525] transition-colors group
+                                    hover:bg-[#252525] transition-colors group relative
                                     ${isResizing ? 'bg-[#252525]' : ''}
                                 `}
                             >
@@ -668,6 +668,17 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                     size={20}
                                     className={`text-[#4A4A4A] group-hover:text-[#6E6E6E] transition-colors ${isResizing ? 'text-[#FFB800]' : ''}`}
                                 />
+                                {/* Close button - Mobile only */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleClose();
+                                    }}
+                                    className="lg:hidden absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-[#C92A2A] hover:bg-[#A61E1E] text-white transition-colors z-10"
+                                    title="Fechar chat"
+                                >
+                                    <ChevronDown size={18} />
+                                </button>
                             </div>
                         )}
 

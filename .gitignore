@@ -28,14 +28,9 @@ npm-debug.log*
 .cache/
 .parcel-cache/
 
-
 # Claude Code settings (local)
 .claude/
-
-# Database
-*.db-shm
-*.db-wal
-*.db-journal
-
-# Junk
-nul
+# Mastra
+packages/mastra/data/*.db*
+packages/mastra/data/*.shm
+packages/mastra/data/*.wal

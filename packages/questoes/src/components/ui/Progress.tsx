@@ -5,7 +5,7 @@ interface ProgressProps {
   value: number;
   max?: number;
   size?: 'sm' | 'md' | 'lg';
-  color?: 'brand' | 'success' | 'error' | 'info';
+  color?: 'brand' | 'success' | 'error' | 'info' | 'retaFinal';
   showLabel?: boolean;
   animated?: boolean;
   className?: string;
@@ -22,6 +22,7 @@ const colors = {
   success: 'bg-[#2ECC71]',
   error: 'bg-[#E74C3C]',
   info: 'bg-[#3498DB]',
+  retaFinal: 'bg-gradient-to-r from-[#FFD700] to-[#FF6B00]',
 };
 
 export function Progress({
@@ -60,7 +61,7 @@ interface CircularProgressProps {
   max?: number;
   size?: number;
   strokeWidth?: number;
-  color?: 'brand' | 'success' | 'error' | 'info';
+  color?: 'brand' | 'success' | 'error' | 'info' | 'retaFinal';
   showLabel?: boolean;
   children?: React.ReactNode;
 }
@@ -70,6 +71,7 @@ const circleColors = {
   success: '#2ECC71',
   error: '#E74C3C',
   info: '#3498DB',
+  retaFinal: '#FFD700',
 };
 
 export function CircularProgress({

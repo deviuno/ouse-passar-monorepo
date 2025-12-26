@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, Scale } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 export const AdminLayout: React.FC = () => {
@@ -228,13 +228,23 @@ export const AdminLayout: React.FC = () => {
 
                 <div className="p-4 border-t border-white/5 space-y-2">
                     {isAdmin && (
-                        <Link
-                            to="/admin/settings"
-                            className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/settings')}`}
-                        >
-                            <Settings className="w-5 h-5 mr-3" />
-                            Configurações
-                        </Link>
+                        <>
+                            <Link
+                                to="/admin/settings"
+                                className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/settings')}`}
+                            >
+                                <Settings className="w-5 h-5 mr-3" />
+                                Configurações
+                            </Link>
+
+                            <Link
+                                to="/admin/legal-texts"
+                                className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/legal-texts')}`}
+                            >
+                                <Scale className="w-5 h-5 mr-3" />
+                                Textos Legais
+                            </Link>
+                        </>
                     )}
                     <button
                         onClick={() => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Plus, Edit2, Trash2, X, User, Shield, ShoppingBag, Calendar, ChevronRight, ChevronLeft, Camera, Loader2, Search, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
 import { adminUsersService } from '../../services/adminUsersService';
 import { vendedorScheduleService } from '../../services/schedulingService';
@@ -10,6 +11,7 @@ import { supabase } from '../../lib/supabase';
 
 export const Users: React.FC = () => {
     const { user: currentUser } = useAuth();
+    const navigate = useNavigate();
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
@@ -483,7 +485,11 @@ export const Users: React.FC = () => {
                                     </tr>
                                 ) : (
                                     filteredUsers.map((user) => (
-                                        <tr key={user.id} className="hover:bg-white/5 transition-colors">
+                                        <tr
+                                            key={user.id}
+                                            className={`hover:bg-white/5 transition-colors ${user.role === 'cliente' ? 'cursor-pointer' : ''}`}
+                                            onClick={() => user.role === 'cliente' && navigate(`/admin/users/${user.id}`)}
+                                        >
                                             <td className="p-4">
                                                 <div className="flex items-center">
                                                     <div className="w-10 h-10 rounded-full flex items-center justify-center mr-3 overflow-hidden bg-brand-dark border border-white/10">
@@ -510,7 +516,10 @@ export const Users: React.FC = () => {
                                             </td>
                                             <td className="p-4">
                                                 <button
-                                                    onClick={() => handleToggleActive(user.id, user.is_active)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleToggleActive(user.id, user.is_active);
+                                                    }}
                                                     disabled={user.id === currentUser?.id}
                                                     className={`px-3 py-1 rounded text-xs font-bold uppercase transition-colors ${user.is_active
                                                         ? 'bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30'
@@ -531,7 +540,10 @@ export const Users: React.FC = () => {
                                                 <div className="flex justify-end space-x-2">
                                                     {user.role === 'vendedor' && (
                                                         <button
-                                                            onClick={() => handleOpenScheduleConfig(user)}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenScheduleConfig(user);
+                                                            }}
                                                             className="p-2 text-gray-400 hover:text-brand-yellow transition-colors"
                                                             title="Configurar Agenda"
                                                         >
@@ -539,7 +551,10 @@ export const Users: React.FC = () => {
                                                         </button>
                                                     )}
                                                     <button
-                                                        onClick={() => handleOpenModal(user)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleOpenModal(user);
+                                                        }}
                                                         className="p-2 text-gray-400 hover:text-brand-yellow transition-colors"
                                                         title="Editar"
                                                     >

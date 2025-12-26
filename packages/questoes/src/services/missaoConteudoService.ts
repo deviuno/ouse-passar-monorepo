@@ -1,10 +1,12 @@
 /**
  * Serviço para gerenciar conteúdo gerado das missões.
  * O conteúdo é gerado uma vez pelo primeiro usuário e reutilizado por todos.
+ * Suporta modo Reta Final com conteúdo resumido.
  */
 
 import { supabase } from './supabaseClient';
 import { getQuestoesParaMissao, getMissaoEditalItems, getEditalItemsTitulos } from './missaoQuestoesService';
+import { StudyMode } from '../types';
 
 // Tipos
 export interface MissaoConteudo {
@@ -20,12 +22,25 @@ export interface MissaoConteudo {
   error_message: string | null;
   created_at: string;
   generated_by_user_id: string | null;
+  // Campos do Reta Final
+  reta_final_content: string | null;
+  reta_final_audio_url: string | null;
+  reta_final_status: 'pending' | 'generating' | 'completed' | 'failed' | null;
 }
 
 interface GeracaoConteudoInput {
   missaoId: string;
   userId: string;
   questoesPorMissao?: number;
+  mode?: StudyMode; // 'normal' ou 'reta_final'
+}
+
+// Interface para conteúdo efetivo baseado no modo
+export interface ConteudoEfetivo {
+  texto: string;
+  audioUrl: string | null;
+  status: 'generating' | 'completed' | 'failed' | 'pending';
+  isRetaFinal: boolean;
 }
 
 // URL base do servidor Mastra (ajustar conforme ambiente)
@@ -511,8 +526,169 @@ export async function gerarConteudoMissao(
   return await getMissaoConteudo(missaoId);
 }
 
+/**
+ * Remove code fences de markdown se existirem
+ */
+function stripCodeFences(text: string): string {
+  return text
+    .replace(/^```(?:markdown)?\s*\n?/i, '')
+    .replace(/\n?```\s*$/i, '')
+    .trim();
+}
+
+/**
+ * Busca o conteúdo efetivo baseado no modo de estudo
+ * - Modo Normal: retorna texto_content e audio_url
+ * - Modo Reta Final: retorna reta_final_content se disponível, senão texto_content
+ */
+export async function getConteudoEfetivo(
+  missaoId: string,
+  mode: StudyMode = 'normal'
+): Promise<ConteudoEfetivo | null> {
+  const conteudo = await getMissaoConteudo(missaoId);
+
+  if (!conteudo) {
+    return null;
+  }
+
+  // Modo Normal: retorna conteúdo completo
+  if (mode === 'normal') {
+    return {
+      texto: stripCodeFences(conteudo.texto_content),
+      audioUrl: conteudo.audio_url,
+      status: conteudo.status,
+      isRetaFinal: false,
+    };
+  }
+
+  // Modo Reta Final
+  // Se tem conteúdo resumido pronto, usa ele
+  if (conteudo.reta_final_status === 'completed' && conteudo.reta_final_content) {
+    return {
+      texto: stripCodeFences(conteudo.reta_final_content),
+      audioUrl: conteudo.reta_final_audio_url,
+      status: 'completed',
+      isRetaFinal: true,
+    };
+  }
+
+  // Se está gerando o resumo, indica isso
+  if (conteudo.reta_final_status === 'generating') {
+    return {
+      texto: stripCodeFences(conteudo.texto_content), // Usa o completo temporariamente
+      audioUrl: conteudo.audio_url,
+      status: 'generating',
+      isRetaFinal: false, // Não é o resumo ainda
+    };
+  }
+
+  // Se não tem resumo ou falhou, usa o conteúdo completo
+  // mas dispara geração do resumo em background
+  if (conteudo.status === 'completed' && !conteudo.reta_final_content) {
+    // Dispara geração do resumo em background (fire-and-forget)
+    console.log('[MissaoConteudoService] Disparando geração do resumo Reta Final...');
+    triggerRetaFinalContentGeneration(missaoId, conteudo.id, conteudo.texto_content);
+  }
+
+  // Enquanto isso, retorna o conteúdo completo
+  return {
+    texto: stripCodeFences(conteudo.texto_content),
+    audioUrl: conteudo.audio_url,
+    status: conteudo.status,
+    isRetaFinal: false,
+  };
+}
+
+/**
+ * Dispara a geração do conteúdo resumido para Reta Final
+ * Executa em background sem bloquear
+ */
+async function triggerRetaFinalContentGeneration(
+  missaoId: string,
+  conteudoId: string,
+  textoOriginal: string
+): Promise<void> {
+  try {
+    // Marcar como gerando
+    await supabase
+      .from('missao_conteudos')
+      .update({ reta_final_status: 'generating' })
+      .eq('id', conteudoId);
+
+    // Chamar o agente de resumo (se disponível)
+    const response = await fetch(`${MASTRA_SERVER_URL}/api/agents/contentSummaryAgent/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: 'user',
+            content: `Crie um RESUMO CONCISO do seguinte conteúdo para o modo "Reta Final" (estudo intensivo pré-prova).
+
+O resumo deve:
+1. Ter NO MÁXIMO 40% do tamanho original
+2. Focar nos conceitos mais cobrados em provas
+3. Usar bullet points para facilitar memorização
+4. Destacar dicas práticas para resolver questões
+5. Remover explicações detalhadas, mantendo apenas o essencial
+
+Conteúdo original:
+${textoOriginal}`,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro na API Mastra: ${response.status}`);
+    }
+
+    const result = await response.json();
+    let resumo = result.text || result.content;
+
+    if (resumo) {
+      // Remover code fences se a IA retornar envolvido em ```markdown ... ```
+      resumo = resumo
+        .replace(/^```(?:markdown)?\s*\n?/i, '')
+        .replace(/\n?```\s*$/i, '')
+        .trim();
+
+      // Atualizar com o resumo
+      await supabase
+        .from('missao_conteudos')
+        .update({
+          reta_final_content: resumo,
+          reta_final_status: 'completed',
+        })
+        .eq('id', conteudoId);
+
+      console.log('[MissaoConteudoService] Resumo Reta Final gerado com sucesso');
+    } else {
+      throw new Error('Resumo vazio');
+    }
+  } catch (error: any) {
+    console.error('[MissaoConteudoService] Erro ao gerar resumo Reta Final:', error);
+
+    // Marcar como falhou
+    await supabase
+      .from('missao_conteudos')
+      .update({ reta_final_status: 'failed' })
+      .eq('id', conteudoId);
+  }
+}
+
+/**
+ * Verifica se o conteúdo Reta Final existe e está pronto
+ */
+export async function conteudoRetaFinalExiste(missaoId: string): Promise<boolean> {
+  const conteudo = await getMissaoConteudo(missaoId);
+  return conteudo !== null && conteudo.reta_final_status === 'completed' && !!conteudo.reta_final_content;
+}
+
 export default {
   getMissaoConteudo,
   conteudoExiste,
   gerarConteudoMissao,
+  getConteudoEfetivo,
+  conteudoRetaFinalExiste,
 };

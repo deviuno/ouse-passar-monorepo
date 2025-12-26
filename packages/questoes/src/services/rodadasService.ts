@@ -103,6 +103,11 @@ export async function getUserMissaoProgress(
 
 /**
  * Busca rodadas com progresso do usuário
+ *
+ * NOVA LÓGICA DE MASSIFICAÇÃO:
+ * - O usuário pode progredir mesmo com missões em needs_massificacao
+ * - As missões em needs_massificacao continuam acessíveis (não bloqueiam)
+ * - Na missão 9 (técnica), as missões que precisam de massificação aparecem com borda vermelha
  */
 export async function getRodadasComProgresso(
   userId: string,
@@ -119,24 +124,31 @@ export async function getRodadasComProgresso(
     // Buscar progresso do usuário
     const progressMap = await getUserMissaoProgress(userId, preparatorioId);
 
-    // Determinar qual é a missão atual (primeira não completada)
+    // Determinar qual é a missão atual (primeira não completada e não needs_massificacao)
     let foundCurrentMission = false;
 
-    // Helper para verificar se uma missão está "concluída" para fins de desbloqueio
-    // needs_massificacao NÃO é considerada concluída - bloqueia a próxima
-    const isMissaoCompleta = (missaoId: string) => {
+    // Helper para verificar se uma missão permite desbloquear a próxima
+    // NOVA LÓGICA: needs_massificacao também permite progressão
+    const isMissaoDesbloqueiaProxima = (missaoId: string) => {
       const progress = progressMap.get(missaoId);
-      return progress?.status === 'completed';
+      if (!progress) return false;
+      // Tanto 'completed' quanto 'needs_massificacao' desbloqueiam a próxima missão
+      return progress.status === 'completed' || progress.status === 'needs_massificacao';
+    };
+
+    // Helper para verificar se a rodada foi "passada" (todas missões completed ou needs_massificacao)
+    const isRodadaPassada = (missoes: Missao[]) => {
+      return missoes.every((m) => isMissaoDesbloqueiaProxima(m.id));
     };
 
     // Processar cada rodada
     const rodadasComProgresso: RodadaComProgresso[] = rodadas.map((rodada, rodadaIndex) => {
-      // Verificar se a rodada anterior foi completada (para rodadas após a primeira)
-      let rodadaAnteriorCompleta = true;
+      // Verificar se a rodada anterior foi "passada" (para rodadas após a primeira)
+      let rodadaAnteriorPassada = true;
       if (rodadaIndex > 0) {
         const rodadaAnterior = rodadas[rodadaIndex - 1];
         const missoesAnteriores = rodadaAnterior.missoes || [];
-        rodadaAnteriorCompleta = missoesAnteriores.every((m) => isMissaoCompleta(m.id));
+        rodadaAnteriorPassada = isRodadaPassada(missoesAnteriores);
       }
 
       const missoesComProgresso: MissaoComProgresso[] = (rodada.missoes || []).map((missao, missaoIndex) => {
@@ -149,47 +161,56 @@ export async function getRodadasComProgresso(
           // Se já tem progresso, usar o status do progresso
           status = progress.status;
 
-          // Se está em needs_massificacao, marcar que encontramos a missão atual
-          if (status === 'needs_massificacao') {
-            foundCurrentMission = true;
-          }
-        } else if (!foundCurrentMission) {
-          // Verificar se esta missão pode ser desbloqueada
-          if (rodadaIndex === 0 && missaoIndex === 0) {
-            // Primeira missão da primeira rodada sempre disponível
-            status = 'available';
-            foundCurrentMission = true;
-          } else if (rodadaIndex === 0) {
-            // Missões seguintes da primeira rodada: verificar se a anterior foi completada
-            const missaoAnterior = rodada.missoes![missaoIndex - 1];
-            if (isMissaoCompleta(missaoAnterior.id)) {
+          // NOTA: needs_massificacao NÃO bloqueia mais a progressão
+          // O usuário pode continuar na trilha
+        }
+
+        // Verificar se esta missão deve ser desbloqueada
+        if (!progress || status === 'locked') {
+          if (!foundCurrentMission) {
+            if (rodadaIndex === 0 && missaoIndex === 0) {
+              // Primeira missão da primeira rodada sempre disponível
               status = 'available';
               foundCurrentMission = true;
-            }
-          } else if (rodadaAnteriorCompleta) {
-            // Rodadas seguintes: só desbloquear se a rodada anterior foi completada
-            if (missaoIndex === 0) {
-              // Primeira missão da rodada
-              status = 'available';
-              foundCurrentMission = true;
-            } else {
-              // Missões seguintes: verificar se a anterior foi completada
+            } else if (rodadaIndex === 0) {
+              // Missões seguintes da primeira rodada: verificar se a anterior permite
               const missaoAnterior = rodada.missoes![missaoIndex - 1];
-              if (isMissaoCompleta(missaoAnterior.id)) {
+              if (isMissaoDesbloqueiaProxima(missaoAnterior.id)) {
                 status = 'available';
                 foundCurrentMission = true;
+              }
+            } else if (rodadaAnteriorPassada) {
+              // Rodadas seguintes: só desbloquear se a rodada anterior foi passada
+              if (missaoIndex === 0) {
+                // Primeira missão da rodada
+                status = 'available';
+                foundCurrentMission = true;
+              } else {
+                // Missões seguintes: verificar se a anterior permite
+                const missaoAnterior = rodada.missoes![missaoIndex - 1];
+                if (isMissaoDesbloqueiaProxima(missaoAnterior.id)) {
+                  status = 'available';
+                  foundCurrentMission = true;
+                }
               }
             }
           }
         }
 
+        // Para missões em needs_massificacao, marcar que está acessível
+        // mas também marcar que está em massificação
+        const isNeedsMassificacao = progress?.status === 'needs_massificacao';
+
         return {
           ...missao,
           progress,
           status,
-          isCurrentMission: (status === 'available' && !progress) || status === 'needs_massificacao',
+          // A missão atual é a primeira 'available' sem progresso OU uma em needs_massificacao clicável
+          isCurrentMission: (status === 'available' && !progress),
           // Campos extras para massificação
           massificacao_attempts: progress?.massificacao_attempts || 0,
+          // Novo: flag para indicar que precisa massificação (para mostrar borda vermelha)
+          needsMassificacao: isNeedsMassificacao,
         };
       });
 
@@ -344,12 +365,31 @@ export async function countMissoesProgress(
 
 /**
  * Converte uma MissaoComProgresso para o formato TrailMission usado pelo TrailMap
+ *
+ * @param missao - A missão com progresso
+ * @param indexInRound - Índice da missão dentro da rodada (0-based), usado para determinar se é técnica
  */
-export function missaoToTrailMission(missao: MissaoComProgresso): any {
+export function missaoToTrailMission(missao: MissaoComProgresso, indexInRound?: number): any {
   // Determinar o tipo de missão para o TrailMap
-  let tipo: 'normal' | 'revisao' | 'simulado_rodada' | 'massificacao' = 'normal';
-  if (missao.tipo === 'revisao') tipo = 'revisao';
-  else if (missao.tipo === 'acao') tipo = 'simulado_rodada';
+  let tipo: 'normal' | 'revisao' | 'simulado_rodada' | 'tecnica' | 'massificacao' = 'normal';
+
+  // A 9ª missão de cada rodada (índice 8) é SEMPRE a missão técnica
+  // Isso tem prioridade sobre qualquer outro tipo
+  const isMissao9 = indexInRound === 8;
+
+  if (isMissao9) {
+    // Missão 9 de cada rodada é SEMPRE técnica, independente do tipo no banco
+    tipo = 'tecnica';
+  } else if (missao.tipo === 'revisao') {
+    tipo = 'revisao';
+  } else if (missao.tipo === 'acao') {
+    // Outras missões de ação (não a 9ª) são simulados
+    if (missao.acao?.toUpperCase().includes('TÉCNICA')) {
+      tipo = 'tecnica';
+    } else {
+      tipo = 'simulado_rodada';
+    }
+  }
 
   // Criar nome do assunto baseado nos dados da missão
   let nomeAssunto = '';
@@ -392,6 +432,8 @@ export function missaoToTrailMission(missao: MissaoComProgresso): any {
     } : undefined,
     // Dados originais da missão para uso posterior
     _missaoOriginal: missao,
+    // Novo: flag para indicar que precisa massificação (para mostrar borda vermelha)
+    needsMassificacao: missao.needsMassificacao || false,
   };
 }
 
@@ -406,7 +448,8 @@ export function rodadasToTrailRounds(rodadas: RodadaComProgresso[]): any[] {
     status: determineRoundStatus(rodada.missoes),
     tipo: 'normal' as const,
     created_at: rodada.created_at,
-    missions: rodada.missoes.map(missaoToTrailMission),
+    // Passar o índice da missão na rodada para determinar se é a missão 9 (técnica)
+    missions: rodada.missoes.map((missao, index) => missaoToTrailMission(missao, index)),
   }));
 }
 

@@ -91,7 +91,8 @@ export interface Friend {
   online: boolean;
 }
 
-export type StudyMode = 'zen' | 'hard' | 'reta_final' | 'review';
+// Modo de prática/estudo de questões (diferente de StudyMode que é 'normal' | 'reta_final')
+export type PracticeMode = 'zen' | 'hard' | 'reta_final' | 'review';
 
 export type StoreItemType = 'avatar' | 'theme' | 'powerup';
 
@@ -165,6 +166,22 @@ export interface Simulado {
   total_questoes: number;
   is_premium: boolean;
   preco?: number;
+  created_at: string;
+}
+
+export interface Caderno {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  filters: any; // Using any to avoid circular dependency with FilterOptions
+  settings?: {
+    questionCount?: number;
+    studyMode?: 'zen' | 'hard';
+    toggleFilters?: any;
+  };
+  questions_count?: number;
+  is_favorite: boolean;
   created_at: string;
 }
 
