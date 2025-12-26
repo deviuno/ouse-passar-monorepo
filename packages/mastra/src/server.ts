@@ -4229,7 +4229,6 @@ app.post('/api/admin/store/sync-preparatorios', async (req, res) => {
 });
 
 // Start the Express server
-app.timeout = 5000;
 
 app.listen(PORT, () => {
     console.log(`Mastra Agent Server running on http://localhost:${PORT}`);
