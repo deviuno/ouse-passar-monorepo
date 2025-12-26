@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Battery, BatteryLow, BatteryMedium, BatteryFull, Zap } from 'lucide-react';
+import { Zap, Battery, BatteryCharging } from 'lucide-react';
 import { getBatteryPercentage, getBatteryColor, getTimeUntilRecharge } from '../../types/battery';
 
 interface BatteryIndicatorProps {
@@ -19,109 +19,117 @@ export function BatteryIndicator({
   compact = false,
 }: BatteryIndicatorProps) {
   const percentage = getBatteryPercentage(current, max);
-  const color = getBatteryColor(percentage);
   const { hours, minutes } = getTimeUntilRecharge();
 
-  // Cores baseadas no nível
-  const colorClasses = {
-    green: {
-      bg: 'bg-emerald-500',
-      bgLight: 'bg-emerald-500/20',
+  // Configuração de cores e brilho neon
+  const getStatusColor = (pct: number) => {
+    if (isPremium) return {
+      text: 'text-purple-400',
+      bg: 'bg-purple-500',
+      glow: 'shadow-[0_0_10px_rgba(168,85,247,0.6)]',
+      border: 'border-purple-500/50'
+    };
+    if (pct > 60) return {
       text: 'text-emerald-400',
-      border: 'border-emerald-500/30',
-    },
-    yellow: {
-      bg: 'bg-yellow-500',
-      bgLight: 'bg-yellow-500/20',
+      bg: 'bg-emerald-500',
+      glow: 'shadow-[0_0_10px_rgba(52,211,153,0.6)]',
+      border: 'border-emerald-500/50'
+    };
+    if (pct > 30) return {
       text: 'text-yellow-400',
-      border: 'border-yellow-500/30',
-    },
-    red: {
-      bg: 'bg-red-500',
-      bgLight: 'bg-red-500/20',
+      bg: 'bg-yellow-500',
+      glow: 'shadow-[0_0_10px_rgba(250,204,21,0.6)]',
+      border: 'border-yellow-500/50'
+    };
+    return {
       text: 'text-red-400',
-      border: 'border-red-500/30',
-    },
+      bg: 'bg-red-500',
+      glow: 'shadow-[0_0_10px_rgba(248,113,113,0.6)]',
+      border: 'border-red-500/50'
+    };
   };
 
-  const colors = isPremium
-    ? {
-        bg: 'bg-purple-500',
-        bgLight: 'bg-purple-500/20',
-        text: 'text-purple-400',
-        border: 'border-purple-500/30',
-      }
-    : colorClasses[color];
+  const status = getStatusColor(percentage);
 
-  // Ícone baseado no nível
-  const BatteryIcon = isPremium
-    ? Zap
-    : percentage > 66
-    ? BatteryFull
-    : percentage > 33
-    ? BatteryMedium
-    : percentage > 0
-    ? BatteryLow
-    : Battery;
+  // Renderiza a barra segmentada (10 blocos)
+  const renderSegments = () => {
+    const segments = 10;
+    const filledSegments = Math.ceil((percentage / 100) * segments);
+
+    return (
+      <div className="flex gap-1 h-3 w-full mt-2">
+        {Array.from({ length: segments }).map((_, i) => (
+          <div
+            key={i}
+            className={`flex-1 rounded-[2px] transition-all duration-300 ${isPremium || i < filledSegments
+              ? `${status.bg} ${status.glow}`
+              : 'bg-[#2A2A2A]'
+              } ${!isPremium && i < filledSegments && percentage <= 30 ? 'animate-pulse' : ''
+              }`}
+          />
+        ))}
+      </div>
+    );
+  };
 
   if (compact) {
     return (
       <button
         onClick={onClick}
-        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${colors.bgLight} ${colors.border} border transition-all hover:scale-105`}
+        className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border ${status.border} transition-all hover:bg-black/60`}
       >
-        <BatteryIcon className={`w-4 h-4 ${colors.text}`} />
-        <span className={`text-xs font-bold ${colors.text}`}>
-          {isPremium ? 'Ilimitada' : `${current}`}
+        <Zap className={`w-3.5 h-3.5 ${status.text} ${isPremium ? 'animate-pulse' : ''}`} fill="currentColor" />
+        <span className={`text-xs font-bold ${status.text} tracking-wider`}>
+          {isPremium ? '∞' : `${current}`}
         </span>
       </button>
     );
   }
 
   return (
-    <button
-      onClick={onClick}
-      className={`w-full p-3 rounded-xl ${colors.bgLight} ${colors.border} border transition-all hover:scale-[1.02] active:scale-[0.98]`}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <BatteryIcon className={`w-5 h-5 ${colors.text}`} />
-          <span className={`text-sm font-bold ${colors.text}`}>
-            {isPremium ? 'Ilimitada' : 'Bateria'}
-          </span>
+    <div className="w-full">
+      <button
+        onClick={onClick}
+        className={`w-full group relative p-3 rounded-xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-[#333] hover:border-[#444] transition-all`}
+      >
+        {/* Header com Ícone e Texto */}
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <div className={`p-1.5 rounded-md bg-black/50 border border-white/5 ${status.text}`}>
+              {isPremium ? (
+                <Zap className="w-4 h-4" fill="currentColor" />
+              ) : (
+                <BatteryCharging className="w-4 h-4" />
+              )}
+            </div>
+            <span className="text-xs font-bold text-[#A0A0A0] uppercase tracking-wider">
+              Bateria
+            </span>
+          </div>
+
+          <div className={`text-sm font-mono font-bold ${status.text}`}>
+            {isPremium ? 'ILIMITADA' : `${percentage}%`}
+          </div>
         </div>
-        {isPremium ? (
-          <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full font-bold">
-            PRO
-          </span>
-        ) : (
-          <span className={`text-sm font-bold ${colors.text}`}>
-            {current}/{max}
-          </span>
+
+        {/* Barra de Progresso Segmentada */}
+        {renderSegments()}
+
+        {/* Info de Recarga (apenas se não for premium) */}
+        {!isPremium && (
+          <div className="flex items-center justify-between mt-2.5">
+            <span className="text-[10px] text-[#555] font-medium uppercase tracking-wide">
+              Recarga
+            </span>
+            <span className="text-[10px] text-[#A0A0A0] font-mono">
+              {hours}h {minutes}m
+            </span>
+          </div>
         )}
-      </div>
-
-      {/* Barra de Progresso */}
-      {!isPremium && (
-        <div className="relative h-2 bg-[#2A2A2A] rounded-full overflow-hidden">
-          <motion.div
-            className={`absolute inset-y-0 left-0 ${colors.bg} rounded-full`}
-            initial={{ width: 0 }}
-            animate={{ width: `${percentage}%` }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-          />
-        </div>
-      )}
-
-      {/* Tempo até recarga */}
-      {!isPremium && (
-        <p className="text-[10px] text-[#6E6E6E] mt-1.5 text-center">
-          Recarrega em {hours}h {minutes}min
-        </p>
-      )}
-    </button>
+      </button>
+    </div>
   );
 }
 
 export default BatteryIndicator;
+
