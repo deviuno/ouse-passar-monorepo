@@ -72,6 +72,7 @@ export interface UserProfile {
   avatar_id: string;
   league_tier: LeagueTier;
   show_answers?: boolean; // When true, shows correct answers during practice (admin feature)
+  last_practice_date?: string; // YYYY-MM-DD format for streak calculation
   created_at: string;
   updated_at: string;
 }
@@ -84,6 +85,7 @@ export interface UserStats {
   totalAnswered: number;
   coins: number;
   avatarId?: string;
+  lastPracticeDate?: string; // YYYY-MM-DD format for streak calculation
 }
 
 export interface WeeklyRankingUser {

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Filter,
@@ -26,6 +27,8 @@ import {
   MoreVertical,
   Trash2,
   PenLine,
+  Eye,
+  Edit,
 } from 'lucide-react';
 import { Button, Card, Progress } from '../components/ui';
 import { QuestionCard } from '../components/question';
@@ -50,12 +53,16 @@ import {
   getUserNotebooks,
   deleteNotebook,
 } from '../services/notebooksService';
+import { supabase } from '../services/supabase';
 import { Caderno } from '../types';
 import {
   saveUserAnswer,
   saveDifficultyRating,
   DifficultyRating,
 } from '../services/questionFeedbackService';
+import { createPracticeSession } from '../services/practiceSessionService';
+import { SessionResultsScreen } from '../components/practice/SessionResultsScreen';
+import { getGamificationSettings, GamificationSettings } from '../services/gamificationSettingsService';
 
 interface FilterOptions {
   materia: string[];
@@ -252,15 +259,19 @@ function MultiSelectDropdown({
 }
 
 export default function PracticePage() {
-  const { user, profile } = useAuthStore();
+  const location = useLocation();
+  const { user, profile, fetchProfile } = useAuthStore();
   const { incrementStats } = useUserStore();
   const { addToast } = useUIStore();
 
   // Estado do dashboard
   const [activeTab, setActiveTab] = useState<'new' | 'notebooks'>('new');
 
-  // Estado do modo (agora apenas 'selection' ou 'practicing')
-  const [mode, setMode] = useState<'selection' | 'practicing'>('selection');
+  // Estado do modo (agora 'selection', 'practicing' ou 'results')
+  const [mode, setMode] = useState<'selection' | 'practicing' | 'results'>('selection');
+
+  // Controle de tempo da sessão
+  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
 
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
@@ -297,7 +308,7 @@ export default function PracticePage() {
   });
   const [questionCount, setQuestionCount] = useState(10);
 
-  // Modo de estudo
+  // Modo de estudo (padrão: zen)
   const [studyMode, setStudyMode] = useState<StudyMode>('zen');
 
   // Estado da sessao de pratica
@@ -309,11 +320,24 @@ export default function PracticePage() {
   // Estatisticas da sessao
   const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
 
+  // Gamification settings (loaded from database)
+  const [gamificationSettings, setGamificationSettings] = useState<GamificationSettings | null>(null);
+
   // Notebooks (Cadernos)
   const [notebooks, setNotebooks] = useState<Caderno[]>([]);
   const [showSaveNotebookModal, setShowSaveNotebookModal] = useState(false);
   const [newNotebookName, setNewNotebookName] = useState('');
+  const [newNotebookDescription, setNewNotebookDescription] = useState('');
   const [isSavingNotebook, setIsSavingNotebook] = useState(false);
+  const [editingNotebook, setEditingNotebook] = useState<Caderno | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [editingDescription, setEditingDescription] = useState('');
+
+  // Estado local para configurações editáveis de cada caderno
+  const [notebookSettings, setNotebookSettings] = useState<Record<string, { questionCount: number; studyMode: StudyMode }>>({});
+
+  // Modal de visualização de filtros
+  const [viewingNotebookFilters, setViewingNotebookFilters] = useState<Caderno | null>(null);
 
   // Carregar cadernos
   useEffect(() => {
@@ -322,10 +346,38 @@ export default function PracticePage() {
     }
   }, [user?.id]);
 
+  // Carregar configurações de gamificação
+  useEffect(() => {
+    const loadGamificationSettings = async () => {
+      try {
+        const settings = await getGamificationSettings();
+        setGamificationSettings(settings);
+        console.log('[PracticePage] Gamification settings loaded:', settings);
+      } catch (error) {
+        console.error('[PracticePage] Error loading gamification settings:', error);
+      }
+    };
+    loadGamificationSettings();
+  }, []);
+
   const loadNotebooks = async () => {
     if (!user?.id) return;
-    const data = await getUserNotebooks(user.id);
-    setNotebooks(data);
+    try {
+      const data = await getUserNotebooks(user.id);
+      setNotebooks(data);
+
+      // Inicializar configurações editáveis para cada caderno
+      const initialSettings: Record<string, { questionCount: number; studyMode: StudyMode }> = {};
+      data.forEach(notebook => {
+        initialSettings[notebook.id] = {
+          questionCount: notebook.settings?.questionCount || 10,
+          studyMode: notebook.settings?.studyMode || 'zen',
+        };
+      });
+      setNotebookSettings(initialSettings);
+    } catch (error) {
+      console.error('Erro ao carregar cadernos:', error);
+    }
   };
 
   const handleSaveNotebook = async () => {
@@ -339,13 +391,32 @@ export default function PracticePage() {
         toggleFilters
       };
 
-      const newNotebook = await createNotebook(user.id, newNotebookName, filters, settings);
+      // Use filteredCount, but fallback to totalQuestions if no filters are applied
+      const questionsCount = filteredCount > 0 ? filteredCount : totalQuestions;
+
+      const newNotebook = await createNotebook(
+        user.id,
+        newNotebookName,
+        filters,
+        settings,
+        newNotebookDescription.trim() || undefined,
+        questionsCount
+      );
 
       if (newNotebook) {
-        setNotebooks(prev => [newNotebook, ...prev]);
+        // Reload notebooks to get updated data
+        await loadNotebooks();
+
         setShowSaveNotebookModal(false);
         setNewNotebookName('');
+        setNewNotebookDescription('');
         addToast('success', 'Caderno salvo com sucesso!');
+
+        // Scroll to top
+        window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+
+        // Switch to notebooks tab
+        setActiveTab('notebooks');
       }
     } catch (error) {
       console.error('Erro ao salvar caderno:', error);
@@ -355,17 +426,106 @@ export default function PracticePage() {
     }
   };
 
-  const handleLoadNotebook = (notebook: Caderno) => {
+  const handleEditNotebookFilters = (notebook: Caderno) => {
+    // Load notebook filters
     if (notebook.filters) setFilters(notebook.filters);
-    if (notebook.settings) {
-      if (notebook.settings.questionCount) setQuestionCount(notebook.settings.questionCount);
-      if (notebook.settings.studyMode) setStudyMode(notebook.settings.studyMode);
-      if (notebook.settings.toggleFilters) setToggleFilters(notebook.settings.toggleFilters);
+    if (notebook.settings?.toggleFilters) setToggleFilters(notebook.settings.toggleFilters);
+
+    // Load settings into state
+    const settings = notebookSettings[notebook.id];
+    if (settings) {
+      setQuestionCount(settings.questionCount);
+      setStudyMode(settings.studyMode);
     }
 
-    // Switch to practice mode setup or just selection stats
-    setMode('selection');
-    addToast('success', `Caderno "${notebook.name}" carregado!`);
+    // Set editing mode with title and description
+    setEditingNotebook(notebook);
+    setEditingTitle(notebook.title);
+    setEditingDescription(notebook.description || '');
+
+    // Close modal and switch to edit mode
+    setViewingNotebookFilters(null);
+    setActiveTab('new');
+
+    // Scroll to top to see the filters
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingNotebook(null);
+    setEditingTitle('');
+    setEditingDescription('');
+    clearFilters();
+  };
+
+  const handleSaveEditedNotebook = async (andStart: boolean = false) => {
+    if (!user?.id || !editingNotebook || !editingTitle.trim()) return;
+
+    setIsSavingNotebook(true);
+    try {
+      // Use filteredCount, but fallback to totalQuestions if no filters are applied
+      const questionsCount = filteredCount > 0 ? filteredCount : totalQuestions;
+
+      // Update notebook in database
+      const { error } = await supabase
+        .from('cadernos')
+        .update({
+          title: editingTitle.trim(),
+          description: editingDescription.trim() || null,
+          filters,
+          settings: {
+            questionCount,
+            studyMode,
+            toggleFilters
+          },
+          questions_count: questionsCount
+        })
+        .eq('id', editingNotebook.id);
+
+      if (error) throw error;
+
+      // Reload notebooks
+      await loadNotebooks();
+
+      addToast('success', 'Caderno atualizado com sucesso!');
+
+      if (andStart) {
+        // Start practice with updated settings
+        setEditingNotebook(null);
+        setEditingTitle('');
+        setEditingDescription('');
+        await startPractice();
+      } else {
+        // Go back to notebooks tab
+        setEditingNotebook(null);
+        setEditingTitle('');
+        setEditingDescription('');
+        setActiveTab('notebooks');
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar caderno:', error);
+      addToast('error', 'Erro ao atualizar caderno.');
+    } finally {
+      setIsSavingNotebook(false);
+    }
+  };
+
+  const handleStartFromNotebook = async (notebook: Caderno, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    // Load notebook filters
+    if (notebook.filters) setFilters(notebook.filters);
+    if (notebook.settings?.toggleFilters) setToggleFilters(notebook.settings.toggleFilters);
+
+    // Use the editable settings from state
+    const settings = notebookSettings[notebook.id];
+    if (settings) {
+      setQuestionCount(settings.questionCount);
+      setStudyMode(settings.studyMode);
+    }
+
+    // Start practice immediately (modo já foi selecionado no toggle)
+    await startPractice();
   };
 
   const handleDeleteNotebook = async (id: string, e: React.MouseEvent) => {
@@ -379,29 +539,49 @@ export default function PracticePage() {
     }
   };
 
-  // Carregar opcoes de filtro ao montar
+  // Reset state when component mounts or route changes (handles navigation)
+  useEffect(() => {
+    console.log('[PracticePage] Component mounted/route changed, resetting state...');
+    setMode('selection');
+    setQuestions([]);
+    setCurrentIndex(0);
+    setAnswers(new Map());
+    setSessionStats({ correct: 0, total: 0 });
+    setSessionStartTime(null);
+    setIsLoadingFilters(true); // Reset loading state for fresh filter load
+  }, [location.key]);
+
+  // Carregar opcoes de filtro ao montar ou quando a rota muda
   useEffect(() => {
     const loadFilterOptions = async () => {
-      setIsLoadingFilters(true);
+      console.log('[PracticePage] Carregando opções de filtro...');
+
       try {
         const [filterOptions, count] = await Promise.all([fetchFilterOptions(), getQuestionsCount()]);
 
-        if (count > 0) {
-          setTotalQuestions(count);
-          setFilteredCount(count);
-          setAvailableMaterias(filterOptions.materias.length > 0 ? filterOptions.materias : DEFAULT_MATERIAS);
-          setAvailableBancas(filterOptions.bancas.length > 0 ? filterOptions.bancas : DEFAULT_BANCAS);
-          setAvailableOrgaos(filterOptions.orgaos.length > 0 ? filterOptions.orgaos : DEFAULT_ORGAOS);
-          setAvailableCargos(filterOptions.cargos || []);
-          setAvailableAnos(filterOptions.anos.length > 0 ? filterOptions.anos.map(String) : DEFAULT_ANOS);
-          setUsingMockData(false);
-        } else {
-          setTotalQuestions(MOCK_QUESTIONS.length);
-          setFilteredCount(MOCK_QUESTIONS.length);
-          setUsingMockData(true);
+        console.log('[PracticePage] Filtros carregados:', {
+          materias: filterOptions.materias.length,
+          bancas: filterOptions.bancas.length,
+          count
+        });
+
+        // Sempre usar dados do banco se conseguimos carregar algo
+        setTotalQuestions(count);
+        setFilteredCount(count);
+        setAvailableMaterias(filterOptions.materias.length > 0 ? filterOptions.materias : DEFAULT_MATERIAS);
+        setAvailableBancas(filterOptions.bancas.length > 0 ? filterOptions.bancas : DEFAULT_BANCAS);
+        setAvailableOrgaos(filterOptions.orgaos.length > 0 ? filterOptions.orgaos : DEFAULT_ORGAOS);
+        setAvailableCargos(filterOptions.cargos || []);
+        setAvailableAnos(filterOptions.anos.length > 0 ? filterOptions.anos.map(String) : DEFAULT_ANOS);
+        setUsingMockData(false);
+
+        if (count === 0) {
+          console.warn('[PracticePage] Nenhuma questão encontrada no banco de dados');
+          addToast('info', 'Conectado ao banco, mas nenhuma questão encontrada.');
         }
       } catch (error) {
-        console.error('Erro ao carregar filtros:', error);
+        console.error('[PracticePage] Erro ao carregar filtros após retries:', error);
+        addToast('error', 'Erro ao conectar ao banco de questões. Usando dados de exemplo.');
         setTotalQuestions(MOCK_QUESTIONS.length);
         setFilteredCount(MOCK_QUESTIONS.length);
         setUsingMockData(true);
@@ -411,7 +591,7 @@ export default function PracticePage() {
     };
 
     loadFilterOptions();
-  }, []);
+  }, [location.key]);
 
   // Carregar assuntos quando materias sao selecionadas
   useEffect(() => {
@@ -589,6 +769,7 @@ export default function PracticePage() {
       setCurrentIndex(0);
       setAnswers(new Map());
       setSessionStats({ correct: 0, total: 0 });
+      setSessionStartTime(Date.now()); // Iniciar cronômetro
       setMode('practicing');
     } catch (error) {
       console.error('Erro ao carregar questoes:', error);
@@ -598,6 +779,7 @@ export default function PracticePage() {
       setCurrentIndex(0);
       setAnswers(new Map());
       setSessionStats({ correct: 0, total: 0 });
+      setSessionStartTime(Date.now()); // Iniciar cronômetro
       setMode('practicing');
     } finally {
       setIsLoading(false);
@@ -612,10 +794,32 @@ export default function PracticePage() {
       correct: prev.correct + (isCorrect ? 1 : 0),
       total: prev.total + 1,
     }));
+
+    // Calculate rewards based on gamification settings
+    const isHardMode = studyMode === 'hard';
+    let xpReward = 0;
+    let coinsReward = 0;
+
+    if (isCorrect) {
+      if (gamificationSettings) {
+        xpReward = isHardMode
+          ? gamificationSettings.xp_per_correct_hard_mode
+          : gamificationSettings.xp_per_correct_answer;
+        coinsReward = isHardMode
+          ? gamificationSettings.coins_per_correct_hard_mode
+          : gamificationSettings.coins_per_correct_answer;
+      } else {
+        // Fallback values if settings not loaded
+        xpReward = isHardMode ? 100 : 50;
+        coinsReward = isHardMode ? 20 : 10;
+      }
+    }
+
     incrementStats({
       correctAnswers: isCorrect ? 1 : 0,
       totalAnswered: 1,
-      xp: isCorrect ? 10 : 2,
+      xp: xpReward,
+      coins: coinsReward,
     });
 
     // Save answer to database for statistics
@@ -633,13 +837,39 @@ export default function PracticePage() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      const accuracy = sessionStats.total > 0 ? Math.round((sessionStats.correct / sessionStats.total) * 100) : 0;
-      addToast('success', `Sessao finalizada! ${sessionStats.correct}/${sessionStats.total} (${accuracy}%)`);
-      setMode('selection');
+      // Finalizar sessão
+      const timeSpent = sessionStartTime ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
+
+      // Calculate XP earned based on gamification settings
+      const isHardMode = studyMode === 'hard';
+      const xpPerCorrect = gamificationSettings
+        ? (isHardMode ? gamificationSettings.xp_per_correct_hard_mode : gamificationSettings.xp_per_correct_answer)
+        : (isHardMode ? 100 : 50);
+      const xpEarned = sessionStats.correct * xpPerCorrect;
+
+      // Salvar sessão no banco de dados
+      if (user?.id) {
+        await createPracticeSession({
+          user_id: user.id,
+          study_mode: studyMode,
+          total_questions: sessionStats.total,
+          correct_answers: sessionStats.correct,
+          wrong_answers: sessionStats.total - sessionStats.correct,
+          time_spent_seconds: timeSpent,
+          filters: { ...filters, toggleFilters },
+          xp_earned: xpEarned,
+        });
+
+        // Refresh profile to sync streak and other stats from database
+        await fetchProfile();
+      }
+
+      // Mostrar tela de resultados
+      setMode('results');
     }
   };
 
@@ -734,8 +964,23 @@ export default function PracticePage() {
     );
   }
 
-  // Tela de filtros
-
+  // Tela de resultados
+  if (mode === 'results') {
+    const timeSpent = sessionStartTime ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
+    const xpEarned = (sessionStats.correct * 10) + (sessionStats.total * 2);
+    return (
+      <SessionResultsScreen
+        totalQuestions={sessionStats.total}
+        correctAnswers={sessionStats.correct}
+        wrongAnswers={sessionStats.total - sessionStats.correct}
+        studyMode={studyMode}
+        timeSpent={timeSpent}
+        xpEarned={xpEarned}
+        onNewSession={startPractice}
+        onBackToMenu={() => setMode('selection')}
+      />
+    );
+  }
 
   // ==========================================
   // RENDER: DASHBOARD "COCKPIT"
@@ -748,12 +993,30 @@ export default function PracticePage() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-white to-[#A0A0A0] bg-clip-text text-transparent">
-            Painel de Prática
-          </h1>
-          <p className="text-sm md:text-base text-[#A0A0A0] font-medium">
-            Configure seu treino personalizado ou retome seus cadernos.
-          </p>
+          {editingNotebook ? (
+            <>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-[#FFB800]/10 rounded-lg">
+                  <PenLine size={24} className="text-[#FFB800]" />
+                </div>
+                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white to-[#A0A0A0] bg-clip-text text-transparent">
+                  Edição - {editingNotebook.title}
+                </h1>
+              </div>
+              <p className="text-sm md:text-base text-[#A0A0A0] font-medium">
+                Edite os parâmetros do seu caderno e depois clique em Salvar.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-white to-[#A0A0A0] bg-clip-text text-transparent">
+                Painel de Prática
+              </h1>
+              <p className="text-sm md:text-base text-[#A0A0A0] font-medium">
+                Configure seu treino personalizado ou retome seus cadernos.
+              </p>
+            </>
+          )}
         </motion.div>
 
         {/* User Quick Stats */}
@@ -787,29 +1050,31 @@ export default function PracticePage() {
       <div className="max-w-7xl mx-auto grid grid-cols-12 gap-6 lg:gap-8">
 
         {/* LEFT COLUMN: Configuration */}
-        <div className="col-span-12 lg:col-span-8 space-y-6">
+        <div className={`col-span-12 space-y-6 ${activeTab === 'new' ? 'lg:col-span-8' : ''}`}>
 
-          {/* Tabs Navigation */}
-          <div className="flex items-center gap-6 border-b border-[#3A3A3A] mb-4">
-            <button
-              onClick={() => setActiveTab('new')}
-              className={`pb-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 ${activeTab === 'new'
-                ? 'text-[#FFB800] border-[#FFB800]'
-                : 'text-[#6E6E6E] border-transparent hover:text-white'
-                }`}
-            >
-              Nova Prática
-            </button>
-            <button
-              onClick={() => setActiveTab('notebooks')}
-              className={`pb-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 ${activeTab === 'notebooks'
-                ? 'text-[#FFB800] border-[#FFB800]'
-                : 'text-[#6E6E6E] border-transparent hover:text-white'
-                }`}
-            >
-              Meus Cadernos ({notebooks.length})
-            </button>
-          </div>
+          {/* Tabs Navigation - Hidden when editing */}
+          {!editingNotebook && (
+            <div className="flex items-center gap-6 border-b border-[#3A3A3A] mb-4">
+              <button
+                onClick={() => setActiveTab('new')}
+                className={`pb-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 ${activeTab === 'new'
+                  ? 'text-[#FFB800] border-[#FFB800]'
+                  : 'text-[#6E6E6E] border-transparent hover:text-white'
+                  }`}
+              >
+                Nova Prática
+              </button>
+              <button
+                onClick={() => setActiveTab('notebooks')}
+                className={`pb-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 ${activeTab === 'notebooks'
+                  ? 'text-[#FFB800] border-[#FFB800]'
+                  : 'text-[#6E6E6E] border-transparent hover:text-white'
+                  }`}
+              >
+                Meus Cadernos ({notebooks.length})
+              </button>
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
             {activeTab === 'new' ? (
@@ -821,53 +1086,38 @@ export default function PracticePage() {
                 transition={{ duration: 0.2 }}
                 className="space-y-6"
               >
-                {/* 1. Study Mode Selection */}
-                <section>
-                  <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <Coffee size={14} /> Modo de Estudo
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button
-                      onClick={() => setStudyMode('zen')}
-                      className={`relative overflow-hidden group p-5 rounded-2xl border-2 transition-all text-left ${studyMode === 'zen'
-                        ? 'border-[#2ECC71] bg-[#2ECC71]/10'
-                        : 'border-[#333] bg-[#1E1E1E] hover:border-[#4A4A4A]'
-                        }`}
-                    >
-                      <div className="relative z-10 flex items-start justify-between">
-                        <div>
-                          <div className={`p-2 rounded-lg inline-flex mb-3 ${studyMode === 'zen' ? 'bg-[#2ECC71]/20' : 'bg-[#252525]'}`}>
-                            <Coffee size={20} className={studyMode === 'zen' ? 'text-[#2ECC71]' : 'text-[#A0A0A0]'} />
-                          </div>
-                          <h4 className={`font-bold text-lg ${studyMode === 'zen' ? 'text-white' : 'text-[#E0E0E0]'}`}>Modo Zen</h4>
-                          <p className="text-sm text-[#A0A0A0] mt-1">Sem pressão de tempo. Resposta imediata e comentários.</p>
-                        </div>
-                        {studyMode === 'zen' && <div className="bg-[#2ECC71] rounded-full p-1"><Check size={12} className="text-black" /></div>}
+                {/* Editing: Title and Description */}
+                {editingNotebook && (
+                  <section>
+                    <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <PenLine size={14} /> Dados do Caderno
+                    </h3>
+                    <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-5 space-y-4">
+                      <div>
+                        <label className="text-white text-sm font-medium mb-2 block">Nome do Caderno</label>
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          placeholder="Nome do caderno"
+                          className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors"
+                        />
                       </div>
-                    </button>
-
-                    <button
-                      onClick={() => setStudyMode('hard')}
-                      className={`relative overflow-hidden group p-5 rounded-2xl border-2 transition-all text-left ${studyMode === 'hard'
-                        ? 'border-[#E74C3C] bg-[#E74C3C]/10'
-                        : 'border-[#333] bg-[#1E1E1E] hover:border-[#4A4A4A]'
-                        }`}
-                    >
-                      <div className="relative z-10 flex items-start justify-between">
-                        <div>
-                          <div className={`p-2 rounded-lg inline-flex mb-3 ${studyMode === 'hard' ? 'bg-[#E74C3C]/20' : 'bg-[#252525]'}`}>
-                            <Timer size={20} className={studyMode === 'hard' ? 'text-[#E74C3C]' : 'text-[#A0A0A0]'} />
-                          </div>
-                          <h4 className={`font-bold text-lg ${studyMode === 'hard' ? 'text-white' : 'text-[#E0E0E0]'}`}>Modo Simulado</h4>
-                          <p className="text-sm text-[#A0A0A0] mt-1">Com cronômetro (3m/questão). Gabarito apenas ao final.</p>
-                        </div>
-                        {studyMode === 'hard' && <div className="bg-[#E74C3C] rounded-full p-1"><Check size={12} className="text-black" /></div>}
+                      <div>
+                        <label className="text-white text-sm font-medium mb-2 block">Descrição (opcional)</label>
+                        <textarea
+                          value={editingDescription}
+                          onChange={(e) => setEditingDescription(e.target.value)}
+                          placeholder="Descrição do caderno"
+                          rows={2}
+                          className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors resize-none"
+                        />
                       </div>
-                    </button>
-                  </div>
-                </section>
+                    </div>
+                  </section>
+                )}
 
-                {/* 2. Filters */}
+                {/* Filters */}
                 <section>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider flex items-center gap-2">
@@ -939,7 +1189,7 @@ export default function PracticePage() {
                       <MultiSelectDropdown
                         label="Escolaridade"
                         icon={<GraduationCap size={16} />}
-                        items={OPTIONS_ESCOLARIDADE}
+                        items={OPTIONS_ESCOLARIDADE.map(opt => opt.value)}
                         selected={filters.escolaridade}
                         onToggle={(item) => toggleFilter('escolaridade', item)}
                         onClear={() => setFilters(prev => ({ ...prev, escolaridade: [] }))}
@@ -948,7 +1198,7 @@ export default function PracticePage() {
                       <MultiSelectDropdown
                         label="Modalidade"
                         icon={<CheckCircle size={16} />}
-                        items={OPTIONS_MODALIDADE}
+                        items={OPTIONS_MODALIDADE.map(opt => opt.value)}
                         selected={filters.modalidade}
                         onToggle={(item) => toggleFilter('modalidade', item)}
                         onClear={() => setFilters(prev => ({ ...prev, modalidade: [] }))}
@@ -957,7 +1207,7 @@ export default function PracticePage() {
                       <MultiSelectDropdown
                         label="Dificuldade"
                         icon={<Zap size={16} />}
-                        items={OPTIONS_DIFICULDADE}
+                        items={OPTIONS_DIFICULDADE.map(opt => opt.value)}
                         selected={filters.dificuldade}
                         onToggle={(item) => toggleFilter('dificuldade', item)}
                         onClear={() => setFilters(prev => ({ ...prev, dificuldade: [] }))}
@@ -1019,38 +1269,128 @@ export default function PracticePage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {notebooks.map((notebook) => (
-                      <div
-                        key={notebook.id}
-                        className="group relative bg-[#1E1E1E] border border-[#3A3A3A] hover:border-[#FFB800] rounded-2xl p-5 transition-all hover:bg-[#252525] cursor-pointer"
-                        onClick={() => handleLoadNotebook(notebook)}
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="p-2 bg-[#FFB800]/10 rounded-lg text-[#FFB800]">
-                            <BookOpen size={20} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {notebooks.map((notebook) => {
+                      const settings = notebookSettings[notebook.id] || { questionCount: 10, studyMode: 'zen' as StudyMode };
+
+                      // Calcular total de filtros
+                      const totalFilters =
+                        (notebook.filters?.materia?.length || 0) +
+                        (notebook.filters?.assunto?.length || 0) +
+                        (notebook.filters?.banca?.length || 0) +
+                        (notebook.filters?.orgao?.length || 0) +
+                        (notebook.filters?.cargo?.length || 0) +
+                        (notebook.filters?.ano?.length || 0) +
+                        (notebook.filters?.escolaridade?.length || 0) +
+                        (notebook.filters?.modalidade?.length || 0) +
+                        (notebook.filters?.dificuldade?.length || 0);
+
+                      return (
+                        <div
+                          key={notebook.id}
+                          className="relative bg-[#1E1E1E] border border-[#3A3A3A] rounded-xl p-3 transition-all hover:border-[#FFB800]/30"
+                        >
+                          {/* Header: Icon + Title + Available Questions Count */}
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <BookOpen size={18} className="text-[#FFB800] flex-shrink-0" />
+                              <h4 className="font-bold text-base text-white truncate">{notebook.title}</h4>
+                            </div>
+                            <span className="text-xs font-bold text-[#FFB800] flex-shrink-0">
+                              {(notebook.questions_count || 0).toLocaleString('pt-BR')} questões
+                            </span>
                           </div>
-                          <button
-                            onClick={(e) => handleDeleteNotebook(notebook.id, e)}
-                            className="p-2 text-[#6E6E6E] hover:text-[#E74C3C] hover:bg-[#E74C3C]/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+
+                          {/* Descrição */}
+                          {notebook.description && (
+                            <p className="text-xs text-[#6E6E6E] mb-3 line-clamp-2">{notebook.description}</p>
+                          )}
+                          {!notebook.description && <div className="mb-2" />}
+
+                          {/* Quantidade de Questões por Sessão - Slider */}
+                          <div className="mb-1">
+                            <input
+                              type="range"
+                              min="5"
+                              max="120"
+                              step="5"
+                              value={settings.questionCount}
+                              onChange={(e) => {
+                                const newCount = Number(e.target.value);
+                                setNotebookSettings(prev => ({
+                                  ...prev,
+                                  [notebook.id]: { ...prev[notebook.id], questionCount: newCount }
+                                }));
+                              }}
+                              className="w-full h-1 bg-[#3A3A3A] rounded-lg appearance-none cursor-pointer accent-[#FFB800]"
+                            />
+                          </div>
+
+                          {/* Quantidade por sessão */}
+                          <div className="flex items-center justify-between mb-3 text-xs">
+                            <span className="text-[#6E6E6E]">Por sessão</span>
+                            <span className="font-bold text-white">{settings.questionCount}</span>
+                          </div>
+
+                          {/* Modo de Estudo */}
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-white text-xs">Modo</span>
+                            <button
+                              onClick={() => {
+                                const newMode = settings.studyMode === 'zen' ? 'hard' : 'zen';
+                                setNotebookSettings(prev => ({
+                                  ...prev,
+                                  [notebook.id]: { ...prev[notebook.id], studyMode: newMode as StudyMode }
+                                }));
+                              }}
+                              className="relative inline-flex items-center h-7 rounded-full w-36 bg-[#252525] border border-[#3A3A3A] transition-colors"
+                            >
+                              {/* Texto inativo - Simulado (lado direito) */}
+                              <span className={`absolute right-3 text-xs font-medium transition-opacity duration-300 ${
+                                settings.studyMode === 'zen' ? 'text-[#4A4A4A]' : 'opacity-0'
+                              }`}>
+                                Simulado
+                              </span>
+                              {/* Texto inativo - Zen (lado esquerdo) */}
+                              <span className={`absolute left-3 text-xs font-medium transition-opacity duration-300 ${
+                                settings.studyMode === 'hard' ? 'text-[#4A4A4A]' : 'opacity-0'
+                              }`}>
+                                Zen
+                              </span>
+                              {/* Botão ativo */}
+                              <span
+                                className={`absolute inline-flex items-center justify-center h-6 rounded-full text-xs font-bold transition-all duration-300 ${
+                                  settings.studyMode === 'zen'
+                                    ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[#2ECC71] text-black'
+                                    : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[#E74C3C] text-black'
+                                }`}
+                              >
+                                {settings.studyMode === 'zen' ? 'Zen' : 'Simulado'}
+                              </span>
+                            </button>
+                          </div>
+
+                          {/* Botões: Ver Detalhes + Iniciar */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setViewingNotebookFilters(notebook)}
+                              className="flex items-center justify-center w-10 h-10 bg-[#252525] border border-[#3A3A3A] rounded-xl text-[#A0A0A0] hover:text-white hover:border-[#4A4A4A] transition-colors flex-shrink-0"
+                              title="Ver detalhes"
+                            >
+                              <Eye size={18} />
+                            </button>
+                            <Button
+                              fullWidth
+                              onClick={(e) => handleStartFromNotebook(notebook, e)}
+                              className="h-10 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-bold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02] rounded-xl"
+                              rightIcon={<Play size={16} fill="currentColor" />}
+                            >
+                              Iniciar
+                            </Button>
+                          </div>
                         </div>
-                        <h4 className="font-bold text-lg text-white mb-1 group-hover:text-[#FFB800] transition-colors">{notebook.name}</h4>
-                        <div className="flex flex-wrap gap-2 text-xs text-[#A0A0A0] mt-3">
-                          <span className="bg-[#121212] px-2 py-1 rounded border border-[#333]">
-                            {notebook.filters?.materia?.length || 0} matérias
-                          </span>
-                          <span className="bg-[#121212] px-2 py-1 rounded border border-[#333]">
-                            {notebook.settings?.questionCount || 10} questões
-                          </span>
-                          <span className="bg-[#121212] px-2 py-1 rounded border border-[#333]">
-                            {notebook.settings?.studyMode === 'zen' ? 'Zen' : 'Simulado'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </motion.div>
@@ -1058,16 +1398,19 @@ export default function PracticePage() {
           </AnimatePresence>
         </div>
 
-        {/* RIGHT COLUMN: Stats & Action (Sticky) */}
-        <div className="col-span-12 lg:col-span-4 space-y-6">
-          <div className="lg:sticky lg:top-8 space-y-6">
+        {/* RIGHT COLUMN: Stats & Action (Sticky) - Only show on "new" tab */}
+        {activeTab === 'new' && (
+          <div className="col-span-12 lg:col-span-4 space-y-6">
+            <div className="lg:sticky lg:top-8 space-y-6">
 
             {/* Action Card */}
             <Card className="border border-[#FFB800]/20 bg-[#1E1E1E] shadow-2xl shadow-black/50 p-6 relative overflow-hidden">
               {/* Background Glow */}
               <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFB800]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-              <h3 className="text-lg font-bold text-white mb-4">Resumo do Treino</h3>
+              <h3 className="text-lg font-bold text-white mb-4">
+                {editingNotebook ? 'Parâmetros do Caderno' : 'Resumo do Treino'}
+              </h3>
 
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-sm">
@@ -1087,33 +1430,80 @@ export default function PracticePage() {
                   <span className="text-[#A0A0A0]">Seleção atual</span>
                   <span className="font-bold text-white">{questionCount} questões</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#A0A0A0]">Modo</span>
-                  <span className="font-bold uppercase text-[#FFB800]">{studyMode === 'zen' ? 'Zen' : 'Simulado'}</span>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-[#A0A0A0]">Modo de Estudo</span>
+                  {/* Toggle entre Zen e Simulado */}
+                  <button
+                    onClick={() => setStudyMode(studyMode === 'zen' ? 'hard' : 'zen')}
+                    className="relative inline-flex items-center h-7 rounded-full w-36 bg-[#252525] border border-[#3A3A3A] transition-colors"
+                  >
+                    <span
+                      className={`absolute inline-flex items-center justify-center h-6 rounded-full text-xs font-bold transition-all duration-300 ${
+                        studyMode === 'zen'
+                          ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[#2ECC71] text-black'
+                          : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[#E74C3C] text-black'
+                      }`}
+                    >
+                      {studyMode === 'zen' ? 'Zen' : 'Simulado'}
+                    </span>
+                  </button>
                 </div>
               </div>
 
-              <Button
-                fullWidth
-                size="lg"
-                onClick={startPractice}
-                disabled={isLoading || isLoadingFilters || filteredCount === 0}
-                className="mb-3 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
-                rightIcon={isLoading ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} fill="currentColor" />}
-              >
-                {isLoading ? ' Preparando...' : 'INICIAR PRÁTICA'}
-              </Button>
+              {editingNotebook ? (
+                <>
+                  <Button
+                    fullWidth
+                    size="lg"
+                    onClick={() => handleSaveEditedNotebook(false)}
+                    disabled={isSavingNotebook || isLoadingFilters || !editingTitle.trim()}
+                    className="mb-3 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
+                    leftIcon={<Save size={20} />}
+                  >
+                    {isSavingNotebook ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => handleSaveEditedNotebook(true)}
+                    disabled={isSavingNotebook || isLoadingFilters || filteredCount === 0 || !editingTitle.trim()}
+                    rightIcon={<Play size={18} fill="currentColor" />}
+                  >
+                    Salvar e Iniciar
+                  </Button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="w-full mt-3 text-sm text-[#6E6E6E] hover:text-white transition-colors"
+                  >
+                    Cancelar edição
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    fullWidth
+                    size="lg"
+                    onClick={startPractice}
+                    disabled={isLoading || isLoadingFilters || filteredCount === 0}
+                    className="mb-3 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
+                    rightIcon={<Play size={20} fill="currentColor" />}
+                  >
+                    INICIAR PRÁTICA
+                  </Button>
 
-              {activeTab === 'new' && (
-                <Button
-                  fullWidth
-                  variant="outline"
-                  onClick={() => setShowSaveNotebookModal(true)}
-                  className="text-xs border-[#3A3A3A] hover:bg-[#252525] text-[#A0A0A0]"
-                  leftIcon={<Save size={14} />}
-                >
-                  Salvar como Caderno
-                </Button>
+                  {activeTab === 'new' && (
+                    <Button
+                      fullWidth
+                      variant="secondary"
+                      size="lg"
+                      onClick={() => setShowSaveNotebookModal(true)}
+                      leftIcon={<Save size={18} />}
+                    >
+                      Salvar como Caderno
+                    </Button>
+                  )}
+                </>
               )}
             </Card>
 
@@ -1133,7 +1523,8 @@ export default function PracticePage() {
             </div>
 
           </div>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Salvar Caderno */}
@@ -1148,10 +1539,11 @@ export default function PracticePage() {
               className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: "-50%", x: "-50%" }}
-              animate={{ opacity: 1, scale: 1, y: "-50%", x: "-50%" }}
-              exit={{ opacity: 0, scale: 0.95, y: "-50%", x: "-50%" }}
-              className="fixed left-1/2 top-1/2 w-full max-w-md bg-[#252525] rounded-3xl p-8 shadow-2xl z-50 border border-[#3A3A3A]"
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed bottom-[114px] left-0 right-0 mx-4 w-auto max-w-md bg-[#252525] rounded-3xl p-8 shadow-2xl z-50 border border-[#3A3A3A] lg:left-1/2 lg:right-auto lg:-translate-x-1/2"
             >
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-3 bg-[#FFB800]/10 rounded-xl">
@@ -1160,7 +1552,7 @@ export default function PracticePage() {
                 <h3 className="text-2xl font-bold text-white">Salvar Caderno</h3>
               </div>
 
-              <div className="mb-6">
+              <div className="mb-4">
                 <label className="text-[#A0A0A0] text-sm font-bold uppercase tracking-wider mb-2 block">Nome do Caderno</label>
                 <input
                   type="text"
@@ -1172,13 +1564,28 @@ export default function PracticePage() {
                 />
               </div>
 
+              <div className="mb-6">
+                <label className="text-[#A0A0A0] text-sm font-bold uppercase tracking-wider mb-2 block">Descrição (opcional)</label>
+                <textarea
+                  value={newNotebookDescription}
+                  onChange={(e) => setNewNotebookDescription(e.target.value)}
+                  placeholder="Ex: Questões de revisão para a prova da PF"
+                  rows={2}
+                  className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors resize-none"
+                />
+              </div>
+
               <div className="bg-[#1A1A1A] rounded-xl p-4 mb-6 space-y-2 border border-[#3A3A3A]">
                 <div className="flex justify-between text-xs text-[#A0A0A0]">
                   <span>Filtros ativos:</span>
                   <span className="text-white">{totalFilters}</span>
                 </div>
                 <div className="flex justify-between text-xs text-[#A0A0A0]">
-                  <span>Questões selecionadas:</span>
+                  <span>Questões disponíveis:</span>
+                  <span className="text-white">{filteredCount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs text-[#A0A0A0]">
+                  <span>Questões por sessão:</span>
                   <span className="text-white">{questionCount}</span>
                 </div>
               </div>
@@ -1195,11 +1602,194 @@ export default function PracticePage() {
                 <Button
                   fullWidth
                   onClick={handleSaveNotebook}
-                  disabled={!newNotebookName.trim() || isSavingNotebook}
+                  disabled={!newNotebookName.trim() || isSavingNotebook || isLoadingCount}
                   className="rounded-xl py-3 bg-[#FFB800] text-black font-bold hover:bg-[#E5A600]"
                 >
                   {isSavingNotebook ? <Loader2 className="animate-spin" size={20} /> : 'Salvar Caderno'}
                 </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Visualizar Filtros do Caderno */}
+      <AnimatePresence>
+        {viewingNotebookFilters && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewingNotebookFilters(null)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed bottom-[114px] left-0 right-0 mx-4 w-auto max-w-2xl bg-[#1A1A1A] rounded-2xl border border-[#3A3A3A] p-4 lg:p-6 z-50 shadow-2xl max-h-[calc(100vh-180px)] overflow-y-auto lg:left-1/2 lg:right-auto lg:-translate-x-1/2"
+            >
+              <div className="flex items-center justify-between mb-4 lg:mb-6">
+                <h3 className="text-base lg:text-xl font-bold text-white pr-2">Filtros de "{viewingNotebookFilters.title}"</h3>
+                <button
+                  onClick={() => setViewingNotebookFilters(null)}
+                  className="p-2 text-[#6E6E6E] hover:text-white hover:bg-[#252525] rounded-lg transition-colors flex-shrink-0"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-3 lg:space-y-4 mb-4 lg:mb-6">
+                {/* Matérias */}
+                {viewingNotebookFilters.filters?.materia && viewingNotebookFilters.filters.materia.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Matérias ({viewingNotebookFilters.filters.materia.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.materia.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Assuntos */}
+                {viewingNotebookFilters.filters?.assunto && viewingNotebookFilters.filters.assunto.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Assuntos ({viewingNotebookFilters.filters.assunto.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.assunto.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bancas */}
+                {viewingNotebookFilters.filters?.banca && viewingNotebookFilters.filters.banca.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Bancas ({viewingNotebookFilters.filters.banca.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.banca.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Órgãos */}
+                {viewingNotebookFilters.filters?.orgao && viewingNotebookFilters.filters.orgao.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Órgãos ({viewingNotebookFilters.filters.orgao.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.orgao.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Anos */}
+                {viewingNotebookFilters.filters?.ano && viewingNotebookFilters.filters.ano.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Anos ({viewingNotebookFilters.filters.ano.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.ano.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cargos */}
+                {viewingNotebookFilters.filters?.cargo && viewingNotebookFilters.filters.cargo.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Cargos ({viewingNotebookFilters.filters.cargo.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.cargo.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Escolaridade */}
+                {viewingNotebookFilters.filters?.escolaridade && viewingNotebookFilters.filters.escolaridade.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Escolaridade ({viewingNotebookFilters.filters.escolaridade.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.escolaridade.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Modalidade */}
+                {viewingNotebookFilters.filters?.modalidade && viewingNotebookFilters.filters.modalidade.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Modalidade ({viewingNotebookFilters.filters.modalidade.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.modalidade.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dificuldade */}
+                {viewingNotebookFilters.filters?.dificuldade && viewingNotebookFilters.filters.dificuldade.length > 0 && (
+                  <div>
+                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Dificuldade ({viewingNotebookFilters.filters.dificuldade.length})</h4>
+                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                      {viewingNotebookFilters.filters.dificuldade.map((item, idx) => (
+                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex gap-3">
+                <Button
+                  fullWidth
+                  size="lg"
+                  onClick={() => handleEditNotebookFilters(viewingNotebookFilters)}
+                  className="bg-[#FFB800] hover:bg-[#E5A600] text-black font-bold text-sm lg:text-lg"
+                  leftIcon={<Edit size={16} className="lg:w-[18px] lg:h-[18px]" />}
+                >
+                  Editar
+                </Button>
+                <button
+                  onClick={(e) => {
+                    handleDeleteNotebook(viewingNotebookFilters.id, e);
+                    setViewingNotebookFilters(null);
+                  }}
+                  className="flex items-center justify-center w-12 h-12 bg-[#252525] border border-[#3A3A3A] rounded-lg text-[#E74C3C] hover:bg-[#E74C3C]/10 hover:border-[#E74C3C]/50 transition-colors flex-shrink-0"
+                  title="Excluir caderno"
+                >
+                  <Trash2 size={20} />
+                </button>
               </div>
             </motion.div>
           </>

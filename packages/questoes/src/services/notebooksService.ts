@@ -5,19 +5,35 @@ export interface Notebook {
     id: string;
     user_id: string;
     title: string;
+    description?: string;
     filters: FilterOptions;
-    questions_count: number;
+    settings?: {
+        questionCount?: number;
+        studyMode?: 'zen' | 'hard';
+        toggleFilters?: any;
+    };
+    questions_count?: number;
     is_favorite: boolean;
     created_at: string;
 }
 
-export async function createNotebook(title: string, filters: FilterOptions, count: number) {
+export async function createNotebook(
+    userId: string,
+    title: string,
+    filters: FilterOptions,
+    settings: any,
+    description?: string,
+    questionsCount?: number
+) {
     const { data, error } = await supabase
         .from('cadernos')
         .insert({
+            user_id: userId,
             title,
+            description,
             filters,
-            questions_count: count
+            settings,
+            questions_count: questionsCount
         })
         .select()
         .single();
@@ -26,10 +42,11 @@ export async function createNotebook(title: string, filters: FilterOptions, coun
     return data as Notebook;
 }
 
-export async function getUserNotebooks() {
+export async function getUserNotebooks(userId: string) {
     const { data, error } = await supabase
         .from('cadernos')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -42,7 +59,11 @@ export async function deleteNotebook(id: string) {
         .delete()
         .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+        console.error('Error deleting notebook:', error);
+        return false;
+    }
+    return true;
 }
 
 export async function toggleFavoriteNotebook(id: string, isFavorite: boolean) {

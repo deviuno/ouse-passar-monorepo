@@ -124,49 +124,6 @@ export default function ProfilePage() {
     diamante: { label: 'Liga Diamante', color: '#B9F2FF', emoji: '💎' },
   };
 
-  const achievements = [
-    {
-      id: 'first-step',
-      emoji: '🎯',
-      title: 'Primeiro Passo',
-      description: 'Concluiu sua primeira missão na trilha.',
-      unlocked: stats.totalAnswered > 0, // TODO: Implement specific mission tracking in UserStats
-      progress: stats.totalAnswered > 0 ? 100 : 0,
-    },
-    {
-      id: 'streak-3',
-      emoji: '🔥',
-      title: 'Em Chamas',
-      description: 'Mantenha uma ofensiva de 3 dias consecutivos.',
-      unlocked: stats.streak >= 3,
-      progress: Math.min((stats.streak / 3) * 100, 100),
-    },
-    {
-      id: 'scholar',
-      emoji: '📚',
-      title: 'Estudioso',
-      description: 'Respondeu mais de 100 questões.',
-      unlocked: stats.totalAnswered >= 100,
-      progress: Math.min((stats.totalAnswered / 100) * 100, 100),
-    },
-    {
-      id: 'perfectionist',
-      emoji: '⭐',
-      title: 'Perfeccionista',
-      description: 'Acertou 10 questões seguidas sem errar.',
-      unlocked: false, // TODO: Track current correct streak in UserStats
-      progress: 0,
-    },
-    {
-      id: 'league-pioneer',
-      emoji: '🏆',
-      title: 'Pioneiro da Liga',
-      description: 'Subiu para a Liga Bronze.',
-      unlocked: profile?.league_tier !== 'ferro',
-      progress: profile?.league_tier !== 'ferro' ? 100 : 0,
-    },
-  ];
-
   const currentLeague = leagueTiers[profile?.league_tier || 'ferro'];
 
   return (
@@ -259,47 +216,6 @@ export default function ProfilePage() {
           color="#FFB800"
         />
       </div>
-
-      {/* Achievements Elaborated */}
-      <Card className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-semibold">Minhas Conquistas</h3>
-          <button className="text-[#FFB800] text-sm hover:underline">Ver todas</button>
-        </div>
-        <div className="space-y-4">
-          {achievements.map((achievement) => (
-            <div key={achievement.id} className="flex items-center gap-4 p-3 rounded-xl bg-[#2A2A2A]/50 border border-[#3A3A3A]">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 ${achievement.unlocked ? 'bg-[#FFB800]/20' : 'bg-[#1A1A1A] grayscale'}`}>
-                {achievement.unlocked ? achievement.emoji : '🔒'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-1">
-                  <h4 className={`font-medium text-sm ${achievement.unlocked ? 'text-white' : 'text-[#6E6E6E]'}`}>
-                    {achievement.title}
-                  </h4>
-                  {achievement.progress < 100 && !achievement.unlocked && (
-                    <span className="text-[10px] text-[#A0A0A0]">{Math.round(achievement.progress)}%</span>
-                  )}
-                </div>
-                <p className="text-xs text-[#A0A0A0] line-clamp-1">{achievement.description}</p>
-                {!achievement.unlocked && (
-                  <div className="mt-2 h-1 bg-[#1A1A1A] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#FFB800] transition-all duration-500"
-                      style={{ width: `${achievement.progress}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-              {achievement.unlocked && (
-                <div className="w-5 h-5 rounded-full bg-[#2ECC71]/20 flex items-center justify-center">
-                  <span className="text-[#2ECC71] text-[10px]">✓</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </Card>
 
       {/* Menu Options */}
       <Card padding="none" className="mb-6">

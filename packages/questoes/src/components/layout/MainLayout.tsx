@@ -56,7 +56,7 @@ export function MainLayout() {
 
         {/* Page Content */}
         <main className="flex-1 pb-20 lg:pb-4">
-          <Outlet />
+          <Outlet key={location.pathname} />
         </main>
 
         {/* Mobile Bottom Navigation */}

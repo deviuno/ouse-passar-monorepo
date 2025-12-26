@@ -532,7 +532,7 @@ function ContentPhase({
             variant="ghost"
             size="sm"
             onClick={onBack}
-            className="mr-2"
+            className="mr-2 hidden lg:flex"
           >
             <ChevronLeft size={20} />
           </Button>
@@ -1596,7 +1596,7 @@ export default function MissionPage() {
                         navigate('/');
                       }
                     }}
-                    className="p-2 rounded-full hover:bg-[#252525] transition-colors"
+                    className="p-2 rounded-full hover:bg-[#252525] transition-colors hidden lg:block"
                   >
                     <ChevronLeft size={24} className="text-[#A0A0A0]" />
                   </button>

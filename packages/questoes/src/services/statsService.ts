@@ -16,6 +16,12 @@ export interface WeeklyStats {
   acerto: number;
 }
 
+export interface DailyStats {
+  dia: string;
+  questoes: number;
+  acerto: number;
+}
+
 /**
  * Get user statistics by subject (matéria)
  */
@@ -179,6 +185,81 @@ export async function getUserWeeklyEvolution(userId: string): Promise<WeeklyStat
 }
 
 /**
+ * Get user daily evolution (last 7 days)
+ */
+export async function getUserDailyEvolution(userId: string): Promise<DailyStats[]> {
+  try {
+    console.log('[statsService] Fetching daily evolution for user:', userId);
+
+    // Get answers from last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // Include today + 6 days back
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const { data: answers, error } = await supabase
+      .from('mission_answers')
+      .select('is_correct, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[statsService] Error fetching daily answers:', error);
+      return [];
+    }
+
+    if (!answers || answers.length === 0) {
+      console.log('[statsService] No answers found for daily evolution');
+      return [];
+    }
+
+    // Group by day
+    const dayMap = new Map<string, { correct: number; total: number }>();
+
+    answers.forEach(answer => {
+      const date = new Date(answer.created_at);
+      const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+
+      if (!dayMap.has(dayKey)) {
+        dayMap.set(dayKey, { correct: 0, total: 0 });
+      }
+
+      const stats = dayMap.get(dayKey)!;
+      stats.total++;
+      if (answer.is_correct) {
+        stats.correct++;
+      }
+    });
+
+    // Generate last 7 days labels
+    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const dailyStats: DailyStats[] = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dayKey = date.toISOString().split('T')[0];
+      const dayName = diasSemana[date.getDay()];
+
+      const stats = dayMap.get(dayKey) || { correct: 0, total: 0 };
+      const acerto = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
+
+      dailyStats.push({
+        dia: dayName,
+        questoes: stats.total,
+        acerto,
+      });
+    }
+
+    console.log('[statsService] Daily evolution:', dailyStats);
+    return dailyStats;
+  } catch (err) {
+    console.error('[statsService] Exception in getUserDailyEvolution:', err);
+    return [];
+  }
+}
+
+/**
  * Get user comparison percentile (how user ranks vs others)
  */
 export async function getUserPercentile(userId: string): Promise<number> {
@@ -226,5 +307,121 @@ export async function getUserPercentile(userId: string): Promise<number> {
   } catch (err) {
     console.error('[statsService] Exception in getUserPercentile:', err);
     return 50;
+  }
+}
+
+// Types for league ranking
+export type LeagueTier = 'ferro' | 'bronze' | 'prata' | 'ouro' | 'diamante';
+
+export interface RankingMember {
+  id: string;
+  name: string;
+  avatar_url?: string;
+  xp: number;
+  level: number;
+  position: number;
+  isCurrentUser?: boolean;
+}
+
+export interface LeagueRanking {
+  league: LeagueTier;
+  members: RankingMember[];
+  userPosition: number;
+  totalMembers: number;
+}
+
+/**
+ * Get weekly ranking for a user's league
+ * Returns 5 members centered around the current user (with edge case handling)
+ */
+export async function getLeagueRanking(userId: string): Promise<LeagueRanking | null> {
+  try {
+    console.log('[statsService] Fetching league ranking for user:', userId);
+
+    // First, get the user's league
+    const { data: userProfile, error: userError } = await supabase
+      .from('user_profiles')
+      .select('id, name, avatar_url, xp, level, league_tier')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userProfile) {
+      console.error('[statsService] Error fetching user profile for ranking:', userError);
+      return null;
+    }
+
+    const userLeague: LeagueTier = userProfile.league_tier || 'ferro';
+
+    // Get all members in the same league, ordered by XP
+    const { data: leagueMembers, error: leagueError } = await supabase
+      .from('user_profiles')
+      .select('id, name, avatar_url, xp, level')
+      .eq('league_tier', userLeague)
+      .order('xp', { ascending: false });
+
+    if (leagueError) {
+      console.error('[statsService] Error fetching league members:', leagueError);
+      return null;
+    }
+
+    if (!leagueMembers || leagueMembers.length === 0) {
+      return {
+        league: userLeague,
+        members: [],
+        userPosition: 1,
+        totalMembers: 0,
+      };
+    }
+
+    // Add position to each member and mark current user
+    const rankedMembers: RankingMember[] = leagueMembers.map((member, index) => ({
+      id: member.id,
+      name: member.name || 'Estudante',
+      avatar_url: member.avatar_url,
+      xp: member.xp || 0,
+      level: member.level || 1,
+      position: index + 1,
+      isCurrentUser: member.id === userId,
+    }));
+
+    // Find user's position
+    const userPosition = rankedMembers.findIndex(m => m.isCurrentUser) + 1;
+    const totalMembers = rankedMembers.length;
+
+    // Calculate window of 5 members centered on user
+    let startIndex: number;
+    let endIndex: number;
+
+    if (totalMembers <= 5) {
+      // Show all members if 5 or fewer
+      startIndex = 0;
+      endIndex = totalMembers;
+    } else if (userPosition <= 3) {
+      // User is in top 3, show first 5
+      startIndex = 0;
+      endIndex = 5;
+    } else if (userPosition > totalMembers - 2) {
+      // User is in bottom 2, show last 5
+      startIndex = totalMembers - 5;
+      endIndex = totalMembers;
+    } else {
+      // User is in the middle, center on user (2 above, 2 below)
+      startIndex = userPosition - 3; // -3 because position is 1-indexed
+      endIndex = userPosition + 2;
+    }
+
+    const visibleMembers = rankedMembers.slice(startIndex, endIndex);
+
+    console.log(`[statsService] League ranking: ${userLeague}, position ${userPosition}/${totalMembers}`);
+
+    return {
+      league: userLeague,
+      members: visibleMembers,
+      userPosition,
+      totalMembers,
+    };
+  } catch (err) {
+    console.error('[statsService] Exception in getLeagueRanking:', err);
+    return null;
   }
 }

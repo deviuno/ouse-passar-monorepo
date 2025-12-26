@@ -2,6 +2,40 @@
 import { questionsDb } from './questionsDbClient';
 import { ParsedQuestion, Alternative, RawQuestion } from '../types';
 
+// Helper para retry com backoff exponencial
+const withRetry = async <T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> => {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`[withRetry] Tentativa ${attempt + 1}/${maxRetries} falhou:`, error);
+
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`[withRetry] Aguardando ${delay}ms antes de tentar novamente...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError;
+};
+
+// Cache simples para opções de filtro
+let filterOptionsCache: {
+  data: { materias: string[]; bancas: string[]; orgaos: string[]; cargos: string[]; anos: number[] } | null;
+  timestamp: number;
+} = { data: null, timestamp: 0 };
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
 // Tipo para questão do banco de dados
 export interface DbQuestion {
   id: number;
@@ -115,66 +149,76 @@ export const OPTIONS_ESCOLARIDADE = [
 
 
 // Busca questões com filtros opcionais
+// Com retry automático
 export const fetchQuestions = async (filters?: QuestionFilters): Promise<ParsedQuestion[]> => {
-  let query = questionsDb
-    .from('questoes_concurso')
-    .select('*');
+  console.log('[fetchQuestions] Buscando questões com filtros:', filters);
 
-  if (filters?.materias && filters.materias.length > 0) {
-    query = query.in('materia', filters.materias);
-  }
+  return withRetry(async () => {
+    let query = questionsDb
+      .from('questoes_concurso')
+      .select('*')
+      // Filtro oculto: excluir questões deletadas ou sem enunciado
+      .not('enunciado', 'is', null)
+      .neq('enunciado', '')
+      .neq('enunciado', 'deleted');
 
-  if (filters?.assuntos && filters.assuntos.length > 0) {
-    query = query.in('assunto', filters.assuntos);
-  }
+    if (filters?.materias && filters.materias.length > 0) {
+      query = query.in('materia', filters.materias);
+    }
 
-  if (filters?.bancas && filters.bancas.length > 0) {
-    query = query.in('banca', filters.bancas);
-  }
+    if (filters?.assuntos && filters.assuntos.length > 0) {
+      query = query.in('assunto', filters.assuntos);
+    }
 
-  if (filters?.orgaos && filters.orgaos.length > 0) {
-    query = query.in('orgao', filters.orgaos);
-  }
+    if (filters?.bancas && filters.bancas.length > 0) {
+      query = query.in('banca', filters.bancas);
+    }
 
-  if (filters?.anos && filters.anos.length > 0) {
-    query = query.in('ano', filters.anos);
-  }
+    if (filters?.orgaos && filters.orgaos.length > 0) {
+      query = query.in('orgao', filters.orgaos);
+    }
 
-  if (filters?.cargos && filters.cargos.length > 0) {
-    query = query.in('cargo_area_especialidade_edicao', filters.cargos);
-  }
+    if (filters?.anos && filters.anos.length > 0) {
+      query = query.in('ano', filters.anos);
+    }
 
-  if (filters?.apenasRevisadas) {
-    query = query.or('questao_revisada.eq.true,questao_revisada.eq.sim');
-  }
+    if (filters?.cargos && filters.cargos.length > 0) {
+      query = query.in('cargo_area_especialidade_edicao', filters.cargos);
+    }
 
-  if (filters?.apenasComComentario) {
-    query = query.not('comentario', 'is', null).neq('comentario', '');
-  }
+    if (filters?.apenasRevisadas) {
+      query = query.or('questao_revisada.eq.true,questao_revisada.eq.sim');
+    }
 
-  if (filters?.limit) {
-    query = query.limit(filters.limit);
-  }
+    if (filters?.apenasComComentario) {
+      query = query.not('comentario', 'is', null).neq('comentario', '');
+    }
 
-  if (filters?.offset) {
-    query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
-  }
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
 
-  const { data, error } = await query;
+    if (filters?.offset) {
+      query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
+    }
 
-  if (error) {
-    console.error('Erro ao buscar questões:', error);
-    throw error;
-  }
+    const { data, error } = await query;
 
-  let questions = (data || []).map(transformQuestion);
+    if (error) {
+      console.error('[fetchQuestions] Erro ao buscar questões:', error);
+      throw error;
+    }
 
-  // Embaralhar se solicitado
-  if (filters?.shuffle) {
-    questions = questions.sort(() => Math.random() - 0.5);
-  }
+    let questions = (data || []).map(transformQuestion);
 
-  return questions;
+    // Embaralhar se solicitado
+    if (filters?.shuffle) {
+      questions = questions.sort(() => Math.random() - 0.5);
+    }
+
+    console.log('[fetchQuestions] Retornando', questions.length, 'questões');
+    return questions;
+  });
 };
 
 // Busca uma questão por ID
@@ -183,6 +227,10 @@ export const fetchQuestionById = async (id: number): Promise<ParsedQuestion | nu
     .from('questoes_concurso')
     .select('*')
     .eq('id', id)
+    // Filtro oculto: excluir questões deletadas
+    .not('enunciado', 'is', null)
+    .neq('enunciado', '')
+    .neq('enunciado', 'deleted')
     .single();
 
   if (error) {
@@ -195,6 +243,7 @@ export const fetchQuestionById = async (id: number): Promise<ParsedQuestion | nu
 
 // Busca opções de filtro disponíveis (valores distintos)
 // Usa função RPC do Postgres para performance otimizada
+// Com cache e retry automático
 export const fetchFilterOptions = async (): Promise<{
   materias: string[];
   bancas: string[];
@@ -202,20 +251,35 @@ export const fetchFilterOptions = async (): Promise<{
   cargos: string[];
   anos: number[];
 }> => {
-  const { data, error } = await questionsDb.rpc('get_all_filter_options');
-
-  if (error) {
-    console.error('[fetchFilterOptions] Erro ao buscar opções de filtro:', error);
-    throw error;
+  // Verificar cache
+  const now = Date.now();
+  if (filterOptionsCache.data && (now - filterOptionsCache.timestamp) < CACHE_TTL) {
+    console.log('[fetchFilterOptions] Usando cache');
+    return filterOptionsCache.data;
   }
 
-  const result = {
-    materias: (data?.materias || []) as string[],
-    bancas: (data?.bancas || []) as string[],
-    orgaos: (data?.orgaos || []) as string[],
-    cargos: (data?.cargos || []) as string[],
-    anos: (data?.anos || []) as number[],
-  };
+  console.log('[fetchFilterOptions] Buscando opções de filtro do banco...');
+
+  const result = await withRetry(async () => {
+    const { data, error } = await questionsDb.rpc('get_all_filter_options');
+
+    if (error) {
+      console.error('[fetchFilterOptions] Erro ao buscar opções de filtro:', error);
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error('Nenhum dado retornado pela função get_all_filter_options');
+    }
+
+    return {
+      materias: (data?.materias || []) as string[],
+      bancas: (data?.bancas || []) as string[],
+      orgaos: (data?.orgaos || []) as string[],
+      cargos: (data?.cargos || []) as string[],
+      anos: (data?.anos || []) as number[],
+    };
+  });
 
   console.log('[fetchFilterOptions] Carregados:', {
     materias: result.materias.length,
@@ -225,72 +289,104 @@ export const fetchFilterOptions = async (): Promise<{
     anos: result.anos.length,
   });
 
+  // Atualizar cache
+  filterOptionsCache = { data: result, timestamp: now };
+
   return result;
 };
 
 // Busca assuntos disponíveis para uma ou mais matérias
-// Usa função RPC do Postgres para performance otimizada
+// Usa query direta otimizada para evitar timeout
 export const fetchAssuntosByMaterias = async (materias: string[]): Promise<string[]> => {
   if (!materias || materias.length === 0) return [];
 
-  const { data, error } = await questionsDb.rpc('get_assuntos_by_materias', { materias });
+  try {
+    // Buscar em lotes pequenos para cada matéria e coletar assuntos únicos
+    const assuntosSet = new Set<string>();
 
-  if (error) {
+    for (const materia of materias) {
+      const { data, error } = await questionsDb
+        .from('questoes_concurso')
+        .select('assunto')
+        .eq('materia', materia)
+        .not('assunto', 'is', null)
+        // Filtro oculto: excluir questões deletadas
+        .not('enunciado', 'is', null)
+        .neq('enunciado', '')
+        .neq('enunciado', 'deleted')
+        .limit(1000); // Limitar para evitar timeout
+
+      if (error) {
+        console.error(`Erro ao buscar assuntos para ${materia}:`, error);
+        continue;
+      }
+
+      (data || []).forEach(r => assuntosSet.add(r.assunto));
+    }
+
+    const uniqueAssuntos = Array.from(assuntosSet).sort();
+    console.log('[fetchAssuntosByMaterias] Carregados:', uniqueAssuntos.length, 'assuntos para', materias.length, 'materias');
+    return uniqueAssuntos;
+  } catch (error) {
     console.error('Erro ao buscar assuntos:', error);
     return [];
   }
-
-  const assuntos = (data || []).map((r: { assunto: string }) => r.assunto) as string[];
-  console.log('[fetchAssuntosByMaterias] Carregados:', assuntos.length, 'assuntos para', materias.length, 'materias');
-  return assuntos;
 };
 
 // Conta total de questões (com filtros opcionais)
+// Com retry automático
 export const getQuestionsCount = async (filters?: Omit<QuestionFilters, 'limit' | 'offset' | 'shuffle'>): Promise<number> => {
-  let query = questionsDb
-    .from('questoes_concurso')
-    .select('*', { count: 'exact', head: true });
+  return withRetry(async () => {
+    let query = questionsDb
+      .from('questoes_concurso')
+      .select('*', { count: 'exact', head: true })
+      // Filtro oculto: excluir questões deletadas ou sem enunciado
+      .not('enunciado', 'is', null)
+      .neq('enunciado', '')
+      .neq('enunciado', 'deleted');
 
-  if (filters?.materias && filters.materias.length > 0) {
-    query = query.in('materia', filters.materias);
-  }
+    if (filters?.materias && filters.materias.length > 0) {
+      query = query.in('materia', filters.materias);
+    }
 
-  if (filters?.assuntos && filters.assuntos.length > 0) {
-    query = query.in('assunto', filters.assuntos);
-  }
+    if (filters?.assuntos && filters.assuntos.length > 0) {
+      query = query.in('assunto', filters.assuntos);
+    }
 
-  if (filters?.bancas && filters.bancas.length > 0) {
-    query = query.in('banca', filters.bancas);
-  }
+    if (filters?.bancas && filters.bancas.length > 0) {
+      query = query.in('banca', filters.bancas);
+    }
 
-  if (filters?.orgaos && filters.orgaos.length > 0) {
-    query = query.in('orgao', filters.orgaos);
-  }
+    if (filters?.orgaos && filters.orgaos.length > 0) {
+      query = query.in('orgao', filters.orgaos);
+    }
 
-  if (filters?.anos && filters.anos.length > 0) {
-    query = query.in('ano', filters.anos);
-  }
+    if (filters?.anos && filters.anos.length > 0) {
+      query = query.in('ano', filters.anos);
+    }
 
-  if (filters?.cargos && filters.cargos.length > 0) {
-    query = query.in('cargo_area_especialidade_edicao', filters.cargos);
-  }
+    if (filters?.cargos && filters.cargos.length > 0) {
+      query = query.in('cargo_area_especialidade_edicao', filters.cargos);
+    }
 
-  if (filters?.apenasRevisadas) {
-    query = query.or('questao_revisada.eq.true,questao_revisada.eq.sim');
-  }
+    if (filters?.apenasRevisadas) {
+      query = query.or('questao_revisada.eq.true,questao_revisada.eq.sim');
+    }
 
-  if (filters?.apenasComComentario) {
-    query = query.not('comentario', 'is', null).neq('comentario', '');
-  }
+    if (filters?.apenasComComentario) {
+      query = query.not('comentario', 'is', null).neq('comentario', '');
+    }
 
-  const { count, error } = await query;
+    const { count, error } = await query;
 
-  if (error) {
-    console.error('Erro ao contar questões:', error);
-    return 0;
-  }
+    if (error) {
+      console.error('[getQuestionsCount] Erro ao contar questões:', error);
+      throw error; // Lança erro para acionar retry
+    }
 
-  return count || 0;
+    console.log('[getQuestionsCount] Total:', count);
+    return count || 0;
+  });
 };
 
 export const questionsService = {

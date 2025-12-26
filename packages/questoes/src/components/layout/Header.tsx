@@ -82,24 +82,24 @@ export function Header() {
   const getMissionTitle = () => {
     // Show "Missão X" based on mission number
     if (missionNumber) {
-      return `Missao ${missionNumber}`;
+      return `Missão ${missionNumber}`;
     }
 
     // Fallback if no mission number available
-    return 'Missao';
+    return 'Missão';
   };
 
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === '/' || path === '/trilha') return 'Minhas Trilhas';
-    if (path === '/praticar') return 'Praticar Questoes';
+    if (path === '/praticar') return 'Praticar Questões';
     if (path === '/simulados') return 'Meus Simulados';
     if (path === '/estatisticas') return 'Raio-X do Aluno';
     if (path === '/loja') return 'Loja';
     if (path === '/perfil') return 'Perfil';
     // Support both old and new URL formats for missions
     if (isMissionPage) return getMissionTitle();
-    return 'Ouse Questoes';
+    return 'Ouse Questões';
   };
 
   return (
@@ -108,12 +108,20 @@ export function Header() {
         {/* Left Side */}
         <div className="flex items-center gap-3">
           {showBackButton ? (
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 rounded-full hover:bg-[#3A3A3A] transition-colors active:scale-95"
-            >
-              <ChevronLeft size={24} className="text-white" />
-            </button>
+            <>
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 rounded-full hover:bg-[#3A3A3A] transition-colors active:scale-95"
+              >
+                <ChevronLeft size={24} className="text-white" />
+              </button>
+              {/* Mobile mission title - next to back button */}
+              {isMissionPage && (
+                <h1 className="text-base font-semibold text-white lg:hidden">
+                  {getMissionTitle()}
+                </h1>
+              )}
+            </>
           ) : (
             <>
               {/* Mobile Logo */}
@@ -152,11 +160,6 @@ export function Header() {
               onRoundChange={setViewingRoundIndex}
             />
           )}
-
-          {/* Mobile only - show page context if needed */}
-          <div className="flex items-center gap-3 lg:hidden">
-            {/* Mobile menu items can go here */}
-          </div>
         </div>
       </div>
     </header>

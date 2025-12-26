@@ -172,8 +172,14 @@ export interface Caderno {
   id: string;
   user_id: string;
   title: string;
+  description?: string;
   filters: any; // Using any to avoid circular dependency with FilterOptions
-  questions_count: number;
+  settings?: {
+    questionCount?: number;
+    studyMode?: 'zen' | 'hard';
+    toggleFilters?: any;
+  };
+  questions_count?: number;
   is_favorite: boolean;
   created_at: string;
 }

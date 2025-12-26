@@ -60,6 +60,33 @@ export const useUserStore = create<UserState>()(
         const newXP = get().stats.xp + (increments.xp || 0);
         const newLevel = await calculateLevel(newXP);
 
+        // Calculate streak locally
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const currentStats = get().stats;
+        const lastPractice = currentStats.lastPracticeDate;
+        let newStreak = currentStats.streak;
+
+        if (!lastPractice) {
+          // First time practicing
+          newStreak = 1;
+        } else if (lastPractice === today) {
+          // Same day, keep current streak
+          newStreak = currentStats.streak;
+        } else {
+          // Check if yesterday
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+          if (lastPractice === yesterdayStr) {
+            // Consecutive day, increment streak
+            newStreak = currentStats.streak + 1;
+          } else {
+            // Skipped days, reset streak
+            newStreak = 1;
+          }
+        }
+
         set((state) => ({
           stats: {
             ...state.stats,
@@ -68,6 +95,8 @@ export const useUserStore = create<UserState>()(
             correctAnswers: state.stats.correctAnswers + (increments.correctAnswers || 0),
             totalAnswered: state.stats.totalAnswered + (increments.totalAnswered || 0),
             level: newLevel,
+            streak: newStreak,
+            lastPracticeDate: today,
           },
         }));
 
