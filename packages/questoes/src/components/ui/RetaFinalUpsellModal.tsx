@@ -41,16 +41,16 @@ export function RetaFinalUpsellModal({
             className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
           />
 
-          {/* Modal */}
+          {/* Modal Container - centered on desktop, bottom sheet on mobile */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 40 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 40 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50"
+            initial={{ opacity: 0, y: '100%' }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: '100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            className="fixed inset-x-0 bottom-0 z-50 flex items-end justify-center p-4 pb-20 lg:pb-4 lg:items-center lg:inset-0"
           >
             <div
-              className="rounded-2xl overflow-hidden shadow-2xl"
+              className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto"
               style={{
                 background: isRetaFinal
                   ? `linear-gradient(180deg, ${RETA_FINAL_THEME.colors.secondary} 0%, #0F0F0F 100%)`
