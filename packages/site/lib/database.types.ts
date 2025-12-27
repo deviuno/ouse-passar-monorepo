@@ -1477,6 +1477,8 @@ export interface Preparatorio {
   n8n_status?: N8NStatus
   n8n_error_message?: string | null
   n8n_processed_at?: string | null
+  // Status de montagem
+  montagem_status?: 'pendente' | 'em_andamento' | 'concluida'
   // Timestamps
   created_at: string
   updated_at: string

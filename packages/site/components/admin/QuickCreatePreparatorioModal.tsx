@@ -269,12 +269,8 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     setIsConfirming(true);
     setError(null);
 
-    // AbortController com timeout de 10 minutos para permitir geração completa
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000);
-
     try {
-      // Salvar a ordem das matérias e aguardar geração das missões
+      // Salvar a ordem das matérias - a geração das missões acontece em background
       const response = await fetch(`${MASTRA_SERVER_URL}/api/preparatorio/confirm-rodadas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -287,27 +283,40 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
           banca: previewData.preparatorioInfo.banca,
           sistemaHibrido: false,
         }),
-        signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
       const data = await response.json();
 
       if (data.success) {
-        // Fechar modal e redirecionar para o MissionBuilder
-        onClose();
-        navigate(`/admin/preparatorios/${previewData.preparatorioId}/montar-missoes`);
+        // Mostrar resultado de sucesso com a informação de que a geração está em background
+        setResultado({
+          success: true,
+          preparatorio: {
+            id: previewData.preparatorioId,
+            slug: previewData.preparatorioInfo.slug,
+            nome: previewData.preparatorioInfo.nome,
+            banca: previewData.preparatorioInfo.banca,
+            orgao: previewData.preparatorioInfo.orgao,
+            cargo: previewData.preparatorioInfo.cargo,
+          },
+          estatisticas: {
+            blocos: previewData.estatisticas.blocos,
+            materias: previewData.estatisticas.materias,
+            topicos: previewData.estatisticas.topicos,
+            rodadas: data.estatisticas?.rodadas || previewData.estatisticas.rodadas,
+            missoes: data.estatisticas?.missoes || previewData.estatisticas.missoes,
+            mensagens_incentivo: data.estatisticas?.mensagens_incentivo || 0,
+            tempo_processamento_ms: previewData.estatisticas.tempo_analise_ms,
+          },
+        });
+        // Limpar preview para mostrar tela de sucesso
+        setPreviewData(null);
       } else {
         setError(data.error || 'Erro ao confirmar rodadas');
       }
     } catch (err: any) {
-      clearTimeout(timeoutId);
       console.error('Erro ao confirmar rodadas:', err);
-      if (err.name === 'AbortError') {
-        setError('Tempo esgotado. A geração pode estar demorando mais que o esperado. Verifique o console do servidor.');
-      } else {
-        setError(err.message || 'Erro de conexão com o servidor');
-      }
+      setError(err.message || 'Erro de conexão com o servidor');
     } finally {
       setIsConfirming(false);
     }
@@ -565,6 +574,20 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                   <span className="text-gray-500">Cargo:</span>
                   <span className="text-white">{resultado.preparatorio?.cargo || '-'}</span>
                 </div>
+              </div>
+
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-sm p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                  <p className="text-blue-400 text-sm font-medium">
+                    Gerando conteúdo das missões em background...
+                  </p>
+                </div>
+                <p className="text-blue-300/80 text-sm">
+                  O conteúdo das primeiras missões está sendo gerado automaticamente com IA. 
+                  O preparatório será publicado automaticamente quando a geração terminar.
+                  Você pode acompanhar o status na lista de preparatórios.
+                </p>
               </div>
 
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-sm p-4">
@@ -940,10 +963,13 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                 Criar outro
               </button>
               <button
-                onClick={handleConcluir}
-                className="bg-amber-500 text-black px-6 py-2 rounded-sm font-bold uppercase tracking-wide hover:bg-amber-400 transition-colors flex items-center gap-2"
+                onClick={() => {
+                  onClose();
+                  navigate('/admin/preparatorios');
+                }}
+                className="bg-brand-yellow text-brand-darker px-6 py-2 rounded-sm font-bold uppercase tracking-wide hover:bg-white transition-colors flex items-center gap-2"
               >
-                Configurar Venda
+                Ver Preparatórios
               </button>
             </>
           ) : previewData ? (

@@ -1875,6 +1875,52 @@ async function getPrimeirasMissoes(preparatorioId: string, limite: number = 2): 
     return missaoIds.slice(0, limite);
 }
 
+// Helper: Buscar primeiras N missões do tipo 'padrao' (as que têm conteúdo a ser gerado)
+async function getPrimeirasMissoesPadrao(preparatorioId: string, limite: number = 2): Promise<string[]> {
+    // Buscar todas as rodadas ordenadas
+    const { data: rodadas, error } = await supabase
+        .from('rodadas')
+        .select('id')
+        .eq('preparatorio_id', preparatorioId)
+        .order('ordem', { ascending: true });
+
+    if (error || !rodadas?.length) {
+        console.warn(`[getPrimeirasMissoesPadrao] Nenhuma rodada encontrada para ${preparatorioId}`);
+        return [];
+    }
+
+    console.log(`[getPrimeirasMissoesPadrao] ${rodadas.length} rodadas encontradas`);
+
+    const missaoIds: string[] = [];
+
+    // Percorrer rodadas até ter missões suficientes
+    for (const rodada of rodadas) {
+        if (missaoIds.length >= limite) break;
+
+        // Buscar apenas missões do tipo 'padrao' (não revisao, não acao)
+        const { data: missoes, error: missaoError } = await supabase
+            .from('missoes')
+            .select('id, tipo')
+            .eq('rodada_id', rodada.id)
+            .eq('tipo', 'padrao')
+            .order('ordem', { ascending: true })
+            .limit(limite - missaoIds.length);
+
+        if (missaoError) {
+            console.error(`[getPrimeirasMissoesPadrao] Erro ao buscar missões:`, missaoError);
+            continue;
+        }
+
+        if (missoes && missoes.length > 0) {
+            console.log(`[getPrimeirasMissoesPadrao] Rodada ${rodada.id}: ${missoes.length} missões padrao`);
+            missaoIds.push(...missoes.map(m => m.id));
+        }
+    }
+
+    console.log(`[getPrimeirasMissoesPadrao] Total: ${missaoIds.length} missões encontradas`);
+    return missaoIds.slice(0, limite);
+}
+
 // Helper: Buscar próxima missão
 async function getProximaMissao(missaoAtualId: string): Promise<string | null> {
     // Buscar missão atual
@@ -2124,8 +2170,9 @@ app.post('/api/preparatorio/gerar-conteudo-inicial', async (req, res) => {
 
     // Busca e gera em background
     (async () => {
-        const missoes = await getPrimeirasMissoes(preparatorio_id, quantidade);
-        console.log(`[BackgroundContent] Encontradas ${missoes.length} missões para gerar`);
+        // Apenas missões do tipo 'padrao' têm conteúdo a ser gerado
+        const missoes = await getPrimeirasMissoesPadrao(preparatorio_id, quantidade);
+        console.log(`[BackgroundContent] Encontradas ${missoes.length} missões padrao para gerar`);
 
         for (const missaoId of missoes) {
             await gerarConteudoMissaoBackground(missaoId);
@@ -2723,8 +2770,9 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
         console.log('[FromPDF] Etapa 7: Gerando conteúdo das primeiras missões...');
 
         // Gerar conteúdo das primeiras missões ANTES de ativar o preparatório
-        const missoes = await getPrimeirasMissoes(preparatorioId, 2);
-        console.log(`[FromPDF] Gerando conteúdo para ${missoes.length} primeiras missões...`);
+        // Apenas missões do tipo 'padrao' têm conteúdo a ser gerado
+        const missoes = await getPrimeirasMissoesPadrao(preparatorioId, 2);
+        console.log(`[FromPDF] Gerando conteúdo para ${missoes.length} missões do tipo 'padrao'...`);
         
         // Iniciar geração de todas as missões
         for (const missaoId of missoes) {
@@ -3069,8 +3117,9 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
         console.log('[FromPDF-SSE] Etapa 7: Gerando conteúdo das primeiras missões...');
 
         // Gerar conteúdo das primeiras missões ANTES de ativar o preparatório
-        const missoes = await getPrimeirasMissoes(preparatorioId, 2);
-        console.log(`[FromPDF-SSE] Gerando conteúdo para ${missoes.length} primeiras missões...`);
+        // Apenas missões do tipo 'padrao' têm conteúdo a ser gerado
+        const missoes = await getPrimeirasMissoesPadrao(preparatorioId, 2);
+        console.log(`[FromPDF-SSE] Gerando conteúdo para ${missoes.length} missões do tipo 'padrao'...`);
         
         // Iniciar geração de todas as missões
         for (const missaoId of missoes) {
@@ -3541,85 +3590,125 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
         const resultadoMensagens = await criarMensagensIncentivoPadrao(preparatorioId);
         console.log(`[ConfirmRodadas] Mensagens criadas: ${resultadoMensagens.mensagens_criadas}`);
 
-        // NÃO ativar preparatório ainda - aguardar geração das primeiras missões
-        console.log(`[ConfirmRodadas] Preparatório permanece inativo até missões serem geradas`);
+        // Marcar como "gerando missões" para o painel admin mostrar o status
+        await supabase
+            .from('preparatorios')
+            .update({ montagem_status: 'em_andamento' })
+            .eq('id', preparatorioId);
 
-        // Gerar conteúdo das primeiras missões ANTES de ativar o preparatório
-        // Isso garante que o usuário não acesse um preparatório sem conteúdo
-        const missoes = await getPrimeirasMissoes(preparatorioId, 2);
-        console.log(`[ConfirmRodadas] Gerando conteúdo para ${missoes.length} primeiras missões...`);
-        
-        // Iniciar geração de todas as missões
-        for (const missaoId of missoes) {
+        console.log(`[ConfirmRodadas] Status atualizado para 'em_andamento' - geração em background`);
+
+        // Iniciar geração de missões em BACKGROUND (fire-and-forget)
+        // Isso permite que o usuário saia da página e a geração continue
+        (async () => {
+            const TIMEOUT_MS = 5 * 60 * 1000;
+            const POLL_INTERVAL_MS = 3000;
+            const startTime = Date.now();
+
             try {
-                await gerarConteudoMissaoBackground(missaoId);
-            } catch (err) {
-                console.error(`[ConfirmRodadas] ❌ Erro ao iniciar geração da missão ${missaoId}:`, err);
+                // Pequeno delay para garantir que a transação do banco foi commitada
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Buscar apenas missões do tipo 'padrao' (as que têm conteúdo a ser gerado)
+                const missoes = await getPrimeirasMissoesPadrao(preparatorioId, 2);
+                console.log(`[ConfirmRodadas-BG] Gerando conteúdo para ${missoes.length} missões do tipo 'padrao'...`);
+
+                if (missoes.length === 0) {
+                    console.warn(`[ConfirmRodadas-BG] ⚠️ Nenhuma missão do tipo 'padrao' encontrada`);
+                    // Mesmo sem missões, ativar o preparatório
+                    await supabase
+                        .from('preparatorios')
+                        .update({ 
+                            montagem_status: 'concluida',
+                            is_active: true 
+                        })
+                        .eq('id', preparatorioId);
+                    console.log(`[ConfirmRodadas-BG] ✅ Preparatório ativado (sem missões para gerar)`);
+                    return;
+                }
+
+                // Iniciar geração de todas as missões
+                for (const missaoId of missoes) {
+                    try {
+                        await gerarConteudoMissaoBackground(missaoId);
+                    } catch (err) {
+                        console.error(`[ConfirmRodadas-BG] ❌ Erro na missão ${missaoId}:`, err);
+                    }
+                }
+
+                // Aguardar até que todas as missões tenham status 'completed'
+                console.log(`[ConfirmRodadas-BG] Aguardando conclusão (timeout: 5min)...`);
+
+                let missoesCompletas = 0;
+                while (Date.now() - startTime < TIMEOUT_MS) {
+                    const { data: conteudos } = await supabase
+                        .from('missao_conteudos')
+                        .select('missao_id, status')
+                        .in('missao_id', missoes);
+
+                    const completedCount = conteudos?.filter(c => c.status === 'completed').length || 0;
+                    const failedCount = conteudos?.filter(c => c.status === 'failed').length || 0;
+
+                    if (completedCount + failedCount >= missoes.length) {
+                        missoesCompletas = completedCount;
+                        console.log(`[ConfirmRodadas-BG] ✅ ${completedCount} completas, ${failedCount} falharam`);
+                        break;
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+                }
+
+                // Verificar timeout
+                if (Date.now() - startTime >= TIMEOUT_MS) {
+                    const { data: conteudos } = await supabase
+                        .from('missao_conteudos')
+                        .select('missao_id, status')
+                        .in('missao_id', missoes);
+                    missoesCompletas = conteudos?.filter(c => c.status === 'completed').length || 0;
+                    console.warn(`[ConfirmRodadas-BG] ⚠️ Timeout. ${missoesCompletas}/${missoes.length} completas`);
+                }
+
+                // Atualizar status final do preparatório
+                if (missoesCompletas > 0) {
+                    await supabase
+                        .from('preparatorios')
+                        .update({ 
+                            montagem_status: 'concluida',
+                            is_active: true 
+                        })
+                        .eq('id', preparatorioId);
+                    console.log(`[ConfirmRodadas-BG] ✅ Preparatório ativado e montagem concluída`);
+                } else {
+                    // Marcar como erro para o admin ver
+                    await supabase
+                        .from('preparatorios')
+                        .update({ montagem_status: 'pendente' })
+                        .eq('id', preparatorioId);
+                    console.warn(`[ConfirmRodadas-BG] ⚠️ Nenhuma missão gerada, voltando para pendente`);
+                }
+
+            } catch (error) {
+                console.error('[ConfirmRodadas-BG] Erro fatal:', error);
+                await supabase
+                    .from('preparatorios')
+                    .update({ montagem_status: 'pendente' })
+                    .eq('id', preparatorioId);
             }
-        }
+        })().catch(err => {
+            console.error('[ConfirmRodadas-BG] Erro não tratado:', err);
+        });
 
-        // Aguardar até que todas as missões tenham conteúdo com status 'completed'
-        // Timeout de 5 minutos para evitar travamento infinito
-        const TIMEOUT_MS = 5 * 60 * 1000;
-        const POLL_INTERVAL_MS = 3000;
-        const startTime = Date.now();
-        let missoesCompletas = 0;
-
-        console.log(`[ConfirmRodadas] Aguardando conclusão das missões (timeout: 5min)...`);
-
-        while (Date.now() - startTime < TIMEOUT_MS) {
-            // Verificar status de cada missão
-            const { data: conteudos } = await supabase
-                .from('missao_conteudos')
-                .select('missao_id, status')
-                .in('missao_id', missoes);
-
-            const completedCount = conteudos?.filter(c => c.status === 'completed').length || 0;
-            const failedCount = conteudos?.filter(c => c.status === 'failed').length || 0;
-
-            if (completedCount + failedCount >= missoes.length) {
-                missoesCompletas = completedCount;
-                console.log(`[ConfirmRodadas] ✅ Todas as missões processadas: ${completedCount} completas, ${failedCount} falharam`);
-                break;
-            }
-
-            // Log de progresso a cada 15 segundos
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            if (elapsed % 15 === 0) {
-                console.log(`[ConfirmRodadas] ⏳ Aguardando... ${completedCount}/${missoes.length} completas (${elapsed}s)`);
-            }
-
-            await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
-        }
-
-        // Verificar resultado final após timeout
-        if (Date.now() - startTime >= TIMEOUT_MS) {
-            const { data: conteudos } = await supabase
-                .from('missao_conteudos')
-                .select('missao_id, status')
-                .in('missao_id', missoes);
-            
-            missoesCompletas = conteudos?.filter(c => c.status === 'completed').length || 0;
-            console.warn(`[ConfirmRodadas] ⚠️ Timeout atingido. ${missoesCompletas}/${missoes.length} missões completas`);
-        }
-
-        // Só ativar preparatório DEPOIS que as primeiras missões foram geradas
-        if (missoesCompletas > 0) {
-            await ativarPreparatorio(preparatorioId);
-            console.log(`[ConfirmRodadas] ✅ Preparatório ativado após ${missoesCompletas} missões geradas`);
-        } else {
-            console.warn(`[ConfirmRodadas] ⚠️ Nenhuma missão foi gerada, preparatório permanece inativo`);
-        }
-
+        // Retornar imediatamente - a geração continua em background
         return res.json({
             success: true,
+            generating: true, // Indica que a geração está em andamento
+            message: 'Rodadas criadas. A geração do conteúdo das missões está em andamento.',
             estatisticas: {
                 rodadas: resultadoPersistencia.rodadas_criadas,
                 missoes: resultadoPersistencia.missoes_criadas,
                 vinculos: resultadoPersistencia.vinculos_criados,
                 filtros: resultadoPersistencia.filtros_criados,
                 mensagens_incentivo: resultadoMensagens.mensagens_criadas,
-                missoes_conteudo_gerado: missoesCompletas,
             },
         });
 
@@ -4020,8 +4109,8 @@ app.post('/api/preparatorio/:id/finalizar-montagem', async (req, res) => {
         if (result.success) {
             console.log(`[Builder] Disparando geração automática de conteúdo para ${preparatorioId}...`);
 
-            // Buscar as primeiras 2 missões de estudo
-            const primeiras = await getPrimeirasMissoes(preparatorioId, 2);
+            // Buscar as primeiras 2 missões do tipo 'padrao' (as que têm conteúdo)
+            const primeiras = await getPrimeirasMissoesPadrao(preparatorioId, 2);
 
             if (primeiras.length > 0) {
                 console.log(`[Builder] Gerando conteúdo para missões: ${primeiras.join(', ')}`);

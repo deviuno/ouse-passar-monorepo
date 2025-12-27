@@ -13,6 +13,7 @@ import {
   Trash2,
   Eye,
   Sparkles,
+  Clock,
 } from 'lucide-react';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { editalService } from '../../services/editalService';
@@ -325,6 +326,11 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
                       <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-500 text-xs font-bold uppercase rounded">
                         <CheckCircle className="w-3 h-3" />
                         Publicado
+                      </span>
+                    ) : prep.montagem_status === 'em_andamento' ? (
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs font-bold uppercase rounded animate-pulse">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Gerando Missões
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 bg-gray-500/20 text-gray-500 text-xs font-bold uppercase rounded">
