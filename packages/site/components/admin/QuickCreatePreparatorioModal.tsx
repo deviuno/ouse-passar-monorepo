@@ -269,8 +269,12 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     setIsConfirming(true);
     setError(null);
 
+    // AbortController com timeout de 10 minutos para permitir geração completa
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000);
+
     try {
-      // Salvar a ordem das matérias
+      // Salvar a ordem das matérias e aguardar geração das missões
       const response = await fetch(`${MASTRA_SERVER_URL}/api/preparatorio/confirm-rodadas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -283,8 +287,10 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
           banca: previewData.preparatorioInfo.banca,
           sistemaHibrido: false,
         }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       const data = await response.json();
 
       if (data.success) {
@@ -295,8 +301,13 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
         setError(data.error || 'Erro ao confirmar rodadas');
       }
     } catch (err: any) {
+      clearTimeout(timeoutId);
       console.error('Erro ao confirmar rodadas:', err);
-      setError(err.message || 'Erro de conexão com o servidor');
+      if (err.name === 'AbortError') {
+        setError('Tempo esgotado. A geração pode estar demorando mais que o esperado. Verifique o console do servidor.');
+      } else {
+        setError(err.message || 'Erro de conexão com o servidor');
+      }
     } finally {
       setIsConfirming(false);
     }
@@ -735,8 +746,8 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
               {/* Aviso sobre tempo de processamento */}
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-sm p-4">
                 <p className="text-amber-400 text-sm">
-                  <strong>⏱️ Importante:</strong> Ao confirmar, o sistema irá gerar o conteúdo das primeiras missões.
-                  Isso pode levar até 2 minutos. O preparatório só ficará disponível para os alunos após a conclusão.
+                  <strong>⏱️ Importante:</strong> Ao confirmar, o sistema irá gerar o conteúdo das primeiras missões com IA.
+                  Isso pode levar de 2 a 5 minutos. O preparatório só ficará disponível para os alunos após a conclusão.
                 </p>
               </div>
 
@@ -952,7 +963,7 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                 {isConfirming ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Gerando conteúdo... (pode levar até 2 min)
+                    Gerando conteúdo com IA... (2-5 min)
                   </>
                 ) : (
                   <>

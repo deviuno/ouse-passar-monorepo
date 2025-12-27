@@ -2723,34 +2723,65 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
         console.log('[FromPDF] Etapa 7: Gerando conteúdo das primeiras missões...');
 
         // Gerar conteúdo das primeiras missões ANTES de ativar o preparatório
-        // Isso garante que o usuário não acesse um preparatório sem conteúdo
         const missoes = await getPrimeirasMissoes(preparatorioId, 2);
         console.log(`[FromPDF] Gerando conteúdo para ${missoes.length} primeiras missões...`);
         
-        let missoesGeradas = 0;
+        // Iniciar geração de todas as missões
         for (const missaoId of missoes) {
             try {
-                const sucesso = await gerarConteudoMissaoBackground(missaoId);
-                if (sucesso) {
-                    missoesGeradas++;
-                    console.log(`[FromPDF] ✅ Missão ${missaoId} gerada com sucesso`);
-                } else {
-                    // Pode estar em andamento (race condition), considerar como sucesso
-                    missoesGeradas++;
-                    console.log(`[FromPDF] ⏳ Missão ${missaoId} já em andamento`);
-                }
+                await gerarConteudoMissaoBackground(missaoId);
             } catch (err) {
-                console.error(`[FromPDF] ❌ Erro na missão ${missaoId}:`, err);
-                // Continua para próxima missão mesmo se uma falhar
+                console.error(`[FromPDF] ❌ Erro ao iniciar geração da missão ${missaoId}:`, err);
             }
         }
 
+        // Aguardar até que todas as missões tenham conteúdo com status 'completed'
+        const TIMEOUT_MS = 5 * 60 * 1000;
+        const POLL_INTERVAL_MS = 3000;
+        const pollStartTime = Date.now();
+        let missoesCompletas = 0;
+
+        console.log(`[FromPDF] Aguardando conclusão das missões (timeout: 5min)...`);
+
+        while (Date.now() - pollStartTime < TIMEOUT_MS) {
+            const { data: conteudos } = await supabase
+                .from('missao_conteudos')
+                .select('missao_id, status')
+                .in('missao_id', missoes);
+
+            const completedCount = conteudos?.filter(c => c.status === 'completed').length || 0;
+            const failedCount = conteudos?.filter(c => c.status === 'failed').length || 0;
+
+            if (completedCount + failedCount >= missoes.length) {
+                missoesCompletas = completedCount;
+                console.log(`[FromPDF] ✅ Todas as missões processadas: ${completedCount} completas, ${failedCount} falharam`);
+                break;
+            }
+
+            const elapsed = Math.floor((Date.now() - pollStartTime) / 1000);
+            if (elapsed % 15 === 0) {
+                console.log(`[FromPDF] ⏳ Aguardando... ${completedCount}/${missoes.length} completas (${elapsed}s)`);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+        }
+
+        if (Date.now() - pollStartTime >= TIMEOUT_MS) {
+            const { data: conteudos } = await supabase
+                .from('missao_conteudos')
+                .select('missao_id, status')
+                .in('missao_id', missoes);
+            
+            missoesCompletas = conteudos?.filter(c => c.status === 'completed').length || 0;
+            console.warn(`[FromPDF] ⚠️ Timeout atingido. ${missoesCompletas}/${missoes.length} missões completas`);
+        }
+
         // Só ativar preparatório DEPOIS que as primeiras missões foram geradas
-        if (missoesGeradas > 0) {
+        if (missoesCompletas > 0) {
             await ativarPreparatorio(preparatorioId);
-            console.log(`[FromPDF] ✅ Preparatório ativado após ${missoesGeradas} missões geradas`);
+            console.log(`[FromPDF] ✅ Preparatório ativado após ${missoesCompletas} missões geradas`);
             etapas[6].status = 'completed';
-            etapas[6].detalhes = `${missoesGeradas} missões geradas, preparatório ativado`;
+            etapas[6].detalhes = `${missoesCompletas} missões geradas, preparatório ativado`;
         } else {
             console.warn(`[FromPDF] ⚠️ Nenhuma missão foi gerada, preparatório permanece inativo`);
             etapas[6].status = 'completed';
@@ -3038,33 +3069,64 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
         console.log('[FromPDF-SSE] Etapa 7: Gerando conteúdo das primeiras missões...');
 
         // Gerar conteúdo das primeiras missões ANTES de ativar o preparatório
-        // Isso garante que o usuário não acesse um preparatório sem conteúdo
         const missoes = await getPrimeirasMissoes(preparatorioId, 2);
         console.log(`[FromPDF-SSE] Gerando conteúdo para ${missoes.length} primeiras missões...`);
         
-        let missoesGeradas = 0;
+        // Iniciar geração de todas as missões
         for (const missaoId of missoes) {
             try {
-                const sucesso = await gerarConteudoMissaoBackground(missaoId);
-                if (sucesso) {
-                    missoesGeradas++;
-                    console.log(`[FromPDF-SSE] ✅ Missão ${missaoId} gerada com sucesso`);
-                } else {
-                    // Pode estar em andamento (race condition), considerar como sucesso
-                    missoesGeradas++;
-                    console.log(`[FromPDF-SSE] ⏳ Missão ${missaoId} já em andamento`);
-                }
+                await gerarConteudoMissaoBackground(missaoId);
             } catch (err) {
-                console.error(`[FromPDF-SSE] ❌ Erro na missão ${missaoId}:`, err);
-                // Continua para próxima missão mesmo se uma falhar
+                console.error(`[FromPDF-SSE] ❌ Erro ao iniciar geração da missão ${missaoId}:`, err);
             }
         }
 
+        // Aguardar até que todas as missões tenham conteúdo com status 'completed'
+        const TIMEOUT_MS = 5 * 60 * 1000;
+        const POLL_INTERVAL_MS = 3000;
+        const pollStartTime = Date.now();
+        let missoesCompletas = 0;
+
+        console.log(`[FromPDF-SSE] Aguardando conclusão das missões (timeout: 5min)...`);
+
+        while (Date.now() - pollStartTime < TIMEOUT_MS) {
+            const { data: conteudos } = await supabase
+                .from('missao_conteudos')
+                .select('missao_id, status')
+                .in('missao_id', missoes);
+
+            const completedCount = conteudos?.filter(c => c.status === 'completed').length || 0;
+            const failedCount = conteudos?.filter(c => c.status === 'failed').length || 0;
+
+            if (completedCount + failedCount >= missoes.length) {
+                missoesCompletas = completedCount;
+                console.log(`[FromPDF-SSE] ✅ Todas as missões processadas: ${completedCount} completas, ${failedCount} falharam`);
+                break;
+            }
+
+            const elapsed = Math.floor((Date.now() - pollStartTime) / 1000);
+            if (elapsed % 15 === 0) {
+                console.log(`[FromPDF-SSE] ⏳ Aguardando... ${completedCount}/${missoes.length} completas (${elapsed}s)`);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+        }
+
+        if (Date.now() - pollStartTime >= TIMEOUT_MS) {
+            const { data: conteudos } = await supabase
+                .from('missao_conteudos')
+                .select('missao_id, status')
+                .in('missao_id', missoes);
+            
+            missoesCompletas = conteudos?.filter(c => c.status === 'completed').length || 0;
+            console.warn(`[FromPDF-SSE] ⚠️ Timeout atingido. ${missoesCompletas}/${missoes.length} missões completas`);
+        }
+
         // Só ativar preparatório DEPOIS que as primeiras missões foram geradas
-        if (missoesGeradas > 0) {
+        if (missoesCompletas > 0) {
             await ativarPreparatorio(preparatorioId);
-            console.log(`[FromPDF-SSE] ✅ Preparatório ativado após ${missoesGeradas} missões geradas`);
-            updateEtapa(6, 'completed', `${missoesGeradas} missões geradas, preparatório ativado`);
+            console.log(`[FromPDF-SSE] ✅ Preparatório ativado após ${missoesCompletas} missões geradas`);
+            updateEtapa(6, 'completed', `${missoesCompletas} missões geradas, preparatório ativado`);
         } else {
             console.warn(`[FromPDF-SSE] ⚠️ Nenhuma missão foi gerada, preparatório permanece inativo`);
             updateEtapa(6, 'completed', 'Preparatório criado (inativo - sem missões)');
@@ -3339,6 +3401,9 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
  * }
  */
 app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) => {
+    // Timeout de 10 minutos para permitir geração completa das missões
+    req.setTimeout(10 * 60 * 1000);
+    
     const { preparatorioId, materiasOrdenadas, banca, sistemaHibrido } = req.body;
 
     if (!preparatorioId || !materiasOrdenadas) {
@@ -3484,28 +3549,64 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
         const missoes = await getPrimeirasMissoes(preparatorioId, 2);
         console.log(`[ConfirmRodadas] Gerando conteúdo para ${missoes.length} primeiras missões...`);
         
-        let missoesGeradas = 0;
+        // Iniciar geração de todas as missões
         for (const missaoId of missoes) {
             try {
-                const sucesso = await gerarConteudoMissaoBackground(missaoId);
-                if (sucesso) {
-                    missoesGeradas++;
-                    console.log(`[ConfirmRodadas] ✅ Missão ${missaoId} gerada com sucesso`);
-                } else {
-                    // Pode estar em andamento (race condition), considerar como sucesso
-                    missoesGeradas++;
-                    console.log(`[ConfirmRodadas] ⏳ Missão ${missaoId} já em andamento`);
-                }
+                await gerarConteudoMissaoBackground(missaoId);
             } catch (err) {
-                console.error(`[ConfirmRodadas] ❌ Erro na missão ${missaoId}:`, err);
-                // Continua para próxima missão mesmo se uma falhar
+                console.error(`[ConfirmRodadas] ❌ Erro ao iniciar geração da missão ${missaoId}:`, err);
             }
         }
 
+        // Aguardar até que todas as missões tenham conteúdo com status 'completed'
+        // Timeout de 5 minutos para evitar travamento infinito
+        const TIMEOUT_MS = 5 * 60 * 1000;
+        const POLL_INTERVAL_MS = 3000;
+        const startTime = Date.now();
+        let missoesCompletas = 0;
+
+        console.log(`[ConfirmRodadas] Aguardando conclusão das missões (timeout: 5min)...`);
+
+        while (Date.now() - startTime < TIMEOUT_MS) {
+            // Verificar status de cada missão
+            const { data: conteudos } = await supabase
+                .from('missao_conteudos')
+                .select('missao_id, status')
+                .in('missao_id', missoes);
+
+            const completedCount = conteudos?.filter(c => c.status === 'completed').length || 0;
+            const failedCount = conteudos?.filter(c => c.status === 'failed').length || 0;
+
+            if (completedCount + failedCount >= missoes.length) {
+                missoesCompletas = completedCount;
+                console.log(`[ConfirmRodadas] ✅ Todas as missões processadas: ${completedCount} completas, ${failedCount} falharam`);
+                break;
+            }
+
+            // Log de progresso a cada 15 segundos
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            if (elapsed % 15 === 0) {
+                console.log(`[ConfirmRodadas] ⏳ Aguardando... ${completedCount}/${missoes.length} completas (${elapsed}s)`);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+        }
+
+        // Verificar resultado final após timeout
+        if (Date.now() - startTime >= TIMEOUT_MS) {
+            const { data: conteudos } = await supabase
+                .from('missao_conteudos')
+                .select('missao_id, status')
+                .in('missao_id', missoes);
+            
+            missoesCompletas = conteudos?.filter(c => c.status === 'completed').length || 0;
+            console.warn(`[ConfirmRodadas] ⚠️ Timeout atingido. ${missoesCompletas}/${missoes.length} missões completas`);
+        }
+
         // Só ativar preparatório DEPOIS que as primeiras missões foram geradas
-        if (missoesGeradas > 0) {
+        if (missoesCompletas > 0) {
             await ativarPreparatorio(preparatorioId);
-            console.log(`[ConfirmRodadas] ✅ Preparatório ativado após ${missoesGeradas} missões geradas`);
+            console.log(`[ConfirmRodadas] ✅ Preparatório ativado após ${missoesCompletas} missões geradas`);
         } else {
             console.warn(`[ConfirmRodadas] ⚠️ Nenhuma missão foi gerada, preparatório permanece inativo`);
         }
@@ -3518,7 +3619,7 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
                 vinculos: resultadoPersistencia.vinculos_criados,
                 filtros: resultadoPersistencia.filtros_criados,
                 mensagens_incentivo: resultadoMensagens.mensagens_criadas,
-                missoes_conteudo_gerado: missoesGeradas,
+                missoes_conteudo_gerado: missoesCompletas,
             },
         });
 

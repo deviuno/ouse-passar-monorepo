@@ -616,7 +616,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
 
     return (
         <motion.div
-            className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pb-16 lg:pb-0 pointer-events-none"
+            className="sticky bottom-0 z-50 flex justify-center px-4 pb-16 lg:pb-0 pointer-events-none"
             initial={false}
             animate={{}}
             transition={{ type: "spring", stiffness: 200, damping: 25 }}

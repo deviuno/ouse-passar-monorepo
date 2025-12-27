@@ -1626,7 +1626,7 @@ export default function MissionPage() {
   return (
     <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A]">
       <div className={`flex flex-col min-w-0 relative transition-all duration-300 ${isMapExpanded ? 'xl:mr-[400px]' : 'xl:mr-[72px]'}`}>
-        <div className="flex-1 overflow-y-auto px-0 md:px-4 py-4 md:py-6 scrollbar-thin scrollbar-thumb-zinc-800">
+        <div className="flex-1 relative overflow-y-auto px-0 md:px-4 py-4 md:py-6 scrollbar-thin scrollbar-thumb-zinc-800">
           <div className="w-full md:max-w-[900px] mx-auto flex flex-col min-h-full">
             {/* Celebration */}
             <SuccessCelebration isActive={showCelebration} />
