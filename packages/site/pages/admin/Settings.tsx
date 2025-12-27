@@ -35,6 +35,7 @@ import {
   BookOpen,
   Battery,
   HelpCircle,
+  Users,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/Toast';
@@ -156,6 +157,11 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; 
     icon: Battery,
     description: 'Sistema de energia para usuarios gratuitos',
   },
+  affiliates: {
+    label: 'Afiliação',
+    icon: Users,
+    description: 'Sistema de indicação e comissões para afiliados',
+  },
   legal_texts: {
     label: 'Textos Legais',
     icon: FileText,
@@ -208,8 +214,8 @@ const SETTING_LABELS: Record<string, string> = {
   require_email_verification: 'Verificação de Email',
   max_preparatorios_per_user: 'Max Preparatórios por Usuário',
 
-  // Reta Final
-  is_enabled: 'Reta Final Habilitado',
+  // Reta Final / Afiliação
+  is_enabled: 'Habilitado',
   question_percentage: 'Porcentagem de Questões (%)',
   min_questions_per_mission: 'Mínimo de Questões por Missão',
 
@@ -230,6 +236,12 @@ const SETTING_LABELS: Record<string, string> = {
   notebooks_max_free: 'Max Cadernos (Gratuito)',
   practice_enabled_free: 'Prática Habilitada (Gratuito)',
   unlimited_duration_months: 'Duração Bateria Ilimitada (meses)',
+
+  // Afiliação
+  points_per_referral: 'Pontos por Indicação',
+  commission_rate: 'Taxa de Comissão (%)',
+  min_withdrawal: 'Valor Mínimo para Saque (R$)',
+  battery_reward_per_referral: 'Baterias por Indicação',
 };
 
 // Tooltips de ajuda para todos os campos de configuração
@@ -290,6 +302,12 @@ const SETTING_TOOLTIPS: Record<string, string> = {
   notebooks_max_free: 'Número máximo de cadernos que um usuário gratuito pode criar.',
   practice_enabled_free: 'Se desativado, usuários gratuitos não terão acesso ao modo prática.',
   unlimited_duration_months: 'Tempo de validade da bateria ilimitada após a compra do Ouse Questões. Padrão: 12 meses.',
+
+  // ===== AFILIAÇÃO =====
+  points_per_referral: 'Quantidade de pontos que o usuário ganha quando alguém se cadastra usando seu link de indicação.',
+  commission_rate: 'Porcentagem do valor da venda que o afiliado recebe como comissão quando um indicado faz uma compra.',
+  min_withdrawal: 'Valor mínimo em reais que o afiliado precisa acumular para poder solicitar o saque das comissões.',
+  battery_reward_per_referral: 'Quantidade de baterias extras que o usuário ganha por cada indicação confirmada.',
 };
 
 // Gamification sub-tabs
