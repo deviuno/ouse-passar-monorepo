@@ -88,14 +88,14 @@ function generateCoverPageHTML(options: SimuladoPDFOptions): string {
 
       <div class="cover-content">
         <div class="brand">
-          <h1>OUSE PASSAR</h1>
+          <img src="https://i.ibb.co/d4bx5Cyz/ouse-passar-logo-n-1.png" alt="Ouse Passar" />
           <p class="tagline">Sua aprovação começa aqui</p>
         </div>
 
         <div class="title-box">
-          <h2>${options.simuladoName.toUpperCase()}</h2>
+          <p class="simulado-label">SIMULADO</p>
+          <h2>${options.preparatorioName || options.simuladoName}</h2>
           <p class="prova-number">PROVA ${options.provaNumber + 1}</p>
-          ${options.preparatorioName ? `<p class="preparatorio">${options.preparatorioName}</p>` : ''}
         </div>
 
         <div class="info-cards">
@@ -122,7 +122,6 @@ function generateCoverPageHTML(options: SimuladoPDFOptions): string {
         <div class="student-box">
           <span class="label">NOME DO ALUNO</span>
           <span class="name">${options.studentName || '________________________________'}</span>
-          ${options.cargo ? `<span class="cargo">${options.cargo}</span>` : ''}
         </div>
 
         <div class="instructions">
@@ -136,16 +135,24 @@ function generateCoverPageHTML(options: SimuladoPDFOptions): string {
       </div>
 
       <div class="cover-bottom-bar">
-        <span>questoes.ousepassar.com.br</span>
+        <span>www.OusePassar.com</span>
       </div>
     </div>
   `;
 }
 
 function parseImageUrls(imagens: string | null | undefined): string[] {
-  if (!imagens) return [];
+  if (!imagens || imagens.trim() === '') return [];
+
   // Images can be a single URL or comma/semicolon separated URLs
-  return imagens.split(/[,;]/).map(url => url.trim()).filter(url => url.length > 0);
+  const urls = imagens.split(/[,;]/)
+    .map(url => url.trim())
+    .filter(url => {
+      // Only include valid URLs (must start with http or https)
+      return url.length > 0 && (url.startsWith('http://') || url.startsWith('https://'));
+    });
+
+  return urls;
 }
 
 function generateQuestionsHTML(options: SimuladoPDFOptions): string {
@@ -189,10 +196,6 @@ function generateQuestionsHTML(options: SimuladoPDFOptions): string {
 
   return `
     <div class="questions-section">
-      <div class="questions-header">
-        <span class="brand">OUSE PASSAR</span>
-        <span class="simulado-name">${options.simuladoName}</span>
-      </div>
       <div class="questions-container">
         ${html}
       </div>
@@ -252,7 +255,7 @@ function generateAnswerSheetHTML(options: SimuladoPDFOptions): string {
       </div>
 
       <div class="answer-bottom-bar">
-        <span>questoes.ousepassar.com.br</span>
+        <span>www.OusePassar.com</span>
       </div>
     </div>
   `;
@@ -264,9 +267,16 @@ function generateFullHTML(options: SimuladoPDFOptions): string {
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     @page {
       size: A4;
+      margin: 10mm 0;
+    }
+
+    @page :first {
       margin: 0;
     }
 
@@ -293,170 +303,196 @@ function generateFullHTML(options: SimuladoPDFOptions): string {
       position: relative;
       display: flex;
       flex-direction: column;
+      background: #fff;
+      font-family: 'Montserrat', sans-serif;
     }
 
-    .cover-top-bar, .cover-bottom-bar {
-      background: #000;
-      height: 8mm;
+    .cover-top-bar {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      height: 12mm;
       width: 100%;
     }
 
     .cover-bottom-bar {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      height: 10mm;
+      width: 100%;
       position: absolute;
       bottom: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #fff;
-      font-size: 8pt;
+      font-size: 9pt;
+      letter-spacing: 1px;
     }
 
     .cover-content {
       flex: 1;
-      padding: 15mm 20mm;
+      padding: 20mm 25mm;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: flex-start;
     }
 
     .brand {
       text-align: center;
-      margin-bottom: 8mm;
+      margin-bottom: 12mm;
     }
 
-    .brand h1 {
-      font-size: 32pt;
-      font-weight: bold;
-      letter-spacing: 2px;
+    .brand img {
+      max-width: 180mm;
+      height: auto;
+      max-height: 35mm;
     }
 
     .brand .tagline {
-      font-size: 12pt;
+      font-size: 11pt;
       font-style: italic;
-      color: #555;
-      margin-top: 2mm;
+      color: #666;
+      letter-spacing: 1px;
+      margin-top: 3mm;
     }
 
     .title-box {
-      background: #f5f5f5;
-      border: 1px solid #ccc;
-      padding: 8mm 15mm;
+      background: #fafafa;
+      border: 2px solid #1a1a2e;
+      border-radius: 2mm;
+      padding: 6mm 20mm;
       text-align: center;
       width: 100%;
-      margin-bottom: 10mm;
+      margin-bottom: 9mm;
+    }
+
+    .title-box .simulado-label {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 9pt;
+      color: #888;
+      margin-bottom: 2mm;
+      letter-spacing: 2px;
+      font-weight: 500;
     }
 
     .title-box h2 {
+      font-family: 'Montserrat', sans-serif;
       font-size: 18pt;
       font-weight: bold;
-      margin-bottom: 3mm;
+      margin-bottom: 2mm;
+      color: #1a1a2e;
     }
 
     .title-box .prova-number {
-      font-size: 14pt;
-      color: #333;
-    }
-
-    .title-box .preparatorio {
-      font-size: 11pt;
-      font-style: italic;
-      color: #555;
-      margin-top: 2mm;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12pt;
+      color: #444;
+      font-weight: 600;
     }
 
     .info-cards {
       display: flex;
-      gap: 8mm;
-      margin-bottom: 12mm;
+      gap: 9mm;
+      margin-bottom: 10mm;
+      width: 100%;
+      justify-content: center;
     }
 
     .card {
-      border: 1px solid #ccc;
+      border: 1.5px solid #ddd;
       background: #fff;
-      padding: 5mm 10mm;
+      padding: 4.5mm 12mm;
       text-align: center;
-      min-width: 50mm;
+      min-width: 48mm;
+      border-radius: 1.5mm;
     }
 
     .card .value {
       display: block;
-      font-size: 14pt;
+      font-size: 15pt;
       font-weight: bold;
+      color: #1a1a2e;
     }
 
     .card .label {
       display: block;
-      font-size: 8pt;
-      color: #999;
-      margin-top: 2mm;
+      font-size: 7pt;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 1.5mm;
     }
 
     .quote {
       text-align: center;
       margin-bottom: 12mm;
-      max-width: 140mm;
-      position: relative;
+      max-width: 150mm;
+      padding: 6mm 15mm;
+      background: #f8f8f8;
+      border-left: 3px solid #1a1a2e;
     }
 
     .quote p {
       font-size: 12pt;
       font-style: italic;
-      color: #333;
+      color: #444;
+      line-height: 1.5;
     }
 
     .quote .quote-mark {
-      font-size: 24pt;
-      color: #999;
-      line-height: 1;
+      display: none;
     }
 
     .student-box {
-      background: #f5f5f5;
-      border: 1px solid #ccc;
-      padding: 5mm 15mm;
+      background: #fff;
+      border: 2px solid #1a1a2e;
+      border-radius: 2mm;
+      padding: 6mm 20mm;
       text-align: center;
-      margin-bottom: 15mm;
+      margin-bottom: 12mm;
+      min-width: 120mm;
     }
 
     .student-box .label {
       display: block;
-      font-size: 9pt;
-      color: #999;
-      margin-bottom: 2mm;
+      font-size: 8pt;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 3mm;
     }
 
     .student-box .name {
       display: block;
-      font-size: 16pt;
+      font-size: 18pt;
       font-weight: bold;
-    }
-
-    .student-box .cargo {
-      display: block;
-      font-size: 11pt;
-      color: #555;
-      margin-top: 2mm;
+      color: #1a1a2e;
     }
 
     .instructions {
       width: 100%;
-      border-top: 1px solid #000;
-      padding-top: 5mm;
+      border-top: 2px solid #1a1a2e;
+      padding-top: 8mm;
+      margin-top: auto;
     }
 
     .instructions h3 {
-      font-size: 9pt;
+      font-size: 10pt;
       font-weight: bold;
-      margin-bottom: 3mm;
+      margin-bottom: 4mm;
+      color: #1a1a2e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .instructions ul {
-      font-size: 8pt;
+      font-size: 9pt;
       margin-left: 5mm;
+      color: #444;
     }
 
     .instructions li {
-      margin-bottom: 1mm;
+      margin-bottom: 2mm;
+      line-height: 1.4;
     }
 
     /* Questions Container Styles */
@@ -466,39 +502,46 @@ function generateFullHTML(options: SimuladoPDFOptions): string {
 
     .questions-header {
       width: 210mm;
-      padding: 8mm 12mm 4mm 12mm;
+      padding: 12mm 15mm 6mm 15mm;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 2px solid #000;
+      border-bottom: 2px solid #1a1a2e;
+      background: #fff;
     }
 
     .questions-header .brand {
-      font-size: 10pt;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12pt;
       font-weight: bold;
-      margin: 0;
+      letter-spacing: 2px;
+      color: #1a1a2e;
     }
 
     .questions-header .simulado-name {
       font-size: 10pt;
+      color: #555;
+      font-weight: 500;
     }
 
     .questions-container {
       width: 210mm;
-      padding: 5mm 12mm 15mm 12mm;
+      padding: 8mm 15mm 15mm 15mm;
       column-count: 2;
-      column-gap: 6mm;
-      column-rule: 1px solid #000;
+      column-gap: 8mm;
+      column-rule: 1px solid #ddd;
+      column-fill: auto;
     }
 
     .materia-header {
-      background: #f0f0f0;
-      padding: 2mm 3mm;
-      margin-bottom: 3mm;
-      margin-top: 4mm;
-      border-bottom: 2px solid #000;
+      background: #1a1a2e;
+      color: #fff;
+      padding: 2.5mm 4mm;
+      margin-bottom: 4mm;
+      margin-top: 5mm;
+      border-radius: 1mm;
       break-inside: avoid;
-      column-span: none;
+      break-after: avoid;
     }
 
     .materia-header:first-child {
@@ -506,14 +549,14 @@ function generateFullHTML(options: SimuladoPDFOptions): string {
     }
 
     .materia-header span {
+      font-family: 'Montserrat', sans-serif;
       font-size: 9pt;
       font-weight: bold;
-      text-transform: uppercase;
+      letter-spacing: 0.8px;
     }
 
     .question {
       margin-bottom: 5mm;
-      break-inside: avoid-column;
       text-align: justify;
       hyphens: auto;
       -webkit-hyphens: auto;
@@ -522,52 +565,69 @@ function generateFullHTML(options: SimuladoPDFOptions): string {
     }
 
     .question-number {
+      font-family: 'Montserrat', sans-serif;
       font-weight: bold;
       font-size: 9pt;
       margin-bottom: 1.5mm;
+      color: #1a1a2e;
+      background: #f0f0f0;
+      padding: 1mm 2mm;
+      display: inline-block;
+      border-radius: 0.5mm;
     }
 
     .question-images {
       margin: 3mm 0;
       text-align: center;
+      break-inside: avoid;
     }
 
     .question-images img {
-      max-width: 100%;
-      max-height: 60mm;
+      max-width: 95%;
+      max-height: 45mm;
       object-fit: contain;
-      margin: 2mm 0;
+      border: 1px solid #ddd;
+      padding: 2mm;
+      background: #fafafa;
+      border-radius: 1mm;
     }
 
     .question-text {
-      font-size: 9pt;
-      margin-bottom: 2mm;
+      font-size: 9.5pt;
+      line-height: 1.45;
+      margin-bottom: 2.5mm;
       text-align: justify;
       hyphens: auto;
       -webkit-hyphens: auto;
+      color: #222;
     }
 
     .alternatives {
-      margin-left: 3mm;
+      margin-left: 0;
+      margin-top: 2mm;
     }
 
     .alternative {
-      font-size: 9pt;
-      margin-bottom: 1mm;
+      font-size: 9.5pt;
+      line-height: 1.35;
+      margin-bottom: 1.2mm;
       display: flex;
-      text-align: justify;
-      hyphens: auto;
-      -webkit-hyphens: auto;
+      align-items: flex-start;
     }
 
     .alternative .letter {
-      font-weight: normal;
-      margin-right: 2mm;
       flex-shrink: 0;
+      width: 7mm;
+      font-weight: 600;
+      color: #333;
     }
 
     .alternative .text {
       flex: 1;
+      text-align: justify;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      color: #333;
     }
 
     /* Answer Sheet Styles */
@@ -576,15 +636,19 @@ function generateFullHTML(options: SimuladoPDFOptions): string {
       height: 297mm;
       page-break-before: always;
       position: relative;
+      background: #fff;
     }
 
-    .answer-top-bar, .answer-bottom-bar {
-      background: #000;
-      height: 6mm;
+    .answer-top-bar {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      height: 8mm;
       width: 100%;
     }
 
     .answer-bottom-bar {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      height: 8mm;
+      width: 100%;
       position: absolute;
       bottom: 0;
       display: flex;
@@ -592,83 +656,90 @@ function generateFullHTML(options: SimuladoPDFOptions): string {
       justify-content: center;
       color: #fff;
       font-size: 8pt;
+      letter-spacing: 1px;
     }
 
     .answer-header {
       text-align: center;
-      padding: 8mm 0;
+      padding: 12mm 0 8mm 0;
     }
 
     .answer-header h2 {
-      font-size: 16pt;
+      font-size: 18pt;
       font-weight: bold;
+      color: #1a1a2e;
+      letter-spacing: 1px;
     }
 
     .answer-header p {
-      font-size: 11pt;
-      color: #555;
+      font-size: 10pt;
+      color: #666;
       margin-top: 2mm;
     }
 
     .answer-fields {
-      padding: 0 15mm;
-      margin-bottom: 5mm;
+      padding: 0 20mm;
+      margin-bottom: 8mm;
     }
 
     .field {
       display: flex;
       align-items: center;
-      margin-bottom: 3mm;
+      margin-bottom: 4mm;
     }
 
     .field-label {
       font-size: 10pt;
-      margin-right: 3mm;
+      font-weight: 500;
+      margin-right: 4mm;
+      color: #333;
     }
 
     .field-line {
       flex: 1;
-      border-bottom: 1px solid #ccc;
+      border-bottom: 1.5px solid #ccc;
       height: 1px;
     }
 
     .field-row {
       display: flex;
-      gap: 15mm;
+      gap: 20mm;
     }
 
     .field.small {
-      flex: 0 0 40mm;
+      flex: 0 0 45mm;
     }
 
     .answer-grid {
-      padding: 0 12mm;
+      padding: 0 15mm;
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 2mm 8mm;
+      gap: 2.5mm 10mm;
     }
 
     .answer-row {
       display: flex;
       align-items: center;
-      gap: 2mm;
+      gap: 1.5mm;
     }
 
     .question-num {
       font-size: 8pt;
-      width: 8mm;
+      width: 7mm;
       text-align: right;
+      font-weight: 500;
+      color: #444;
     }
 
     .circles {
       display: flex;
-      gap: 1mm;
+      gap: 0.8mm;
     }
 
     .circle {
-      width: 4.5mm;
-      height: 4.5mm;
-      border: 1px solid #000;
+      width: 4mm;
+      height: 4mm;
+      border: 1px solid #333;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -676,15 +747,15 @@ function generateFullHTML(options: SimuladoPDFOptions): string {
     }
 
     .circle span {
-      font-size: 5pt;
+      font-size: 4.5pt;
       color: #999;
     }
 
     .answer-footer {
       text-align: center;
-      padding: 8mm;
-      color: #555;
-      font-size: 8pt;
+      padding: 10mm;
+      color: #666;
+      font-size: 9pt;
     }
   </style>
 </head>

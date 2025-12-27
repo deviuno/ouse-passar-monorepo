@@ -36,12 +36,14 @@ function ProvaCard({
   onStart,
   onDownloadPdf,
   onManualResponse,
+  isDownloadingPdf,
 }: {
   prova: ProvaStatus;
   simulado: SimuladoWithUserData;
   onStart: (variationIndex: number) => void;
   onDownloadPdf: (variationIndex: number) => void;
   onManualResponse: (variationIndex: number) => void;
+  isDownloadingPdf: boolean;
 }) {
   const getStatusIcon = () => {
     if (prova.isCompleted) return <CheckCircle size={20} className="text-[#2ECC71]" />;
@@ -134,9 +136,19 @@ function ProvaCard({
             variant="secondary"
             className="text-xs"
             onClick={() => onDownloadPdf(prova.variationIndex)}
+            disabled={isDownloadingPdf}
           >
-            <Download size={14} className="mr-1" />
-            PDF
+            {isDownloadingPdf ? (
+              <>
+                <Loader2 size={14} className="mr-1 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <Download size={14} className="mr-1" />
+                PDF
+              </>
+            )}
           </Button>
           <Button
             size="sm"
@@ -258,6 +270,7 @@ export default function SimuladoDetailPage() {
     time_limit_minutes: 180,
   });
   const [history, setHistory] = useState<SimuladoResult[]>([]);
+  const [downloadingPdfIndex, setDownloadingPdfIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (profile?.id && id) {
@@ -292,13 +305,12 @@ export default function SimuladoDetailPage() {
   };
 
   const handleDownloadPdf = async (variationIndex: number) => {
-    if (!simulado || !profile) return;
+    if (!simulado || !profile || downloadingPdfIndex !== null) return;
 
     const { addToast } = useUIStore.getState();
+    setDownloadingPdfIndex(variationIndex);
 
     try {
-      addToast('info', 'Gerando PDF...');
-
       // Get settings for questions count
       const settings = await getSimuladoSettings();
 
@@ -332,6 +344,8 @@ export default function SimuladoDetailPage() {
     } catch (error) {
       console.error('Error generating PDF:', error);
       addToast('error', 'Erro ao gerar PDF');
+    } finally {
+      setDownloadingPdfIndex(null);
     }
   };
 
@@ -465,6 +479,7 @@ export default function SimuladoDetailPage() {
                     onStart={handleStartProva}
                     onDownloadPdf={handleDownloadPdf}
                     onManualResponse={handleManualResponse}
+                    isDownloadingPdf={downloadingPdfIndex === prova.variationIndex}
                   />
                 ))}
               </div>
