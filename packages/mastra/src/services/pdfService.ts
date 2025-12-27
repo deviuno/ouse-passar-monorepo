@@ -26,6 +26,7 @@ interface Question {
   enunciado: string;
   parsedAlternativas: Alternative[];
   gabarito: string;
+  imagens_enunciado?: string | null;
 }
 
 interface SimuladoPDFOptions {
@@ -141,6 +142,12 @@ function generateCoverPageHTML(options: SimuladoPDFOptions): string {
   `;
 }
 
+function parseImageUrls(imagens: string | null | undefined): string[] {
+  if (!imagens) return [];
+  // Images can be a single URL or comma/semicolon separated URLs
+  return imagens.split(/[,;]/).map(url => url.trim()).filter(url => url.length > 0);
+}
+
 function generateQuestionsHTML(options: SimuladoPDFOptions): string {
   const groupedQuestions = groupQuestionsByMateria(options.questions);
   let questionNumber = 0;
@@ -156,11 +163,17 @@ function generateQuestionsHTML(options: SimuladoPDFOptions): string {
     questions.forEach(q => {
       questionNumber++;
       const enunciado = stripHtml(q.enunciado);
+      const images = parseImageUrls(q.imagens_enunciado);
 
       html += `
         <div class="question">
           <div class="question-number">Questão ${questionNumber}</div>
           <div class="question-text">${enunciado}</div>
+          ${images.length > 0 ? `
+            <div class="question-images">
+              ${images.map(url => `<img src="${url}" alt="Imagem da questão" />`).join('')}
+            </div>
+          ` : ''}
           <div class="alternatives">
             ${q.parsedAlternativas.map(alt => `
               <div class="alternative">
@@ -175,8 +188,14 @@ function generateQuestionsHTML(options: SimuladoPDFOptions): string {
   });
 
   return `
-    <div class="questions-container">
-      ${html}
+    <div class="questions-section">
+      <div class="questions-header">
+        <span class="brand">OUSE PASSAR</span>
+        <span class="simulado-name">${options.simuladoName}</span>
+      </div>
+      <div class="questions-container">
+        ${html}
+      </div>
     </div>
   `;
 }
@@ -441,42 +460,35 @@ function generateFullHTML(options: SimuladoPDFOptions): string {
     }
 
     /* Questions Container Styles */
+    .questions-section {
+      page-break-before: always;
+    }
+
+    .questions-header {
+      width: 210mm;
+      padding: 8mm 12mm 4mm 12mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #000;
+    }
+
+    .questions-header .brand {
+      font-size: 10pt;
+      font-weight: bold;
+      margin: 0;
+    }
+
+    .questions-header .simulado-name {
+      font-size: 10pt;
+    }
+
     .questions-container {
       width: 210mm;
-      padding: 20mm 12mm 15mm 12mm;
+      padding: 5mm 12mm 15mm 12mm;
       column-count: 2;
       column-gap: 6mm;
       column-rule: 1px solid #000;
-    }
-
-    /* Header for questions pages */
-    .questions-container::before {
-      content: '';
-      display: block;
-      position: running(header);
-    }
-
-    @page questions {
-      margin: 20mm 12mm 15mm 12mm;
-
-      @top-left {
-        content: "OUSE PASSAR";
-        font-family: 'Times New Roman', Times, serif;
-        font-size: 9pt;
-        font-weight: bold;
-      }
-
-      @top-right {
-        content: "${options.simuladoName}";
-        font-family: 'Times New Roman', Times, serif;
-        font-size: 9pt;
-      }
-
-      @bottom-center {
-        content: counter(page);
-        font-family: 'Times New Roman', Times, serif;
-        font-size: 9pt;
-      }
     }
 
     .materia-header {
@@ -513,6 +525,18 @@ function generateFullHTML(options: SimuladoPDFOptions): string {
       font-weight: bold;
       font-size: 9pt;
       margin-bottom: 1.5mm;
+    }
+
+    .question-images {
+      margin: 3mm 0;
+      text-align: center;
+    }
+
+    .question-images img {
+      max-width: 100%;
+      max-height: 60mm;
+      object-fit: contain;
+      margin: 2mm 0;
     }
 
     .question-text {
@@ -684,7 +708,8 @@ async function getBrowser(): Promise<puppeteer.Browser> {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
-        '--font-render-hinting=none',
+        '--font-render-hinting=medium',
+        '--force-color-profile=srgb',
       ],
     });
   }
@@ -698,29 +723,44 @@ export async function generateSimuladoPDF(options: SimuladoPDFOptions): Promise<
   const page = await browserInstance.newPage();
 
   try {
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    // Set viewport for high quality rendering
+    await page.setViewport({
+      width: 794, // A4 width at 96 DPI
+      height: 1123, // A4 height at 96 DPI
+      deviceScaleFactor: 2, // 2x scale for better quality
+    });
+
+    await page.setContent(html, {
+      waitUntil: 'networkidle0',
+      timeout: 60000,
+    });
+
+    // Wait for fonts and images to load
+    await page.evaluateHandle('document.fonts.ready');
+    await page.evaluate(async () => {
+      const images = Array.from(document.querySelectorAll('img'));
+      await Promise.all(
+        images.map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve, reject) => {
+            img.addEventListener('load', resolve);
+            img.addEventListener('error', resolve); // Don't fail on broken images
+          });
+        })
+      );
+    });
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
-      preferCSSPageSize: true,
-      displayHeaderFooter: true,
-      headerTemplate: `
-        <div style="font-family: 'Times New Roman', serif; font-size: 9pt; width: 100%; padding: 0 12mm; display: flex; justify-content: space-between;">
-          <span style="font-weight: bold;">OUSE PASSAR</span>
-          <span>${options.simuladoName}</span>
-        </div>
-      `,
-      footerTemplate: `
-        <div style="font-family: 'Times New Roman', serif; font-size: 9pt; width: 100%; text-align: center; border-top: 1px solid #000; padding-top: 2mm;">
-          <span class="pageNumber"></span>
-        </div>
-      `,
+      preferCSSPageSize: false,
+      displayHeaderFooter: false,
+      scale: 1,
       margin: {
-        top: '20mm',
-        bottom: '15mm',
-        left: '12mm',
-        right: '12mm',
+        top: '0mm',
+        bottom: '0mm',
+        left: '0mm',
+        right: '0mm',
       },
     });
 
