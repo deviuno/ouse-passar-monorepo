@@ -398,7 +398,7 @@ interface RenderState {
   column: number; // 0 = left, 1 = right
   y: number;
   pageNumber: number;
-  currentDisciplina: string | null;
+  currentMateria: string | null;
 }
 
 export async function generateSimuladoPDF(options: PDFGeneratorOptions): Promise<void> {
@@ -683,7 +683,7 @@ function generateQuestionsPages(
     column: 0,
     y: MARGIN_TOP + HEADER_HEIGHT,
     pageNumber: 1,
-    currentDisciplina: null,
+    currentMateria: null,
   };
 
   // Initialize first page
@@ -700,11 +700,11 @@ function generateQuestionsPages(
     const questionNumber = i + 1;
     const questionText = stripHtml(question.enunciado);
     const options = question.parsedAlternativas || [];
-    const disciplina = question.disciplina || null;
+    const materia = question.materia || null;
 
-    // Check if we need to add a discipline header
-    if (disciplina && disciplina !== state.currentDisciplina) {
-      state.currentDisciplina = disciplina;
+    // Check if we need to add a subject/materia header
+    if (materia && materia !== state.currentMateria) {
+      state.currentMateria = materia;
 
       // Add space before discipline header
       const headerHeight = 10;
@@ -724,9 +724,9 @@ function generateQuestionsPages(
         }
       }
 
-      // Draw discipline header
+      // Draw subject/materia header
       const colX = getColumnX(state.column);
-      drawDisciplinaHeader(doc, disciplina, colX, state.y, COLUMN_WIDTH - 2);
+      drawDisciplinaHeader(doc, materia, colX, state.y, COLUMN_WIDTH - 2);
       state.y += headerHeight;
     }
 
