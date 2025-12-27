@@ -6,7 +6,7 @@ const MOTIVATIONAL_QUOTES = [
   'A disciplina é a ponte entre metas e realizações.',
   'O sucesso é a soma de pequenos esforços repetidos dia após dia.',
   'Sua dedicação de hoje é sua vitória de amanhã.',
-  'Não existe elevator para o sucesso. Você precisa subir as escadas.',
+  'Não existe elevador para o sucesso. Você precisa subir as escadas.',
   'O único lugar onde o sucesso vem antes do trabalho é no dicionário.',
   'Acredite em você mesmo e tudo será possível.',
   'Grandes conquistas exigem grande preparação.',
@@ -25,17 +25,27 @@ interface PDFGeneratorOptions {
   provaNumber: number;
 }
 
-// PDF dimensions and margins (in mm)
-const PAGE_WIDTH = 210; // A4 width
-const PAGE_HEIGHT = 297; // A4 height
+// PDF dimensions and margins (in mm) - A4
+const PAGE_WIDTH = 210;
+const PAGE_HEIGHT = 297;
 const MARGIN_LEFT = 15;
 const MARGIN_RIGHT = 15;
-const MARGIN_TOP = 20;
+const MARGIN_TOP = 25;
 const MARGIN_BOTTOM = 20;
-const COLUMN_GAP = 10;
+const COLUMN_GAP = 8;
 const COLUMN_WIDTH = (PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT - COLUMN_GAP) / 2;
-const LINE_HEIGHT = 5;
-const QUESTION_SPACING = 8;
+const LINE_HEIGHT = 4.5;
+const QUESTION_SPACING = 6;
+const HEADER_HEIGHT = 15;
+const FOOTER_HEIGHT = 10;
+
+// Colors (grayscale)
+const BLACK = '#000000';
+const DARK_GRAY = '#333333';
+const MEDIUM_GRAY = '#666666';
+const LIGHT_GRAY = '#CCCCCC';
+const VERY_LIGHT_GRAY = '#EEEEEE';
+const WHITE = '#FFFFFF';
 
 function getRandomQuote(): string {
   return MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
@@ -62,6 +72,29 @@ function splitTextToLines(doc: jsPDF, text: string, maxWidth: number): string[] 
   return doc.splitTextToSize(text, maxWidth);
 }
 
+// Convert hex color to RGB
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 0, g: 0, b: 0 };
+}
+
+function setColor(doc: jsPDF, hex: string, type: 'text' | 'draw' | 'fill' = 'text'): void {
+  const { r, g, b } = hexToRgb(hex);
+  if (type === 'text') {
+    doc.setTextColor(r, g, b);
+  } else if (type === 'draw') {
+    doc.setDrawColor(r, g, b);
+  } else {
+    doc.setFillColor(r, g, b);
+  }
+}
+
 export async function generateSimuladoPDF(options: PDFGeneratorOptions): Promise<void> {
   const {
     simuladoName,
@@ -79,6 +112,9 @@ export async function generateSimuladoPDF(options: PDFGeneratorOptions): Promise
     format: 'a4',
   });
 
+  // Set default font to Times (serif)
+  doc.setFont('times', 'normal');
+
   // Generate cover page
   generateCoverPage(doc, {
     simuladoName,
@@ -92,7 +128,7 @@ export async function generateSimuladoPDF(options: PDFGeneratorOptions): Promise
 
   // Add questions pages
   doc.addPage();
-  generateQuestionsPages(doc, questions);
+  generateQuestionsPages(doc, questions, simuladoName, preparatorioName);
 
   // Add answer sheet page
   doc.addPage();
@@ -127,134 +163,187 @@ function generateCoverPage(
 
   const centerX = PAGE_WIDTH / 2;
 
-  // Background color (dark theme)
-  doc.setFillColor(18, 18, 18); // #121212
+  // White background
+  setColor(doc, WHITE, 'fill');
   doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, 'F');
 
+  // Header border
+  setColor(doc, BLACK, 'draw');
+  doc.setLineWidth(0.8);
+  doc.line(MARGIN_LEFT, 30, PAGE_WIDTH - MARGIN_RIGHT, 30);
+
   // Brand header
-  doc.setTextColor(255, 184, 0); // #FFB800
-  doc.setFontSize(32);
-  doc.setFont('helvetica', 'bold');
-  doc.text('OUSE PASSAR', centerX, 50, { align: 'center' });
+  setColor(doc, BLACK, 'text');
+  doc.setFontSize(28);
+  doc.setFont('times', 'bold');
+  doc.text('OUSE PASSAR', centerX, 22, { align: 'center' });
 
   // Tagline
-  doc.setTextColor(160, 160, 160); // #A0A0A0
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Sua aprovação começa aqui', centerX, 60, { align: 'center' });
+  setColor(doc, MEDIUM_GRAY, 'text');
+  doc.setFontSize(10);
+  doc.setFont('times', 'italic');
+  doc.text('Sua aprovação começa aqui', centerX, 27, { align: 'center' });
 
-  // Decorative line
-  doc.setDrawColor(255, 184, 0);
-  doc.setLineWidth(0.5);
-  doc.line(centerX - 40, 70, centerX + 40, 70);
+  // Simulado name box
+  const titleBoxY = 45;
+  setColor(doc, VERY_LIGHT_GRAY, 'fill');
+  doc.roundedRect(MARGIN_LEFT, titleBoxY, PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT, 35, 3, 3, 'F');
+  setColor(doc, BLACK, 'draw');
+  doc.setLineWidth(0.3);
+  doc.roundedRect(MARGIN_LEFT, titleBoxY, PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT, 35, 3, 3, 'S');
 
   // Simulado name
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
+  setColor(doc, BLACK, 'text');
+  doc.setFontSize(18);
+  doc.setFont('times', 'bold');
   const simuladoLines = splitTextToLines(doc, simuladoName.toUpperCase(), 160);
-  let yPos = 100;
+  let yPos = titleBoxY + 15;
   simuladoLines.forEach((line: string) => {
     doc.text(line, centerX, yPos, { align: 'center' });
-    yPos += 10;
+    yPos += 8;
   });
 
   // Prova number
-  doc.setTextColor(255, 184, 0);
-  doc.setFontSize(18);
-  doc.text(`PROVA ${provaNumber + 1}`, centerX, yPos + 10, { align: 'center' });
+  doc.setFontSize(14);
+  doc.setFont('times', 'normal');
+  doc.text(`Prova ${provaNumber + 1}`, centerX, yPos + 5, { align: 'center' });
 
   // Preparatorio name (if available)
   if (preparatorioName) {
-    doc.setTextColor(160, 160, 160);
-    doc.setFontSize(14);
-    doc.text(preparatorioName, centerX, yPos + 25, { align: 'center' });
+    setColor(doc, DARK_GRAY, 'text');
+    doc.setFontSize(11);
+    doc.setFont('times', 'italic');
+    doc.text(preparatorioName, centerX, yPos + 13, { align: 'center' });
   }
 
-  // Info box
-  const boxY = 160;
-  const boxHeight = 40;
-  doc.setFillColor(26, 26, 26); // #1A1A1A
-  doc.roundedRect(30, boxY, PAGE_WIDTH - 60, boxHeight, 5, 5, 'F');
+  // Info cards
+  const cardsY = 100;
+  const cardWidth = 50;
+  const cardHeight = 35;
+  const cardGap = 10;
+  const cardsStartX = (PAGE_WIDTH - (cardWidth * 3 + cardGap * 2)) / 2;
 
-  // Info items
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(12);
-  const infoY = boxY + 15;
+  // Card 1: Questões
+  drawInfoCard(doc, cardsStartX, cardsY, cardWidth, cardHeight, String(totalQuestions), 'Questões');
 
-  // Questions count
-  doc.setFont('helvetica', 'bold');
-  doc.text(`${totalQuestions}`, 60, infoY, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(160, 160, 160);
-  doc.text('questões', 60, infoY + 8, { align: 'center' });
+  // Card 2: Duração
+  drawInfoCard(doc, cardsStartX + cardWidth + cardGap, cardsY, cardWidth, cardHeight, formatTime(totalTime), 'Duração');
 
-  // Time
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.text(formatTime(totalTime), centerX, infoY, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(160, 160, 160);
-  doc.text('duração', centerX, infoY + 8, { align: 'center' });
-
-  // Date
+  // Card 3: Data
   const today = new Date().toLocaleDateString('pt-BR');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.text(today, PAGE_WIDTH - 60, infoY, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(160, 160, 160);
-  doc.text('data', PAGE_WIDTH - 60, infoY + 8, { align: 'center' });
+  drawInfoCard(doc, cardsStartX + (cardWidth + cardGap) * 2, cardsY, cardWidth, cardHeight, today, 'Data');
 
   // Motivational quote
   const quote = getRandomQuote();
-  doc.setTextColor(255, 184, 0);
+  setColor(doc, DARK_GRAY, 'text');
   doc.setFontSize(11);
-  doc.setFont('helvetica', 'italic');
-  const quoteLines = splitTextToLines(doc, `"${quote}"`, 140);
-  let quoteY = 220;
+  doc.setFont('times', 'italic');
+  const quoteLines = splitTextToLines(doc, `"${quote}"`, 150);
+  let quoteY = 160;
   quoteLines.forEach((line: string) => {
     doc.text(line, centerX, quoteY, { align: 'center' });
     quoteY += 6;
   });
 
   // Student info section
-  const studentBoxY = 245;
-  doc.setFillColor(26, 26, 26);
-  doc.roundedRect(30, studentBoxY, PAGE_WIDTH - 60, 30, 5, 5, 'F');
+  const studentBoxY = 195;
+  setColor(doc, VERY_LIGHT_GRAY, 'fill');
+  doc.roundedRect(MARGIN_LEFT + 20, studentBoxY, PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT - 40, 45, 3, 3, 'F');
+  setColor(doc, BLACK, 'draw');
+  doc.setLineWidth(0.3);
+  doc.roundedRect(MARGIN_LEFT + 20, studentBoxY, PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT - 40, 45, 3, 3, 'S');
+
+  // "Nome do aluno:" label
+  setColor(doc, MEDIUM_GRAY, 'text');
+  doc.setFontSize(10);
+  doc.setFont('times', 'normal');
+  doc.text('Nome do aluno:', centerX, studentBoxY + 12, { align: 'center' });
 
   // Student name
-  doc.setTextColor(255, 255, 255);
+  setColor(doc, BLACK, 'text');
   doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text(studentName || 'Aluno', centerX, studentBoxY + 12, { align: 'center' });
+  doc.setFont('times', 'bold');
+  doc.text(studentName || '________________________________', centerX, studentBoxY + 22, { align: 'center' });
 
-  // Cargo
+  // Cargo (if available)
   if (cargo) {
-    doc.setTextColor(160, 160, 160);
+    setColor(doc, DARK_GRAY, 'text');
     doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text(cargo, centerX, studentBoxY + 22, { align: 'center' });
+    doc.setFont('times', 'normal');
+    doc.text(cargo, centerX, studentBoxY + 32, { align: 'center' });
   }
 
-  // Footer
-  doc.setTextColor(110, 110, 110); // #6E6E6E
+  // Instructions box
+  const instructionsY = 255;
+  setColor(doc, BLACK, 'draw');
+  doc.setLineWidth(0.5);
+  doc.rect(MARGIN_LEFT, instructionsY, PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT, 25, 'S');
+
+  setColor(doc, BLACK, 'text');
+  doc.setFontSize(9);
+  doc.setFont('times', 'bold');
+  doc.text('INSTRUÇÕES:', MARGIN_LEFT + 5, instructionsY + 6);
+
+  doc.setFont('times', 'normal');
   doc.setFontSize(8);
-  doc.text('© Ouse Passar - Todos os direitos reservados', centerX, PAGE_HEIGHT - 15, { align: 'center' });
-  doc.text('questoes.ousepassar.com.br', centerX, PAGE_HEIGHT - 10, { align: 'center' });
+  const instructions = [
+    '• Leia atentamente cada questão antes de responder.',
+    '• Marque apenas uma alternativa por questão na folha de respostas.',
+    '• Não é permitido o uso de calculadora ou material de consulta.',
+  ];
+  instructions.forEach((inst, idx) => {
+    doc.text(inst, MARGIN_LEFT + 5, instructionsY + 12 + idx * 4);
+  });
+
+  // Footer
+  setColor(doc, MEDIUM_GRAY, 'text');
+  doc.setFontSize(8);
+  doc.setFont('times', 'normal');
+  doc.text('© Ouse Passar - Todos os direitos reservados', centerX, PAGE_HEIGHT - 12, { align: 'center' });
+  doc.text('questoes.ousepassar.com.br', centerX, PAGE_HEIGHT - 8, { align: 'center' });
 }
 
-function generateQuestionsPages(doc: jsPDF, questions: ParsedQuestion[]): void {
+function drawInfoCard(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  value: string,
+  label: string
+): void {
+  // Card background
+  setColor(doc, VERY_LIGHT_GRAY, 'fill');
+  doc.roundedRect(x, y, width, height, 2, 2, 'F');
+  setColor(doc, LIGHT_GRAY, 'draw');
+  doc.setLineWidth(0.3);
+  doc.roundedRect(x, y, width, height, 2, 2, 'S');
+
+  // Value
+  setColor(doc, BLACK, 'text');
+  doc.setFontSize(12);
+  doc.setFont('times', 'bold');
+  doc.text(value, x + width / 2, y + height / 2 - 2, { align: 'center' });
+
+  // Label (capitalized)
+  setColor(doc, DARK_GRAY, 'text');
+  doc.setFontSize(9);
+  doc.setFont('times', 'normal');
+  doc.text(label, x + width / 2, y + height / 2 + 8, { align: 'center' });
+}
+
+function generateQuestionsPages(
+  doc: jsPDF,
+  questions: ParsedQuestion[],
+  simuladoName: string,
+  disciplina?: string
+): void {
   let currentColumn = 0; // 0 = left, 1 = right
-  let yPosition = MARGIN_TOP;
+  let yPosition = MARGIN_TOP + HEADER_HEIGHT;
+  let pageNumber = 1;
 
-  // Set white background for questions pages
-  doc.setFillColor(255, 255, 255);
-  doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, 'F');
-
-  // Add page header
-  addPageHeader(doc);
-  yPosition = MARGIN_TOP + 15;
+  // Initialize first page
+  initializeQuestionPage(doc, pageNumber, simuladoName, disciplina);
 
   questions.forEach((question, index) => {
     const questionNumber = index + 1;
@@ -267,25 +356,24 @@ function generateQuestionsPages(doc: jsPDF, questions: ParsedQuestion[]): void {
       : MARGIN_LEFT + COLUMN_WIDTH + COLUMN_GAP;
 
     // Estimate question height
-    const questionHeight = calculateQuestionHeight(doc, questionText, options, COLUMN_WIDTH - 5);
+    const questionHeight = calculateQuestionHeight(doc, questionText, options, COLUMN_WIDTH - 3);
 
     // Check if question fits in current column
-    const availableHeight = PAGE_HEIGHT - MARGIN_BOTTOM - yPosition;
+    const availableHeight = PAGE_HEIGHT - MARGIN_BOTTOM - FOOTER_HEIGHT - yPosition;
 
     if (questionHeight > availableHeight) {
       // Move to next column or page
       if (currentColumn === 0) {
         // Move to right column
         currentColumn = 1;
-        yPosition = MARGIN_TOP + 15; // Reset to top of column
+        yPosition = MARGIN_TOP + HEADER_HEIGHT;
       } else {
         // Move to new page
         doc.addPage();
-        doc.setFillColor(255, 255, 255);
-        doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, 'F');
-        addPageHeader(doc);
+        pageNumber++;
+        initializeQuestionPage(doc, pageNumber, simuladoName, disciplina);
         currentColumn = 0;
-        yPosition = MARGIN_TOP + 15;
+        yPosition = MARGIN_TOP + HEADER_HEIGHT;
       }
     }
 
@@ -295,31 +383,71 @@ function generateQuestionsPages(doc: jsPDF, questions: ParsedQuestion[]): void {
       : MARGIN_LEFT + COLUMN_WIDTH + COLUMN_GAP;
 
     // Draw question
-    yPosition = drawQuestion(doc, questionNumber, questionText, options, finalColumnX, yPosition, COLUMN_WIDTH - 5);
+    yPosition = drawQuestion(doc, questionNumber, questionText, options, finalColumnX, yPosition, COLUMN_WIDTH - 3);
 
     // Add spacing between questions
     yPosition += QUESTION_SPACING;
   });
+
+  // Add page number to last page
+  addFooter(doc, pageNumber);
 }
 
-function addPageHeader(doc: jsPDF): void {
-  // Header line
-  doc.setDrawColor(200, 200, 200);
+function initializeQuestionPage(
+  doc: jsPDF,
+  pageNumber: number,
+  simuladoName: string,
+  disciplina?: string
+): void {
+  // White background
+  setColor(doc, WHITE, 'fill');
+  doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, 'F');
+
+  // Header
+  addHeader(doc, simuladoName, disciplina);
+
+  // Column divider line
+  const dividerX = MARGIN_LEFT + COLUMN_WIDTH + COLUMN_GAP / 2;
+  setColor(doc, BLACK, 'draw');
   doc.setLineWidth(0.3);
-  doc.line(MARGIN_LEFT, MARGIN_TOP + 8, PAGE_WIDTH - MARGIN_RIGHT, MARGIN_TOP + 8);
+  doc.line(dividerX, MARGIN_TOP + HEADER_HEIGHT, dividerX, PAGE_HEIGHT - MARGIN_BOTTOM - FOOTER_HEIGHT);
 
-  // Brand text
-  doc.setTextColor(255, 184, 0);
+  // Footer will be added at the end
+  addFooter(doc, pageNumber);
+}
+
+function addHeader(doc: jsPDF, simuladoName: string, disciplina?: string): void {
+  // Header text - left
+  setColor(doc, BLACK, 'text');
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('OUSE PASSAR', MARGIN_LEFT, MARGIN_TOP + 5);
+  doc.setFont('times', 'bold');
+  doc.text('OUSE PASSAR', MARGIN_LEFT, MARGIN_TOP);
 
-  // Page number
-  const pageNum = doc.internal.pages.length - 1; // -1 because first page is cover
-  doc.setTextColor(150, 150, 150);
+  // Header text - right
+  doc.setFont('times', 'normal');
+  const rightText = disciplina ? `${simuladoName} - ${disciplina}` : simuladoName;
+  const truncatedText = rightText.length > 40 ? rightText.substring(0, 37) + '...' : rightText;
+  doc.text(truncatedText, PAGE_WIDTH - MARGIN_RIGHT, MARGIN_TOP, { align: 'right' });
+
+  // Header border (thick line)
+  setColor(doc, BLACK, 'draw');
+  doc.setLineWidth(0.8);
+  doc.line(MARGIN_LEFT, MARGIN_TOP + 5, PAGE_WIDTH - MARGIN_RIGHT, MARGIN_TOP + 5);
+}
+
+function addFooter(doc: jsPDF, pageNumber: number): void {
+  const footerY = PAGE_HEIGHT - MARGIN_BOTTOM;
+
+  // Footer border (thin line)
+  setColor(doc, BLACK, 'draw');
+  doc.setLineWidth(0.3);
+  doc.line(MARGIN_LEFT, footerY - 5, PAGE_WIDTH - MARGIN_RIGHT, footerY - 5);
+
+  // Page number centered
+  setColor(doc, BLACK, 'text');
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Página ${pageNum}`, PAGE_WIDTH - MARGIN_RIGHT, MARGIN_TOP + 5, { align: 'right' });
+  doc.setFont('times', 'normal');
+  doc.text(String(pageNumber), PAGE_WIDTH / 2, footerY, { align: 'center' });
 }
 
 function calculateQuestionHeight(
@@ -332,18 +460,18 @@ function calculateQuestionHeight(
 
   // Question number and text
   doc.setFontSize(10);
-  const questionLines = splitTextToLines(doc, questionText, maxWidth - 10);
-  height += 6; // Question number
+  const questionLines = splitTextToLines(doc, questionText, maxWidth - 8);
+  height += 5; // Question number line
   height += questionLines.length * LINE_HEIGHT;
-  height += 3; // Spacing before options
+  height += 2; // Spacing before options
 
   // Options
   doc.setFontSize(9);
   options.forEach((option) => {
     const optionText = `(${option.letter}) ${stripHtml(option.text)}`;
-    const optionLines = splitTextToLines(doc, optionText, maxWidth - 15);
-    height += optionLines.length * (LINE_HEIGHT - 0.5);
-    height += 1; // Spacing between options
+    const optionLines = splitTextToLines(doc, optionText, maxWidth - 12);
+    height += optionLines.length * (LINE_HEIGHT - 0.3);
+    height += 0.5; // Spacing between options
   });
 
   return height;
@@ -361,43 +489,39 @@ function drawQuestion(
   let y = startY;
 
   // Question number
-  doc.setTextColor(255, 184, 0);
+  setColor(doc, BLACK, 'text');
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('times', 'bold');
   doc.text(`Questão ${questionNumber}`, x, y);
-  y += 6;
+  y += 5;
 
-  // Question text
-  doc.setTextColor(30, 30, 30);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  const questionLines = splitTextToLines(doc, questionText, maxWidth - 5);
+  // Question text (justified)
+  doc.setFont('times', 'normal');
+  const questionLines = splitTextToLines(doc, questionText, maxWidth - 3);
   questionLines.forEach((line: string) => {
     doc.text(line, x, y);
     y += LINE_HEIGHT;
   });
 
-  y += 3; // Spacing before options
+  y += 2; // Spacing before options
 
   // Options
   doc.setFontSize(9);
   options.forEach((option) => {
     const optionText = stripHtml(option.text);
     const fullOption = `(${option.letter}) ${optionText}`;
-    const optionLines = splitTextToLines(doc, fullOption, maxWidth - 10);
+    const optionLines = splitTextToLines(doc, fullOption, maxWidth - 8);
 
     optionLines.forEach((line: string, lineIndex: number) => {
       if (lineIndex === 0) {
-        // First line with letter
-        doc.setTextColor(80, 80, 80);
         doc.text(line, x + 3, y);
       } else {
         // Continuation lines (indented)
         doc.text(line, x + 8, y);
       }
-      y += LINE_HEIGHT - 0.5;
+      y += LINE_HEIGHT - 0.3;
     });
-    y += 1; // Small spacing between options
+    y += 0.5; // Small spacing between options
   });
 
   return y;
@@ -405,98 +529,93 @@ function drawQuestion(
 
 function generateAnswerSheet(doc: jsPDF, totalQuestions: number, provaNumber: number): void {
   // White background
-  doc.setFillColor(255, 255, 255);
+  setColor(doc, WHITE, 'fill');
   doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, 'F');
 
   const centerX = PAGE_WIDTH / 2;
 
-  // Header
-  doc.setTextColor(255, 184, 0);
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('FOLHA DE RESPOSTAS', centerX, 25, { align: 'center' });
+  // Header border
+  setColor(doc, BLACK, 'draw');
+  doc.setLineWidth(0.8);
+  doc.line(MARGIN_LEFT, 35, PAGE_WIDTH - MARGIN_RIGHT, 35);
 
-  doc.setTextColor(100, 100, 100);
+  // Header
+  setColor(doc, BLACK, 'text');
+  doc.setFontSize(14);
+  doc.setFont('times', 'bold');
+  doc.text('FOLHA DE RESPOSTAS', centerX, 20, { align: 'center' });
+
+  setColor(doc, DARK_GRAY, 'text');
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Prova ${provaNumber + 1} - ${totalQuestions} questões`, centerX, 33, { align: 'center' });
+  doc.setFont('times', 'normal');
+  doc.text(`Prova ${provaNumber + 1} - ${totalQuestions} questões`, centerX, 28, { align: 'center' });
 
   // Name field
-  doc.setTextColor(60, 60, 60);
+  setColor(doc, BLACK, 'text');
   doc.setFontSize(10);
   doc.text('Nome:', MARGIN_LEFT, 50);
-  doc.setDrawColor(180, 180, 180);
+  setColor(doc, BLACK, 'draw');
+  doc.setLineWidth(0.3);
   doc.line(MARGIN_LEFT + 15, 50, PAGE_WIDTH - MARGIN_RIGHT, 50);
 
   // Date field
   doc.text('Data:', MARGIN_LEFT, 60);
-  doc.line(MARGIN_LEFT + 15, 60, MARGIN_LEFT + 60, 60);
+  doc.line(MARGIN_LEFT + 15, 60, MARGIN_LEFT + 55, 60);
 
   // Score field
-  doc.text('Nota:', MARGIN_LEFT + 80, 60);
-  doc.line(MARGIN_LEFT + 95, 60, MARGIN_LEFT + 130, 60);
+  doc.text('Nota:', MARGIN_LEFT + 70, 60);
+  doc.line(MARGIN_LEFT + 85, 60, MARGIN_LEFT + 120, 60);
 
   // Answer grid
   const gridStartY = 75;
-  const cellWidth = 8;
-  const cellHeight = 8;
-  const columns = 5; // A, B, C, D, E
-  const questionsPerRow = 10;
-  const rowHeight = cellHeight + 5;
+  const cellWidth = 7;
+  const cellHeight = 7;
+  const questionsPerColumn = Math.ceil(totalQuestions / 4);
+  const columnSpacing = 45;
 
-  // Column headers
   const letters = ['A', 'B', 'C', 'D', 'E'];
-  const gridStartX = MARGIN_LEFT + 20;
-
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  letters.forEach((letter, i) => {
-    doc.text(letter, gridStartX + i * (cellWidth + 2) + cellWidth / 2, gridStartY, { align: 'center' });
-  });
-
-  // Questions grid
-  doc.setFont('helvetica', 'normal');
-  let y = gridStartY + 8;
 
   for (let q = 1; q <= totalQuestions; q++) {
-    const row = Math.floor((q - 1) / questionsPerRow);
-    const col = (q - 1) % questionsPerRow;
+    const columnIndex = Math.floor((q - 1) / questionsPerColumn);
+    const rowIndex = (q - 1) % questionsPerColumn;
 
-    // Determine X position (two columns of questions)
-    let questionX: number;
-    let optionsX: number;
-
-    if (col < 5) {
-      // Left side
-      questionX = MARGIN_LEFT;
-      optionsX = gridStartX;
-    } else {
-      // Right side
-      questionX = centerX + 10;
-      optionsX = centerX + 30;
-    }
-
-    const questionY = gridStartY + 8 + (row * 2 + (col >= 5 ? 1 : 0)) * rowHeight;
+    const baseX = MARGIN_LEFT + columnIndex * columnSpacing;
+    const baseY = gridStartY + rowIndex * (cellHeight + 3);
 
     // Question number
-    doc.setTextColor(60, 60, 60);
-    doc.text(`${q}.`, questionX, questionY + cellHeight / 2 + 1);
+    setColor(doc, BLACK, 'text');
+    doc.setFontSize(8);
+    doc.setFont('times', 'normal');
+    const numText = q < 10 ? `  ${q}.` : q < 100 ? ` ${q}.` : `${q}.`;
+    doc.text(numText, baseX, baseY + cellHeight / 2 + 1);
 
     // Answer circles
-    letters.forEach((_, i) => {
-      doc.setDrawColor(150, 150, 150);
-      doc.setLineWidth(0.3);
-      doc.circle(
-        optionsX + i * (cellWidth + 2) + cellWidth / 2,
-        questionY + cellHeight / 2,
-        cellWidth / 2 - 1
-      );
+    letters.forEach((letter, i) => {
+      const circleX = baseX + 12 + i * (cellWidth + 1);
+      const circleY = baseY + cellHeight / 2;
+
+      setColor(doc, BLACK, 'draw');
+      doc.setLineWidth(0.2);
+      doc.circle(circleX, circleY, cellWidth / 2 - 0.5);
+
+      // Letter inside circle
+      setColor(doc, MEDIUM_GRAY, 'text');
+      doc.setFontSize(6);
+      doc.text(letter, circleX, circleY + 1.5, { align: 'center' });
     });
   }
 
-  // Footer
-  doc.setTextColor(150, 150, 150);
+  // Footer instructions
+  setColor(doc, DARK_GRAY, 'text');
   doc.setFontSize(8);
-  doc.text('Marque apenas uma alternativa por questão', centerX, PAGE_HEIGHT - 20, { align: 'center' });
+  doc.setFont('times', 'normal');
+  doc.text('Marque apenas uma alternativa por questão.', centerX, PAGE_HEIGHT - 25, { align: 'center' });
+
+  // Footer border
+  setColor(doc, BLACK, 'draw');
+  doc.setLineWidth(0.3);
+  doc.line(MARGIN_LEFT, PAGE_HEIGHT - 18, PAGE_WIDTH - MARGIN_RIGHT, PAGE_HEIGHT - 18);
+
+  setColor(doc, MEDIUM_GRAY, 'text');
   doc.text('© Ouse Passar - questoes.ousepassar.com.br', centerX, PAGE_HEIGHT - 12, { align: 'center' });
 }
