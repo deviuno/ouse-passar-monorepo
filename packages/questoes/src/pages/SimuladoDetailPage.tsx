@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   ChevronLeft,
   Clock,
@@ -9,13 +9,13 @@ import {
   Play,
   CheckCircle,
   Loader2,
-  BarChart2,
-  Calendar,
   AlertCircle,
-  History,
   Target,
-  TrendingUp,
-  Award,
+  Download,
+  Edit3,
+  ChevronRight,
+  Check,
+  X,
 } from 'lucide-react';
 import { Card, Button, CircularProgress } from '../components/ui';
 import { useAuthStore } from '../stores';
@@ -28,234 +28,214 @@ import {
 } from '../services/simuladosService';
 import { getOptimizedImageUrl } from '../utils/image';
 
-type TabType = 'provas' | 'historico';
-
 function ProvaCard({
   prova,
   simulado,
   onStart,
-  onContinue,
-  onViewResult,
+  onDownloadPdf,
+  onManualResponse,
 }: {
   prova: ProvaStatus;
   simulado: SimuladoWithUserData;
   onStart: (variationIndex: number) => void;
-  onContinue: (attemptId: string) => void;
-  onViewResult: (prova: ProvaStatus) => void;
+  onDownloadPdf: (variationIndex: number) => void;
+  onManualResponse: (variationIndex: number) => void;
 }) {
-  const getStatusColor = () => {
-    if (prova.isCompleted) return '#2ECC71';
-    if (prova.isInProgress) return '#FFB800';
-    return '#3A3A3A';
+  const getStatusIcon = () => {
+    if (prova.isCompleted) return <CheckCircle size={20} className="text-[#2ECC71]" />;
+    if (prova.isInProgress) return <Clock size={20} className="text-[#FFB800]" />;
+    return <Target size={20} className="text-[#6E6E6E]" />;
   };
 
-  const getStatusBg = () => {
-    if (prova.isCompleted) return 'bg-[#2ECC71]/10';
-    if (prova.isInProgress) return 'bg-[#FFB800]/10';
-    return 'bg-[#252525]';
+  const getStatusText = () => {
+    if (prova.isCompleted) return 'Concluída';
+    if (prova.isInProgress) return 'Em andamento';
+    return 'Disponível';
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 70) return 'text-[#2ECC71]';
+    if (score >= 50) return 'text-[#FFB800]';
+    return 'text-[#E74C3C]';
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`rounded-2xl border overflow-hidden ${getStatusBg()}`}
-      style={{ borderColor: getStatusColor() }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="bg-[#1A1A1A] rounded-xl border border-[#2A2A2A] p-4 hover:border-[#3A3A3A] transition-colors"
     >
-      <div className="p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: `${getStatusColor()}20` }}
-            >
-              {prova.isCompleted ? (
-                <CheckCircle size={24} style={{ color: getStatusColor() }} />
-              ) : prova.isInProgress ? (
-                <Clock size={24} style={{ color: getStatusColor() }} />
-              ) : (
-                <Target size={24} className="text-[#6E6E6E]" />
-              )}
-            </div>
-            <div>
-              <h3 className="text-white font-semibold text-lg">{prova.label}</h3>
-              <p className="text-[#6E6E6E] text-sm">
-                {prova.isCompleted
-                  ? 'Concluída'
-                  : prova.isInProgress
-                  ? 'Em andamento'
-                  : 'Disponível'}
-              </p>
-            </div>
-          </div>
-
-          {/* Score badge for completed */}
-          {prova.isCompleted && prova.result && (
-            <div className="text-right">
-              <div
-                className={`text-3xl font-bold ${
-                  prova.result.score >= 70
-                    ? 'text-[#2ECC71]'
-                    : prova.result.score >= 50
-                    ? 'text-[#FFB800]'
-                    : 'text-[#E74C3C]'
-                }`}
-              >
-                {Math.round(prova.result.score)}%
-              </div>
-              {prova.result.ranking_position && (
-                <div className="flex items-center justify-end gap-1 text-[#FFB800] text-sm">
-                  <Trophy size={14} />
-                  <span>#{prova.result.ranking_position}</span>
-                </div>
-              )}
-            </div>
-          )}
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {getStatusIcon()}
+          <span className="text-white font-medium">{prova.label}</span>
         </div>
+        <span className="text-[#6E6E6E] text-xs">{getStatusText()}</span>
+      </div>
 
-        {/* Progress info for in-progress */}
-        {prova.isInProgress && prova.attempt && (
-          <div className="bg-[#FFB800]/20 rounded-xl p-3 mb-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-[#FFB800]">Progresso</span>
-              <span className="text-white font-medium">
-                {prova.attempt.current_index + 1}/{simulado.total_questoes}
-              </span>
-            </div>
-            <div className="mt-2 h-2 bg-[#1A1A1A] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[#FFB800] rounded-full transition-all"
-                style={{
-                  width: `${((prova.attempt.current_index + 1) / simulado.total_questoes) * 100}%`,
-                }}
-              />
-            </div>
+      {/* Score if completed */}
+      {prova.isCompleted && prova.result && (
+        <div className="flex items-center justify-between mb-3 py-2 px-3 bg-[#252525] rounded-lg">
+          <span className="text-[#6E6E6E] text-sm">Nota</span>
+          <span className={`font-bold text-lg ${getScoreColor(prova.result.score)}`}>
+            {Math.round(prova.result.score)}%
+          </span>
+        </div>
+      )}
+
+      {/* Progress if in progress */}
+      {prova.isInProgress && prova.attempt && (
+        <div className="mb-3 py-2 px-3 bg-[#FFB800]/10 rounded-lg">
+          <div className="flex items-center justify-between text-sm mb-1">
+            <span className="text-[#FFB800]">Progresso</span>
+            <span className="text-white">
+              {prova.attempt.current_index + 1}/{simulado.total_questoes}
+            </span>
           </div>
+          <div className="h-1.5 bg-[#1A1A1A] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#FFB800] rounded-full"
+              style={{
+                width: `${((prova.attempt.current_index + 1) / simulado.total_questoes) * 100}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="space-y-2">
+        {prova.isInProgress ? (
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={() => onStart(prova.variationIndex)}
+          >
+            <Play size={16} className="mr-2" />
+            Continuar
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={() => onStart(prova.variationIndex)}
+          >
+            <Play size={16} className="mr-2" />
+            {prova.isCompleted ? 'Refazer' : 'Iniciar'}
+          </Button>
         )}
 
-        {/* Action buttons */}
-        <div className="flex gap-3">
-          {prova.isInProgress && prova.attempt ? (
-            <>
-              <Button
-                className="flex-1"
-                onClick={() => onContinue(prova.attempt!.id)}
-              >
-                <Play size={18} className="mr-2" />
-                Continuar
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => onViewResult(prova)}
-              >
-                Abandonar
-              </Button>
-            </>
-          ) : prova.isCompleted ? (
-            <>
-              <Button
-                variant="secondary"
-                className="flex-1"
-                onClick={() => onViewResult(prova)}
-              >
-                <BarChart2 size={18} className="mr-2" />
-                Ver Resultado
-              </Button>
-              <Button onClick={() => onStart(prova.variationIndex)}>
-                <Play size={18} className="mr-2" />
-                Refazer
-              </Button>
-            </>
-          ) : (
-            <Button
-              className="flex-1"
-              onClick={() => onStart(prova.variationIndex)}
-            >
-              <Play size={18} className="mr-2" />
-              Iniciar Prova
-            </Button>
-          )}
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="text-xs"
+            onClick={() => onDownloadPdf(prova.variationIndex)}
+          >
+            <Download size={14} className="mr-1" />
+            PDF
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="text-xs"
+            onClick={() => onManualResponse(prova.variationIndex)}
+          >
+            <Edit3 size={14} className="mr-1" />
+            Manual
+          </Button>
         </div>
       </div>
     </motion.div>
   );
 }
 
-function HistoryCard({ result, index }: { result: SimuladoResult & { prova_label?: string }; index: number }) {
+function HistoryItem({
+  result,
+  totalQuestoes,
+  onClick,
+}: {
+  result: SimuladoResult & { prova_label?: string };
+  totalQuestoes: number;
+  onClick: () => void;
+}) {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     });
   };
 
-  const formatDuration = (seconds: number) => {
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const hours = Math.floor(mins / 60);
     const remainingMins = mins % 60;
-    return hours > 0 ? `${hours}h ${remainingMins}min` : `${mins}min`;
+    if (hours > 0) return `${hours}h ${remainingMins}m`;
+    return `${mins}min`;
   };
+
+  const acertos = result.acertos ?? Math.round((result.score / 100) * totalQuestoes);
+  const erros = result.erros ?? totalQuestoes - acertos;
+  const scoreColor =
+    result.score >= 70
+      ? 'text-[#2ECC71]'
+      : result.score >= 50
+      ? 'text-[#FFB800]'
+      : 'text-[#E74C3C]';
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -20 }}
+      initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.05 }}
-      className="bg-[#1A1A1A] rounded-xl border border-[#2A2A2A] p-4"
+      whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+      onClick={onClick}
+      className="p-3 rounded-xl border border-[#2A2A2A] cursor-pointer transition-colors"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-              result.score >= 70
-                ? 'bg-[#2ECC71]/20'
-                : result.score >= 50
-                ? 'bg-[#FFB800]/20'
-                : 'bg-[#E74C3C]/20'
-            }`}
-          >
-            {result.score >= 70 ? (
-              <Award size={20} className="text-[#2ECC71]" />
-            ) : result.score >= 50 ? (
-              <TrendingUp size={20} className="text-[#FFB800]" />
-            ) : (
-              <Target size={20} className="text-[#E74C3C]" />
-            )}
-          </div>
-          <div>
-            <p className="text-white font-medium">{result.prova_label || 'Prova'}</p>
-            <p className="text-[#6E6E6E] text-xs">{formatDate(result.completed_at)}</p>
-          </div>
+      {/* Header with date and score */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-white text-sm font-medium">{result.prova_label}</span>
+          {result.is_manual && (
+            <span className="text-[10px] bg-[#3498DB]/20 text-[#3498DB] px-1.5 py-0.5 rounded">
+              Manual
+            </span>
+          )}
         </div>
+        <span className={`font-bold ${scoreColor}`}>{Math.round(result.score)}%</span>
+      </div>
 
-        <div className="text-right">
-          <p
-            className={`text-xl font-bold ${
-              result.score >= 70
-                ? 'text-[#2ECC71]'
-                : result.score >= 50
-                ? 'text-[#FFB800]'
-                : 'text-[#E74C3C]'
-            }`}
-          >
-            {Math.round(result.score)}%
-          </p>
-          <div className="flex items-center gap-2 text-[#6E6E6E] text-xs">
-            <Clock size={10} />
-            <span>{formatDuration(result.tempo_gasto)}</span>
-            {result.ranking_position && (
-              <>
-                <Trophy size={10} className="text-[#FFB800] ml-1" />
-                <span className="text-[#FFB800]">#{result.ranking_position}</span>
-              </>
-            )}
-          </div>
+      {/* Stats row */}
+      <div className="flex items-center gap-3 text-xs text-[#6E6E6E]">
+        <div className="flex items-center gap-1">
+          <Clock size={12} />
+          <span>{formatTime(result.tempo_gasto)}</span>
         </div>
+        <div className="flex items-center gap-1 text-[#2ECC71]">
+          <Check size={12} />
+          <span>{acertos}</span>
+        </div>
+        <div className="flex items-center gap-1 text-[#E74C3C]">
+          <X size={12} />
+          <span>{erros}</span>
+        </div>
+        <span className="text-[#4A4A4A]">•</span>
+        <span>{formatDate(result.completed_at)}</span>
+      </div>
+
+      {/* Ranking if available */}
+      {result.ranking_position && (
+        <div className="flex items-center gap-1 mt-2 text-[#FFB800] text-xs">
+          <Trophy size={12} />
+          <span>#{result.ranking_position} no ranking</span>
+        </div>
+      )}
+
+      {/* View more indicator */}
+      <div className="flex items-center justify-end mt-2 text-[#6E6E6E] text-xs">
+        <span>Ver detalhes</span>
+        <ChevronRight size={14} />
       </div>
     </motion.div>
   );
@@ -275,50 +255,33 @@ export default function SimuladoDetailPage() {
     questions_per_simulado: 120,
     time_limit_minutes: 180,
   });
-  const [activeTab, setActiveTab] = useState<TabType>('provas');
   const [history, setHistory] = useState<SimuladoResult[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     if (profile?.id && id) {
-      loadSimuladoDetails();
+      loadData();
     }
   }, [profile?.id, id]);
 
-  useEffect(() => {
-    if (activeTab === 'historico' && profile?.id && id && history.length === 0) {
-      loadHistory();
-    }
-  }, [activeTab, profile?.id, id]);
-
-  const loadSimuladoDetails = async () => {
+  const loadData = async () => {
     if (!profile?.id || !id) return;
 
     setLoading(true);
     try {
-      const data = await getSimuladoWithDetails(profile.id, id);
-      setSimulado(data.simulado);
-      setProvas(data.provas);
-      setStats(data.stats);
-      setSettings(data.settings);
+      const [detailsData, historyData] = await Promise.all([
+        getSimuladoWithDetails(profile.id, id),
+        getUserSimuladoResultsBySimulado(profile.id, id),
+      ]);
+
+      setSimulado(detailsData.simulado);
+      setProvas(detailsData.provas);
+      setStats(detailsData.stats);
+      setSettings(detailsData.settings);
+      setHistory(historyData);
     } catch (error) {
-      console.error('Error loading simulado details:', error);
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadHistory = async () => {
-    if (!profile?.id || !id) return;
-
-    setLoadingHistory(true);
-    try {
-      const results = await getUserSimuladoResultsBySimulado(profile.id, id);
-      setHistory(results);
-    } catch (error) {
-      console.error('Error loading history:', error);
-    } finally {
-      setLoadingHistory(false);
     }
   };
 
@@ -328,16 +291,21 @@ export default function SimuladoDetailPage() {
     // navigate(`/simulados/${id}/prova/${variationIndex}`);
   };
 
-  const handleContinueProva = (attemptId: string) => {
-    // TODO: Implement continue prova flow
-    console.log('Continuing attempt', attemptId);
-    // navigate(`/simulados/${id}/attempt/${attemptId}`);
+  const handleDownloadPdf = (variationIndex: number) => {
+    // TODO: Implement PDF download
+    console.log('Downloading PDF for prova', variationIndex);
   };
 
-  const handleViewResult = (prova: ProvaStatus) => {
-    // TODO: Implement view result flow
-    console.log('Viewing result', prova);
-    // navigate(`/simulados/${id}/resultado/${prova.variationIndex}`);
+  const handleManualResponse = (variationIndex: number) => {
+    // TODO: Implement manual response flow
+    console.log('Manual response for prova', variationIndex);
+    // navigate(`/simulados/${id}/gabarito/${variationIndex}`);
+  };
+
+  const handleViewResultDetails = (result: SimuladoResult) => {
+    // TODO: Implement view result details
+    console.log('Viewing result details', result);
+    // navigate(`/simulados/${id}/resultado/${result.id}`);
   };
 
   const formatDuration = (minutes: number) => {
@@ -376,10 +344,9 @@ export default function SimuladoDetailPage() {
 
   return (
     <div className="min-h-full pb-24">
-      {/* Hero Section with Cover Image */}
+      {/* Hero Section */}
       <div className="relative">
-        {/* Cover Image */}
-        <div className="h-56 w-full overflow-hidden">
+        <div className="h-48 w-full overflow-hidden">
           {coverImage ? (
             <img
               src={coverImage}
@@ -389,8 +356,7 @@ export default function SimuladoDetailPage() {
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-[#3498DB] to-[#8B5CF6]" />
           )}
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/70 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent" />
         </div>
 
         {/* Back button */}
@@ -415,32 +381,35 @@ export default function SimuladoDetailPage() {
               {simulado.preparatorio.nome}
             </p>
           )}
-          <h1 className="text-2xl font-bold text-white">{simulado.nome}</h1>
+          <h1 className="text-xl font-bold text-white">{simulado.nome}</h1>
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-4 -mt-2 relative z-10">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <Card className="text-center py-4">
-            <CircularProgress
-              value={progressPercent}
-              size={48}
-              strokeWidth={4}
-              color="brand"
-            />
-            <p className="text-[#6E6E6E] text-xs mt-2">Progresso</p>
-          </Card>
-          <Card className="text-center py-4">
-            <p className="text-2xl font-bold text-white">
-              {stats.completed}/{stats.total}
-            </p>
-            <p className="text-[#6E6E6E] text-xs">Provas feitas</p>
-          </Card>
-          <Card className="text-center py-4">
+      <div className="px-4 pt-4">
+        {/* Quick Stats Bar */}
+        <div className="flex items-center justify-between bg-[#1A1A1A] rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-2">
+            <CircularProgress value={progressPercent} size={40} strokeWidth={3} color="brand" />
+            <div>
+              <p className="text-white font-medium text-sm">{stats.completed}/{stats.total}</p>
+              <p className="text-[#6E6E6E] text-xs">provas</p>
+            </div>
+          </div>
+          <div className="h-8 w-px bg-[#2A2A2A]" />
+          <div className="text-center">
+            <p className="text-[#FFB800] font-medium text-sm">{formatDuration(simulado.duracao_minutos)}</p>
+            <p className="text-[#6E6E6E] text-xs">por prova</p>
+          </div>
+          <div className="h-8 w-px bg-[#2A2A2A]" />
+          <div className="text-center">
+            <p className="text-[#3498DB] font-medium text-sm">{simulado.total_questoes}</p>
+            <p className="text-[#6E6E6E] text-xs">questões</p>
+          </div>
+          <div className="h-8 w-px bg-[#2A2A2A]" />
+          <div className="text-center">
             <p
-              className={`text-2xl font-bold ${
+              className={`font-medium text-sm ${
                 stats.averageScore >= 70
                   ? 'text-[#2ECC71]'
                   : stats.averageScore >= 50
@@ -452,132 +421,70 @@ export default function SimuladoDetailPage() {
             >
               {stats.averageScore > 0 ? `${stats.averageScore}%` : '-'}
             </p>
-            <p className="text-[#6E6E6E] text-xs">Média geral</p>
-          </Card>
-        </div>
-
-        {/* Info Card */}
-        <Card className="mb-6">
-          <div className="flex items-center justify-around text-center">
-            <div>
-              <div className="flex items-center justify-center gap-2 text-[#FFB800] mb-1">
-                <Clock size={18} />
-                <span className="font-semibold">{formatDuration(simulado.duracao_minutos)}</span>
-              </div>
-              <p className="text-[#6E6E6E] text-xs">por prova</p>
-            </div>
-            <div className="w-px h-10 bg-[#3A3A3A]" />
-            <div>
-              <div className="flex items-center justify-center gap-2 text-[#3498DB] mb-1">
-                <FileText size={18} />
-                <span className="font-semibold">{simulado.total_questoes}</span>
-              </div>
-              <p className="text-[#6E6E6E] text-xs">questões</p>
-            </div>
-            <div className="w-px h-10 bg-[#3A3A3A]" />
-            <div>
-              <div className="flex items-center justify-center gap-2 text-[#9B59B6] mb-1">
-                <Target size={18} />
-                <span className="font-semibold">{stats.total}</span>
-              </div>
-              <p className="text-[#6E6E6E] text-xs">provas</p>
-            </div>
+            <p className="text-[#6E6E6E] text-xs">média</p>
           </div>
-        </Card>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('provas')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors ${
-              activeTab === 'provas'
-                ? 'bg-[#FFB800] text-black'
-                : 'bg-[#252525] text-[#A0A0A0] hover:bg-[#2A2A2A]'
-            }`}
-          >
-            <FileText size={18} />
-            Provas
-          </button>
-          <button
-            onClick={() => setActiveTab('historico')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors ${
-              activeTab === 'historico'
-                ? 'bg-[#FFB800] text-black'
-                : 'bg-[#252525] text-[#A0A0A0] hover:bg-[#2A2A2A]'
-            }`}
-          >
-            <History size={18} />
-            Histórico
-          </button>
         </div>
 
-        {/* Tab Content */}
-        <AnimatePresence mode="wait">
-          {activeTab === 'provas' ? (
-            <motion.div
-              key="provas"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-4"
-            >
-              {provas.length > 0 ? (
-                provas.map((prova) => (
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column - Provas */}
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <FileText size={20} className="text-[#FFB800]" />
+              Provas Disponíveis
+            </h2>
+
+            {provas.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {provas.map((prova) => (
                   <ProvaCard
                     key={prova.variationIndex}
                     prova={prova}
                     simulado={simulado}
                     onStart={handleStartProva}
-                    onContinue={handleContinueProva}
-                    onViewResult={handleViewResult}
+                    onDownloadPdf={handleDownloadPdf}
+                    onManualResponse={handleManualResponse}
                   />
-                ))
-              ) : (
-                <div className="text-center py-12 text-[#6E6E6E]">
-                  <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p className="mb-2">Nenhuma prova disponível</p>
-                  <p className="text-sm">
-                    Este pacote de simulados ainda não possui provas configuradas.
-                  </p>
-                </div>
-              )}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="historico"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              {loadingHistory ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 text-[#FFB800] animate-spin" />
-                </div>
-              ) : history.length > 0 ? (
-                <div className="space-y-3">
-                  {history.map((result, index) => (
-                    <HistoryCard
-                      key={result.id}
-                      result={{
-                        ...result,
-                        prova_label: `Prova ${(index % settings.different_exams_per_user) + 1}`,
-                      }}
-                      index={index}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-[#6E6E6E]">
-                  <History className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p className="mb-2">Nenhuma prova realizada</p>
-                  <p className="text-sm">
-                    Seu histórico de provas aparecerá aqui após concluir uma prova.
-                  </p>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-[#6E6E6E] bg-[#1A1A1A] rounded-xl">
+                <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">Nenhuma prova configurada</p>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - History */}
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Clock size={20} className="text-[#3498DB]" />
+              Histórico de Provas
+            </h2>
+
+            {history.length > 0 ? (
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#3A3A3A] scrollbar-track-transparent">
+                {history.map((result, index) => (
+                  <HistoryItem
+                    key={result.id}
+                    result={{
+                      ...result,
+                      prova_label: `Prova ${(result.variation_index ?? index % settings.different_exams_per_user) + 1}`,
+                    }}
+                    totalQuestoes={simulado.total_questoes}
+                    onClick={() => handleViewResultDetails(result)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-[#6E6E6E] bg-[#1A1A1A] rounded-xl">
+                <Clock className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p className="text-sm mb-1">Nenhuma prova realizada</p>
+                <p className="text-xs">Complete uma prova para ver seu histórico</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

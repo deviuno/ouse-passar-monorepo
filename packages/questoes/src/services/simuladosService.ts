@@ -78,9 +78,14 @@ export interface SimuladoResult {
   id: string;
   user_id: string;
   simulado_id: string;
+  variation_index?: number;
   score: number;
+  acertos?: number;
+  erros?: number;
+  total_questoes?: number;
   tempo_gasto: number; // seconds
   ranking_position: number | null;
+  is_manual?: boolean; // true if answered via manual gabarito
   completed_at: string;
   created_at: string;
 }
