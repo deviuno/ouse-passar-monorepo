@@ -694,53 +694,74 @@ function generateQuestionsPages(
     ? MARGIN_LEFT
     : MARGIN_LEFT + COLUMN_WIDTH + COLUMN_GAP;
 
-  // Process each question with continuous flow
-  for (let i = 0; i < questions.length; i++) {
-    const question = questions[i];
-    const questionNumber = i + 1;
-    const questionText = stripHtml(question.enunciado);
-    const options = question.parsedAlternativas || [];
-    const materia = question.materia || null;
+  // Group questions by materia while preserving original order of appearance
+  const groupedQuestions: { materia: string; questions: { question: ParsedQuestion; originalIndex: number }[] }[] = [];
+  const materiaIndexMap = new Map<string, number>();
 
-    // Check if we need to add a subject/materia header
-    if (materia && materia !== state.currentMateria) {
-      state.currentMateria = materia;
+  questions.forEach((question, index) => {
+    const materia = question.materia || 'Sem Matéria';
 
-      // Add space before discipline header
-      const headerHeight = 10;
-
-      // Check if we have space for the header
-      if (state.y + headerHeight > contentBottom) {
-        // Move to next column or page
-        if (state.column === 0) {
-          state.column = 1;
-          state.y = MARGIN_TOP + HEADER_HEIGHT;
-        } else {
-          doc.addPage();
-          state.pageNumber++;
-          initializeQuestionPage(doc, state.pageNumber, simuladoName);
-          state.column = 0;
-          state.y = MARGIN_TOP + HEADER_HEIGHT;
-        }
-      }
-
-      // Draw subject/materia header
-      const colX = getColumnX(state.column);
-      drawDisciplinaHeader(doc, materia, colX, state.y, COLUMN_WIDTH - 2);
-      state.y += headerHeight;
+    if (!materiaIndexMap.has(materia)) {
+      materiaIndexMap.set(materia, groupedQuestions.length);
+      groupedQuestions.push({ materia, questions: [] });
     }
 
-    // Render question with continuous flow
-    renderQuestionContinuous(
-      doc,
-      state,
-      questionNumber,
-      questionText,
-      options,
-      simuladoName,
-      contentBottom,
-      getColumnX
-    );
+    const groupIndex = materiaIndexMap.get(materia)!;
+    groupedQuestions[groupIndex].questions.push({ question, originalIndex: index });
+  });
+
+  // Render each group with its header followed by all questions
+  let questionCounter = 0;
+
+  for (const group of groupedQuestions) {
+    // Draw materia header
+    const headerHeight = 10;
+
+    // Add some spacing before new materia (except for first one)
+    if (state.currentMateria !== null) {
+      state.y += 3; // Extra spacing between materia groups
+    }
+
+    // Check if we have space for the header (need at least header + some content)
+    const minSpaceNeeded = headerHeight + 20; // Header + at least some question content
+    if (state.y + minSpaceNeeded > contentBottom) {
+      // Move to next column or page
+      if (state.column === 0) {
+        state.column = 1;
+        state.y = MARGIN_TOP + HEADER_HEIGHT;
+      } else {
+        doc.addPage();
+        state.pageNumber++;
+        initializeQuestionPage(doc, state.pageNumber, simuladoName);
+        state.column = 0;
+        state.y = MARGIN_TOP + HEADER_HEIGHT;
+      }
+    }
+
+    // Draw subject/materia header
+    const colX = getColumnX(state.column);
+    drawDisciplinaHeader(doc, group.materia, colX, state.y, COLUMN_WIDTH - 2);
+    state.y += headerHeight;
+    state.currentMateria = group.materia;
+
+    // Render all questions in this group
+    for (const { question } of group.questions) {
+      questionCounter++;
+      const questionText = stripHtml(question.enunciado);
+      const options = question.parsedAlternativas || [];
+
+      // Render question with continuous flow
+      renderQuestionContinuous(
+        doc,
+        state,
+        questionCounter,
+        questionText,
+        options,
+        simuladoName,
+        contentBottom,
+        getColumnX
+      );
+    }
   }
 
   // Ensure last page has footer
