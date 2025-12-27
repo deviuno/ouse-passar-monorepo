@@ -164,6 +164,119 @@ function setColor(doc: jsPDF, hex: string, type: 'text' | 'draw' | 'fill' = 'tex
   }
 }
 
+// Check if a word is a URL or long unbreakable string
+function isLongWord(word: string): boolean {
+  return word.length > 25 || word.includes('://') || word.includes('www.');
+}
+
+// Force break long words (URLs, etc.) to fit within maxWidth
+function forceBreakLongWord(doc: jsPDF, word: string, maxWidth: number): string[] {
+  const wordWidth = doc.getTextWidth(word);
+
+  // If word fits, return as is
+  if (wordWidth <= maxWidth) {
+    return [word];
+  }
+
+  const result: string[] = [];
+
+  // For URLs, try to break at natural points first
+  if (word.includes('://') || word.includes('www.')) {
+    // Break points for URLs (in order of preference)
+    const breakChars = ['/', '?', '&', '=', '-', '_', '.', '#'];
+    let remaining = word;
+
+    while (remaining.length > 0) {
+      // Find the longest substring that fits
+      let bestBreak = -1;
+      let testStr = '';
+
+      for (let i = 0; i < remaining.length; i++) {
+        testStr += remaining[i];
+        const width = doc.getTextWidth(testStr);
+
+        if (width > maxWidth) {
+          // We've exceeded the width, need to break before this
+          if (bestBreak > 0) {
+            // Break at the best break point we found
+            result.push(remaining.substring(0, bestBreak + 1));
+            remaining = remaining.substring(bestBreak + 1);
+          } else if (i > 0) {
+            // No good break point, force break at previous char
+            result.push(remaining.substring(0, i));
+            remaining = remaining.substring(i);
+          } else {
+            // Single char is too wide (shouldn't happen)
+            result.push(remaining[0]);
+            remaining = remaining.substring(1);
+          }
+          break;
+        }
+
+        // Check if current char is a good break point
+        if (breakChars.includes(remaining[i])) {
+          bestBreak = i;
+        }
+
+        // If we reached the end and it fits
+        if (i === remaining.length - 1) {
+          result.push(remaining);
+          remaining = '';
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // For non-URLs, just break by character count
+  let remaining = word;
+  while (remaining.length > 0) {
+    let testStr = '';
+    let breakIndex = 0;
+
+    for (let i = 0; i < remaining.length; i++) {
+      testStr += remaining[i];
+      if (doc.getTextWidth(testStr) > maxWidth) {
+        breakIndex = Math.max(1, i);
+        break;
+      }
+      breakIndex = i + 1;
+    }
+
+    if (breakIndex >= remaining.length) {
+      result.push(remaining);
+      break;
+    } else {
+      result.push(remaining.substring(0, breakIndex));
+      remaining = remaining.substring(breakIndex);
+    }
+  }
+
+  return result;
+}
+
+// Pre-process text to break long words
+function preprocessText(doc: jsPDF, text: string, maxWidth: number): string {
+  const words = text.split(/(\s+)/); // Keep whitespace
+  const processedWords: string[] = [];
+
+  for (const word of words) {
+    if (/^\s+$/.test(word)) {
+      // It's whitespace, keep as is
+      processedWords.push(word);
+    } else if (isLongWord(word) && doc.getTextWidth(word) > maxWidth) {
+      // Break the long word
+      const brokenParts = forceBreakLongWord(doc, word, maxWidth * 0.95); // 95% to give some margin
+      processedWords.push(brokenParts.join(' '));
+    } else {
+      processedWords.push(word);
+    }
+  }
+
+  return processedWords.join('');
+}
+
 // Justify text with hyphenation
 function justifyText(
   doc: jsPDF,
@@ -173,7 +286,10 @@ function justifyText(
 ): { lines: string[]; isJustified: boolean[] } {
   doc.setFontSize(fontSize);
 
-  const words = text.split(/\s+/).filter(w => w.length > 0);
+  // Pre-process text to break long words (URLs, etc.)
+  const processedText = preprocessText(doc, text, maxWidth);
+
+  const words = processedText.split(/\s+/).filter(w => w.length > 0);
   const lines: string[] = [];
   const isJustified: boolean[] = [];
   let currentLine = '';
