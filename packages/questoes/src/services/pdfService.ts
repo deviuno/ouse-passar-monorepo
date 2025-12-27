@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { ParsedQuestion } from '../types';
+import { ParsedQuestion, Alternative } from '../types';
 
 // Motivational quotes for the cover page
 const MOTIVATIONAL_QUOTES = [
@@ -259,7 +259,7 @@ function generateQuestionsPages(doc: jsPDF, questions: ParsedQuestion[]): void {
   questions.forEach((question, index) => {
     const questionNumber = index + 1;
     const questionText = stripHtml(question.enunciado);
-    const options = question.alternativas;
+    const options = question.parsedAlternativas || [];
 
     // Calculate column X position
     const columnX = currentColumn === 0
@@ -325,7 +325,7 @@ function addPageHeader(doc: jsPDF): void {
 function calculateQuestionHeight(
   doc: jsPDF,
   questionText: string,
-  options: { letra: string; texto: string }[],
+  options: Alternative[],
   maxWidth: number
 ): number {
   let height = 0;
@@ -340,7 +340,7 @@ function calculateQuestionHeight(
   // Options
   doc.setFontSize(9);
   options.forEach((option) => {
-    const optionText = `(${option.letra}) ${stripHtml(option.texto)}`;
+    const optionText = `(${option.letter}) ${stripHtml(option.text)}`;
     const optionLines = splitTextToLines(doc, optionText, maxWidth - 15);
     height += optionLines.length * (LINE_HEIGHT - 0.5);
     height += 1; // Spacing between options
@@ -353,7 +353,7 @@ function drawQuestion(
   doc: jsPDF,
   questionNumber: number,
   questionText: string,
-  options: { letra: string; texto: string }[],
+  options: Alternative[],
   x: number,
   startY: number,
   maxWidth: number
@@ -382,8 +382,8 @@ function drawQuestion(
   // Options
   doc.setFontSize(9);
   options.forEach((option) => {
-    const optionText = stripHtml(option.texto);
-    const fullOption = `(${option.letra}) ${optionText}`;
+    const optionText = stripHtml(option.text);
+    const fullOption = `(${option.letter}) ${optionText}`;
     const optionLines = splitTextToLines(doc, fullOption, maxWidth - 10);
 
     optionLines.forEach((line: string, lineIndex: number) => {
