@@ -378,67 +378,71 @@ export default function SimuladoExecPage() {
     <div className="min-h-screen bg-[#121212] flex flex-col">
       {/* Header */}
       <div className="sticky top-0 bg-[#121212] z-30 border-b border-[#2A2A2A]">
-        <div className="flex items-center justify-between p-3">
-          {/* Left: Back button */}
-          <button
-            onClick={() => setShowExitModal(true)}
-            className="p-2 rounded-full hover:bg-[#252525] transition-colors"
-          >
-            <ChevronLeft size={24} className="text-white" />
-          </button>
-
-          {/* Center: Question counter & progress */}
-          <div className="flex-1 mx-3">
-            <div className="flex items-center justify-center gap-2 text-sm">
-              <span className="text-white font-bold">
-                {currentIndex + 1}/{questions.length}
-              </span>
-              <span className="text-[#6E6E6E]">|</span>
-              <span className="text-[#A0A0A0]">
-                {answeredCount} respondidas
-              </span>
-            </div>
-            {/* Progress bar */}
-            <div className="w-full h-1 bg-[#2A2A2A] rounded-full mt-1 overflow-hidden">
-              <motion.div
-                className="h-full bg-[#FFB800]"
-                initial={{ width: 0 }}
-                animate={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Right: Timer & Grid */}
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1 font-mono font-bold ${getTimeClass()}`}>
-              <Timer size={16} />
-              <span>{formatTime(timeRemaining)}</span>
-            </div>
+        <div className="max-w-[1000px] mx-auto w-full">
+          <div className="flex items-center justify-between p-3">
+            {/* Left: Back button */}
             <button
-              onClick={() => setShowGridModal(true)}
+              onClick={() => setShowExitModal(true)}
               className="p-2 rounded-full hover:bg-[#252525] transition-colors"
             >
-              <Grid size={20} className="text-[#FFB800]" />
+              <ChevronLeft size={24} className="text-white" />
             </button>
+
+            {/* Center: Question counter & progress */}
+            <div className="flex-1 mx-3">
+              <div className="flex items-center justify-center gap-2 text-sm">
+                <span className="text-white font-bold">
+                  {currentIndex + 1}/{questions.length}
+                </span>
+                <span className="text-[#6E6E6E]">|</span>
+                <span className="text-[#A0A0A0]">
+                  {answeredCount} respondidas
+                </span>
+              </div>
+              {/* Progress bar */}
+              <div className="w-full h-1 bg-[#2A2A2A] rounded-full mt-1 overflow-hidden">
+                <motion.div
+                  className="h-full bg-[#FFB800]"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Right: Timer & Grid */}
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center gap-1 font-mono font-bold ${getTimeClass()}`}>
+                <Timer size={16} />
+                <span>{formatTime(timeRemaining)}</span>
+              </div>
+              <button
+                onClick={() => setShowGridModal(true)}
+                className="p-2 rounded-full hover:bg-[#252525] transition-colors"
+              >
+                <Grid size={20} className="text-[#FFB800]" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Question Content */}
       <div className="flex-1 overflow-hidden">
-        {currentQuestion && (
-          <QuestionCard
-            question={currentQuestion}
-            isLastQuestion={currentIndex === questions.length - 1}
-            onNext={handleNext}
-            onPrevious={currentIndex > 0 ? handlePrevious : undefined}
-            onOpenTutor={() => {}} // Disabled during simulado
-            onAnswer={handleAnswer}
-            studyMode="hard"
-            initialTime={Math.ceil(timeRemaining / 60)}
-            userId={profile?.id}
-          />
-        )}
+        <div className="max-w-[1000px] mx-auto w-full h-full">
+          {currentQuestion && (
+            <QuestionCard
+              question={currentQuestion}
+              isLastQuestion={currentIndex === questions.length - 1}
+              onNext={handleNext}
+              onPrevious={currentIndex > 0 ? handlePrevious : undefined}
+              onOpenTutor={() => {}} // Disabled during simulado
+              onAnswer={handleAnswer}
+              studyMode="hard"
+              initialTime={Math.ceil(timeRemaining / 60)}
+              userId={profile?.id}
+            />
+          )}
+        </div>
       </div>
 
       {/* Exit Modal */}
