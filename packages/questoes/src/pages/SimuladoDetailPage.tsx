@@ -18,14 +18,17 @@ import {
   X,
 } from 'lucide-react';
 import { Card, Button, CircularProgress } from '../components/ui';
-import { useAuthStore } from '../stores';
+import { useAuthStore, useUIStore } from '../stores';
 import {
   getSimuladoWithDetails,
   SimuladoWithUserData,
   ProvaStatus,
   SimuladoResult,
   getUserSimuladoResultsBySimulado,
+  getProvaQuestions,
+  getSimuladoSettings,
 } from '../services/simuladosService';
+import { generateSimuladoPDF } from '../services/pdfService';
 
 function ProvaCard({
   prova,
@@ -243,7 +246,7 @@ function HistoryItem({
 export default function SimuladoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile } = useAuthStore();
+  const { profile, onboarding } = useAuthStore();
 
   const [loading, setLoading] = useState(true);
   const [simulado, setSimulado] = useState<SimuladoWithUserData | null>(null);
@@ -288,9 +291,48 @@ export default function SimuladoDetailPage() {
     navigate(`/simulados/${id}/prova?prova=${variationIndex}`);
   };
 
-  const handleDownloadPdf = (variationIndex: number) => {
-    // TODO: Implement PDF download
-    console.log('Downloading PDF for prova', variationIndex);
+  const handleDownloadPdf = async (variationIndex: number) => {
+    if (!simulado || !profile) return;
+
+    const { addToast } = useUIStore.getState();
+
+    try {
+      addToast('info', 'Gerando PDF...');
+
+      // Get settings for questions count
+      const settings = await getSimuladoSettings();
+
+      // Get questions for this prova variation
+      const provaData = await getProvaQuestions(
+        simulado.id,
+        variationIndex,
+        settings.questions_per_simulado
+      );
+
+      if (!provaData || provaData.questions.length === 0) {
+        addToast('error', 'Erro ao carregar questões para o PDF');
+        return;
+      }
+
+      // Get cargo from onboarding
+      const cargo = onboarding?.concurso_alvo || simulado.preparatorio?.nome || '';
+
+      // Generate PDF
+      await generateSimuladoPDF({
+        simuladoName: simulado.nome,
+        preparatorioName: simulado.preparatorio?.nome,
+        studentName: profile.name || 'Aluno',
+        cargo,
+        questions: provaData.questions,
+        totalTime: settings.time_limit_minutes,
+        provaNumber: variationIndex,
+      });
+
+      addToast('success', 'PDF gerado com sucesso!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      addToast('error', 'Erro ao gerar PDF');
+    }
   };
 
   const handleManualResponse = (variationIndex: number) => {
