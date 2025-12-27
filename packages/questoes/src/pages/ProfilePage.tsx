@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -14,10 +14,22 @@ import {
   Award,
   Flame,
   Target,
+  Copy,
+  Check,
+  Users,
+  Gift,
+  DollarSign,
 } from 'lucide-react';
 import { Card, Button, Modal, Progress, CircularProgress } from '../components/ui';
 import { useAuthStore, useUserStore } from '../stores';
 import { calculateXPProgress, calculateLevel } from '../constants/levelConfig';
+import {
+  getReferralLink,
+  getUserReferralStats,
+  generateUsername,
+} from '../services/referralService';
+import type { ReferralStats, ReferralLinkInfo } from '../types/referral';
+import { RewardsModal } from '../components/referral/RewardsModal';
 
 function StatCard({
   icon: Icon,
@@ -74,10 +86,59 @@ export default function ProfilePage() {
   const { stats } = useUserStore();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showRewardsModal, setShowRewardsModal] = useState(false);
+  const [referralLink, setReferralLink] = useState<ReferralLinkInfo | null>(null);
+  const [referralStats, setReferralStats] = useState<ReferralStats | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [isGeneratingUsername, setIsGeneratingUsername] = useState(false);
+  const [referralLoaded, setReferralLoaded] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const xpProgress = calculateXPProgress(stats.xp);
   const level = calculateLevel(stats.xp);
+
+  // Carregar dados de indicação
+  useEffect(() => {
+    if (profile?.id) {
+      Promise.all([
+        getReferralLink(profile.id),
+        getUserReferralStats(profile.id),
+      ]).then(([link, stats]) => {
+        setReferralLink(link);
+        setReferralStats(stats);
+        setReferralLoaded(true);
+      });
+    }
+  }, [profile?.id]);
+
+  // Gerar username para usuário existente
+  const handleGenerateUsername = async () => {
+    if (!profile?.id || !profile?.name) return;
+
+    setIsGeneratingUsername(true);
+    try {
+      const username = await generateUsername(profile.name, profile.id);
+      if (username) {
+        const link = await getReferralLink(profile.id);
+        setReferralLink(link);
+      }
+    } catch (error) {
+      console.error('Erro ao gerar username:', error);
+    } finally {
+      setIsGeneratingUsername(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!referralLink?.referral_url) return;
+    try {
+      await navigator.clipboard.writeText(referralLink.referral_url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.error('Erro ao copiar:', e);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -217,6 +278,102 @@ export default function ProfilePage() {
         />
       </div>
 
+      {/* Referral Section */}
+      {referralLoaded && (
+        <Card className="mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-[#2ECC71]/20 flex items-center justify-center">
+              <Users size={20} className="text-[#2ECC71]" />
+            </div>
+            <div>
+              <h3 className="text-white font-semibold">Indique e Ganhe</h3>
+              <p className="text-[#6E6E6E] text-xs">Convide amigos e ganhe recompensas</p>
+            </div>
+          </div>
+
+          {referralLink ? (
+            <>
+              {/* Link de Indicação */}
+              <div className="bg-[#1A1A1A] rounded-xl p-3 mb-4">
+                <p className="text-[#6E6E6E] text-xs mb-1">Seu link de indicação:</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-[#2A2A2A] rounded-lg px-3 py-2 overflow-hidden">
+                    <p className="text-white text-sm truncate">{referralLink.referral_url}</p>
+                  </div>
+                  <button
+                    onClick={handleCopyLink}
+                    className={`p-2 rounded-lg transition-all ${
+                      copied
+                        ? 'bg-[#2ECC71] text-white'
+                        : 'bg-[#FFB800] text-black hover:bg-[#E5A600]'
+                    }`}
+                  >
+                    {copied ? <Check size={18} /> : <Copy size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats de Indicação */}
+              {referralStats && (
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-[#1A1A1A] rounded-xl p-3 text-center">
+                    <Users size={16} className="mx-auto mb-1 text-[#3498DB]" />
+                    <p className="text-white font-bold">{referralStats.total_referrals}</p>
+                    <p className="text-[#6E6E6E] text-[10px]">Indicados</p>
+                  </div>
+                  <div className="bg-[#1A1A1A] rounded-xl p-3 text-center">
+                    <Gift size={16} className="mx-auto mb-1 text-[#9B59B6]" />
+                    <p className="text-white font-bold">{referralStats.available_points}</p>
+                    <p className="text-[#6E6E6E] text-[10px]">Pontos</p>
+                  </div>
+                  <div className="bg-[#1A1A1A] rounded-xl p-3 text-center">
+                    <DollarSign size={16} className="mx-auto mb-1 text-[#2ECC71]" />
+                    <p className="text-white font-bold">
+                      R$ {(referralStats.total_commissions || 0).toFixed(0)}
+                    </p>
+                    <p className="text-[#6E6E6E] text-[10px]">Comissões</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Botão de Recompensas */}
+              <Button
+                fullWidth
+                variant="secondary"
+                onClick={() => setShowRewardsModal(true)}
+              >
+                <Gift size={16} className="mr-2" />
+                Ver Recompensas
+              </Button>
+            </>
+          ) : (
+            /* Usuário sem username - mostrar botão para ativar */
+            <div className="text-center">
+              <p className="text-[#A0A0A0] text-sm mb-4">
+                Ative seu link de indicação para convidar amigos e ganhar recompensas!
+              </p>
+              <Button
+                fullWidth
+                onClick={handleGenerateUsername}
+                disabled={isGeneratingUsername}
+              >
+                {isGeneratingUsername ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin mr-2" />
+                    Ativando...
+                  </>
+                ) : (
+                  <>
+                    <Gift size={16} className="mr-2" />
+                    Ativar Link de Indicação
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Menu Options */}
       <Card padding="none" className="mb-6">
         <MenuButton
@@ -284,6 +441,15 @@ export default function ProfilePage() {
           </div>
         </div>
       </Modal>
+
+      {/* Rewards Modal */}
+      {profile?.id && (
+        <RewardsModal
+          isOpen={showRewardsModal}
+          onClose={() => setShowRewardsModal(false)}
+          userId={profile.id}
+        />
+      )}
     </div>
   );
 }
