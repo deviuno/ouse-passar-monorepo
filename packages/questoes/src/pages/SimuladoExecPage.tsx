@@ -70,6 +70,33 @@ export default function SimuladoExecPage() {
     currentIndexRef.current = currentIndex;
   }, [currentIndex]);
 
+  // Save progress to database - defined early so effects can use it
+  const saveProgress = useCallback(async () => {
+    if (!attempt?.id || isSavingRef.current) return;
+
+    isSavingRef.current = true;
+
+    try {
+      const saved = await saveSimuladoProgress(attempt.id, {
+        answers: answersRef.current,
+        current_index: currentIndexRef.current,
+        time_remaining_seconds: timeRemainingRef.current,
+      });
+
+      if (saved) {
+        console.log('[SimuladoExecPage] Progress saved:', {
+          answersCount: Object.keys(answersRef.current).length,
+          currentIndex: currentIndexRef.current,
+          timeRemaining: timeRemainingRef.current,
+        });
+      }
+    } catch (error) {
+      console.error('Error saving progress:', error);
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [attempt?.id]);
+
   const loadAttempt = async () => {
     if (!simuladoId || !profile?.id) return;
 
@@ -196,33 +223,6 @@ export default function SimuladoExecPage() {
     if (timeRemaining <= 600) return 'text-orange-500'; // 10 min
     return 'text-white';
   };
-
-  // Save progress to database - uses refs for accurate values
-  const saveProgress = useCallback(async () => {
-    if (!attempt?.id || isSavingRef.current) return;
-
-    isSavingRef.current = true;
-
-    try {
-      const saved = await saveSimuladoProgress(attempt.id, {
-        answers: answersRef.current,
-        current_index: currentIndexRef.current,
-        time_remaining_seconds: timeRemainingRef.current,
-      });
-
-      if (saved) {
-        console.log('[SimuladoExecPage] Progress saved:', {
-          answersCount: Object.keys(answersRef.current).length,
-          currentIndex: currentIndexRef.current,
-          timeRemaining: timeRemainingRef.current,
-        });
-      }
-    } catch (error) {
-      console.error('Error saving progress:', error);
-    } finally {
-      isSavingRef.current = false;
-    }
-  }, [attempt?.id]);
 
   const handleAnswer = useCallback((letter: string) => {
     const questionId = String(questions[currentIndex].id);
