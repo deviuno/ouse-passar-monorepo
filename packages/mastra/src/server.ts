@@ -33,6 +33,7 @@ import {
 } from './services/missionBuilderService.js';
 import * as storeService from './services/storeService.js';
 import { buscarOuGerarLogo } from './services/logoService.js';
+import { generateSimuladoPDF } from './services/pdfService.js';
 import multer from 'multer';
 
 // Load environment variables
@@ -4459,6 +4460,58 @@ app.post('/api/admin/store/sync-preparatorios', async (req, res) => {
         return res.json({ success: true, ...result });
     } catch (error: any) {
         return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * PDF Generation Endpoint
+ * Generates a PDF for simulado exams using Puppeteer
+ */
+app.post('/api/pdf/simulado', async (req, res) => {
+    try {
+        const {
+            simuladoName,
+            preparatorioName,
+            studentName,
+            cargo,
+            questions,
+            totalTime,
+            provaNumber,
+        } = req.body;
+
+        if (!simuladoName || !questions || questions.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: simuladoName and questions',
+            });
+        }
+
+        console.log(`Generating PDF for simulado: ${simuladoName} with ${questions.length} questions`);
+
+        const pdfBuffer = await generateSimuladoPDF({
+            simuladoName,
+            preparatorioName,
+            studentName: studentName || 'Aluno',
+            cargo,
+            questions,
+            totalTime: totalTime || 180,
+            provaNumber: provaNumber || 0,
+        });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${simuladoName.replace(/[^a-zA-Z0-9]/g, '_')}_Prova_${(provaNumber || 0) + 1}.pdf"`
+        );
+        res.send(pdfBuffer);
+
+        console.log(`PDF generated successfully: ${pdfBuffer.length} bytes`);
+    } catch (error: any) {
+        console.error('Error generating PDF:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to generate PDF',
+        });
     }
 });
 
