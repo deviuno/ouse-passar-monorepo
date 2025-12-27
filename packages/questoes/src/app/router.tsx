@@ -11,6 +11,7 @@ import MissionPage from '../pages/MissionPage';
 import PracticePage from '../pages/PracticePage';
 import SimuladosPage from '../pages/SimuladosPage';
 import SimuladoDetailPage from '../pages/SimuladoDetailPage';
+import SimuladoExecPage from '../pages/SimuladoExecPage';
 import StatsPage from '../pages/StatsPage';
 import StorePage from '../pages/StorePage';
 import InventoryPage from '../pages/InventoryPage';
@@ -62,6 +63,18 @@ export const router = createBrowserRouter([
   {
     path: '/politica-de-privacidade',
     element: <PrivacyPage />,
+  },
+
+  // Simulado execution (protected, full-screen without MainLayout)
+  {
+    path: '/simulados/:id/prova',
+    element: (
+      <ProtectedRoute>
+        <OnboardingGuard>
+          <SimuladoExecPage />
+        </OnboardingGuard>
+      </ProtectedRoute>
+    ),
   },
 
   // Main app routes (requires auth + onboarding)

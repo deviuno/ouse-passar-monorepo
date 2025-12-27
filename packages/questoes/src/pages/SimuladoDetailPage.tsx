@@ -285,9 +285,7 @@ export default function SimuladoDetailPage() {
   };
 
   const handleStartProva = (variationIndex: number) => {
-    // TODO: Implement start prova flow
-    console.log('Starting prova', variationIndex);
-    // navigate(`/simulados/${id}/prova/${variationIndex}`);
+    navigate(`/simulados/${id}/prova?prova=${variationIndex}`);
   };
 
   const handleDownloadPdf = (variationIndex: number) => {

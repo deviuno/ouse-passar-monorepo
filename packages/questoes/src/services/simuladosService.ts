@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient';
+import { fetchQuestions, QuestionFilters } from './questionsService';
+import { ParsedQuestion } from '../types';
 
 // Cache for system settings
 let cachedSimuladoSettings: {
@@ -514,5 +516,428 @@ export async function getSimuladoWithDetails(
       stats: { completed: 0, total: 0, averageScore: 0 },
       settings: { different_exams_per_user: 3, questions_per_simulado: 120, time_limit_minutes: 180 },
     };
+  }
+}
+
+// ==============================
+// PROVA GENERATION & EXECUTION
+// ==============================
+
+// Interface for preparatorio with filters
+interface PreparatorioWithFilters {
+  id: string;
+  nome: string;
+  banca: string | null;
+  orgao: string | null;
+  question_filters: QuestionFilters | null;
+}
+
+// Get preparatorio filters for a simulado
+export async function getPreparatorioFilters(simuladoId: string): Promise<QuestionFilters | null> {
+  try {
+    // Get simulado with preparatorio data
+    const { data: simulado, error: simuladoError } = await supabase
+      .from('simulados')
+      .select(`
+        preparatorio_id,
+        preparatorio:preparatorios (
+          id,
+          nome,
+          banca,
+          orgao,
+          question_filters
+        )
+      `)
+      .eq('id', simuladoId)
+      .single();
+
+    if (simuladoError || !simulado?.preparatorio) {
+      console.error('Error fetching simulado preparatorio:', simuladoError);
+      return null;
+    }
+
+    const prep = simulado.preparatorio as unknown as PreparatorioWithFilters;
+
+    // If preparatorio has explicit question_filters, use them
+    if (prep.question_filters && Object.keys(prep.question_filters).length > 0) {
+      return prep.question_filters;
+    }
+
+    // Otherwise, build filters from preparatorio data
+    const filters: QuestionFilters = {};
+
+    if (prep.banca) {
+      filters.bancas = [prep.banca];
+    }
+
+    if (prep.orgao) {
+      filters.orgaos = [prep.orgao];
+    }
+
+    // Also get materias from missoes of this preparatorio
+    const { data: missoes, error: missoesError } = await supabase
+      .from('missoes')
+      .select(`
+        materia,
+        rodada:rodadas!inner (
+          preparatorio_id
+        )
+      `)
+      .eq('rodada.preparatorio_id', prep.id)
+      .not('materia', 'is', null);
+
+    if (!missoesError && missoes && missoes.length > 0) {
+      const uniqueMaterias = [...new Set(missoes.map(m => m.materia).filter(Boolean))];
+      if (uniqueMaterias.length > 0) {
+        filters.materias = uniqueMaterias as string[];
+      }
+    }
+
+    return Object.keys(filters).length > 0 ? filters : null;
+  } catch (error) {
+    console.error('Error in getPreparatorioFilters:', error);
+    return null;
+  }
+}
+
+// Get or generate prova questions for a specific variation
+export async function getProvaQuestions(
+  simuladoId: string,
+  variationIndex: number,
+  questionsCount: number
+): Promise<{ questionIds: number[]; questions: ParsedQuestion[] } | null> {
+  try {
+    // First, check if we already have generated questions for this variation
+    const { data: existingList } = await supabase
+      .from('simulado_variations')
+      .select('question_ids')
+      .eq('simulado_id', simuladoId)
+      .eq('variation_index', variationIndex)
+      .limit(1);
+
+    const existing = existingList?.[0];
+
+    if (existing?.question_ids && existing.question_ids.length > 0) {
+      console.log('[getProvaQuestions] Using existing variation with', existing.question_ids.length, 'questions');
+      // Use existing question IDs and fetch the questions
+      const questions = await fetchQuestions({
+        limit: questionsCount,
+        shuffle: true,
+      });
+
+      return {
+        questionIds: existing.question_ids,
+        questions: questions.slice(0, questionsCount),
+      };
+    }
+
+    // Generate new questions based on preparatorio filters
+    const filters = await getPreparatorioFilters(simuladoId);
+    let questions: ParsedQuestion[] = [];
+
+    // Try with filters first
+    if (filters && Object.keys(filters).length > 0) {
+      console.log('[getProvaQuestions] Trying with filters:', filters);
+      questions = await fetchQuestions({
+        ...filters,
+        limit: questionsCount * 2,
+        shuffle: true,
+      });
+      console.log(`[getProvaQuestions] Found ${questions.length} questions with filters`);
+    }
+
+    // If not enough questions, try with just banca
+    if (questions.length < questionsCount && filters?.bancas?.length) {
+      console.log('[getProvaQuestions] Not enough, trying with just banca...');
+      questions = await fetchQuestions({
+        bancas: filters.bancas,
+        limit: questionsCount * 2,
+        shuffle: true,
+      });
+      console.log(`[getProvaQuestions] Found ${questions.length} questions with banca only`);
+    }
+
+    // If still not enough, fetch without filters (fallback)
+    if (questions.length < questionsCount) {
+      console.log('[getProvaQuestions] Still not enough, fetching without filters...');
+      questions = await fetchQuestions({
+        limit: questionsCount * 2,
+        shuffle: true,
+      });
+      console.log(`[getProvaQuestions] Found ${questions.length} questions without filters`);
+    }
+
+    if (questions.length === 0) {
+      console.error('[getProvaQuestions] No questions found at all!');
+      return null;
+    }
+
+    // Take the required number (or all if less)
+    const selectedQuestions = questions.slice(0, Math.min(questionsCount, questions.length));
+    const questionIds = selectedQuestions.map(q => q.id);
+
+    // Store the variation for consistency (ignore errors - table might not exist yet)
+    try {
+      const { error: insertError } = await supabase
+        .from('simulado_variations')
+        .insert({
+          simulado_id: simuladoId,
+          variation_index: variationIndex,
+          question_ids: questionIds,
+        });
+
+      if (insertError) {
+        console.warn('Error storing variation (non-fatal):', insertError.message);
+      }
+    } catch (e) {
+      console.warn('Could not store variation:', e);
+    }
+
+    return {
+      questionIds,
+      questions: selectedQuestions,
+    };
+  } catch (error) {
+    console.error('Error in getProvaQuestions:', error);
+    return null;
+  }
+}
+
+// Start or resume a simulado attempt
+export async function startOrResumeSimuladoAttempt(
+  userId: string,
+  simuladoId: string,
+  variationIndex: number
+): Promise<{
+  success: boolean;
+  attempt?: SimuladoAttempt;
+  questions?: ParsedQuestion[];
+  error?: string;
+}> {
+  try {
+    const settings = await getSimuladoSettings();
+
+    // Check for existing in-progress attempt (use maybeSingle to avoid 406 errors)
+    const { data: existingAttempts, error: attemptError } = await supabase
+      .from('simulado_attempts')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('simulado_id', simuladoId)
+      .eq('variation_index', variationIndex)
+      .eq('status', 'in_progress')
+      .limit(1);
+
+    const existingAttempt = existingAttempts?.[0];
+
+    if (!attemptError && existingAttempt) {
+      console.log('[startOrResumeSimuladoAttempt] Resuming existing attempt:', existingAttempt.id);
+      // Resume existing attempt
+      const provaData = await getProvaQuestions(
+        simuladoId,
+        variationIndex,
+        settings.questions_per_simulado
+      );
+
+      if (!provaData) {
+        return { success: false, error: 'Erro ao carregar questoes' };
+      }
+
+      return {
+        success: true,
+        attempt: existingAttempt,
+        questions: provaData.questions,
+      };
+    }
+
+    console.log('[startOrResumeSimuladoAttempt] Creating new attempt...');
+
+    // Generate new prova questions
+    const provaData = await getProvaQuestions(
+      simuladoId,
+      variationIndex,
+      settings.questions_per_simulado
+    );
+
+    if (!provaData) {
+      return { success: false, error: 'Erro ao gerar questoes para a prova' };
+    }
+
+    // Create new attempt
+    const { data: newAttempts, error: createError } = await supabase
+      .from('simulado_attempts')
+      .insert({
+        user_id: userId,
+        simulado_id: simuladoId,
+        variation_index: variationIndex,
+        question_ids: provaData.questionIds,
+        answers: {},
+        current_index: 0,
+        time_remaining_seconds: settings.time_limit_minutes * 60,
+        status: 'in_progress',
+      })
+      .select();
+
+    const newAttempt = newAttempts?.[0];
+
+    if (createError || !newAttempt) {
+      console.error('Error creating attempt:', createError);
+      return { success: false, error: createError?.message || 'Erro ao criar tentativa' };
+    }
+
+    console.log('[startOrResumeSimuladoAttempt] Created attempt:', newAttempt.id);
+
+    return {
+      success: true,
+      attempt: newAttempt,
+      questions: provaData.questions,
+    };
+  } catch (error: any) {
+    console.error('Error in startOrResumeSimuladoAttempt:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Save simulado attempt progress
+export async function saveSimuladoProgress(
+  attemptId: string,
+  updates: {
+    answers?: Record<string, string>;
+    current_index?: number;
+    time_remaining_seconds?: number;
+  }
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('simulado_attempts')
+      .update(updates)
+      .eq('id', attemptId);
+
+    if (error) {
+      console.error('Error saving progress:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in saveSimuladoProgress:', error);
+    return false;
+  }
+}
+
+// Complete a simulado attempt
+export async function completeSimuladoAttempt(
+  userId: string,
+  attemptId: string,
+  answers: Record<string, string>,
+  questions: ParsedQuestion[],
+  timeSpent: number
+): Promise<{
+  success: boolean;
+  result?: SimuladoResult;
+  error?: string;
+}> {
+  try {
+    // Calculate results
+    let acertos = 0;
+    let erros = 0;
+    const answersDetail: Record<string, { answer: string; correct: boolean }> = {};
+
+    questions.forEach(q => {
+      const userAnswer = answers[String(q.id)];
+      const isCorrect = userAnswer === q.gabarito;
+
+      answersDetail[String(q.id)] = {
+        answer: userAnswer || '',
+        correct: isCorrect,
+      };
+
+      if (userAnswer) {
+        if (isCorrect) {
+          acertos++;
+        } else {
+          erros++;
+        }
+      }
+    });
+
+    const totalQuestoes = questions.length;
+    const score = totalQuestoes > 0 ? (acertos / totalQuestoes) * 100 : 0;
+
+    // Get attempt to get simulado_id and variation_index
+    const { data: attempt, error: attemptError } = await supabase
+      .from('simulado_attempts')
+      .select('simulado_id, variation_index')
+      .eq('id', attemptId)
+      .single();
+
+    if (attemptError || !attempt) {
+      return { success: false, error: 'Tentativa nao encontrada' };
+    }
+
+    // Update attempt status
+    const { error: updateError } = await supabase
+      .from('simulado_attempts')
+      .update({
+        status: 'completed',
+        answers,
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', attemptId);
+
+    if (updateError) {
+      console.error('Error updating attempt:', updateError);
+    }
+
+    // Create result
+    const { data: result, error: resultError } = await supabase
+      .from('simulado_results')
+      .insert({
+        user_id: userId,
+        simulado_id: attempt.simulado_id,
+        attempt_id: attemptId,
+        variation_index: attempt.variation_index,
+        score: Math.round(score * 100) / 100,
+        acertos,
+        erros,
+        total_questoes: totalQuestoes,
+        tempo_gasto: timeSpent,
+        is_manual: false,
+        answers_detail: answersDetail,
+      })
+      .select()
+      .single();
+
+    if (resultError) {
+      console.error('Error creating result:', resultError);
+      return { success: false, error: resultError.message };
+    }
+
+    return { success: true, result };
+  } catch (error: any) {
+    console.error('Error in completeSimuladoAttempt:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Abandon a simulado attempt
+export async function abandonSimuladoAttempt(attemptId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('simulado_attempts')
+      .update({
+        status: 'abandoned',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', attemptId);
+
+    if (error) {
+      console.error('Error abandoning attempt:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in abandonSimuladoAttempt:', error);
+    return false;
   }
 }
