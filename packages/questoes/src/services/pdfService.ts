@@ -993,10 +993,12 @@ function generateAnswerSheet(doc: jsPDF, totalQuestions: number, provaNumber: nu
 
   // Answer grid
   const gridStartY = 75;
-  const cellWidth = 7;
-  const cellHeight = 7;
+  const circleRadius = 2.2; // Smaller circles
+  const circleSpacing = 5; // Space between circle centers (closer together)
+  const rowHeight = 6; // Vertical spacing between rows
+  const numberToCircleGap = 8; // Gap between number and first circle (closer)
   const questionsPerColumn = Math.ceil(totalQuestions / 4);
-  const columnSpacing = 45;
+  const columnSpacing = 48; // More space between columns for better separation
 
   const letters = ['A', 'B', 'C', 'D', 'E'];
 
@@ -1005,28 +1007,28 @@ function generateAnswerSheet(doc: jsPDF, totalQuestions: number, provaNumber: nu
     const rowIndex = (q - 1) % questionsPerColumn;
 
     const baseX = MARGIN_LEFT + columnIndex * columnSpacing;
-    const baseY = gridStartY + rowIndex * (cellHeight + 3);
+    const baseY = gridStartY + rowIndex * rowHeight;
 
     // Question number
     setColor(doc, BLACK, 'text');
     doc.setFontSize(8);
     doc.setFont('times', 'normal');
     const numText = q < 10 ? `  ${q}.` : q < 100 ? ` ${q}.` : `${q}.`;
-    doc.text(numText, baseX, baseY + cellHeight / 2 + 1);
+    doc.text(numText, baseX, baseY + circleRadius + 1);
 
     // Answer circles
     letters.forEach((letter, i) => {
-      const circleX = baseX + 12 + i * (cellWidth + 1);
-      const circleY = baseY + cellHeight / 2;
+      const circleX = baseX + numberToCircleGap + i * circleSpacing;
+      const circleY = baseY + circleRadius;
 
       setColor(doc, BLACK, 'draw');
       doc.setLineWidth(0.2);
-      doc.circle(circleX, circleY, cellWidth / 2 - 0.5);
+      doc.circle(circleX, circleY, circleRadius);
 
       // Letter inside circle
       setColor(doc, LIGHT_GRAY, 'text');
-      doc.setFontSize(6);
-      doc.text(letter, circleX, circleY + 1.5, { align: 'center' });
+      doc.setFontSize(5);
+      doc.text(letter, circleX, circleY + 1.2, { align: 'center' });
     });
   }
 
