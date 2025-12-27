@@ -310,6 +310,248 @@ export async function getUserPercentile(userId: string): Promise<number> {
   }
 }
 
+/**
+ * Get user's average answer time (in seconds)
+ */
+export async function getUserAverageTime(userId: string): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('mission_answers')
+      .select('time_spent')
+      .eq('user_id', userId)
+      .not('time_spent', 'is', null);
+
+    if (error || !data || data.length === 0) {
+      return 0;
+    }
+
+    const totalTime = data.reduce((sum, a) => sum + (a.time_spent || 0), 0);
+    const avgTime = Math.round(totalTime / data.length);
+    return avgTime;
+  } catch (err) {
+    console.error('[statsService] Exception in getUserAverageTime:', err);
+    return 0;
+  }
+}
+
+/**
+ * Get count of completed missions for user
+ * Counts missions with status='completed' from the user's trails
+ */
+export async function getUserCompletedMissions(userId: string): Promise<number> {
+  try {
+    // First get the user's trail IDs
+    const { data: userTrails, error: trailsError } = await supabase
+      .from('user_trails')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (trailsError || !userTrails || userTrails.length === 0) {
+      return 0;
+    }
+
+    const trailIds = userTrails.map(t => t.id);
+
+    // Get rounds from those trails
+    const { data: rounds, error: roundsError } = await supabase
+      .from('trail_rounds')
+      .select('id')
+      .in('trail_id', trailIds);
+
+    if (roundsError || !rounds || rounds.length === 0) {
+      return 0;
+    }
+
+    const roundIds = rounds.map(r => r.id);
+
+    // Count completed missions in those rounds
+    const { count, error } = await supabase
+      .from('trail_missions')
+      .select('*', { count: 'exact', head: true })
+      .in('round_id', roundIds)
+      .eq('status', 'completed');
+
+    if (error) {
+      console.error('[statsService] Error counting completed missions:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (err) {
+    console.error('[statsService] Exception in getUserCompletedMissions:', err);
+    return 0;
+  }
+}
+
+/**
+ * Get subject evolution comparing last 7 days vs previous 7 days
+ */
+export interface SubjectEvolution {
+  materia: string;
+  currentPercentage: number;
+  previousPercentage: number;
+  evolution: number; // positive = improvement, negative = decline
+}
+
+export async function getUserSubjectEvolution(userId: string): Promise<SubjectEvolution[]> {
+  try {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    const fourteenDaysAgo = new Date(now);
+    fourteenDaysAgo.setDate(now.getDate() - 14);
+
+    // Get answers from last 14 days
+    const { data: answers, error } = await supabase
+      .from('mission_answers')
+      .select('question_id, is_correct, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', fourteenDaysAgo.toISOString());
+
+    if (error || !answers || answers.length === 0) {
+      return [];
+    }
+
+    // Get question IDs
+    const questionIds = [...new Set(answers.map(a => a.question_id))];
+
+    // Fetch matérias from questions DB
+    const { data: questions, error: qError } = await questionsDb
+      .from('questoes')
+      .select('id, materia')
+      .in('id', questionIds);
+
+    if (qError || !questions) {
+      return [];
+    }
+
+    const questionMateriaMap = new Map(questions.map(q => [q.id, q.materia]));
+
+    // Group by period and matéria
+    const currentPeriod = new Map<string, { correct: number; total: number }>();
+    const previousPeriod = new Map<string, { correct: number; total: number }>();
+
+    answers.forEach(answer => {
+      const materia = questionMateriaMap.get(answer.question_id);
+      if (!materia) return;
+
+      const answerDate = new Date(answer.created_at);
+      const isCurrentPeriod = answerDate >= sevenDaysAgo;
+      const targetMap = isCurrentPeriod ? currentPeriod : previousPeriod;
+
+      if (!targetMap.has(materia)) {
+        targetMap.set(materia, { correct: 0, total: 0 });
+      }
+
+      const stats = targetMap.get(materia)!;
+      stats.total++;
+      if (answer.is_correct) stats.correct++;
+    });
+
+    // Calculate evolution for each matéria
+    const allMaterias = new Set([...currentPeriod.keys(), ...previousPeriod.keys()]);
+    const evolutions: SubjectEvolution[] = [];
+
+    allMaterias.forEach(materia => {
+      const current = currentPeriod.get(materia);
+      const previous = previousPeriod.get(materia);
+
+      const currentPct = current && current.total > 0
+        ? Math.round((current.correct / current.total) * 100)
+        : 0;
+      const previousPct = previous && previous.total > 0
+        ? Math.round((previous.correct / previous.total) * 100)
+        : 0;
+
+      // Only include if there's data in current period
+      if (current && current.total > 0) {
+        evolutions.push({
+          materia,
+          currentPercentage: currentPct,
+          previousPercentage: previousPct,
+          evolution: currentPct - previousPct,
+        });
+      }
+    });
+
+    // Sort by absolute evolution (most change first)
+    return evolutions.sort((a, b) => Math.abs(b.evolution) - Math.abs(a.evolution)).slice(0, 3);
+  } catch (err) {
+    console.error('[statsService] Exception in getUserSubjectEvolution:', err);
+    return [];
+  }
+}
+
+/**
+ * Get study recommendations based on user performance
+ */
+export interface Recommendation {
+  type: 'weak_subject' | 'review' | 'streak' | 'practice';
+  title: string;
+  description: string;
+  materia?: string;
+  count?: number;
+  color: string;
+}
+
+export async function getUserRecommendations(userId: string): Promise<Recommendation[]> {
+  try {
+    const recommendations: Recommendation[] = [];
+
+    // Get matéria stats to find weakest subject
+    const materiaStats = await getUserMateriaStats(userId);
+
+    if (materiaStats.length > 0) {
+      // Find weakest subject (lowest percentage)
+      const weakest = materiaStats.reduce((min, curr) =>
+        curr.percentual < min.percentual ? curr : min
+      );
+
+      if (weakest.percentual < 70) {
+        recommendations.push({
+          type: 'weak_subject',
+          title: `Foque em ${weakest.materia}`,
+          description: `Taxa de acerto: ${weakest.percentual}%`,
+          materia: weakest.materia,
+          color: '#E74C3C',
+        });
+      }
+    }
+
+    // Count questions that could be reviewed (answered incorrectly)
+    const { count: wrongAnswers } = await supabase
+      .from('mission_answers')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_correct', false);
+
+    if (wrongAnswers && wrongAnswers > 0) {
+      recommendations.push({
+        type: 'review',
+        title: `Revise ${wrongAnswers} questões`,
+        description: 'Questões que você errou anteriormente',
+        count: wrongAnswers,
+        color: '#3498DB',
+      });
+    }
+
+    // If no recommendations yet, add a generic practice one
+    if (recommendations.length === 0) {
+      recommendations.push({
+        type: 'practice',
+        title: 'Continue praticando',
+        description: 'Mantenha seu ritmo de estudos!',
+        color: '#2ECC71',
+      });
+    }
+
+    return recommendations.slice(0, 2); // Max 2 recommendations
+  } catch (err) {
+    console.error('[statsService] Exception in getUserRecommendations:', err);
+    return [];
+  }
+}
+
 // Types for league ranking
 export type LeagueTier = 'ferro' | 'bronze' | 'prata' | 'ouro' | 'diamante';
 

@@ -21,11 +21,17 @@ import {
   getUserDailyEvolution,
   getUserPercentile,
   getLeagueRanking,
+  getUserAverageTime,
+  getUserCompletedMissions,
+  getUserSubjectEvolution,
+  getUserRecommendations,
   MateriaStats,
   DailyStats,
   LeagueRanking,
   RankingMember,
   LeagueTier,
+  SubjectEvolution,
+  Recommendation,
 } from '../services/statsService';
 import {
   getAllAchievements,
@@ -133,7 +139,15 @@ function HeatMapCard({ stats, isLoading }: { stats: MateriaStats[]; isLoading?: 
   );
 }
 
-function ComparisonCard({ percentile, isLoading }: { percentile: number; isLoading?: boolean }) {
+function ComparisonCard({
+  percentile,
+  subjectEvolution,
+  isLoading,
+}: {
+  percentile: number;
+  subjectEvolution: SubjectEvolution[];
+  isLoading?: boolean;
+}) {
   if (isLoading) {
     return (
       <Card className="h-full">
@@ -161,29 +175,36 @@ function ComparisonCard({ percentile, isLoading }: { percentile: number; isLoadi
         <p className="text-[#A0A0A0] text-sm">dos estudantes</p>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between p-2 bg-[#3A3A3A]/50 rounded-lg">
-          <span className="text-[#A0A0A0] text-sm">Direito Constitucional</span>
-          <div className="flex items-center gap-1">
-            <TrendingUp size={14} className="text-[#2ECC71]" />
-            <span className="text-[#2ECC71] text-sm">+12%</span>
-          </div>
+      {subjectEvolution.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-[#6E6E6E] text-xs mb-2">Evolução últimos 7 dias:</p>
+          {subjectEvolution.map((subject) => (
+            <div
+              key={subject.materia}
+              className="flex items-center justify-between p-2 bg-[#3A3A3A]/50 rounded-lg"
+            >
+              <span className="text-[#A0A0A0] text-sm truncate flex-1">{subject.materia}</span>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {subject.evolution >= 0 ? (
+                  <>
+                    <TrendingUp size={14} className="text-[#2ECC71]" />
+                    <span className="text-[#2ECC71] text-sm">+{subject.evolution}%</span>
+                  </>
+                ) : (
+                  <>
+                    <TrendingDown size={14} className="text-[#E74C3C]" />
+                    <span className="text-[#E74C3C] text-sm">{subject.evolution}%</span>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="flex items-center justify-between p-2 bg-[#3A3A3A]/50 rounded-lg">
-          <span className="text-[#A0A0A0] text-sm">Língua Portuguesa</span>
-          <div className="flex items-center gap-1">
-            <TrendingUp size={14} className="text-[#2ECC71]" />
-            <span className="text-[#2ECC71] text-sm">+8%</span>
-          </div>
+      ) : (
+        <div className="text-center py-4">
+          <p className="text-[#6E6E6E] text-sm">Estude mais para ver sua evolução por matéria</p>
         </div>
-        <div className="flex items-center justify-between p-2 bg-[#3A3A3A]/50 rounded-lg">
-          <span className="text-[#A0A0A0] text-sm">Raciocínio Lógico</span>
-          <div className="flex items-center gap-1">
-            <TrendingDown size={14} className="text-[#E74C3C]" />
-            <span className="text-[#E74C3C] text-sm">-5%</span>
-          </div>
-        </div>
-      </div>
+      )}
     </Card>
   );
 }
@@ -555,6 +576,10 @@ export default function StatsPage() {
   const [materiaStats, setMateriaStats] = useState<MateriaStats[]>([]);
   const [dailyEvolution, setDailyEvolution] = useState<DailyStats[]>([]);
   const [percentile, setPercentile] = useState<number>(50);
+  const [averageTime, setAverageTime] = useState<number>(0);
+  const [completedMissions, setCompletedMissions] = useState<number>(0);
+  const [subjectEvolution, setSubjectEvolution] = useState<SubjectEvolution[]>([]);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Achievements state
@@ -578,15 +603,23 @@ export default function StatsPage() {
 
       setIsLoading(true);
       try {
-        const [materia, daily, userPercentile] = await Promise.all([
+        const [materia, daily, userPercentile, avgTime, missions, evolution, recs] = await Promise.all([
           getUserMateriaStats(user.id),
           getUserDailyEvolution(user.id),
           getUserPercentile(user.id),
+          getUserAverageTime(user.id),
+          getUserCompletedMissions(user.id),
+          getUserSubjectEvolution(user.id),
+          getUserRecommendations(user.id),
         ]);
 
         setMateriaStats(materia);
         setDailyEvolution(daily);
         setPercentile(userPercentile);
+        setAverageTime(avgTime);
+        setCompletedMissions(missions);
+        setSubjectEvolution(evolution);
+        setRecommendations(recs);
       } catch (error) {
         console.error('[StatsPage] Error loading stats:', error);
       } finally {
@@ -686,7 +719,7 @@ export default function StatsPage() {
         {/* Quick Stats - Hidden on mobile, shown on desktop */}
         <Card className="hidden lg:flex flex-col items-center justify-center h-full">
           <Clock size={24} className="text-[#3498DB] mb-2" />
-          <p className="text-white font-bold text-lg">45s</p>
+          <p className="text-white font-bold text-lg">{averageTime > 0 ? `${averageTime}s` : '-'}</p>
           <p className="text-[#6E6E6E] text-xs">Tempo médio</p>
         </Card>
         <Card className="hidden lg:flex flex-col items-center justify-center h-full">
@@ -696,7 +729,7 @@ export default function StatsPage() {
         </Card>
         <Card className="hidden lg:flex flex-col items-center justify-center h-full">
           <Target size={24} className="text-[#2ECC71] mb-2" />
-          <p className="text-white font-bold text-lg">5</p>
+          <p className="text-white font-bold text-lg">{completedMissions}</p>
           <p className="text-[#6E6E6E] text-xs">Missões</p>
         </Card>
       </div>
@@ -705,7 +738,7 @@ export default function StatsPage() {
       <div className="grid grid-cols-3 gap-3 mb-4 lg:hidden">
         <Card className="flex flex-col items-center justify-center py-3">
           <Clock size={22} className="text-[#3498DB] mb-1.5" />
-          <p className="text-white font-bold text-base">45s</p>
+          <p className="text-white font-bold text-base">{averageTime > 0 ? `${averageTime}s` : '-'}</p>
           <p className="text-[#6E6E6E] text-xs">Tempo médio</p>
         </Card>
         <Card className="flex flex-col items-center justify-center py-3">
@@ -715,7 +748,7 @@ export default function StatsPage() {
         </Card>
         <Card className="flex flex-col items-center justify-center py-3">
           <Target size={22} className="text-[#2ECC71] mb-1.5" />
-          <p className="text-white font-bold text-base">5</p>
+          <p className="text-white font-bold text-base">{completedMissions}</p>
           <p className="text-[#6E6E6E] text-xs">Missões</p>
         </Card>
       </div>
@@ -723,7 +756,7 @@ export default function StatsPage() {
       {/* Heat Map + Comparison - Two columns on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <HeatMapCard stats={materiaStats} isLoading={isLoading} />
-        <ComparisonCard percentile={percentile} isLoading={isLoading} />
+        <ComparisonCard percentile={percentile} subjectEvolution={subjectEvolution} isLoading={isLoading} />
       </div>
 
       {/* Evolution + Recommendations - Two columns on desktop */}
@@ -733,33 +766,42 @@ export default function StatsPage() {
         {/* Action Items */}
         <Card className="h-full">
           <h3 className="text-white font-semibold mb-3">Recomendações</h3>
-          <div className="space-y-2">
-            <button className="w-full flex items-center justify-between p-3 bg-[#E74C3C]/10 rounded-lg hover:bg-[#E74C3C]/20 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#E74C3C]/20 flex items-center justify-center">
-                  <Target size={16} className="text-[#E74C3C]" />
-                </div>
-                <div className="text-left">
-                  <p className="text-white text-sm">Foque em Raciocínio Lógico</p>
-                  <p className="text-[#6E6E6E] text-xs">Seu ponto mais fraco</p>
-                </div>
-              </div>
-              <ChevronRight size={18} className="text-[#6E6E6E]" />
-            </button>
-
-            <button className="w-full flex items-center justify-between p-3 bg-[#3498DB]/10 rounded-lg hover:bg-[#3498DB]/20 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#3498DB]/20 flex items-center justify-center">
-                  <Clock size={16} className="text-[#3498DB]" />
-                </div>
-                <div className="text-left">
-                  <p className="text-white text-sm">Revise 12 questões</p>
-                  <p className="text-[#6E6E6E] text-xs">Revisão espaçada pendente</p>
-                </div>
-              </div>
-              <ChevronRight size={18} className="text-[#6E6E6E]" />
-            </button>
-          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="animate-spin text-[#FFB800]" size={32} />
+            </div>
+          ) : recommendations.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-[#6E6E6E]">Continue estudando para receber recomendações personalizadas!</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recommendations.map((rec, index) => {
+                const IconComponent = rec.type === 'weak_subject' ? Target : rec.type === 'review' ? Clock : Award;
+                return (
+                  <button
+                    key={index}
+                    className="w-full flex items-center justify-between p-3 rounded-lg hover:opacity-80 transition-opacity"
+                    style={{ backgroundColor: `${rec.color}15` }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: `${rec.color}30` }}
+                      >
+                        <IconComponent size={16} style={{ color: rec.color }} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-white text-sm">{rec.title}</p>
+                        <p className="text-[#6E6E6E] text-xs">{rec.description}</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={18} className="text-[#6E6E6E]" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </Card>
       </div>
 

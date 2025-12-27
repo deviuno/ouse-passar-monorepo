@@ -12,6 +12,7 @@ import {
   UserPreparatorio,
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
+import { supabase } from '../services/supabaseClient';
 
 // Helper type for mission URL params
 export interface MissionUrlParams {
@@ -44,9 +45,10 @@ interface TrailState {
 
   // Actions - Preparatorios
   setUserPreparatorios: (preparatorios: UserPreparatorio[]) => void;
-  setSelectedPreparatorioId: (id: string | null) => void;
+  setSelectedPreparatorioId: (id: string | null, userId?: string) => void;
   addUserPreparatorio: (preparatorio: UserPreparatorio) => void;
   getSelectedPreparatorio: () => UserPreparatorio | null;
+  loadMainPreparatorioFromDb: (userId: string) => Promise<string | null>;
 
   // Actions - Trail
   setCurrentTrail: (trail: UserTrail | null) => void;
@@ -110,7 +112,29 @@ export const useTrailStore = create<TrailState>()(
 
       // Actions - Preparatorios
       setUserPreparatorios: (userPreparatorios) => set({ userPreparatorios }),
-      setSelectedPreparatorioId: (selectedPreparatorioId) => set({ selectedPreparatorioId }),
+      setSelectedPreparatorioId: (selectedPreparatorioId, userId) => {
+        set({ selectedPreparatorioId });
+
+        // Persistir no banco de dados se temos userId
+        if (selectedPreparatorioId && userId) {
+          const { userPreparatorios } = get();
+          const selected = userPreparatorios.find((p) => p.id === selectedPreparatorioId);
+          if (selected?.preparatorio_id) {
+            // Atualizar main_preparatorio_id no perfil do usuário
+            supabase
+              .from('user_profiles')
+              .update({ main_preparatorio_id: selected.preparatorio_id })
+              .eq('id', userId)
+              .then(({ error }) => {
+                if (error) {
+                  console.error('[useTrailStore] Erro ao salvar preparatório principal:', error);
+                } else {
+                  console.log('[useTrailStore] Preparatório principal salvo:', selected.preparatorio_id);
+                }
+              });
+          }
+        }
+      },
       addUserPreparatorio: (preparatorio) =>
         set((state) => ({
           userPreparatorios: [...state.userPreparatorios, preparatorio],
@@ -118,6 +142,25 @@ export const useTrailStore = create<TrailState>()(
       getSelectedPreparatorio: () => {
         const { userPreparatorios, selectedPreparatorioId } = get();
         return userPreparatorios.find((p) => p.id === selectedPreparatorioId) || null;
+      },
+      loadMainPreparatorioFromDb: async (userId: string) => {
+        try {
+          const { data, error } = await supabase
+            .from('user_profiles')
+            .select('main_preparatorio_id')
+            .eq('id', userId)
+            .single();
+
+          if (error) {
+            console.error('[useTrailStore] Erro ao carregar preparatório principal:', error);
+            return null;
+          }
+
+          return data?.main_preparatorio_id || null;
+        } catch (err) {
+          console.error('[useTrailStore] Exception ao carregar preparatório principal:', err);
+          return null;
+        }
       },
 
       // Actions - Trail

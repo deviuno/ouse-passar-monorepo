@@ -64,7 +64,8 @@ export default function PreparatoriosStorePage() {
 
       if (userPrep) {
         addUserPreparatorio(userPrep);
-        setSelectedPreparatorioId(userPrep.id);
+        // Passa userId para persistir como preparatório principal
+        setSelectedPreparatorioId(userPrep.id, user.id);
         addToast('success', `${selectedPrep.nome} adicionado com sucesso!`);
         navigate('/');
       } else {

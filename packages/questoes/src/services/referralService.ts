@@ -214,17 +214,10 @@ export async function confirmReferral(referredId: string): Promise<boolean> {
  * Busca indicações feitas pelo usuário
  */
 export async function getUserReferrals(userId: string): Promise<Referral[]> {
-  const { data, error } = await supabase
+  // Buscar indicações sem join (FK aponta para auth.users, não user_profiles)
+  const { data: referralsData, error } = await supabase
     .from('referrals')
-    .select(`
-      *,
-      referred_user:referred_id (
-        id,
-        name,
-        email,
-        avatar_url
-      )
-    `)
+    .select('*')
     .eq('referrer_id', userId)
     .order('created_at', { ascending: false });
 
@@ -233,15 +226,27 @@ export async function getUserReferrals(userId: string): Promise<Referral[]> {
     return [];
   }
 
-  return data?.map((r: any) => ({
+  if (!referralsData || referralsData.length === 0) {
+    return [];
+  }
+
+  // Buscar perfis dos usuários indicados
+  const referredIds = referralsData.map(r => r.referred_id);
+  const { data: profilesData } = await supabase
+    .from('user_profiles')
+    .select('id, name, email, avatar_url')
+    .in('id', referredIds);
+
+  // Criar mapa de perfis para lookup rápido
+  const profilesMap = new Map(
+    (profilesData || []).map(p => [p.id, p])
+  );
+
+  // Combinar dados
+  return referralsData.map((r: any) => ({
     ...r,
-    referred_user: r.referred_user ? {
-      id: r.referred_user.id,
-      name: r.referred_user.name,
-      email: r.referred_user.email,
-      avatar_url: r.referred_user.avatar_url,
-    } : undefined,
-  })) || [];
+    referred_user: profilesMap.get(r.referred_id) || undefined,
+  }));
 }
 
 /**
@@ -431,16 +436,10 @@ export async function getUserRedemptions(userId: string): Promise<RewardRedempti
  * Busca comissões do afiliado
  */
 export async function getAffiliateCommissions(userId: string): Promise<AffiliateCommission[]> {
-  const { data, error } = await supabase
+  // Buscar comissões sem join (FK aponta para auth.users, não user_profiles)
+  const { data: commissionsData, error } = await supabase
     .from('affiliate_commissions')
-    .select(`
-      *,
-      referred_user:referred_id (
-        id,
-        name,
-        email
-      )
-    `)
+    .select('*')
     .eq('affiliate_id', userId)
     .order('created_at', { ascending: false });
 
@@ -449,14 +448,27 @@ export async function getAffiliateCommissions(userId: string): Promise<Affiliate
     return [];
   }
 
-  return data?.map((c: any) => ({
+  if (!commissionsData || commissionsData.length === 0) {
+    return [];
+  }
+
+  // Buscar perfis dos usuários indicados
+  const referredIds = commissionsData.map(c => c.referred_id);
+  const { data: profilesData } = await supabase
+    .from('user_profiles')
+    .select('id, name, email')
+    .in('id', referredIds);
+
+  // Criar mapa de perfis para lookup rápido
+  const profilesMap = new Map(
+    (profilesData || []).map(p => [p.id, p])
+  );
+
+  // Combinar dados
+  return commissionsData.map((c: any) => ({
     ...c,
-    referred_user: c.referred_user ? {
-      id: c.referred_user.id,
-      name: c.referred_user.name,
-      email: c.referred_user.email,
-    } : undefined,
-  })) || [];
+    referred_user: profilesMap.get(c.referred_id) || undefined,
+  }));
 }
 
 // ============================================

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   User,
-  Settings,
   Bell,
   Shield,
   HelpCircle,
@@ -30,6 +29,7 @@ import {
 } from '../services/referralService';
 import type { ReferralStats, ReferralLinkInfo } from '../types/referral';
 import { RewardsModal } from '../components/referral/RewardsModal';
+import { ReferralsListModal } from '../components/referral/ReferralsListModal';
 
 function StatCard({
   icon: Icon,
@@ -87,6 +87,7 @@ export default function ProfilePage() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showRewardsModal, setShowRewardsModal] = useState(false);
+  const [showReferralsModal, setShowReferralsModal] = useState(false);
   const [referralLink, setReferralLink] = useState<ReferralLinkInfo | null>(null);
   const [referralStats, setReferralStats] = useState<ReferralStats | null>(null);
   const [copied, setCopied] = useState(false);
@@ -336,15 +337,25 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Botão de Recompensas */}
-              <Button
-                fullWidth
-                variant="secondary"
-                onClick={() => setShowRewardsModal(true)}
-              >
-                <Gift size={16} className="mr-2" />
-                Ver Recompensas
-              </Button>
+              {/* Botões de Ação */}
+              <div className="flex gap-2">
+                <Button
+                  fullWidth
+                  variant="secondary"
+                  onClick={() => setShowRewardsModal(true)}
+                >
+                  <Gift size={16} className="mr-2" />
+                  Recompensas
+                </Button>
+                <Button
+                  fullWidth
+                  variant="secondary"
+                  onClick={() => setShowReferralsModal(true)}
+                >
+                  <Users size={16} className="mr-2" />
+                  Indicados
+                </Button>
+              </div>
             </>
           ) : (
             /* Usuário sem username - mostrar botão para ativar */
@@ -377,24 +388,19 @@ export default function ProfilePage() {
       {/* Menu Options */}
       <Card padding="none" className="mb-6">
         <MenuButton
-          icon={Settings}
-          label="Configurações"
-          onClick={() => console.log('Settings')}
-        />
-        <MenuButton
           icon={Bell}
           label="Notificações"
-          onClick={() => console.log('Notifications')}
+          onClick={() => navigate('/notificacoes')}
         />
         <MenuButton
           icon={Shield}
           label="Privacidade"
-          onClick={() => console.log('Privacy')}
+          onClick={() => navigate('/privacidade')}
         />
         <MenuButton
           icon={HelpCircle}
           label="Ajuda e Suporte"
-          onClick={() => console.log('Help')}
+          onClick={() => navigate('/ajuda')}
         />
       </Card>
 
@@ -448,6 +454,19 @@ export default function ProfilePage() {
           isOpen={showRewardsModal}
           onClose={() => setShowRewardsModal(false)}
           userId={profile.id}
+        />
+      )}
+
+      {/* Referrals List Modal */}
+      {profile?.id && (
+        <ReferralsListModal
+          isOpen={showReferralsModal}
+          onClose={() => setShowReferralsModal(false)}
+          userId={profile.id}
+          onRequestWithdrawal={() => {
+            // TODO: Implementar solicitação de saque
+            alert('Funcionalidade de saque em breve!');
+          }}
         />
       )}
     </div>

@@ -30,7 +30,7 @@ const mainNavItems = [
   { path: '/loja', icon: ShoppingBag, label: 'Loja', tourId: 'sidebar-loja' },
 ];
 
-const secondaryNavItems = [
+const bottomNavItems = [
   { path: '/perfil', icon: User, label: 'Perfil' },
   { path: '/ajuda', icon: HelpCircle, label: 'Ajuda' },
 ];
@@ -257,42 +257,35 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
             );
           })}
         </ul>
-
-        {/* Divider */}
-        <div className="h-px bg-[#3A3A3A] my-4" />
-
-        {/* Secondary Navigation */}
-        <ul className="space-y-1">
-          {secondaryNavItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            const Icon = item.icon;
-
-            return (
-              <li key={item.path}>
-                <NavLink
-                  to={item.path}
-                  title={isCollapsed ? item.label : undefined}
-                  className={`
-                    flex items-center rounded-xl
-                    transition-colors duration-200
-                    ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
-                    ${isActive
-                      ? 'bg-[#3A3A3A] text-white'
-                      : 'text-[#6E6E6E] hover:bg-[#3A3A3A] hover:text-white'
-                    }
-                  `}
-                >
-                  <Icon size={20} />
-                  {!isCollapsed && <span>{item.label}</span>}
-                </NavLink>
-              </li>
-            );
-          })}
-        </ul>
       </nav>
 
-      {/* Logout Button */}
-      <div className="p-3 border-t border-[#3A3A3A]">
+      {/* Bottom Navigation - Perfil, Ajuda, Sair */}
+      <div className="p-3 border-t border-[#3A3A3A] space-y-1">
+        {bottomNavItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          const Icon = item.icon;
+
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              title={isCollapsed ? item.label : undefined}
+              className={`
+                flex items-center rounded-xl
+                transition-colors duration-200
+                ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
+                ${isActive
+                  ? 'bg-[#3A3A3A] text-white'
+                  : 'text-[#6E6E6E] hover:bg-[#3A3A3A] hover:text-white'
+                }
+              `}
+            >
+              <Icon size={20} />
+              {!isCollapsed && <span>{item.label}</span>}
+            </NavLink>
+          );
+        })}
+
         <button
           onClick={handleLogout}
           title={isCollapsed ? 'Sair' : undefined}

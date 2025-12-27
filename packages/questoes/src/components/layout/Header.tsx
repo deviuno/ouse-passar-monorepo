@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Flame } from 'lucide-react';
-import { useTrailStore } from '../../stores';
+import { useTrailStore, useAuthStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
 import { PreparatorioDropdown } from '../trail/PreparatorioDropdown';
 import { RoundSelector } from '../trail/RoundSelector';
@@ -12,6 +12,7 @@ export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { user } = useAuthStore();
   const {
     userPreparatorios,
     selectedPreparatorioId,
@@ -80,8 +81,9 @@ export function Header() {
   }, [location.pathname, currentMission]);
 
   const handlePreparatorioSelect = useCallback((prep: UserPreparatorio) => {
-    setSelectedPreparatorioId(prep.id);
-  }, [setSelectedPreparatorioId]);
+    // Passa userId para persistir a seleção no banco de dados
+    setSelectedPreparatorioId(prep.id, user?.id);
+  }, [setSelectedPreparatorioId, user?.id]);
 
   const handleAddNewPreparatorio = useCallback(() => {
     navigate('/loja/preparatorios');

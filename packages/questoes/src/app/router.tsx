@@ -15,6 +15,9 @@ import StorePage from '../pages/StorePage';
 import InventoryPage from '../pages/InventoryPage';
 import PreparatoriosStorePage from '../pages/PreparatoriosStorePage';
 import ProfilePage from '../pages/ProfilePage';
+import NotificationsPage from '../pages/NotificationsPage';
+import PrivacySettingsPage from '../pages/PrivacySettingsPage';
+import HelpPage from '../pages/HelpPage';
 import TermsPage from '../pages/TermsPage';
 import PrivacyPage from '../pages/PrivacyPage';
 
@@ -114,6 +117,18 @@ export const router = createBrowserRouter([
       {
         path: 'perfil',
         element: <ProfilePage />,
+      },
+      {
+        path: 'notificacoes',
+        element: <NotificationsPage />,
+      },
+      {
+        path: 'privacidade',
+        element: <PrivacySettingsPage />,
+      },
+      {
+        path: 'ajuda',
+        element: <HelpPage />,
       },
     ],
   },

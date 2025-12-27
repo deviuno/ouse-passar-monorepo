@@ -315,9 +315,33 @@ export default function HomePage() {
 
         setUserPreparatorios(preparatoriosWithProgress);
 
-        // Se não há preparatório selecionado, selecionar o primeiro
-        if (!selectedPreparatorioId && preparatoriosWithProgress.length > 0) {
-          setSelectedPreparatorioId(preparatoriosWithProgress[0].id);
+        // Determinar qual preparatório selecionar
+        if (preparatoriosWithProgress.length > 0) {
+          // Primeiro, verificar se já temos um selecionado válido
+          const currentlySelected = preparatoriosWithProgress.find(
+            (p) => p.id === selectedPreparatorioId
+          );
+
+          if (!currentlySelected) {
+            // Buscar preparatório principal salvo no banco
+            const { loadMainPreparatorioFromDb } = useTrailStore.getState();
+            const mainPrepId = await loadMainPreparatorioFromDb(user.id);
+
+            // Encontrar o user_preparatorio que corresponde ao main_preparatorio_id
+            const mainPrep = mainPrepId
+              ? preparatoriosWithProgress.find((p) => p.preparatorio_id === mainPrepId)
+              : null;
+
+            if (mainPrep) {
+              // Usar o preparatório principal salvo
+              console.log('[HomePage] Usando preparatório principal do banco:', mainPrepId);
+              setSelectedPreparatorioId(mainPrep.id);
+            } else {
+              // Fallback: usar o primeiro e salvar como principal
+              console.log('[HomePage] Definindo primeiro preparatório como principal');
+              setSelectedPreparatorioId(preparatoriosWithProgress[0].id, user.id);
+            }
+          }
         }
       } catch (err) {
         console.error('Erro ao carregar preparatórios:', err);
