@@ -26,7 +26,6 @@ import {
   SimuladoResult,
   getUserSimuladoResultsBySimulado,
 } from '../services/simuladosService';
-import { getOptimizedImageUrl } from '../utils/image';
 
 function ProvaCard({
   prova,
@@ -335,79 +334,61 @@ export default function SimuladoDetailPage() {
     );
   }
 
-  const coverImage = getOptimizedImageUrl(
-    simulado.preparatorio?.imagem_capa || simulado.preparatorio?.logo_url,
-    800
-  );
   const progressPercent =
     stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   return (
     <div className="min-h-full pb-24">
-      {/* Hero Section */}
-      <div className="relative">
-        <div className="h-48 w-full overflow-hidden">
-          {coverImage ? (
-            <img
-              src={coverImage}
-              alt={simulado.nome}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#3498DB] to-[#8B5CF6]" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent" />
-        </div>
-
-        {/* Back button */}
-        <button
-          onClick={() => navigate('/simulados')}
-          className="absolute top-4 left-4 p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors z-10"
-        >
-          <ChevronLeft size={24} className="text-white" />
-        </button>
-
-        {/* Premium badge */}
-        {simulado.is_premium && (
-          <div className="absolute top-4 right-4 bg-[#FFB800] text-black text-xs font-bold px-3 py-1 rounded-full z-10">
-            PREMIUM
+      {/* Header */}
+      <div className="sticky top-0 bg-[#121212] z-30 border-b border-[#2A2A2A]">
+        <div className="flex items-center gap-4 p-4">
+          <button
+            onClick={() => navigate('/simulados')}
+            className="p-2 rounded-full hover:bg-[#252525] transition-colors"
+          >
+            <ChevronLeft size={24} className="text-white" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold text-white truncate">{simulado.nome}</h1>
+            {simulado.preparatorio?.nome && (
+              <p className="text-[#6E6E6E] text-sm truncate">{simulado.preparatorio.nome}</p>
+            )}
           </div>
-        )}
-
-        {/* Title section */}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          {simulado.preparatorio?.nome && (
-            <p className="text-[#FFB800] text-sm font-medium mb-1">
-              {simulado.preparatorio.nome}
-            </p>
+          {simulado.is_premium && (
+            <span className="bg-[#FFB800] text-black text-xs font-bold px-2 py-1 rounded-full">
+              PREMIUM
+            </span>
           )}
-          <h1 className="text-xl font-bold text-white">{simulado.nome}</h1>
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-4 pt-4">
-        {/* Quick Stats Bar */}
-        <div className="flex items-center justify-between bg-[#1A1A1A] rounded-xl p-4 mb-6">
-          <div className="flex items-center gap-2">
+      <div className="px-4 pt-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-4 gap-3 mb-6">
+          <Card className="text-center py-4">
             <CircularProgress value={progressPercent} size={40} strokeWidth={3} color="brand" />
-            <div>
-              <p className="text-white font-medium text-sm">{stats.completed}/{stats.total}</p>
-              <p className="text-[#6E6E6E] text-xs">provas</p>
+            <p className="text-white font-medium text-sm mt-2">{stats.completed}/{stats.total}</p>
+            <p className="text-[#6E6E6E] text-xs">provas</p>
+          </Card>
+          <Card className="text-center py-4">
+            <div className="w-10 h-10 mx-auto rounded-lg bg-[#FFB800]/20 flex items-center justify-center mb-2">
+              <Clock size={20} className="text-[#FFB800]" />
             </div>
-          </div>
-          <div className="h-8 w-px bg-[#2A2A2A]" />
-          <div className="text-center">
-            <p className="text-[#FFB800] font-medium text-sm">{formatDuration(simulado.duracao_minutos)}</p>
+            <p className="text-white font-medium text-sm">{formatDuration(simulado.duracao_minutos)}</p>
             <p className="text-[#6E6E6E] text-xs">por prova</p>
-          </div>
-          <div className="h-8 w-px bg-[#2A2A2A]" />
-          <div className="text-center">
-            <p className="text-[#3498DB] font-medium text-sm">{simulado.total_questoes}</p>
+          </Card>
+          <Card className="text-center py-4">
+            <div className="w-10 h-10 mx-auto rounded-lg bg-[#3498DB]/20 flex items-center justify-center mb-2">
+              <FileText size={20} className="text-[#3498DB]" />
+            </div>
+            <p className="text-white font-medium text-sm">{simulado.total_questoes}</p>
             <p className="text-[#6E6E6E] text-xs">questões</p>
-          </div>
-          <div className="h-8 w-px bg-[#2A2A2A]" />
-          <div className="text-center">
+          </Card>
+          <Card className="text-center py-4">
+            <div className="w-10 h-10 mx-auto rounded-lg bg-[#2ECC71]/20 flex items-center justify-center mb-2">
+              <Target size={20} className="text-[#2ECC71]" />
+            </div>
             <p
               className={`font-medium text-sm ${
                 stats.averageScore >= 70
@@ -422,7 +403,7 @@ export default function SimuladoDetailPage() {
               {stats.averageScore > 0 ? `${stats.averageScore}%` : '-'}
             </p>
             <p className="text-[#6E6E6E] text-xs">média</p>
-          </div>
+          </Card>
         </div>
 
         {/* Two Column Layout */}
