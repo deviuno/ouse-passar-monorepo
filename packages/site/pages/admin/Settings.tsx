@@ -1902,7 +1902,7 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const categories = ['simulado', 'gamification', 'store', 'trail', 'reta_final', 'battery', 'legal_texts', 'general', 'blog'];
+  const categories = ['simulado', 'gamification', 'store', 'trail', 'reta_final', 'battery', 'affiliates', 'legal_texts', 'general', 'blog'];
   const filteredSettings = settings.filter((s) => s.category === activeCategory);
   const hasChanges = modifiedSettings.size > 0;
 
