@@ -10,6 +10,7 @@ import HomePage from '../pages/HomePage';
 import MissionPage from '../pages/MissionPage';
 import PracticePage from '../pages/PracticePage';
 import SimuladosPage from '../pages/SimuladosPage';
+import SimuladoDetailPage from '../pages/SimuladoDetailPage';
 import StatsPage from '../pages/StatsPage';
 import StorePage from '../pages/StorePage';
 import InventoryPage from '../pages/InventoryPage';
@@ -97,6 +98,10 @@ export const router = createBrowserRouter([
       {
         path: 'simulados',
         element: <SimuladosPage />,
+      },
+      {
+        path: 'simulados/:id',
+        element: <SimuladoDetailPage />,
       },
       {
         path: 'estatisticas',

@@ -7,9 +7,9 @@ import { useAuthStore } from '../stores';
 import {
   getSimuladosWithUserData,
   getUserSimuladoStats,
+  SimuladoWithUserData,
+  SimuladoAttempt,
 } from '../services/simuladosService';
-import { SimuladoWithUserData, SimuladoAttempt } from '../types';
-import { DownloadPDFButton } from '../components/simulado/DownloadPDFButton';
 import { getOptimizedImageUrl } from '../utils/image';
 
 function SimuladoCard({
