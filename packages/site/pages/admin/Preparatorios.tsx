@@ -44,41 +44,42 @@ export const Preparatorios: React.FC = () => {
     questoes: 0,
   });
 
-  // Load preparatorios
-  useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      setError(null);
+  // Função para carregar preparatórios
+  const loadPreparatorios = async () => {
+    setLoading(true);
+    setError(null);
 
-      try {
-        // Buscar todos os preparatórios (incluindo inativos para admin)
-        const data = await preparatoriosService.getAll(true);
+    try {
+      // Buscar todos os preparatórios (incluindo inativos para admin)
+      const data = await preparatoriosService.getAll(true);
 
-        // Buscar contagem de edital para cada preparatório
-        const preparatoriosWithStats = await Promise.all(
-          data.map(async (prep) => {
-            const editalItems = await editalService.getByPreparatorio(prep.id);
-            return { ...prep, editalCount: editalItems.length };
-          })
-        );
+      // Buscar contagem de edital para cada preparatório
+      const preparatoriosWithStats = await Promise.all(
+        data.map(async (prep) => {
+          const editalItems = await editalService.getByPreparatorio(prep.id);
+          return { ...prep, editalCount: editalItems.length };
+        })
+      );
 
-        setPreparatorios(preparatoriosWithStats);
+      setPreparatorios(preparatoriosWithStats);
 
-        // Calcular stats
-        setStats({
-          total: data.length,
-          active: data.filter(p => p.is_active).length,
-          plano: data.filter(p => p.content_types?.includes('plano')).length,
-          questoes: data.filter(p => p.content_types?.includes('questoes')).length,
-        });
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+      // Calcular stats
+      setStats({
+        total: data.length,
+        active: data.filter(p => p.is_active).length,
+        plano: data.filter(p => p.content_types?.includes('plano')).length,
+        questoes: data.filter(p => p.content_types?.includes('questoes')).length,
+      });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    loadData();
+  // Load preparatorios on mount
+  useEffect(() => {
+    loadPreparatorios();
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -404,6 +405,8 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
         isOpen={showQuickCreate}
         onClose={() => setShowQuickCreate(false)}
         onSuccess={(preparatorioId) => {
+          setShowQuickCreate(false);
+          loadPreparatorios(); // Recarregar lista para mostrar o novo preparatório
           toast.success('Preparatório criado com sucesso!');
           navigate(`/admin/preparatorios/edit/${preparatorioId}`);
         }}

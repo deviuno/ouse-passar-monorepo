@@ -258,7 +258,7 @@ export const preparatoriosService = {
     let query = supabase
       .from('preparatorios')
       .select('*')
-      .order('ordem', { ascending: true });
+      .order('created_at', { ascending: false }); // Mais recentes primeiro
 
     if (!includeInactive) {
       query = query.eq('is_active', true);
