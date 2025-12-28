@@ -390,14 +390,14 @@ export const Suporte: React.FC = () => {
 
       {/* Kanban View */}
       {!loading && reports.length > 0 && viewMode === 'kanban' && (
-        <div className="overflow-x-auto pb-4 -mx-6 px-6">
-          <div className="flex gap-4 min-w-max">
+        <div className="overflow-x-auto pb-4">
+          <div className="flex gap-3" style={{ minWidth: `${KANBAN_COLUMNS.length * 25}%` }}>
           {KANBAN_COLUMNS.map((column) => {
             const columnReports = getReportsByStatus(column.status);
             return (
               <div
                 key={column.status}
-                className="flex-shrink-0 w-72 bg-brand-card border border-white/5 rounded-sm"
+                className="flex-1 min-w-0 bg-brand-card border border-white/5 rounded-sm"
               >
                 {/* Column Header */}
                 <div className={`p-3 border-b ${column.bgColor}`}>
