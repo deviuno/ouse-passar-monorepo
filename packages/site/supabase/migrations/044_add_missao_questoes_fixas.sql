@@ -27,6 +27,13 @@ ALTER TABLE missao_questoes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public can view missao_questoes" ON missao_questoes
   FOR SELECT TO public USING (true);
 
--- Apenas sistema pode inserir/atualizar (via service role)
+-- Usuários autenticados podem inserir/atualizar (para salvar questões fixas)
+CREATE POLICY "Authenticated users can insert missao_questoes" ON missao_questoes
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can update missao_questoes" ON missao_questoes
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+-- Service role pode fazer tudo
 CREATE POLICY "Service can manage missao_questoes" ON missao_questoes
   FOR ALL TO service_role USING (true) WITH CHECK (true);
