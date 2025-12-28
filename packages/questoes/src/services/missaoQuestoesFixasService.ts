@@ -96,7 +96,13 @@ async function salvarQuestoesFixas(missaoId: string, questoes: ParsedQuestion[])
       });
 
     if (error) {
-      console.error('[MissaoQuestoesFixas] Erro ao salvar questões fixas:', error);
+      // Código 23505 = duplicate key - significa que outra chamada já salvou (race condition)
+      // Isso é esperado com React StrictMode que chama useEffect duas vezes
+      if (error.code === '23505') {
+        console.log('[MissaoQuestoesFixas] Questões já existem (race condition ignorada)');
+      } else {
+        console.error('[MissaoQuestoesFixas] Erro ao salvar questões fixas:', error);
+      }
     } else {
       console.log('[MissaoQuestoesFixas] Questões fixas salvas com sucesso!');
     }
