@@ -1574,6 +1574,31 @@ export default function MissionPage() {
       selectedAlternative: letter,
       isCorrect: isCorrect,
     }, user?.id);
+
+    // Dar XP e moedas POR RESPOSTA CORRETA (não apenas no final da missão)
+    // Só dá recompensa se NÃO for missão de massificação
+    if (isCorrect && !isMissaoMassificacao) {
+      const isHardMode = selectedStudyMode === 'hard';
+      const xpReward = await calculateXpReward(isHardMode ? 'correct_hard_mode' : 'correct_answer');
+      const coinsReward = await calculateCoinsReward(isHardMode ? 'correct_hard_mode' : 'correct_answer');
+
+      console.log(`[MissionPage] Resposta correta! XP: +${xpReward}, Coins: +${coinsReward}`);
+
+      incrementStats({
+        xp: xpReward,
+        coins: coinsReward,
+        correctAnswers: 1,
+        totalAnswered: 1,
+      });
+    } else if (!isCorrect) {
+      // Resposta errada - só contabiliza a resposta, sem recompensa
+      incrementStats({
+        xp: 0,
+        coins: 0,
+        correctAnswers: 0,
+        totalAnswered: 1,
+      });
+    }
   };
 
   // Handler para rating de dificuldade
@@ -1610,36 +1635,13 @@ export default function MissionPage() {
       if (score >= PASSING_SCORE) {
         setShowCelebration(true);
 
-        // Se for massificação, não dá recompensas
-        if (!isMissaoMassificacao) {
-          // Get gamification rewards from settings service
-          const xpPerCorrect = await calculateXpReward('correct_answer');
-          const coinsPerCorrect = await calculateCoinsReward('correct_answer');
+        // XP e moedas já foram dados POR RESPOSTA no handleAnswer
+        // Aqui só precisamos completar a missão e mostrar celebração
+        console.log(`[MissionPage] Mission completed! Score: ${score.toFixed(1)}% (${correctCount}/${questions.length})`);
 
-          const xpEarned = correctCount * xpPerCorrect;
-          const coinsEarned = correctCount * coinsPerCorrect;
-
-          console.log(`[MissionPage] Mission completed! XP: ${xpEarned} (${correctCount} × ${xpPerCorrect}), Coins: ${coinsEarned} (${correctCount} × ${coinsPerCorrect})`);
-
-          incrementStats({
-            xp: xpEarned,
-            coins: coinsEarned,
-            correctAnswers: correctCount,
-            totalAnswered: questions.length,
-          });
-        } else {
-          // Apenas registrar as respostas, sem XP/moedas
-          incrementStats({
-            xp: 0,
-            coins: 0,
-            correctAnswers: correctCount,
-            totalAnswered: questions.length,
-          });
-
-          // Completar a massificação (desbloqueio automático via status)
-          if (resolvedMissionId && user?.id) {
-            await completarMassificacao(user.id, resolvedMissionId, score);
-          }
+        // Se for massificação, completar o desbloqueio
+        if (isMissaoMassificacao && resolvedMissionId && user?.id) {
+          await completarMassificacao(user.id, resolvedMissionId, score);
         }
 
         setTimeout(() => {
