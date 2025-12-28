@@ -16,6 +16,7 @@ import {
     atualizarRaioX,
     ativarPreparatorio,
     deletarPreparatorio,
+    getRodadasSettings,
     MateriaOrdenada,
     ConfiguracaoGeracao,
     EditalEstrutura,
@@ -2365,8 +2366,11 @@ app.post('/api/preparatorio/gerar-rodadas', async (req, res) => {
 
         console.log(`[Rodadas] ${materias.length} matérias encontradas, gerando...`);
 
+        // Buscar configurações de rodadas do banco
+        const settings = await getRodadasSettings();
+
         // Gerar rodadas
-        const resultado = gerarRodadas(materias, configuracao);
+        const resultado = gerarRodadas(materias, configuracao, settings);
 
         if (!resultado.success) {
             res.status(500).json({
@@ -2691,10 +2695,13 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
             return;
         }
 
+        // Buscar configurações de rodadas do banco
+        const rodadasSettings = await getRodadasSettings();
+
         // Configuração padrão
         const config: ConfiguracaoGeracao = {
-            materias_por_rodada: 5,
-            max_topicos_por_missao: 3,
+            materias_por_rodada: rodadasSettings.materias_por_rodada,
+            max_topicos_por_missao: rodadasSettings.topicos_por_missao_com_subtopicos,
             incluir_revisao_op: true,
             incluir_tecnicas_op: true,
             incluir_simulado: true,
@@ -2702,7 +2709,7 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
         };
 
         // Gerar rodadas
-        const resultadoRodadas = gerarRodadas(materias, config);
+        const resultadoRodadas = gerarRodadas(materias, config, rodadasSettings);
 
         if (!resultadoRodadas.success) {
             etapas[4].status = 'error';
@@ -3054,16 +3061,19 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
             return;
         }
 
+        // Buscar configurações de rodadas do banco
+        const rodadasSettings = await getRodadasSettings();
+
         const config: ConfiguracaoGeracao = {
-            materias_por_rodada: 5,
-            max_topicos_por_missao: 3,
+            materias_por_rodada: rodadasSettings.materias_por_rodada,
+            max_topicos_por_missao: rodadasSettings.topicos_por_missao_com_subtopicos,
             incluir_revisao_op: true,
             incluir_tecnicas_op: true,
             incluir_simulado: true,
             gerar_filtros_questoes: true,
         };
 
-        const resultadoRodadas = gerarRodadas(materias, config);
+        const resultadoRodadas = gerarRodadas(materias, config, rodadasSettings);
 
         if (!resultadoRodadas.success) {
             updateEtapa(4, 'error', resultadoRodadas.error);
@@ -3372,17 +3382,20 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
             });
         }
 
+        // Buscar configurações de rodadas do banco
+        const rodadasSettings = await getRodadasSettings();
+
         // Gerar rodadas sem persistir
         const config: ConfiguracaoGeracao = {
-            materias_por_rodada: 5,
-            max_topicos_por_missao: 3,
+            materias_por_rodada: rodadasSettings.materias_por_rodada,
+            max_topicos_por_missao: rodadasSettings.topicos_por_missao_com_subtopicos,
             incluir_revisao_op: true,
             incluir_tecnicas_op: true,
             incluir_simulado: true,
             gerar_filtros_questoes: true,
         };
 
-        const resultadoRodadas = gerarRodadas(materias, config);
+        const resultadoRodadas = gerarRodadas(materias, config, rodadasSettings);
 
         if (!resultadoRodadas.success) {
             await deletarPreparatorio(preparatorioId);
@@ -3447,14 +3460,15 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
  * Body: {
  *   preparatorioId: string,
  *   materiasOrdenadas: Array<{ id: string, prioridade: number }>,
- *   banca?: string
+ *   banca?: string,
+ *   raioX?: object - Dados do Raio-X (análise de prova anterior)
  * }
  */
 app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) => {
     // Timeout de 10 minutos para permitir geração completa das missões
     req.setTimeout(10 * 60 * 1000);
-    
-    const { preparatorioId, materiasOrdenadas, banca, sistemaHibrido } = req.body;
+
+    const { preparatorioId, materiasOrdenadas, banca, sistemaHibrido, raioX: raioXFromFrontend } = req.body;
 
     if (!preparatorioId || !materiasOrdenadas) {
         return res.status(400).json({
@@ -3510,12 +3524,22 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
                     .eq('id', materia.id);
             }
 
-            // Salvar raio-x
+            // Salvar raio-x (incluindo dados de prova anterior se fornecidos)
             const raioX = {
                 analise_automatica: false,
                 sistema_hibrido: true,
                 data_analise: new Date().toISOString(),
                 ordem_materias: materias.map(m => ({ id: m.id, titulo: m.titulo, prioridade: m.prioridade })),
+                // Incluir dados do Raio-X da prova anterior se fornecidos pelo frontend
+                ...(raioXFromFrontend && {
+                    prova_anterior: {
+                        total_questoes: raioXFromFrontend.total_questoes,
+                        tipo_predominante: raioXFromFrontend.tipo_predominante,
+                        banca_identificada: raioXFromFrontend.banca_identificada,
+                        distribuicao: raioXFromFrontend.distribuicao,
+                        analisado_em: raioXFromFrontend.analisado_em,
+                    },
+                }),
             };
             await atualizarRaioX(preparatorioId, raioX);
 
@@ -3541,17 +3565,20 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
             });
         }
 
+        // Buscar configurações de rodadas do banco
+        const rodadasSettings = await getRodadasSettings();
+
         // Fluxo original: Gerar rodadas automaticamente
         const config: ConfiguracaoGeracao = {
-            materias_por_rodada: 5,
-            max_topicos_por_missao: 3,
+            materias_por_rodada: rodadasSettings.materias_por_rodada,
+            max_topicos_por_missao: rodadasSettings.topicos_por_missao_com_subtopicos,
             incluir_revisao_op: true,
             incluir_tecnicas_op: true,
             incluir_simulado: true,
             gerar_filtros_questoes: true,
         };
 
-        const resultadoRodadas = gerarRodadas(materias, config);
+        const resultadoRodadas = gerarRodadas(materias, config, rodadasSettings);
 
         if (!resultadoRodadas.success) {
             return res.status(500).json({
@@ -3578,12 +3605,23 @@ app.post('/api/preparatorio/confirm-rodadas', express.json(), async (req, res) =
 
         console.log(`[ConfirmRodadas] Rodadas persistidas: ${resultadoPersistencia.rodadas_criadas}`);
 
+        // Salvar raio-x (incluindo dados de prova anterior se fornecidos)
         const raioX = {
             analise_automatica: true,
             data_analise: new Date().toISOString(),
             ordem_materias: materias.map(m => ({ id: m.id, titulo: m.titulo, prioridade: m.prioridade })),
             total_rodadas: resultadoRodadas.estatisticas.total_rodadas,
             total_missoes: resultadoRodadas.estatisticas.total_missoes,
+            // Incluir dados do Raio-X da prova anterior se fornecidos pelo frontend
+            ...(raioXFromFrontend && {
+                prova_anterior: {
+                    total_questoes: raioXFromFrontend.total_questoes,
+                    tipo_predominante: raioXFromFrontend.tipo_predominante,
+                    banca_identificada: raioXFromFrontend.banca_identificada,
+                    distribuicao: raioXFromFrontend.distribuicao,
+                    analisado_em: raioXFromFrontend.analisado_em,
+                },
+            }),
         };
         await atualizarRaioX(preparatorioId, raioX);
 
@@ -4511,6 +4549,146 @@ app.post('/api/pdf/simulado', async (req, res) => {
         return res.status(500).json({
             success: false,
             error: error.message || 'Failed to generate PDF',
+        });
+    }
+});
+
+/**
+ * POST /api/preparatorio/analyze-prova
+ * Analisa PDF de prova anterior e extrai o Raio-X (distribuição de questões por matéria)
+ *
+ * Body: FormData com campo 'pdf' contendo o arquivo PDF da prova anterior
+ * Query params opcionais:
+ *   - materias: JSON array com as matérias do edital para fazer match
+ *
+ * Retorna:
+ * {
+ *   success: true,
+ *   raioX: {
+ *     total_questoes: number,
+ *     tipo_predominante: 'multipla_escolha' | 'certo_errado',
+ *     banca_identificada: string | null,
+ *     distribuicao: { materia: string, quantidade: number, percentual: number }[],
+ *     analisado_em: string
+ *   }
+ * }
+ */
+app.post('/api/preparatorio/analyze-prova', upload.single('pdf'), async (req, res) => {
+    const startTime = Date.now();
+
+    try {
+        // Validar arquivo PDF
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'Arquivo PDF da prova anterior é obrigatório',
+            });
+        }
+
+        console.log(`[Raio-X] Iniciando análise de prova com arquivo de ${(req.file.size / 1024 / 1024).toFixed(2)}MB`);
+
+        // Obter matérias do edital se fornecidas (para match)
+        let materiasEdital: string[] = [];
+        if (req.body.materias) {
+            try {
+                materiasEdital = JSON.parse(req.body.materias);
+            } catch (e) {
+                console.log('[Raio-X] Não foi possível parsear matérias do edital, continuando sem match');
+            }
+        }
+
+        // Obter o agente de análise de prova
+        const agent = mastra.getAgent("provaAnalyzerAgent");
+
+        if (!agent) {
+            return res.status(500).json({
+                success: false,
+                error: 'Agente provaAnalyzerAgent não encontrado',
+            });
+        }
+
+        // Preparar o PDF em base64
+        const pdfBase64 = req.file.buffer.toString('base64');
+
+        // Preparar contexto com matérias do edital
+        const contextText = materiasEdital.length > 0
+            ? `Analise esta prova de concurso e extraia o Raio-X (distribuição de questões por matéria).
+
+CONTEXTO: O edital do concurso tem as seguintes matérias:
+${materiasEdital.map((m, i) => `${i + 1}. ${m}`).join('\n')}
+
+Tente fazer o match das matérias identificadas na prova com as matérias do edital acima.`
+            : 'Analise esta prova de concurso e extraia o Raio-X (distribuição de questões por matéria).';
+
+        // Chamar o agente com o PDF
+        const analysisResult = await agent.generate([
+            {
+                role: 'user',
+                content: [
+                    { type: 'file', data: pdfBase64, mimeType: 'application/pdf' },
+                    { type: 'text', text: contextText },
+                ],
+            },
+        ]);
+
+        const responseText = analysisResult.text || '';
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+
+        if (!jsonMatch) {
+            console.error('[Raio-X] Não foi possível extrair JSON da resposta:', responseText.substring(0, 500));
+            return res.status(400).json({
+                success: false,
+                error: 'Não foi possível extrair informações da prova',
+            });
+        }
+
+        let raioXRaw;
+        try {
+            raioXRaw = JSON.parse(jsonMatch[0]);
+        } catch (e) {
+            console.error('[Raio-X] Erro ao parsear JSON:', e);
+            return res.status(400).json({
+                success: false,
+                error: 'Erro ao processar a análise da prova',
+            });
+        }
+
+        // Validar estrutura básica
+        if (!raioXRaw.distribuicao || !Array.isArray(raioXRaw.distribuicao)) {
+            return res.status(400).json({
+                success: false,
+                error: 'A análise não retornou a distribuição de questões esperada',
+            });
+        }
+
+        // Processar resultado (calcular percentuais, adicionar timestamp)
+        const total = raioXRaw.total_questoes || raioXRaw.distribuicao.reduce((sum: number, d: any) => sum + d.quantidade, 0);
+
+        const raioX = {
+            total_questoes: total,
+            tipo_predominante: raioXRaw.tipo_predominante || 'multipla_escolha',
+            banca_identificada: raioXRaw.banca_identificada || null,
+            distribuicao: raioXRaw.distribuicao.map((d: any) => ({
+                materia: d.materia,
+                quantidade: d.quantidade,
+                percentual: Math.round((d.quantidade / total) * 100 * 10) / 10,
+            })),
+            analisado_em: new Date().toISOString(),
+        };
+
+        const elapsed = Date.now() - startTime;
+        console.log(`[Raio-X] Análise concluída em ${elapsed}ms: ${raioX.total_questoes} questões, ${raioX.distribuicao.length} matérias`);
+
+        return res.json({
+            success: true,
+            raioX,
+        });
+
+    } catch (error: any) {
+        console.error('[Raio-X] Erro na análise:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao analisar prova anterior',
         });
     }
 });

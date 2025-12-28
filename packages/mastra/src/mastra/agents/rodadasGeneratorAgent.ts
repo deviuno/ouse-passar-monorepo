@@ -31,6 +31,10 @@ export interface TopicoParaGeracao {
     id: string;
     titulo: string;
     materia_id: string;
+    /** Sub-tópicos (filhos) deste tópico */
+    subtopicos?: TopicoParaGeracao[];
+    /** Se true, este é um tópico isolado (sem sub-entradas) */
+    isIsolado?: boolean;
 }
 
 export interface MateriaOrdenada {
@@ -47,6 +51,88 @@ export interface ConfiguracaoGeracao {
     incluir_tecnicas_op: boolean;    // Default: true (Aplicar Técnicas)
     incluir_simulado: boolean;       // Default: true
     gerar_filtros_questoes: boolean; // Default: true
+}
+
+/**
+ * Configurações de rodadas carregadas do banco de dados (system_settings)
+ */
+export interface RodadasSettings {
+    topicos_por_missao_isolados: number;      // Default: 2
+    topicos_por_missao_com_subtopicos: number; // Default: 3
+    revisao_questoes_base: number;             // Default: 25
+    revisao_questoes_decremento: number;       // Default: 5
+    revisao_questoes_minimo: number;           // Default: 5
+    materias_por_rodada: number;               // Default: 5
+    missoes_extras_repeticao: number;          // Default: 2
+}
+
+// Cache das configurações para evitar múltiplas chamadas ao banco
+let _rodadasSettingsCache: RodadasSettings | null = null;
+let _rodadasSettingsCacheTime: number = 0;
+const CACHE_TTL_MS = 60000; // 1 minuto
+
+/**
+ * Busca as configurações de rodadas do banco de dados (system_settings)
+ * Usa cache para evitar múltiplas chamadas
+ */
+export async function getRodadasSettings(): Promise<RodadasSettings> {
+    const now = Date.now();
+
+    // Retorna cache se ainda válido
+    if (_rodadasSettingsCache && (now - _rodadasSettingsCacheTime) < CACHE_TTL_MS) {
+        return _rodadasSettingsCache;
+    }
+
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+        .from('system_settings')
+        .select('key, value')
+        .eq('category', 'rodadas');
+
+    // Valores padrão
+    const defaults: RodadasSettings = {
+        topicos_por_missao_isolados: 2,
+        topicos_por_missao_com_subtopicos: 3,
+        revisao_questoes_base: 25,
+        revisao_questoes_decremento: 5,
+        revisao_questoes_minimo: 5,
+        materias_por_rodada: 5,
+        missoes_extras_repeticao: 2,
+    };
+
+    if (error || !data) {
+        console.warn('[getRodadasSettings] Erro ao buscar configurações, usando padrões:', error?.message);
+        _rodadasSettingsCache = defaults;
+        _rodadasSettingsCacheTime = now;
+        return defaults;
+    }
+
+    // Mesclar valores do banco com padrões
+    const settings: RodadasSettings = { ...defaults };
+    for (const row of data) {
+        const key = row.key as keyof RodadasSettings;
+        if (key in settings) {
+            const value = typeof row.value === 'string' ? parseInt(row.value, 10) : row.value;
+            if (!isNaN(value)) {
+                (settings as any)[key] = value;
+            }
+        }
+    }
+
+    console.log('[getRodadasSettings] Configurações carregadas:', settings);
+
+    _rodadasSettingsCache = settings;
+    _rodadasSettingsCacheTime = now;
+    return settings;
+}
+
+/**
+ * Limpa o cache de configurações (útil após atualização no admin)
+ */
+export function clearRodadasSettingsCache(): void {
+    _rodadasSettingsCache = null;
+    _rodadasSettingsCacheTime = 0;
 }
 
 export interface MissaoGerada {
@@ -108,7 +194,173 @@ interface EstadoMateria {
 }
 
 /**
- * Pega os próximos N tópicos de uma matéria
+ * Calcula a melhor distribuição de itens em grupos
+ * Preferência: grupos de tamanho preferido, permitindo grupos de tamanho máximo quando necessário
+ *
+ * @param total - Total de itens a distribuir
+ * @param preferido - Tamanho preferido do grupo (default: 2)
+ * @param maximo - Tamanho máximo do grupo (default: 3)
+ *
+ * Exemplos com preferido=2, maximo=3:
+ * - 4 itens → [2, 2]
+ * - 5 itens → [2, 3]
+ * - 6 itens → [2, 2, 2]
+ * - 7 itens → [2, 2, 3]
+ * - 8 itens → [2, 2, 2, 2]
+ */
+function calcularDistribuicaoGrupos(total: number, preferido: number = 2, maximo: number = 3): number[] {
+    if (total <= 0) return [];
+    if (total <= maximo) return [total];
+
+    const grupos: number[] = [];
+    let restante = total;
+
+    while (restante > 0) {
+        if (restante <= maximo) {
+            grupos.push(restante);
+            restante = 0;
+        } else if (restante >= preferido) {
+            grupos.push(preferido);
+            restante -= preferido;
+        } else {
+            // Restou menos que o preferido: juntar com o último grupo se possível
+            if (grupos.length > 0 && grupos[grupos.length - 1] + restante <= maximo) {
+                grupos[grupos.length - 1] += restante;
+            } else {
+                grupos.push(restante);
+            }
+            restante = 0;
+        }
+    }
+
+    return grupos;
+}
+
+/**
+ * Agrupa tópicos para formar missões seguindo as novas regras:
+ * - Tópicos isolados: máximo 2 por missão
+ * - Tópicos com sub-entradas: máximo 3 por missão (incluindo o pai)
+ * - Preferência: 2 por missão
+ *
+ * Retorna um array de arrays, onde cada sub-array é uma missão
+ */
+function agruparTopicosParaMissoes(topicos: TopicoParaGeracao[]): TopicoParaGeracao[][] {
+    const missoes: TopicoParaGeracao[][] = [];
+    let i = 0;
+
+    while (i < topicos.length) {
+        const topico = topicos[i];
+
+        // Caso 1: Tópico com sub-tópicos
+        if (topico.subtopicos && topico.subtopicos.length > 0) {
+            // Coletar todos os itens (pai + filhos)
+            const todosItens = [topico, ...topico.subtopicos];
+
+            // Distribuir em missões (preferência por 2, permitindo 3)
+            const distribuicao = calcularDistribuicaoGrupos(todosItens.length);
+
+            let idx = 0;
+            for (const tamanho of distribuicao) {
+                missoes.push(todosItens.slice(idx, idx + tamanho));
+                idx += tamanho;
+            }
+
+            i++;
+        }
+        // Caso 2: Tópicos isolados - agrupar de 2 em 2
+        else {
+            // Coletar tópicos isolados consecutivos
+            const topicosIsolados: TopicoParaGeracao[] = [];
+
+            while (i < topicos.length && (!topicos[i].subtopicos || topicos[i].subtopicos!.length === 0)) {
+                topicosIsolados.push(topicos[i]);
+                i++;
+            }
+
+            // Distribuir em missões de 2 (preferência) ou 3
+            const distribuicao = calcularDistribuicaoGrupos(topicosIsolados.length);
+
+            let idx = 0;
+            for (const tamanho of distribuicao) {
+                missoes.push(topicosIsolados.slice(idx, idx + tamanho));
+                idx += tamanho;
+            }
+        }
+    }
+
+    return missoes;
+}
+
+/**
+ * Pega a próxima missão de tópicos (usando a regra de agrupamento configurável)
+ * Retorna os tópicos para UMA missão
+ *
+ * @param estado - Estado atual da matéria
+ * @param settings - Configurações de rodadas (opcional, usa defaults se não fornecido)
+ */
+function pegarProximaMissao(estado: EstadoMateria, settings?: RodadasSettings): TopicoParaGeracao[] {
+    // Valores padrão se settings não fornecido
+    const maxIsolados = settings?.topicos_por_missao_isolados ?? 2;
+    const maxComSubtopicos = settings?.topicos_por_missao_com_subtopicos ?? 3;
+
+    if (estado.topicosRestantes.length === 0) {
+        return [];
+    }
+
+    const topico = estado.topicosRestantes[0];
+
+    // Caso 1: Tópico com sub-tópicos
+    if (topico.subtopicos && topico.subtopicos.length > 0) {
+        // Remover o tópico pai da fila
+        estado.topicosRestantes.shift();
+
+        // Coletar todos os itens (pai + filhos)
+        const todosItens = [topico, ...topico.subtopicos];
+
+        // Calcular distribuição usando configuração
+        // Preferência: maxIsolados (geralmente 2), máximo: maxComSubtopicos (geralmente 3)
+        const distribuicao = calcularDistribuicaoGrupos(todosItens.length, maxIsolados, maxComSubtopicos);
+
+        // Pegar apenas o primeiro grupo para esta missão
+        const tamanhoGrupo = distribuicao[0];
+        const topicosParaMissao = todosItens.slice(0, tamanhoGrupo);
+
+        // Se sobraram itens, recolocar na fila como um novo "tópico" virtual
+        if (todosItens.length > tamanhoGrupo) {
+            const restantes = todosItens.slice(tamanhoGrupo);
+            // Se só tem 1 item restante, usar ele diretamente
+            if (restantes.length === 1) {
+                estado.topicosRestantes.unshift(restantes[0]);
+            } else {
+                // Colocar o primeiro como principal e o resto como subtópicos
+                restantes[0].subtopicos = restantes.slice(1);
+                estado.topicosRestantes.unshift(restantes[0]);
+            }
+        }
+
+        estado.topicosEstudados.push(...topicosParaMissao);
+        return topicosParaMissao;
+    }
+    // Caso 2: Tópicos isolados
+    else {
+        // Coletar até maxIsolados tópicos isolados consecutivos
+        const topicosIsolados: TopicoParaGeracao[] = [];
+
+        while (
+            estado.topicosRestantes.length > 0 &&
+            topicosIsolados.length < maxIsolados &&
+            (!estado.topicosRestantes[0].subtopicos || estado.topicosRestantes[0].subtopicos!.length === 0)
+        ) {
+            topicosIsolados.push(estado.topicosRestantes.shift()!);
+        }
+
+        estado.topicosEstudados.push(...topicosIsolados);
+        return topicosIsolados;
+    }
+}
+
+/**
+ * Pega os próximos N tópicos de uma matéria (LEGADO - mantido para compatibilidade)
  */
 function pegarProximosTopicos(estado: EstadoMateria, quantidade: number): TopicoParaGeracao[] {
     const topicos = estado.topicosRestantes.splice(0, quantidade);
@@ -208,23 +460,88 @@ function criarMissaoSimulado(
 }
 
 /**
+ * Cria a missão de revisão de matérias finalizadas
+ * Agrupa todas as matérias finalizadas em uma única missão com quantidade decrescente de questões
+ *
+ * @param materiasFinalizadas - Matérias que já foram finalizadas e a rodada em que foram finalizadas
+ * @param rodadaAtual - Número da rodada atual
+ * @param settings - Configurações de rodadas (opcional, usa defaults se não fornecido)
+ */
+function criarMissaoRevisaoMateriasFinalizadas(
+    materiasFinalizadas: Array<{ materia: MateriaOrdenada; rodadaFinalizacao: number }>,
+    rodadaAtual: number,
+    settings?: RodadasSettings
+): MissaoGerada | null {
+    if (materiasFinalizadas.length === 0) return null;
+
+    // Usar configurações ou valores padrão
+    // Sequência exemplo com defaults (25, 5, 5): 25 → 20 → 15 → 10 → 5 → 5 → 5...
+    const BASE_QUESTOES = settings?.revisao_questoes_base ?? 25;
+    const DECREMENTO_POR_RODADA = settings?.revisao_questoes_decremento ?? 5;
+    const MINIMO_QUESTOES = settings?.revisao_questoes_minimo ?? 5;
+
+    const materiasComQuestoes = materiasFinalizadas.map(({ materia, rodadaFinalizacao }) => {
+        const rodadasDesdeFinalizacao = rodadaAtual - rodadaFinalizacao;
+        const questoes = Math.max(
+            MINIMO_QUESTOES,
+            BASE_QUESTOES - (rodadasDesdeFinalizacao * DECREMENTO_POR_RODADA)
+        );
+        return { materia, questoes };
+    });
+
+    const totalQuestoes = materiasComQuestoes.reduce((sum, m) => sum + m.questoes, 0);
+    const descricao = materiasComQuestoes
+        .map(m => `${m.materia.titulo}: ${m.questoes} questões`)
+        .join('\n');
+
+    return {
+        numero: '',
+        tipo: 'revisao',
+        materia: 'REVISÃO - MATÉRIAS FINALIZADAS',
+        materia_id: null,
+        assunto: descricao,
+        instrucoes: `Revisão das matérias já finalizadas. Total: ${totalQuestoes} questões.`,
+        tema: `Revisão: ${materiasFinalizadas.map(m => m.materia.titulo).join(', ')}`,
+        topico_ids: [],
+        ordem: 0,
+        plataformas: ['questoes', 'planejador', 'plataforma'],
+        materias_ids: materiasFinalizadas.map(m => m.materia.id),
+    };
+}
+
+/**
  * Algoritmo principal de geração de rodadas
  *
- * NOVA ESTRUTURA (10 missões por rodada):
- * 1. Missões 1-5: Uma missão de cada uma das 5 primeiras matérias (alternância garantida)
- * 2. Missões 6-7: Repetição das 2 matérias com mais tópicos restantes
- * 3. Missão 8: "Revisão Ouse Passar" (todas plataformas)
- * 4. Missão 9: "Aplicar Técnicas Ouse Passar" (só Planejador)
- * 5. Missão 10: Simulado (app Questões)
+ * ESTRUTURA POR RODADA:
+ * 1. Missões 1-5: Uma missão de cada uma das 5 primeiras matérias ativas (ordem de prioridade)
+ * 2. Missões 6-7: Duas missões extras das 2 matérias mais relevantes (maior quantidade de questões no Raio-X)
+ * 3. Missão 8: "Revisão Ouse Passar" (questões erradas da rodada atual)
+ * 4. Missão 9: "Revisão Matérias Finalizadas" (a partir da rodada 2, se houver matérias finalizadas)
+ *    - Quantidade de questões configurável via admin (padrão: 25, decremento 5, mínimo 5)
+ * 5. Missão 10: "Aplicar Técnicas Ouse Passar" (só Planejador)
+ * 6. Missão 11: Simulado (app Questões)
  *
- * Quando uma matéria finaliza, ela entra na Revisão Ouse Passar das rodadas seguintes.
+ * REGRAS:
+ * - Matérias são processadas em ordem de prioridade (Raio-X: mais questões = mais relevante)
+ * - Quando uma matéria esgota todos os tópicos, ela é "finalizada"
+ * - Matérias finalizadas entram na revisão das rodadas seguintes
+ * - O algoritmo continua até que TODAS as matérias tenham sido estudadas
+ *
+ * @param materias - Lista de matérias ordenadas por prioridade
+ * @param config - Configurações de geração
+ * @param settings - Configurações de rodadas do banco (opcional, usa defaults se não fornecido)
  */
 export function gerarRodadas(
     materias: MateriaOrdenada[],
-    config: ConfiguracaoGeracao
+    config: ConfiguracaoGeracao,
+    settings?: RodadasSettings
 ): ResultadoGeracao {
     try {
         const rodadas: RodadaGerada[] = [];
+
+        // Usar settings ou valores padrão
+        const materiasConfig = settings?.materias_por_rodada ?? config.materias_por_rodada ?? 5;
+        const missoesExtras = settings?.missoes_extras_repeticao ?? 2;
 
         // Inicializar estado de cada matéria
         const estados: EstadoMateria[] = materias.map(m => ({
@@ -236,61 +553,95 @@ export function gerarRodadas(
         }));
 
         // Matérias que já finalizaram (para revisão)
-        const materiasFinalizadas: MateriaOrdenada[] = [];
+        const materiasFinalizadasComRodada: Array<{ materia: MateriaOrdenada; rodadaFinalizacao: number }> = [];
 
         let rodadaAtual = 1;
         const maxRodadas = 100;
-        const materiasNaRodada = Math.min(config.materias_por_rodada || 5, materias.length);
+        const materiasNaRodada = Math.min(materiasConfig, materias.length);
+
+        console.log(`[Generator] Iniciando geração com ${materias.length} matérias, ${materiasNaRodada} por rodada`);
 
         while (rodadaAtual <= maxRodadas) {
             const missoesRodada: MissaoGerada[] = [];
             const topicosRodada: string[] = [];
             const materiasUsadasNaRodada: MateriaOrdenada[] = [];
 
-            // Pegar as N primeiras matérias que ainda têm tópicos
+            // Pegar matérias ativas (que ainda têm tópicos) em ordem de prioridade
             const materiasAtivas = estados
-                .filter(e => !e.finalizada)
+                .filter(e => !e.finalizada && e.topicosRestantes.length > 0)
                 .slice(0, materiasNaRodada);
+
+            console.log(`[Generator] Rodada ${rodadaAtual}: ${materiasAtivas.length} matérias ativas`);
 
             if (materiasAtivas.length === 0) {
                 // Todas as matérias finalizaram
+                console.log(`[Generator] Todas as matérias finalizaram na rodada ${rodadaAtual}`);
                 break;
             }
 
-            // ========== MISSÕES 1-5: Uma de cada matéria ==========
+            // ========== MISSÕES 1-5: Uma de cada matéria ativa ==========
+            // Usando regra configurável de tópicos por missão
             for (const estado of materiasAtivas) {
-                const topicos = pegarProximosTopicos(estado, config.max_topicos_por_missao);
+                const topicos = pegarProximaMissao(estado, settings);
 
-                if (topicos.length === 0) continue;
+                if (topicos.length === 0) {
+                    console.log(`[Generator] Matéria "${estado.materia.titulo}" sem tópicos disponíveis`);
+                    continue;
+                }
 
                 const missao = criarMissaoEstudo(estado.materia, topicos);
                 missao.numero = String(missoesRodada.length + 1);
                 missao.ordem = missoesRodada.length + 1;
                 missoesRodada.push(missao);
 
-                topicosRodada.push(...missao.topico_ids);
+                // Extrair IDs (incluindo subtópicos se houver)
+                const todosIds = topicos.flatMap(t => {
+                    const ids = [t.id];
+                    if (t.subtopicos) {
+                        ids.push(...t.subtopicos.map(st => st.id));
+                    }
+                    return ids;
+                });
+                topicosRodada.push(...todosIds);
                 materiasUsadasNaRodada.push(estado.materia);
+
+                console.log(`[Generator] Missão criada: ${estado.materia.titulo} - ${topicos.length} tópicos`);
 
                 // Verificar se a matéria finalizou
                 if (estado.topicosRestantes.length === 0) {
                     estado.finalizada = true;
                     estado.rodadaFinalizacao = rodadaAtual;
-                    materiasFinalizadas.push(estado.materia);
+                    materiasFinalizadasComRodada.push({
+                        materia: estado.materia,
+                        rodadaFinalizacao: rodadaAtual,
+                    });
+                    console.log(`[Generator] Matéria "${estado.materia.titulo}" FINALIZADA na rodada ${rodadaAtual}`);
                 }
             }
 
             if (missoesRodada.length === 0) {
+                console.log(`[Generator] Nenhuma missão criada, encerrando`);
                 break;
             }
 
-            // ========== MISSÕES 6-7: Repetição das 2 matérias com mais tópicos restantes ==========
-            const materiasComMaisTopicos = estados
-                .filter(e => !e.finalizada && e.topicosRestantes.length > 0)
-                .sort((a, b) => b.topicosRestantes.length - a.topicosRestantes.length)
-                .slice(0, 2);
+            // ========== MISSÕES EXTRAS: Repetição das matérias mais relevantes ==========
+            // IMPORTANTE: Pegar as N matérias MAIS PRIORITÁRIAS (menor número de prioridade = mais importante)
+            // dentre as já usadas nesta rodada que ainda têm tópicos para estudar
+            const idsMateriasUsadas = materiasUsadasNaRodada.map(m => m.id);
+            const materiasParaRepeticao = estados
+                .filter(e =>
+                    idsMateriasUsadas.includes(e.materia.id) && // Apenas matérias já usadas nesta rodada
+                    !e.finalizada &&
+                    e.topicosRestantes.length > 0
+                )
+                .sort((a, b) => {
+                    // Ordenar por PRIORIDADE da matéria (menor = mais importante, baseado no Raio-X)
+                    return a.materia.prioridade - b.materia.prioridade;
+                })
+                .slice(0, missoesExtras); // Configurável via admin
 
-            for (const estado of materiasComMaisTopicos) {
-                const topicos = pegarProximosTopicos(estado, config.max_topicos_por_missao);
+            for (const estado of materiasParaRepeticao) {
+                const topicos = pegarProximaMissao(estado, settings);
 
                 if (topicos.length === 0) continue;
 
@@ -299,8 +650,16 @@ export function gerarRodadas(
                 missao.ordem = missoesRodada.length + 1;
                 missoesRodada.push(missao);
 
-                topicosRodada.push(...missao.topico_ids);
-                if (!materiasUsadasNaRodada.includes(estado.materia)) {
+                // Extrair IDs (incluindo subtópicos se houver)
+                const todosIds = topicos.flatMap(t => {
+                    const ids = [t.id];
+                    if (t.subtopicos) {
+                        ids.push(...t.subtopicos.map(st => st.id));
+                    }
+                    return ids;
+                });
+                topicosRodada.push(...todosIds);
+                if (!materiasUsadasNaRodada.find(m => m.id === estado.materia.id)) {
                     materiasUsadasNaRodada.push(estado.materia);
                 }
 
@@ -308,23 +667,51 @@ export function gerarRodadas(
                 if (estado.topicosRestantes.length === 0) {
                     estado.finalizada = true;
                     estado.rodadaFinalizacao = rodadaAtual;
-                    materiasFinalizadas.push(estado.materia);
+                    materiasFinalizadasComRodada.push({
+                        materia: estado.materia,
+                        rodadaFinalizacao: rodadaAtual,
+                    });
+                    console.log(`[Generator] Matéria "${estado.materia.titulo}" FINALIZADA (repetição) na rodada ${rodadaAtual}`);
                 }
             }
 
-            // ========== MISSÃO 8: Revisão Ouse Passar ==========
+            // ========== MISSÃO: Revisão Ouse Passar (questões erradas da rodada) ==========
             if (config.incluir_revisao_op) {
                 const missaoRevisao = criarMissaoRevisaoOusePassar(
                     materiasUsadasNaRodada,
-                    materiasFinalizadas,
+                    [], // Não incluir matérias finalizadas aqui
                     topicosRodada
                 );
                 missaoRevisao.numero = String(missoesRodada.length + 1);
                 missaoRevisao.ordem = missoesRodada.length + 1;
+                missaoRevisao.tema = 'Revisão: Questões erradas desta rodada';
+                missaoRevisao.instrucoes = 'Revise as questões que você errou ou marcou como difíceis nesta rodada.';
                 missoesRodada.push(missaoRevisao);
             }
 
-            // ========== MISSÃO 9: Aplicar Técnicas Ouse Passar ==========
+            // ========== MISSÃO: Revisão Matérias Finalizadas (a partir da rodada 2) ==========
+            if (rodadaAtual > 1 && materiasFinalizadasComRodada.length > 0) {
+                // Filtrar apenas matérias finalizadas ANTES desta rodada
+                const materiasParaRevisao = materiasFinalizadasComRodada.filter(
+                    m => m.rodadaFinalizacao < rodadaAtual
+                );
+
+                if (materiasParaRevisao.length > 0) {
+                    const missaoRevisaoFinalizadas = criarMissaoRevisaoMateriasFinalizadas(
+                        materiasParaRevisao,
+                        rodadaAtual,
+                        settings
+                    );
+                    if (missaoRevisaoFinalizadas) {
+                        missaoRevisaoFinalizadas.numero = String(missoesRodada.length + 1);
+                        missaoRevisaoFinalizadas.ordem = missoesRodada.length + 1;
+                        missoesRodada.push(missaoRevisaoFinalizadas);
+                        console.log(`[Generator] Adicionada revisão de ${materiasParaRevisao.length} matérias finalizadas`);
+                    }
+                }
+            }
+
+            // ========== MISSÃO: Aplicar Técnicas Ouse Passar ==========
             if (config.incluir_tecnicas_op) {
                 const missaoTecnicas = criarMissaoTecnicasOusePassar();
                 missaoTecnicas.numero = String(missoesRodada.length + 1);
@@ -332,7 +719,7 @@ export function gerarRodadas(
                 missoesRodada.push(missaoTecnicas);
             }
 
-            // ========== MISSÃO 10: Simulado ==========
+            // ========== MISSÃO: Simulado ==========
             if (config.incluir_simulado && topicosRodada.length > 0) {
                 const missaoSimulado = criarMissaoSimulado(
                     rodadaAtual,
@@ -351,11 +738,14 @@ export function gerarRodadas(
                 missoes: missoesRodada,
             });
 
+            console.log(`[Generator] Rodada ${rodadaAtual} criada com ${missoesRodada.length} missões`);
+
             rodadaAtual++;
 
             // Condição de parada: todas as matérias finalizaram
             const todasFinalizadas = estados.every(e => e.finalizada);
             if (todasFinalizadas) {
+                console.log(`[Generator] Todas as ${materias.length} matérias foram finalizadas!`);
                 break;
             }
         }
@@ -376,6 +766,8 @@ export function gerarRodadas(
                 }
             }
         }
+
+        console.log(`[Generator] Geração concluída: ${rodadas.length} rodadas, ${missoes_estudo + missoes_revisao + missoes_tecnicas + missoes_simulado} missões`);
 
         return {
             success: true,
@@ -614,6 +1006,9 @@ function isPortugues(titulo: string): boolean {
  * 1. Português SEMPRE primeiro (mais importante em todo concurso brasileiro)
  * 2. Matérias que ocupam um bloco inteiro ou quase inteiro são mais relevantes
  * 3. Ordem do edital como critério secundário
+ *
+ * IMPORTANTE: Matérias sem tópicos também são incluídas (com um tópico genérico criado)
+ * para garantir que TODAS as matérias do edital apareçam nas rodadas.
  */
 export async function buscarMateriasComTopicos(
     preparatorioId: string
@@ -633,6 +1028,8 @@ export async function buscarMateriasComTopicos(
     const materias = (items || []).filter(i => i.tipo === 'materia');
     const blocos = (items || []).filter(i => i.tipo === 'bloco');
 
+    console.log(`[BuscarMaterias] Encontradas ${materias.length} matérias no edital verticalizado`);
+
     // Calcular relevância por bloco (matérias que dominam um bloco são mais importantes)
     const materiasporBloco = new Map<string, string[]>();
     for (const bloco of blocos) {
@@ -640,66 +1037,151 @@ export async function buscarMateriasComTopicos(
         materiasporBloco.set(bloco.id, materiasDoBloco.map(m => m.id));
     }
 
-    // Para cada matéria, buscar seus tópicos
+    // Para cada matéria, buscar seus tópicos com estrutura hierárquica
     const materiasComTopicos: MateriaOrdenada[] = [];
+    const materiasSemTopicos: string[] = [];
+
+    // Criar mapa de itens por parent_id para busca rápida de filhos
+    const filhosPorParent = new Map<string, typeof items>();
+    for (const item of items || []) {
+        if (item.parent_id) {
+            const filhos = filhosPorParent.get(item.parent_id) || [];
+            filhos.push(item);
+            filhosPorParent.set(item.parent_id, filhos);
+        }
+    }
 
     for (let idx = 0; idx < materias.length; idx++) {
         const materia = materias[idx];
 
-        // Buscar tópicos diretos (filhos da matéria)
-        const topicos = (items || [])
+        // Buscar tópicos diretos (filhos da matéria do tipo 'topico')
+        const topicosRaw = (items || [])
             .filter(i => i.tipo === 'topico' && i.parent_id === materia.id)
-            .map(t => ({
+            .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+
+        // Para cada tópico, verificar se tem sub-tópicos (filhos)
+        const topicos: TopicoParaGeracao[] = topicosRaw.map(t => {
+            const filhosDoTopico = filhosPorParent.get(t.id) || [];
+            const subTopicos = filhosDoTopico
+                .filter(f => f.tipo === 'topico')
+                .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+                .map(st => ({
+                    id: st.id,
+                    titulo: st.titulo,
+                    materia_id: materia.id,
+                    isIsolado: true, // Sub-tópicos são sempre isolados no contexto
+                }));
+
+            return {
                 id: t.id,
                 titulo: t.titulo,
                 materia_id: materia.id,
-            }));
+                subtopicos: subTopicos.length > 0 ? subTopicos : undefined,
+                isIsolado: subTopicos.length === 0,
+            };
+        });
 
-        // Buscar tópicos de sub-itens (filhos de filhos da matéria)
+        // Buscar tópicos de sub-itens (filhos de filhos da matéria que não são tópicos)
         const subItems = (items || []).filter(i =>
             i.parent_id === materia.id && i.tipo !== 'topico'
         );
 
         for (const subItem of subItems) {
-            const subTopicos = (items || [])
+            const subTopicosRaw = (items || [])
                 .filter(i => i.tipo === 'topico' && i.parent_id === subItem.id)
-                .map(t => ({
-                    id: t.id,
-                    titulo: t.titulo,
+                .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+
+            // Para cada tópico do sub-item, verificar se tem filhos
+            for (const st of subTopicosRaw) {
+                const filhosDoSubTopico = filhosPorParent.get(st.id) || [];
+                const subSubTopicos = filhosDoSubTopico
+                    .filter(f => f.tipo === 'topico')
+                    .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+                    .map(sst => ({
+                        id: sst.id,
+                        titulo: sst.titulo,
+                        materia_id: materia.id,
+                        isIsolado: true,
+                    }));
+
+                topicos.push({
+                    id: st.id,
+                    titulo: st.titulo,
                     materia_id: materia.id,
-                }));
-            topicos.push(...subTopicos);
-        }
-
-        if (topicos.length > 0) {
-            // Calcular relevância baseada na estrutura do bloco
-            let relevanciaBloco = 0;
-            const blocoId = materia.parent_id;
-            if (blocoId && materiasporBloco.has(blocoId)) {
-                const materiasNoBloco = materiasporBloco.get(blocoId)!.length;
-                // Se a matéria é única ou uma de duas em um bloco, ela é muito relevante
-                if (materiasNoBloco === 1) {
-                    relevanciaBloco = 100; // Matéria = Bloco inteiro
-                } else if (materiasNoBloco === 2) {
-                    relevanciaBloco = 50; // Bloco com apenas 2 matérias
-                } else if (materiasNoBloco <= 4) {
-                    relevanciaBloco = 25; // Bloco pequeno
-                }
+                    subtopicos: subSubTopicos.length > 0 ? subSubTopicos : undefined,
+                    isIsolado: subSubTopicos.length === 0,
+                });
             }
-
-            materiasComTopicos.push({
-                id: materia.id,
-                titulo: materia.titulo,
-                prioridade: idx + 1, // Será recalculado depois
-                topicos,
-                // @ts-ignore - Campos temporários para ordenação
-                _isPortugues: isPortugues(materia.titulo),
-                _relevanciaBloco: relevanciaBloco,
-                _ordemOriginal: idx,
-                _qtdTopicos: topicos.length,
-            });
         }
+
+        // Se não tem tópicos, criar um tópico genérico para garantir que a matéria apareça
+        if (topicos.length === 0) {
+            console.warn(`[BuscarMaterias] ⚠️ Matéria "${materia.titulo}" não tem tópicos! Criando tópico genérico.`);
+            materiasSemTopicos.push(materia.titulo);
+
+            // Criar tópico genérico no banco
+            const { data: topicoGenerico, error: topicoError } = await supabase
+                .from('edital_verticalizado_items')
+                .insert({
+                    preparatorio_id: preparatorioId,
+                    tipo: 'topico',
+                    titulo: `Conteúdo de ${materia.titulo}`,
+                    ordem: materia.ordem + 0.5, // Ordem intermediária
+                    parent_id: materia.id,
+                })
+                .select()
+                .single();
+
+            if (!topicoError && topicoGenerico) {
+                topicos.push({
+                    id: topicoGenerico.id,
+                    titulo: topicoGenerico.titulo,
+                    materia_id: materia.id,
+                    isIsolado: true,
+                });
+                console.log(`[BuscarMaterias] ✅ Tópico genérico criado para "${materia.titulo}"`);
+            }
+        }
+
+        // Log da estrutura encontrada
+        const topicosIsolados = topicos.filter(t => t.isIsolado).length;
+        const topicosComSub = topicos.filter(t => !t.isIsolado).length;
+        console.log(`[BuscarMaterias] ${materia.titulo}: ${topicos.length} tópicos (${topicosIsolados} isolados, ${topicosComSub} com sub-entradas)`);
+
+        // Calcular relevância baseada na estrutura do bloco
+        let relevanciaBloco = 0;
+        const blocoId = materia.parent_id;
+        if (blocoId && materiasporBloco.has(blocoId)) {
+            const materiasNoBloco = materiasporBloco.get(blocoId)!.length;
+            // Se a matéria é única ou uma de duas em um bloco, ela é muito relevante
+            if (materiasNoBloco === 1) {
+                relevanciaBloco = 100; // Matéria = Bloco inteiro
+            } else if (materiasNoBloco === 2) {
+                relevanciaBloco = 50; // Bloco com apenas 2 matérias
+            } else if (materiasNoBloco <= 4) {
+                relevanciaBloco = 25; // Bloco pequeno
+            }
+        }
+
+        // Adicionar matéria (agora todas são adicionadas, mesmo com tópico genérico)
+        materiasComTopicos.push({
+            id: materia.id,
+            titulo: materia.titulo,
+            prioridade: idx + 1, // Será recalculado depois
+            topicos,
+            // @ts-ignore - Campos temporários para ordenação
+            _isPortugues: isPortugues(materia.titulo),
+            _relevanciaBloco: relevanciaBloco,
+            _ordemOriginal: idx,
+            _qtdTopicos: topicos.length,
+        });
     }
+
+    if (materiasSemTopicos.length > 0) {
+        console.warn(`[BuscarMaterias] ⚠️ ${materiasSemTopicos.length} matérias não tinham tópicos: ${materiasSemTopicos.join(', ')}`);
+    }
+
+    console.log(`[BuscarMaterias] Total de matérias a serem processadas: ${materiasComTopicos.length}`);
 
     // Ordenar matérias: Português primeiro, depois por relevância de bloco, depois ordem original
     materiasComTopicos.sort((a, b) => {
@@ -728,7 +1210,7 @@ export async function buscarMateriasComTopicos(
     });
 
     // Atualizar prioridades após ordenação e limpar campos temporários
-    return materiasComTopicos.map((m, idx) => {
+    const resultado = materiasComTopicos.map((m, idx) => {
         // Limpar campos temporários
         // @ts-ignore
         delete m._isPortugues;
@@ -744,6 +1226,10 @@ export async function buscarMateriasComTopicos(
             prioridade: idx + 1,
         };
     });
+
+    console.log(`[BuscarMaterias] Ordem final: ${resultado.map(m => m.titulo).join(', ')}`);
+
+    return resultado;
 }
 
 // ==================== CRIAÇÃO DE EDITAL VERTICALIZADO ====================

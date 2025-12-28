@@ -1,12 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Loader2, AlertCircle, Trash2, List, MessageSquare, FileText } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Loader2, AlertCircle, Trash2, List, MessageSquare, FileText, BarChart3, X } from 'lucide-react';
 import { PreparatorioWizard, PreparatorioWizardData } from '../../components/admin/PreparatorioWizard';
 import { useToast } from '../../components/ui/Toast';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { mensagensIncentivoService } from '../../services/mensagensIncentivoService';
 import { editalService } from '../../services/editalService';
 import { Preparatorio } from '../../lib/database.types';
+
+interface RaioXDistribuicao {
+  materia: string;
+  quantidade: number;
+  percentual: number;
+}
+
+interface RaioXProvaAnterior {
+  total_questoes: number;
+  tipo_predominante: 'multipla_escolha' | 'certo_errado';
+  banca_identificada: string | null;
+  distribuicao: RaioXDistribuicao[];
+  analisado_em: string;
+}
+
+// Estrutura real salva no banco de dados
+interface RaioXData {
+  analise_automatica?: boolean;
+  data_analise?: string;
+  total_blocos?: number;
+  total_materias?: number;
+  total_topicos?: number;
+  total_rodadas?: number;
+  total_missoes?: number;
+  missoes_estudo?: number;
+  missoes_revisao?: number;
+  ordem_materias?: Array<{ id: string; titulo: string; prioridade: number }>;
+  prova_anterior?: RaioXProvaAnterior;
+}
 
 export const EditPreparatorioNew: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +56,7 @@ export const EditPreparatorioNew: React.FC = () => {
   const [messagesCount, setMessagesCount] = useState(0);
   const [editalItemsCount, setEditalItemsCount] = useState(0);
   const [isTogglingPublish, setIsTogglingPublish] = useState(false);
+  const [showRaioXModal, setShowRaioXModal] = useState(false);
 
   // Load preparatorio data
   useEffect(() => {
@@ -331,6 +361,23 @@ export const EditPreparatorioNew: React.FC = () => {
               </span>
             )}
           </Link>
+          <button
+            onClick={() => setShowRaioXModal(true)}
+            className={`px-4 py-2 rounded-sm transition-colors flex items-center gap-2 ${
+              preparatorio?.raio_x
+                ? 'text-purple-400 hover:bg-purple-500/10'
+                : 'text-gray-500 hover:bg-gray-500/10'
+            }`}
+            title={preparatorio?.raio_x ? 'Ver análise da prova anterior' : 'Raio X não disponível'}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Raio X
+            {preparatorio?.raio_x && (
+              <span className="text-xs bg-purple-500/20 px-1.5 py-0.5 rounded">
+                ✓
+              </span>
+            )}
+          </button>
           <Link
             to={`/admin/preparatorios/${id}/rodadas`}
             className="px-4 py-2 text-brand-yellow hover:bg-brand-yellow/10 rounded-sm transition-colors flex items-center gap-2"
@@ -454,6 +501,201 @@ export const EditPreparatorioNew: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Raio X Modal */}
+      {showRaioXModal && (() => {
+        const raioX = preparatorio?.raio_x as RaioXData | undefined;
+        const provaAnterior = raioX?.prova_anterior;
+        const hasProvaAnterior = !!provaAnterior?.distribuicao?.length;
+
+        return (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-brand-card border border-white/10 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-500/20 rounded-sm flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Raio X do Preparatório</h3>
+                    <p className="text-gray-500 text-sm">
+                      {hasProvaAnterior ? 'Análise baseada em prova anterior' : 'Estatísticas da geração automática'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowRaioXModal(false)}
+                  className="p-2 hover:bg-white/10 rounded-sm transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400 hover:text-white" />
+                </button>
+              </div>
+
+              {hasProvaAnterior ? (
+                <>
+                  {/* Card de análise da prova (igual ao fluxo de criação) */}
+                  <div className="bg-purple-500/10 border border-purple-500/30 rounded-sm p-4 mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <BarChart3 className="w-5 h-5 text-purple-400" />
+                      <h4 className="text-purple-400 font-bold">Raio-X da Prova Anterior</h4>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Total de questões</p>
+                        <p className="text-white font-bold text-lg">{provaAnterior.total_questoes}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Tipo predominante</p>
+                        <p className="text-white font-medium">
+                          {provaAnterior.tipo_predominante === 'certo_errado' ? 'Certo/Errado' : 'Múltipla Escolha'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Banca identificada</p>
+                        <p className="text-white font-medium">{provaAnterior.banca_identificada || '-'}</p>
+                      </div>
+                    </div>
+                    <p className="text-purple-300/80 text-xs mt-3">
+                      Matérias ordenadas automaticamente pela quantidade de questões (maior importância primeiro)
+                    </p>
+                  </div>
+
+                  {/* Lista de matérias com distribuição (igual ao fluxo de criação) */}
+                  <div className="mb-4">
+                    <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+                      Ordem de Relevância das Matérias
+                      <span className="text-xs font-normal text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded">
+                        Ordenado por Raio-X
+                      </span>
+                    </h4>
+                    <div className="space-y-2">
+                      {[...provaAnterior.distribuicao]
+                        .sort((a, b) => b.quantidade - a.quantidade)
+                        .map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-3 bg-brand-dark/50 rounded-sm p-3 border border-white/5"
+                        >
+                          <span className="text-purple-400 font-bold text-sm w-6">{index + 1}.</span>
+                          <div className="flex-1">
+                            <span className="text-white">{item.materia}</span>
+                          </div>
+                          {/* Info do Raio-X (igual ao fluxo de criação) */}
+                          <div className="flex items-center gap-1 bg-purple-500/20 px-2 py-1 rounded text-xs">
+                            <span className="text-purple-300 font-medium">{item.quantidade}</span>
+                            <span className="text-purple-400/70">questões</span>
+                            <span className="text-purple-400/50">({item.percentual}%)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Data da Análise */}
+                  {provaAnterior.analisado_em && (
+                    <p className="text-gray-500 text-xs text-right">
+                      Analisado em: {new Date(provaAnterior.analisado_em).toLocaleString('pt-BR')}
+                    </p>
+                  )}
+                </>
+              ) : raioX ? (
+                <>
+                  {/* Estatísticas da geração automática (quando não há prova anterior) */}
+                  <div className="bg-brand-dark/50 border border-white/5 rounded-sm p-4 mb-6">
+                    <h4 className="text-white font-medium mb-3">Estatísticas da Geração</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {raioX.total_materias && (
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-brand-yellow">{raioX.total_materias}</p>
+                          <p className="text-xs text-gray-500 uppercase">Matérias</p>
+                        </div>
+                      )}
+                      {raioX.total_topicos && (
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-purple-400">{raioX.total_topicos}</p>
+                          <p className="text-xs text-gray-500 uppercase">Tópicos</p>
+                        </div>
+                      )}
+                      {raioX.total_rodadas && (
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-blue-400">{raioX.total_rodadas}</p>
+                          <p className="text-xs text-gray-500 uppercase">Rodadas</p>
+                        </div>
+                      )}
+                      {raioX.total_missoes && (
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-green-400">{raioX.total_missoes}</p>
+                          <p className="text-xs text-gray-500 uppercase">Missões</p>
+                        </div>
+                      )}
+                    </div>
+                    {(raioX.missoes_estudo || raioX.missoes_revisao) && (
+                      <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-2 gap-4">
+                        {raioX.missoes_estudo && (
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-blue-400">{raioX.missoes_estudo}</p>
+                            <p className="text-xs text-gray-500">Missões de Estudo</p>
+                          </div>
+                        )}
+                        {raioX.missoes_revisao && (
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-purple-400">{raioX.missoes_revisao}</p>
+                            <p className="text-xs text-gray-500">Missões de Revisão</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ordem das matérias (se disponível) */}
+                  {raioX.ordem_materias && raioX.ordem_materias.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-white font-bold mb-3">Ordem de Estudo das Matérias</h4>
+                      <div className="space-y-2">
+                        {raioX.ordem_materias
+                          .sort((a, b) => a.prioridade - b.prioridade)
+                          .map((item, index) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center gap-3 bg-brand-dark/50 rounded-sm p-3 border border-white/5"
+                            >
+                              <span className="text-brand-yellow font-bold text-sm w-6">{index + 1}.</span>
+                              <span className="text-white">{item.titulo}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Data da Análise */}
+                  {raioX.data_analise && (
+                    <p className="text-gray-500 text-xs text-right">
+                      Gerado em: {new Date(raioX.data_analise).toLocaleString('pt-BR')}
+                    </p>
+                  )}
+
+                  {/* Aviso sobre prova anterior */}
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-sm p-4 mt-4">
+                    <p className="text-blue-400 text-sm">
+                      <strong>Dica:</strong> Para uma análise mais detalhada com distribuição de questões por matéria,
+                      recrie o preparatório fazendo upload de uma prova anterior junto com o edital.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <h4 className="text-white font-medium mb-2">Raio X não disponível</h4>
+                  <p className="text-gray-500 text-sm max-w-md mx-auto">
+                    O Raio X é gerado quando você faz upload de uma prova anterior durante a criação do preparatório.
+                    Ele analisa a distribuição de questões por matéria para otimizar as rodadas de estudo.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (

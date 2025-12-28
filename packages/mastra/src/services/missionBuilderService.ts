@@ -257,6 +257,9 @@ async function contarTopicosDisponiveisMateria(materiaId: string, topicosUsados:
 
 /**
  * Obtém todos os tópicos já usados em missões do preparatório
+ * Busca em DUAS fontes:
+ * 1. Campo assuntos_ids da tabela missoes (usado pelo Builder manual)
+ * 2. Tabela missao_edital_items (usado pela geração automática)
  */
 async function getTopicosUsados(preparatorioId: string): Promise<string[]> {
     const supabase = getSupabaseClient();
@@ -273,27 +276,48 @@ async function getTopicosUsados(preparatorioId: string): Promise<string[]> {
 
     const rodadaIds = rodadas.map(r => r.id);
 
-    // Buscar todas as missões dessas rodadas que têm assuntos_ids
+    // Buscar todas as missões dessas rodadas
     const { data: missoes, error: missoesError } = await supabase
         .from('missoes')
-        .select('assuntos_ids')
-        .in('rodada_id', rodadaIds)
-        .not('assuntos_ids', 'is', null);
+        .select('id, assuntos_ids')
+        .in('rodada_id', rodadaIds);
 
     if (missoesError) {
-        console.error('Erro ao buscar tópicos usados:', missoesError);
+        console.error('Erro ao buscar missões:', missoesError);
         return [];
     }
 
-    // Extrair todos os IDs de tópicos usados
     const topicosUsados: string[] = [];
+    const missaoIds: string[] = [];
+
+    // 1. Extrair tópicos do campo assuntos_ids (Builder manual)
     for (const missao of missoes || []) {
+        missaoIds.push(missao.id);
         if (missao.assuntos_ids && Array.isArray(missao.assuntos_ids)) {
             topicosUsados.push(...missao.assuntos_ids);
         }
     }
 
-    return [...new Set(topicosUsados)]; // Remover duplicatas
+    // 2. Buscar tópicos da tabela missao_edital_items (geração automática)
+    if (missaoIds.length > 0) {
+        const { data: vinculos, error: vinculosError } = await supabase
+            .from('missao_edital_items')
+            .select('edital_item_id')
+            .in('missao_id', missaoIds);
+
+        if (!vinculosError && vinculos) {
+            for (const vinculo of vinculos) {
+                if (vinculo.edital_item_id) {
+                    topicosUsados.push(vinculo.edital_item_id);
+                }
+            }
+        }
+    }
+
+    const resultado = [...new Set(topicosUsados)]; // Remover duplicatas
+    console.log(`[getTopicosUsados] Preparatório ${preparatorioId}: ${resultado.length} tópicos já usados`);
+
+    return resultado;
 }
 
 

@@ -147,6 +147,11 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; 
     icon: MapIcon,
     description: 'Configurações das missões e rodadas',
   },
+  rodadas: {
+    label: 'Distribuição de Missões',
+    icon: Target,
+    description: 'Configurações de tópicos por missão e revisão de matérias',
+  },
   reta_final: {
     label: 'Reta Final',
     icon: Flame,
@@ -207,6 +212,15 @@ const SETTING_LABELS: Record<string, string> = {
   min_score_to_pass: 'Pontuação Mínima (%)',
   allow_retry: 'Permitir Refazer',
   show_explanation: 'Mostrar Explicação',
+
+  // Rodadas
+  topicos_por_missao_isolados: 'Tópicos Isolados por Missão',
+  topicos_por_missao_com_subtopicos: 'Tópicos com Sub-entradas por Missão',
+  revisao_questoes_base: 'Questões Base na Revisão',
+  revisao_questoes_decremento: 'Decremento por Rodada',
+  revisao_questoes_minimo: 'Mínimo de Questões',
+  materias_por_rodada: 'Matérias por Rodada',
+  missoes_extras_repeticao: 'Missões Extras (Repetição)',
 
   // General
   maintenance_mode: 'Modo Manutenção',
@@ -273,6 +287,15 @@ const SETTING_TOOLTIPS: Record<string, string> = {
   min_score_to_pass: 'Porcentagem mínima de acertos para passar na missão (ex: 70 = 70%).',
   allow_retry: 'Se ativado, o usuário pode refazer missões que já completou.',
   show_explanation: 'Se ativado, mostra a explicação da questão após responder.',
+
+  // ===== RODADAS =====
+  topicos_por_missao_isolados: 'Quantidade máxima de tópicos isolados (sem sub-entradas) que podem ser agrupados em uma única missão. Tópicos isolados são aqueles que não possuem subtópicos.',
+  topicos_por_missao_com_subtopicos: 'Quantidade máxima de itens (tópico pai + subtópicos) que podem ser agrupados em uma única missão quando o tópico possui sub-entradas.',
+  revisao_questoes_base: 'Quantidade inicial de questões por matéria na primeira revisão após finalizar todos os tópicos. Exemplo: 25 questões.',
+  revisao_questoes_decremento: 'Quantidade de questões a subtrair da revisão a cada rodada. Exemplo: se for 5, a sequência será 25→20→15→10→5.',
+  revisao_questoes_minimo: 'Quantidade mínima de questões por matéria na revisão, independente do decremento. Quando atingir este valor, permanece fixo.',
+  materias_por_rodada: 'Quantidade de matérias diferentes que serão estudadas em cada rodada. As matérias são escolhidas por ordem de prioridade.',
+  missoes_extras_repeticao: 'Quantidade de missões extras por rodada que repetem as matérias mais relevantes (com mais tópicos restantes).',
 
   // ===== GERAL =====
   maintenance_mode: 'Se ativado, apenas administradores podem acessar o sistema. Usuários veem uma tela de manutenção.',
@@ -1920,7 +1943,7 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const categories = ['simulado', 'gamification', 'store', 'trail', 'reta_final', 'battery', 'affiliates', 'legal_texts', 'general', 'blog'];
+  const categories = ['simulado', 'gamification', 'store', 'trail', 'rodadas', 'reta_final', 'battery', 'affiliates', 'legal_texts', 'general', 'blog'];
   const filteredSettings = settings.filter((s) => s.category === activeCategory);
   const hasChanges = modifiedSettings.size > 0;
 

@@ -19,6 +19,7 @@ import {
   ChevronRight,
   ArrowUp,
   ArrowDown,
+  BarChart3,
 } from 'lucide-react';
 
 interface QuickCreatePreparatorioModalProps {
@@ -54,6 +55,20 @@ interface RodadaPreview {
   numero: number;
   titulo: string;
   missoes: MissaoPreview[];
+}
+
+interface RaioXDistribuicao {
+  materia: string;
+  quantidade: number;
+  percentual: number;
+}
+
+interface RaioXData {
+  total_questoes: number;
+  tipo_predominante: 'multipla_escolha' | 'certo_errado';
+  banca_identificada: string | null;
+  distribuicao: RaioXDistribuicao[];
+  analisado_em: string;
 }
 
 interface PreviewData {
@@ -121,6 +136,16 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
   const [rodadasExpandidas, setRodadasExpandidas] = useState<Set<number>>(new Set([1]));
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Estados para Raio-X (prova anterior)
+  const [provaAnteriorFile, setProvaAnteriorFile] = useState<File | null>(null);
+  const [isDragOverProva, setIsDragOverProva] = useState(false);
+  const [raioXData, setRaioXData] = useState<RaioXData | null>(null);
+  const [isAnalyzingRaioX, setIsAnalyzingRaioX] = useState(false);
+  const provaInputRef = useRef<HTMLInputElement>(null);
+
+  // Estado para tipo de montagem
+  const [tipoMontagem, setTipoMontagem] = useState<'ia' | 'manual' | null>(null);
+
   // Drag and drop state for materias
   const [draggedMateriaIndex, setDraggedMateriaIndex] = useState<number | null>(null);
   const [dragOverMateriaIndex, setDragOverMateriaIndex] = useState<number | null>(null);
@@ -164,6 +189,52 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     }
   }, []);
 
+  // Handlers para prova anterior (Raio-X)
+  const handleDragOverProva = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOverProva(true);
+  }, []);
+
+  const handleDragLeaveProva = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOverProva(false);
+  }, []);
+
+  const handleDropProva = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOverProva(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (file.type === 'application/pdf') {
+        setProvaAnteriorFile(file);
+      } else {
+        setError('Apenas arquivos PDF são permitidos');
+      }
+    }
+  }, []);
+
+  const handleProvaFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type === 'application/pdf') {
+        setProvaAnteriorFile(file);
+      } else {
+        setError('Apenas arquivos PDF são permitidos');
+      }
+    }
+  }, []);
+
+  const clearProvaSelection = useCallback(() => {
+    setProvaAnteriorFile(null);
+    setRaioXData(null);
+    if (provaInputRef.current) {
+      provaInputRef.current.value = '';
+    }
+  }, []);
+
   const clearSelection = useCallback(() => {
     setSelectedFile(null);
     setError(null);
@@ -171,8 +242,13 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     setEtapas([]);
     setPreviewData(null);
     setMateriasOrdenadas([]);
+    setProvaAnteriorFile(null);
+    setRaioXData(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+    if (provaInputRef.current) {
+      provaInputRef.current.value = '';
     }
   }, []);
 
@@ -197,23 +273,31 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     setError(null);
     setResultado(null);
     setPreviewData(null);
+    setRaioXData(null);
 
-    // Inicializar etapas com progresso fake
-    const etapasIniciais: EtapaProgresso[] = [
-      { etapa: 'Analisando PDF', status: 'in_progress' },
+    // Inicializar etapas (incluir Raio-X se tiver prova anterior)
+    const etapasBase: EtapaProgresso[] = [
+      { etapa: 'Analisando PDF do edital', status: 'in_progress' },
       { etapa: 'Criando preparatório', status: 'pending' },
       { etapa: 'Gerando imagem de capa', status: 'pending' },
       { etapa: 'Criando edital verticalizado', status: 'pending' },
       { etapa: 'Gerando prévia das rodadas', status: 'pending' },
     ];
-    setEtapas(etapasIniciais);
+
+    // Adicionar etapa de Raio-X se tiver prova anterior
+    if (provaAnteriorFile) {
+      etapasBase.push({ etapa: 'Analisando prova anterior (Raio-X)', status: 'pending' });
+    }
+
+    setEtapas(etapasBase);
 
     // Simular progresso fake enquanto aguarda a resposta
-    const temposEtapas = [8000, 3000, 5000, 4000, 3000]; // Tempos estimados por etapa em ms
+    const temposEtapas = [8000, 3000, 5000, 4000, 3000, 5000];
     let etapaAtual = 0;
+    const maxEtapas = provaAnteriorFile ? 5 : 4;
 
     const progressInterval = setInterval(() => {
-      if (etapaAtual < 4) {
+      if (etapaAtual < maxEtapas) {
         etapaAtual++;
         setEtapas(prev => prev.map((e, idx) => ({
           ...e,
@@ -223,6 +307,7 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     }, temposEtapas[etapaAtual] || 4000);
 
     try {
+      // 1. Processar edital
       const formData = new FormData();
       formData.append('pdf', selectedFile);
 
@@ -231,20 +316,64 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
         body: formData,
       });
 
-      clearInterval(progressInterval);
-
       const data = await response.json();
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Erro ao processar o PDF');
       }
 
+      let materias = data.materias as MateriaPreview[];
+      let raioX: RaioXData | null = null;
+
+      // 2. Se tem prova anterior, analisar Raio-X
+      if (provaAnteriorFile) {
+        setEtapas(prev => prev.map((e, idx) => ({
+          ...e,
+          status: idx < prev.length - 1 ? 'completed' : 'in_progress',
+        })));
+
+        const provaFormData = new FormData();
+        provaFormData.append('pdf', provaAnteriorFile);
+        // Enviar lista de matérias para match
+        provaFormData.append('materias', JSON.stringify(materias.map(m => m.titulo)));
+
+        const raioXResponse = await fetch(`${MASTRA_SERVER_URL}/api/preparatorio/analyze-prova`, {
+          method: 'POST',
+          body: provaFormData,
+        });
+
+        const raioXResult = await raioXResponse.json();
+
+        if (raioXResponse.ok && raioXResult.success) {
+          raioX = raioXResult.raioX;
+          setRaioXData(raioX);
+
+          // Reordenar matérias pela quantidade de questões do Raio-X (maior primeiro)
+          materias = [...materias].sort((a, b) => {
+            const qtyA = raioX!.distribuicao.find(d =>
+              d.materia.toLowerCase().includes(a.titulo.toLowerCase()) ||
+              a.titulo.toLowerCase().includes(d.materia.toLowerCase())
+            )?.quantidade || 0;
+            const qtyB = raioX!.distribuicao.find(d =>
+              d.materia.toLowerCase().includes(b.titulo.toLowerCase()) ||
+              b.titulo.toLowerCase().includes(d.materia.toLowerCase())
+            )?.quantidade || 0;
+            return qtyB - qtyA;
+          });
+        } else {
+          console.warn('Não foi possível analisar Raio-X:', raioXResult.error);
+          // Continua sem Raio-X
+        }
+      }
+
+      clearInterval(progressInterval);
+
       // Marcar todas as etapas como completas
       setEtapas(prev => prev.map(e => ({ ...e, status: 'completed' })));
 
       // Configurar preview
       setPreviewData(data);
-      setMateriasOrdenadas(data.materias);
+      setMateriasOrdenadas(materias);
       setIsProcessing(false);
 
     } catch (err: any) {
@@ -264,13 +393,13 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
   };
 
   const handleConfirmarRodadas = async () => {
-    if (!previewData) return;
+    if (!previewData || !tipoMontagem) return;
 
     setIsConfirming(true);
     setError(null);
 
     try {
-      // Salvar a ordem das matérias - a geração das missões acontece em background
+      // Salvar a ordem das matérias e o Raio-X - a geração das missões acontece em background
       const response = await fetch(`${MASTRA_SERVER_URL}/api/preparatorio/confirm-rodadas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -281,7 +410,9 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
             prioridade: idx + 1,
           })),
           banca: previewData.preparatorioInfo.banca,
-          sistemaHibrido: false,
+          sistemaHibrido: tipoMontagem === 'manual', // Manual = sistema híbrido
+          // Enviar Raio-X se disponível
+          raioX: raioXData || undefined,
         }),
       });
 
@@ -623,19 +754,107 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                 </div>
               </div>
 
+              {/* Card do Raio-X (se disponível) */}
+              {raioXData && (
+                <div className="bg-purple-500/10 border border-purple-500/30 rounded-sm p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <BarChart3 className="w-5 h-5 text-purple-400" />
+                    <h4 className="text-purple-400 font-bold">Raio-X da Prova Anterior</h4>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500">Total de questões</p>
+                      <p className="text-white font-bold text-lg">{raioXData.total_questoes}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Tipo predominante</p>
+                      <p className="text-white font-medium">
+                        {raioXData.tipo_predominante === 'certo_errado' ? 'Certo/Errado' : 'Múltipla Escolha'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Banca identificada</p>
+                      <p className="text-white font-medium">{raioXData.banca_identificada || '-'}</p>
+                    </div>
+                  </div>
+                  <p className="text-purple-300/80 text-xs mt-3">
+                    Matérias ordenadas automaticamente pela quantidade de questões (maior importância primeiro)
+                  </p>
+                </div>
+              )}
+
+              {/* Escolha do Tipo de Montagem */}
+              <div className="bg-brand-dark/50 rounded-sm p-4">
+                <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-brand-yellow" />
+                  Como deseja montar as missões?
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setTipoMontagem('ia')}
+                    className={`p-4 rounded-sm border-2 text-left transition-all ${
+                      tipoMontagem === 'ia'
+                        ? 'border-brand-yellow bg-brand-yellow/10'
+                        : 'border-white/10 hover:border-white/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className={`w-5 h-5 ${tipoMontagem === 'ia' ? 'text-brand-yellow' : 'text-gray-400'}`} />
+                      <span className={`font-bold ${tipoMontagem === 'ia' ? 'text-brand-yellow' : 'text-white'}`}>
+                        Montagem com IA
+                      </span>
+                    </div>
+                    <p className="text-gray-400 text-xs">
+                      A IA distribui automaticamente as matérias nas rodadas seguindo a ordem de prioridade.
+                      {raioXData && ' Usará o Raio-X para definir relevância.'}
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => setTipoMontagem('manual')}
+                    className={`p-4 rounded-sm border-2 text-left transition-all ${
+                      tipoMontagem === 'manual'
+                        ? 'border-brand-yellow bg-brand-yellow/10'
+                        : 'border-white/10 hover:border-white/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <GripVertical className={`w-5 h-5 ${tipoMontagem === 'manual' ? 'text-brand-yellow' : 'text-gray-400'}`} />
+                      <span className={`font-bold ${tipoMontagem === 'manual' ? 'text-brand-yellow' : 'text-white'}`}>
+                        Montagem Manual
+                      </span>
+                    </div>
+                    <p className="text-gray-400 text-xs">
+                      Você monta as missões manualmente no Builder, escolhendo quais tópicos vão em cada missão.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
               {/* Ordem das Matérias */}
               <div>
                 <h4 className="text-white font-bold mb-3 flex items-center gap-2">
                   <Target className="w-4 h-4 text-brand-yellow" />
                   Ordem de Estudo das Matérias
+                  {raioXData && (
+                    <span className="text-xs font-normal text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded">
+                      Ordenado por Raio-X
+                    </span>
+                  )}
                 </h4>
                 <p className="text-gray-500 text-sm mb-3">
-                  Arraste ou use as setas para reordenar. Português está configurado como primeira matéria por padrão.
+                  {raioXData
+                    ? 'Ordenação baseada na quantidade de questões da prova anterior. Arraste ou use as setas para ajustar.'
+                    : 'Arraste ou use as setas para reordenar. Português está configurado como primeira matéria por padrão.'}
                 </p>
                 <div className="space-y-2">
                   {materiasOrdenadas.map((materia, index) => {
                     const isDragging = draggedMateriaIndex === index;
                     const isDragOver = dragOverMateriaIndex === index;
+                    // Buscar dados do Raio-X para esta matéria
+                    const raioXMateria = raioXData?.distribuicao.find(d =>
+                      d.materia.toLowerCase().includes(materia.titulo.toLowerCase()) ||
+                      materia.titulo.toLowerCase().includes(d.materia.toLowerCase())
+                    );
 
                     return (
                       <div
@@ -679,6 +898,14 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                             ({materia.topicosCount} tópicos)
                           </span>
                         </div>
+                        {/* Mostrar info do Raio-X se disponível */}
+                        {raioXMateria && (
+                          <div className="flex items-center gap-1 bg-purple-500/20 px-2 py-1 rounded text-xs">
+                            <span className="text-purple-300 font-medium">{raioXMateria.quantidade}</span>
+                            <span className="text-purple-400/70">questões</span>
+                            <span className="text-purple-400/50">({raioXMateria.percentual}%)</span>
+                          </div>
+                        )}
                         <div className="flex gap-1">
                           <button
                             onClick={(e) => {
@@ -789,78 +1016,151 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
           {/* Upload e Processamento */}
           {!resultado?.success && !previewData && (
             <div className="space-y-6">
-              {/* Upload Area */}
+              {/* Upload de PDFs - Edital e Prova lado a lado */}
               {!isProcessing && (
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={() => !selectedFile && fileInputRef.current?.click()}
-                  className={`
-                    relative border-2 border-dashed rounded-sm p-8 text-center transition-all cursor-pointer
-                    ${isDragOver ? 'border-brand-yellow bg-brand-yellow/10' : 'border-white/10 hover:border-brand-yellow/50'}
-                    ${selectedFile ? 'border-green-500/50 bg-green-500/5' : ''}
-                    ${error ? 'border-red-500/50' : ''}
-                    bg-brand-dark/30
-                  `}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Upload do Edital (obrigatório) */}
+                  <div className="flex flex-col">
+                    <label className="block text-white font-medium mb-2">
+                      PDF do Edital <span className="text-red-400">*</span>
+                    </label>
+                    <div
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => !selectedFile && fileInputRef.current?.click()}
+                      className={`
+                        relative border-2 border-dashed rounded-sm transition-all cursor-pointer
+                        aspect-square flex flex-col items-center justify-center
+                        ${isDragOver ? 'border-brand-yellow bg-brand-yellow/10' : 'border-white/10 hover:border-brand-yellow/50'}
+                        ${selectedFile ? 'border-green-500/50 bg-green-500/5' : ''}
+                        ${error ? 'border-red-500/50' : ''}
+                        bg-brand-dark/30
+                      `}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
 
-                  {selectedFile ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-center gap-3">
-                        <div className="w-12 h-12 bg-green-500/20 rounded-sm flex items-center justify-center">
-                          <FileText className="w-6 h-6 text-green-500" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-white font-medium truncate max-w-xs">
+                      {selectedFile ? (
+                        <div className="flex flex-col items-center gap-2 p-4 text-center">
+                          <div className="w-12 h-12 bg-green-500/20 rounded-sm flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-green-500" />
+                          </div>
+                          <p className="text-white font-medium text-sm truncate max-w-full px-2">
                             {selectedFile.name}
                           </p>
-                          <p className="text-gray-500 text-sm">
+                          <p className="text-gray-500 text-xs">
                             {formatFileSize(selectedFile.size)}
                           </p>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedFile(null);
+                              if (fileInputRef.current) fileInputRef.current.value = '';
+                            }}
+                            className="mt-1 p-1.5 hover:bg-white/10 rounded-sm transition-colors"
+                          >
+                            <X className="w-4 h-4 text-gray-400 hover:text-white" />
+                          </button>
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            clearSelection();
-                          }}
-                          className="p-2 hover:bg-white/10 rounded-sm transition-colors"
-                        >
-                          <X className="w-5 h-5 text-gray-400 hover:text-white" />
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-center gap-2 text-green-500">
-                        <CheckCircle className="w-4 h-4" />
-                        <span className="text-sm">Arquivo selecionado</span>
-                      </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 p-4">
+                          <Upload
+                            className={`w-10 h-10 ${
+                              isDragOver ? 'text-brand-yellow' : 'text-gray-500'
+                            }`}
+                          />
+                          <p className="text-gray-400 text-sm text-center">
+                            {isDragOver ? (
+                              <span className="text-brand-yellow font-medium">Solte aqui</span>
+                            ) : (
+                              <>
+                                Arraste o PDF ou{' '}
+                                <span className="text-brand-yellow">clique</span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <>
-                      <Upload
-                        className={`w-10 h-10 mx-auto mb-3 ${
-                          isDragOver ? 'text-brand-yellow' : 'text-gray-500'
-                        }`}
+                  </div>
+
+                  {/* Upload da Prova Anterior (opcional - Raio-X) */}
+                  <div className="flex flex-col">
+                    <label className="block text-white font-medium mb-2">
+                      Prova Anterior <span className="text-gray-500 font-normal text-xs">(opcional)</span>
+                    </label>
+                    <div
+                      onDragOver={handleDragOverProva}
+                      onDragLeave={handleDragLeaveProva}
+                      onDrop={handleDropProva}
+                      onClick={() => !provaAnteriorFile && provaInputRef.current?.click()}
+                      className={`
+                        relative border-2 border-dashed rounded-sm transition-all cursor-pointer
+                        aspect-square flex flex-col items-center justify-center
+                        ${isDragOverProva ? 'border-purple-500 bg-purple-500/10' : 'border-white/10 hover:border-purple-500/50'}
+                        ${provaAnteriorFile ? 'border-purple-500/50 bg-purple-500/5' : ''}
+                        bg-brand-dark/30
+                      `}
+                    >
+                      <input
+                        ref={provaInputRef}
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        onChange={handleProvaFileChange}
+                        className="hidden"
                       />
-                      <p className="text-gray-400">
-                        {isDragOver ? (
-                          <span className="text-brand-yellow font-medium">Solte o arquivo aqui</span>
-                        ) : (
-                          <>
-                            Arraste o PDF ou{' '}
-                            <span className="text-brand-yellow">clique para selecionar</span>
-                          </>
-                        )}
-                      </p>
-                      <p className="text-gray-600 text-xs mt-2">Máximo 30MB</p>
-                    </>
-                  )}
+
+                      {provaAnteriorFile ? (
+                        <div className="flex flex-col items-center gap-2 p-4 text-center">
+                          <div className="w-12 h-12 bg-purple-500/20 rounded-sm flex items-center justify-center">
+                            <BarChart3 className="w-6 h-6 text-purple-400" />
+                          </div>
+                          <p className="text-white font-medium text-sm truncate max-w-full px-2">
+                            {provaAnteriorFile.name}
+                          </p>
+                          <p className="text-gray-500 text-xs">
+                            {formatFileSize(provaAnteriorFile.size)}
+                          </p>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearProvaSelection();
+                            }}
+                            className="mt-1 p-1.5 hover:bg-white/10 rounded-sm transition-colors"
+                          >
+                            <X className="w-4 h-4 text-gray-400 hover:text-white" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 p-4">
+                          <BarChart3
+                            className={`w-10 h-10 ${
+                              isDragOverProva ? 'text-purple-400' : 'text-gray-500'
+                            }`}
+                          />
+                          <p className="text-gray-400 text-sm text-center">
+                            {isDragOverProva ? (
+                              <span className="text-purple-400 font-medium">Solte aqui</span>
+                            ) : (
+                              <>
+                                Raio-X da prova{' '}
+                                <span className="text-purple-400">clique</span>
+                              </>
+                            )}
+                          </p>
+                          <p className="text-gray-600 text-xs text-center">
+                            Análise automática de distribuição
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -983,18 +1283,19 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
               </button>
               <button
                 onClick={handleConfirmarRodadas}
-                disabled={isConfirming}
+                disabled={isConfirming || !tipoMontagem}
                 className="bg-brand-yellow text-brand-darker px-6 py-2 rounded-sm font-bold uppercase tracking-wide hover:bg-white transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!tipoMontagem ? 'Selecione o tipo de montagem acima' : undefined}
               >
                 {isConfirming ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Gerando conteúdo com IA... (2-5 min)
+                    {tipoMontagem === 'ia' ? 'Gerando com IA... (2-5 min)' : 'Configurando...'}
                   </>
                 ) : (
                   <>
-                    <Target className="w-4 h-4" />
-                    Montar Missões
+                    {tipoMontagem === 'ia' ? <Sparkles className="w-4 h-4" /> : <Target className="w-4 h-4" />}
+                    {tipoMontagem === 'ia' ? 'Montar com IA' : tipoMontagem === 'manual' ? 'Iniciar Montagem Manual' : 'Selecione o tipo de montagem'}
                   </>
                 )}
               </button>

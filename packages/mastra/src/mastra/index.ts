@@ -6,6 +6,7 @@ import { editalFullAnalyzerAgent } from "./agents/editalFullAnalyzerAgent.js";
 import { materiaPriorityAgent } from "./agents/materiaPriorityAgent.js";
 import { contentGeneratorAgent, audioScriptAgent } from "./agents/contentGeneratorAgent.js";
 import { contentSummaryAgent, audioSummaryAgent } from "./agents/contentSummaryAgent.js";
+import { provaAnalyzerAgent } from "./agents/provaAnalyzerAgent.js";
 import { ousePassarMcpServer } from "./mcp/mcpServer.js";
 
 export const mastra = new Mastra({
@@ -18,6 +19,7 @@ export const mastra = new Mastra({
         audioScriptAgent,
         contentSummaryAgent,
         audioSummaryAgent,
+        provaAnalyzerAgent,
     },
     storage: new LibSQLStore({
         url: "file:./data/mastra.db",

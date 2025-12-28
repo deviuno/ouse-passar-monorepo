@@ -524,15 +524,91 @@ export async function getSimuladoWithDetails(
 // ==============================
 
 // Interface for preparatorio with filters
+interface RaioXDistribuicao {
+  materia: string;
+  quantidade: number;
+  percentual: number;
+}
+
+interface RaioXData {
+  total_questoes?: number;
+  tipo_predominante?: 'multipla_escolha' | 'certo_errado';
+  banca_identificada?: string | null;
+  distribuicao?: RaioXDistribuicao[];
+  prova_anterior?: {
+    total_questoes: number;
+    tipo_predominante: 'multipla_escolha' | 'certo_errado';
+    banca_identificada: string | null;
+    distribuicao: RaioXDistribuicao[];
+    analisado_em: string;
+  };
+}
+
 interface PreparatorioWithFilters {
   id: string;
   nome: string;
   banca: string | null;
   orgao: string | null;
   question_filters: QuestionFilters | null;
+  raio_x: RaioXData | null;
 }
 
-// Get preparatorio filters for a simulado
+// Get preparatorio filters and raio_x for a simulado
+export async function getPreparatorioFiltersWithRaioX(simuladoId: string): Promise<{
+  filters: QuestionFilters | null;
+  raioX: RaioXData | null;
+  preparatorioNome: string | null;
+}> {
+  try {
+    // Get simulado with preparatorio data including raio_x
+    const { data: simulado, error: simuladoError } = await supabase
+      .from('simulados')
+      .select(`
+        preparatorio_id,
+        preparatorio:preparatorios (
+          id,
+          nome,
+          banca,
+          orgao,
+          question_filters,
+          raio_x
+        )
+      `)
+      .eq('id', simuladoId)
+      .single();
+
+    if (simuladoError || !simulado?.preparatorio) {
+      console.error('Error fetching simulado preparatorio:', simuladoError);
+      return { filters: null, raioX: null, preparatorioNome: null };
+    }
+
+    const prep = simulado.preparatorio as unknown as PreparatorioWithFilters;
+
+    // Build filters
+    let filters: QuestionFilters | null = null;
+
+    // If preparatorio has explicit question_filters, use them
+    if (prep.question_filters && Object.keys(prep.question_filters).length > 0) {
+      filters = prep.question_filters;
+    } else {
+      // Otherwise, build filters from preparatorio data
+      filters = {};
+      if (prep.banca) filters.bancas = [prep.banca];
+      if (prep.orgao) filters.orgaos = [prep.orgao];
+    }
+
+    return {
+      filters,
+      raioX: prep.raio_x || null,
+      preparatorioNome: prep.nome,
+    };
+  } catch (error) {
+    console.error('Error fetching preparatorio filters:', error);
+    return { filters: null, raioX: null, preparatorioNome: null };
+  }
+}
+
+// Get preparatorio filters for a simulado (legacy function for backwards compatibility)
 export async function getPreparatorioFilters(simuladoId: string): Promise<QuestionFilters | null> {
   try {
     // Get simulado with preparatorio data
@@ -600,6 +676,83 @@ export async function getPreparatorioFilters(simuladoId: string): Promise<Questi
   }
 }
 
+// Fetch questions based on Raio-X distribution
+async function fetchQuestionsWithDistribution(
+  distribuicao: RaioXDistribuicao[],
+  baseFilters: QuestionFilters,
+  totalQuestionsNeeded: number
+): Promise<ParsedQuestion[]> {
+  const questions: ParsedQuestion[] = [];
+  const usedIds = new Set<number>();
+
+  // Calculate the total from distribution
+  const totalFromDistribuicao = distribuicao.reduce((sum, d) => sum + d.quantidade, 0);
+
+  // Scale distribution if needed to match totalQuestionsNeeded
+  const scaleFactor = totalQuestionsNeeded / totalFromDistribuicao;
+
+  console.log('[fetchQuestionsWithDistribution] Starting distribution-based fetch');
+  console.log(`[fetchQuestionsWithDistribution] Scale factor: ${scaleFactor.toFixed(2)} (${totalFromDistribuicao} -> ${totalQuestionsNeeded})`);
+
+  for (const item of distribuicao) {
+    // Scale the quantity proportionally
+    const targetQuantity = Math.round(item.quantidade * scaleFactor);
+    if (targetQuantity === 0) continue;
+
+    console.log(`[fetchQuestionsWithDistribution] Fetching ${targetQuantity} questions for "${item.materia}"`);
+
+    const materiaQuestions = await fetchQuestions({
+      ...baseFilters,
+      materias: [item.materia],
+      limit: targetQuantity * 2, // Fetch extra to account for duplicates
+      shuffle: true,
+    });
+
+    // Filter out already used questions
+    const newQuestions = materiaQuestions.filter(q => !usedIds.has(q.id));
+
+    // Take up to targetQuantity
+    const selected = newQuestions.slice(0, targetQuantity);
+    selected.forEach(q => usedIds.add(q.id));
+    questions.push(...selected);
+
+    if (selected.length < targetQuantity) {
+      console.warn(`[fetchQuestionsWithDistribution] Materia "${item.materia}": only found ${selected.length}/${targetQuantity} questions`);
+    }
+  }
+
+  console.log(`[fetchQuestionsWithDistribution] Total fetched: ${questions.length}/${totalQuestionsNeeded}`);
+
+  // If we still need more questions (due to rounding or insufficient questions per materia),
+  // fetch additional questions with base filters
+  if (questions.length < totalQuestionsNeeded) {
+    const remaining = totalQuestionsNeeded - questions.length;
+    console.log(`[fetchQuestionsWithDistribution] Fetching ${remaining} additional questions`);
+
+    const additionalQuestions = await fetchQuestions({
+      ...baseFilters,
+      limit: remaining * 2,
+      shuffle: true,
+    });
+
+    const newAdditional = additionalQuestions.filter(q => !usedIds.has(q.id));
+    questions.push(...newAdditional.slice(0, remaining));
+  }
+
+  // Shuffle the final result to mix materias
+  return shuffleArray(questions);
+}
+
+// Simple array shuffle (Fisher-Yates)
+function shuffleArray<T>(array: T[]): T[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 // Get or generate prova questions for a specific variation
 export async function getProvaQuestions(
   simuladoId: string,
@@ -619,25 +772,34 @@ export async function getProvaQuestions(
 
     if (existing?.question_ids && existing.question_ids.length > 0) {
       console.log('[getProvaQuestions] Using existing variation with', existing.question_ids.length, 'questions');
-      // Use existing question IDs and fetch the questions
-      const questions = await fetchQuestions({
-        limit: questionsCount,
-        shuffle: true,
-      });
+      // Fetch the actual questions by their IDs
+      const { data: questionsData } = await supabase
+        .from('questoes_concurso')
+        .select('*')
+        .in('id', existing.question_ids);
 
-      return {
-        questionIds: existing.question_ids,
-        questions: questions.slice(0, questionsCount),
-      };
+      if (questionsData && questionsData.length > 0) {
+        return {
+          questionIds: existing.question_ids,
+          questions: questionsData as ParsedQuestion[],
+        };
+      }
     }
 
-    // Generate new questions based on preparatorio filters
-    const filters = await getPreparatorioFilters(simuladoId);
+    // Get preparatorio filters AND raio_x data
+    const { filters, raioX, preparatorioNome } = await getPreparatorioFiltersWithRaioX(simuladoId);
     let questions: ParsedQuestion[] = [];
 
-    // Try with filters first
-    if (filters && Object.keys(filters).length > 0) {
-      console.log('[getProvaQuestions] Trying with filters:', filters);
+    // Extract distribution from raio_x (check both structures)
+    const distribuicao = raioX?.prova_anterior?.distribuicao || raioX?.distribuicao;
+
+    // If we have Raio-X distribution, use it for proportional question selection
+    if (distribuicao && distribuicao.length > 0 && filters) {
+      console.log('[getProvaQuestions] Using Raio-X distribution for question selection');
+      questions = await fetchQuestionsWithDistribution(distribuicao, filters, questionsCount);
+    } else if (filters && Object.keys(filters).length > 0) {
+      // Fallback to regular filter-based fetch
+      console.log('[getProvaQuestions] Using standard filters (no Raio-X):', filters);
       questions = await fetchQuestions({
         ...filters,
         limit: questionsCount * 2,
@@ -646,30 +808,38 @@ export async function getProvaQuestions(
       console.log(`[getProvaQuestions] Found ${questions.length} questions with filters`);
     }
 
-    // If not enough questions, try with just banca
+    // If not enough questions with full filters, try with just banca
     if (questions.length < questionsCount && filters?.bancas?.length) {
       console.log('[getProvaQuestions] Not enough, trying with just banca...');
-      questions = await fetchQuestions({
+      const bancaQuestions = await fetchQuestions({
         bancas: filters.bancas,
         limit: questionsCount * 2,
         shuffle: true,
       });
-      console.log(`[getProvaQuestions] Found ${questions.length} questions with banca only`);
+
+      // Add new questions (avoid duplicates)
+      const existingIds = new Set(questions.map(q => q.id));
+      const newQuestions = bancaQuestions.filter(q => !existingIds.has(q.id));
+      questions = [...questions, ...newQuestions];
+      console.log(`[getProvaQuestions] Total after banca fallback: ${questions.length}`);
     }
 
-    // If still not enough, fetch without filters (fallback)
+    // IMPORTANT: Do NOT remove all filters as fallback
+    // If we still don't have enough questions, return what we have with a warning
     if (questions.length < questionsCount) {
-      console.log('[getProvaQuestions] Still not enough, fetching without filters...');
-      questions = await fetchQuestions({
-        limit: questionsCount * 2,
-        shuffle: true,
-      });
-      console.log(`[getProvaQuestions] Found ${questions.length} questions without filters`);
-    }
+      console.warn(`[getProvaQuestions] AVISO: Questões insuficientes para o preparatório "${preparatorioNome || simuladoId}".`);
+      console.warn(`[getProvaQuestions] Encontradas: ${questions.length}, Necessárias: ${questionsCount}`);
+      console.warn(`[getProvaQuestions] Filtros utilizados:`, filters);
 
-    if (questions.length === 0) {
-      console.error('[getProvaQuestions] No questions found at all!');
-      return null;
+      // If we have at least SOME questions, proceed with what we have
+      if (questions.length > 0) {
+        console.warn(`[getProvaQuestions] Continuando com ${questions.length} questões disponíveis.`);
+      } else {
+        // No questions at all - this is a critical error
+        console.error('[getProvaQuestions] ERRO CRÍTICO: Nenhuma questão encontrada para os filtros do preparatório!');
+        console.error('[getProvaQuestions] Verifique se existem questões no banco com os filtros configurados.');
+        return null;
+      }
     }
 
     // Take the required number (or all if less)
