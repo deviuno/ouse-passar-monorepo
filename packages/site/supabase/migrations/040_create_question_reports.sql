@@ -81,7 +81,7 @@ CREATE POLICY "Admins can manage all reports" ON question_reports
   FOR ALL
   TO authenticated
   USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE user_id = auth.uid())
+    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
   );
 
 -- Comentários para documentação

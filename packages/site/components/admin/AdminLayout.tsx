@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 export const AdminLayout: React.FC = () => {
     const location = useLocation();
@@ -10,6 +11,29 @@ export const AdminLayout: React.FC = () => {
     const [blogOpen, setBlogOpen] = useState(false);
     const [lojaOpen, setLojaOpen] = useState(false);
     const [planejamentosOpen, setPlanejamentosOpen] = useState(false);
+    const [pendingReportsCount, setPendingReportsCount] = useState(0);
+
+    // Buscar contagem de reports pendentes
+    useEffect(() => {
+        if (!isAdmin) return;
+
+        const fetchPendingReports = async () => {
+            const { count, error } = await supabase
+                .from('question_reports')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'pendente');
+
+            if (!error && count !== null) {
+                setPendingReportsCount(count);
+            }
+        };
+
+        fetchPendingReports();
+
+        // Atualizar a cada 60 segundos
+        const interval = setInterval(fetchPendingReports, 60000);
+        return () => clearInterval(interval);
+    }, [isAdmin]);
 
     const isActive = (path: string) => {
         return location.pathname === path ? 'bg-brand-yellow text-brand-darker' : 'text-gray-400 hover:text-white hover:bg-white/5';
@@ -226,10 +250,17 @@ export const AdminLayout: React.FC = () => {
                             {/* Suporte - Reports de questões */}
                             <Link
                                 to="/admin/suporte"
-                                className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/suporte')}`}
+                                className={`flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/suporte')}`}
                             >
-                                <LifeBuoy className="w-5 h-5 mr-3" />
-                                Suporte
+                                <div className="flex items-center">
+                                    <LifeBuoy className="w-5 h-5 mr-3" />
+                                    Suporte
+                                </div>
+                                {pendingReportsCount > 0 && (
+                                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                                        {pendingReportsCount > 99 ? '99+' : pendingReportsCount}
+                                    </span>
+                                )}
                             </Link>
                         </>
                     )}
