@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -11,29 +11,61 @@ export const AdminLayout: React.FC = () => {
     const [blogOpen, setBlogOpen] = useState(false);
     const [lojaOpen, setLojaOpen] = useState(false);
     const [planejamentosOpen, setPlanejamentosOpen] = useState(false);
+    const [suporteOpen, setSuporteOpen] = useState(false);
     const [pendingReportsCount, setPendingReportsCount] = useState(0);
+    const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
 
-    // Buscar contagem de reports pendentes
+    // Buscar contagem de reports e tickets pendentes
+    const fetchPendingCounts = async () => {
+        // Reports pendentes
+        const { count: reportsCount } = await supabase
+            .from('question_reports')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'pendente');
+
+        if (reportsCount !== null) {
+            setPendingReportsCount(reportsCount);
+        }
+
+        // Tickets abertos
+        const { count: ticketsCount } = await supabase
+            .from('tickets')
+            .select('*', { count: 'exact', head: true })
+            .in('status', ['aberto', 'em_andamento']);
+
+        if (ticketsCount !== null) {
+            setPendingTicketsCount(ticketsCount);
+        }
+    };
+
     useEffect(() => {
         if (!isAdmin) return;
 
-        const fetchPendingReports = async () => {
-            const { count, error } = await supabase
-                .from('question_reports')
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'pendente');
-
-            if (!error && count !== null) {
-                setPendingReportsCount(count);
-            }
-        };
-
-        fetchPendingReports();
+        fetchPendingCounts();
 
         // Atualizar a cada 60 segundos
-        const interval = setInterval(fetchPendingReports, 60000);
-        return () => clearInterval(interval);
+        const interval = setInterval(fetchPendingCounts, 60000);
+
+        // Escutar eventos customizados para atualizar contadores
+        const handleUpdate = () => {
+            fetchPendingCounts();
+        };
+        window.addEventListener('reports-updated', handleUpdate);
+        window.addEventListener('tickets-updated', handleUpdate);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('reports-updated', handleUpdate);
+            window.removeEventListener('tickets-updated', handleUpdate);
+        };
     }, [isAdmin]);
+
+    // Abrir automaticamente o menu suporte se estiver em uma subpágina
+    useEffect(() => {
+        if (location.pathname.includes('/admin/suporte')) {
+            setSuporteOpen(true);
+        }
+    }, [location.pathname]);
 
     const isActive = (path: string) => {
         return location.pathname === path ? 'bg-brand-yellow text-brand-darker' : 'text-gray-400 hover:text-white hover:bg-white/5';
@@ -247,21 +279,60 @@ export const AdminLayout: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* Suporte - Reports de questões */}
-                            <Link
-                                to="/admin/suporte"
-                                className={`flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/suporte')}`}
-                            >
-                                <div className="flex items-center">
-                                    <LifeBuoy className="w-5 h-5 mr-3" />
-                                    Suporte
-                                </div>
-                                {pendingReportsCount > 0 && (
-                                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
-                                        {pendingReportsCount > 99 ? '99+' : pendingReportsCount}
-                                    </span>
+                            {/* Suporte Accordion */}
+                            <div className="space-y-1">
+                                <button
+                                    onClick={() => setSuporteOpen(!suporteOpen)}
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/suporte') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                >
+                                    <div className="flex items-center">
+                                        <LifeBuoy className="w-5 h-5 mr-3" />
+                                        Suporte
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {(pendingTicketsCount + pendingReportsCount) > 0 && (
+                                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                                                {(pendingTicketsCount + pendingReportsCount) > 99 ? '99+' : pendingTicketsCount + pendingReportsCount}
+                                            </span>
+                                        )}
+                                        <ChevronDown className={`w-4 h-4 transition-transform ${suporteOpen ? 'rotate-180' : ''}`} />
+                                    </div>
+                                </button>
+
+                                {suporteOpen && (
+                                    <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
+                                        <Link
+                                            to="/admin/suporte/tickets"
+                                            className={`flex items-center justify-between px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/suporte/tickets')}`}
+                                        >
+                                            <div className="flex items-center">
+                                                <Ticket className="w-4 h-4 mr-3" />
+                                                Tickets
+                                            </div>
+                                            {pendingTicketsCount > 0 && (
+                                                <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                                    {pendingTicketsCount > 99 ? '99+' : pendingTicketsCount}
+                                                </span>
+                                            )}
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/suporte/reportes"
+                                            className={`flex items-center justify-between px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/suporte/reportes')}`}
+                                        >
+                                            <div className="flex items-center">
+                                                <Flag className="w-4 h-4 mr-3" />
+                                                Reportes
+                                            </div>
+                                            {pendingReportsCount > 0 && (
+                                                <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                                    {pendingReportsCount > 99 ? '99+' : pendingReportsCount}
+                                                </span>
+                                            )}
+                                        </Link>
+                                    </div>
                                 )}
-                            </Link>
+                            </div>
                         </>
                     )}
                 </nav>

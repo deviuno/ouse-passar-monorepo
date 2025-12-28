@@ -53,6 +53,8 @@ export interface ReportFilters {
   status?: ReportStatus;
   motivo?: ReportMotivo;
   searchTerm?: string;
+  dateStart?: string;
+  dateEnd?: string;
 }
 
 export interface ReportStats {
@@ -92,6 +94,14 @@ export const questionReportsService = {
       }
     }
 
+    if (filters?.dateStart) {
+      query = query.gte('created_at', `${filters.dateStart}T00:00:00`);
+    }
+
+    if (filters?.dateEnd) {
+      query = query.lte('created_at', `${filters.dateEnd}T23:59:59`);
+    }
+
     const { data, error } = await query;
 
     if (error) {
@@ -122,7 +132,7 @@ export const questionReportsService = {
     return reports.map(report => ({
       ...report,
       user_profile: report.user_id ? userProfiles[report.user_id] || { name: null, email: null } : { name: null, email: null },
-    }));
+    })) as QuestionReport[];
   },
 
   /**
@@ -154,7 +164,7 @@ export const questionReportsService = {
       }
     }
 
-    return { ...data, user_profile: userProfile };
+    return { ...data, user_profile: userProfile } as QuestionReport;
   },
 
   /**

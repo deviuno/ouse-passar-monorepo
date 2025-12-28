@@ -12,7 +12,9 @@ import {
   Flame,
   Sparkles,
   ExternalLink,
+  Ticket,
 } from 'lucide-react';
+import { CreateTicketForm } from '../components/support/CreateTicketForm';
 
 interface TutorialSection {
   id: string;
@@ -183,6 +185,20 @@ export default function HelpPage() {
               <TutorialAccordion key={tutorial.id} tutorial={tutorial} />
             ))}
           </div>
+        </div>
+
+        {/* Ticket Section */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-[#FFB800]/10 flex items-center justify-center">
+              <Ticket size={20} className="text-[#FFB800]" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Abrir um Ticket</h2>
+              <p className="text-[#6A6A6A] text-sm">Envie sua dúvida ou problema para nossa equipe</p>
+            </div>
+          </div>
+          <CreateTicketForm />
         </div>
 
         {/* WhatsApp Contact */}

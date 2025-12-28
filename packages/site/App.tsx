@@ -77,6 +77,7 @@ import { EditalAdmin } from './pages/admin/EditalAdmin';
 import { MissionBuilder } from './pages/admin/MissionBuilder';
 import { AutomacaoConteudoMissao } from './pages/admin/AutomacaoConteudoMissao';
 import { Suporte } from './pages/admin/Suporte';
+import { Tickets } from './pages/admin/Tickets';
 
 // Gamification Admin
 import {
@@ -285,8 +286,11 @@ const App: React.FC = () => {
                 <Route path="loja/pedidos" element={<AdminOnlyRoute><StorePurchases /></AdminOnlyRoute>} />
                 <Route path="loja/documentacao" element={<AdminOnlyRoute><StoreDocumentation /></AdminOnlyRoute>} />
 
-                {/* Suporte - Reports de questões */}
-                <Route path="suporte" element={<AdminOnlyRoute><Suporte /></AdminOnlyRoute>} />
+                {/* Suporte - Tickets e Reportes */}
+                <Route path="suporte/tickets" element={<AdminOnlyRoute><Tickets /></AdminOnlyRoute>} />
+                <Route path="suporte/reportes" element={<AdminOnlyRoute><Suporte /></AdminOnlyRoute>} />
+                {/* Redirect old suporte route to tickets */}
+                <Route path="suporte" element={<AdminOnlyRoute><Tickets /></AdminOnlyRoute>} />
 
                 {/* Documentação técnica - Acesso apenas via URL direta, sem links */}
                 <Route path="automacao-conteudo-missao" element={<AdminOnlyRoute><AutomacaoConteudoMissao /></AdminOnlyRoute>} />

@@ -13,6 +13,10 @@ import {
   X,
   Flag,
   ExternalLink,
+  Calendar,
+  LayoutGrid,
+  List,
+  User,
 } from 'lucide-react';
 import {
   questionReportsService,
@@ -34,10 +38,15 @@ export const Suporte: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
+  // View mode
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
+
+  // Filters - Por padrão, mostra todos (para Kanban)
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<ReportStatus | ''>('');
   const [filterMotivo, setFilterMotivo] = useState<ReportMotivo | ''>('');
+  const [dateStart, setDateStart] = useState<string>('');
+  const [dateEnd, setDateEnd] = useState<string>('');
 
   // Modal
   const [selectedReport, setSelectedReport] = useState<QuestionReport | null>(null);
@@ -59,6 +68,8 @@ export const Suporte: React.FC = () => {
           status: filterStatus || undefined,
           motivo: filterMotivo || undefined,
           searchTerm: searchTerm || undefined,
+          dateStart: dateStart || undefined,
+          dateEnd: dateEnd || undefined,
         }),
         questionReportsService.getStats(),
       ]);
@@ -78,7 +89,7 @@ export const Suporte: React.FC = () => {
       loadData();
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchTerm, filterStatus, filterMotivo]);
+  }, [searchTerm, filterStatus, filterMotivo, dateStart, dateEnd]);
 
   const handleUpdateStatus = async (status: ReportStatus) => {
     if (!selectedReport || !user?.id) return;
@@ -96,6 +107,8 @@ export const Suporte: React.FC = () => {
       setSelectedReport(null);
       setAdminResposta('');
       loadData();
+      // Disparar evento para atualizar contador no menu
+      window.dispatchEvent(new CustomEvent('reports-updated'));
     } catch (err: any) {
       toast.error('Erro ao atualizar status');
     } finally {
@@ -107,9 +120,36 @@ export const Suporte: React.FC = () => {
     setSearchTerm('');
     setFilterStatus('');
     setFilterMotivo('');
+    setDateStart('');
+    setDateEnd('');
   };
 
-  const hasFilters = searchTerm || filterStatus || filterMotivo;
+  const hasFilters = searchTerm || filterStatus || filterMotivo || dateStart || dateEnd;
+
+  // Kanban columns
+  const KANBAN_COLUMNS: { status: ReportStatus; label: string; color: string; bgColor: string }[] = [
+    { status: 'pendente', label: 'Pendentes', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10 border-yellow-500/30' },
+    { status: 'em_analise', label: 'Em Análise', color: 'text-blue-400', bgColor: 'bg-blue-500/10 border-blue-500/30' },
+    { status: 'resolvido', label: 'Resolvidos', color: 'text-green-400', bgColor: 'bg-green-500/10 border-green-500/30' },
+    { status: 'rejeitado', label: 'Rejeitados', color: 'text-red-400', bgColor: 'bg-red-500/10 border-red-500/30' },
+  ];
+
+  const getReportsByStatus = (status: ReportStatus) => {
+    return reports.filter(r => r.status === status);
+  };
+
+  const handleMoveToStatus = async (report: QuestionReport, newStatus: ReportStatus) => {
+    if (!user?.id) return;
+
+    try {
+      await questionReportsService.updateStatus(report.id, newStatus, user.id);
+      toast.success(`Report movido para "${REPORT_STATUS.find(s => s.value === newStatus)?.label}"`);
+      loadData();
+      window.dispatchEvent(new CustomEvent('reports-updated'));
+    } catch (err) {
+      toast.error('Erro ao mover report');
+    }
+  };
 
   const getStatusColor = (status: ReportStatus) => {
     switch (status) {
@@ -157,42 +197,103 @@ export const Suporte: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-brand-yellow/20 rounded-sm flex items-center justify-center">
-            <LifeBuoy className="w-5 h-5 text-brand-yellow" />
+            <Flag className="w-5 h-5 text-brand-yellow" />
           </div>
           <div>
             <h1 className="text-2xl font-black text-white uppercase font-display">
-              Suporte
+              Reportes
             </h1>
             <p className="text-gray-500 text-sm">
-              Reclamações e reports de questões
+              Reclamações de questões reportadas pelos usuários
             </p>
           </div>
         </div>
+
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-1 bg-brand-card border border-white/5 rounded-sm p-1">
+          <button
+            onClick={() => setViewMode('kanban')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-sm text-sm font-medium transition-colors ${
+              viewMode === 'kanban'
+                ? 'bg-brand-yellow text-brand-darker'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <LayoutGrid size={16} />
+            Kanban
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-sm text-sm font-medium transition-colors ${
+              viewMode === 'list'
+                ? 'bg-brand-yellow text-brand-darker'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <List size={16} />
+            Lista
+          </button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Botões de Filtro */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-brand-card border border-white/5 rounded-sm p-4">
-            <p className="text-2xl font-bold text-white">{stats.total}</p>
-            <p className="text-xs text-gray-500 uppercase">Total</p>
-          </div>
-          <div className="bg-brand-card border border-yellow-500/20 rounded-sm p-4">
+          <button
+            onClick={() => setFilterStatus('pendente')}
+            className={`bg-brand-card rounded-sm p-4 text-left transition-all ${
+              filterStatus === 'pendente'
+                ? 'border-2 border-yellow-500 ring-2 ring-yellow-500/20'
+                : 'border border-yellow-500/20 hover:border-yellow-500/50'
+            }`}
+          >
             <p className="text-2xl font-bold text-yellow-400">{stats.pendentes}</p>
             <p className="text-xs text-gray-500 uppercase">Pendentes</p>
-          </div>
-          <div className="bg-brand-card border border-blue-500/20 rounded-sm p-4">
+          </button>
+          <button
+            onClick={() => setFilterStatus('em_analise')}
+            className={`bg-brand-card rounded-sm p-4 text-left transition-all ${
+              filterStatus === 'em_analise'
+                ? 'border-2 border-blue-500 ring-2 ring-blue-500/20'
+                : 'border border-blue-500/20 hover:border-blue-500/50'
+            }`}
+          >
             <p className="text-2xl font-bold text-blue-400">{stats.em_analise}</p>
             <p className="text-xs text-gray-500 uppercase">Em Análise</p>
-          </div>
-          <div className="bg-brand-card border border-green-500/20 rounded-sm p-4">
+          </button>
+          <button
+            onClick={() => setFilterStatus('resolvido')}
+            className={`bg-brand-card rounded-sm p-4 text-left transition-all ${
+              filterStatus === 'resolvido'
+                ? 'border-2 border-green-500 ring-2 ring-green-500/20'
+                : 'border border-green-500/20 hover:border-green-500/50'
+            }`}
+          >
             <p className="text-2xl font-bold text-green-400">{stats.resolvidos}</p>
             <p className="text-xs text-gray-500 uppercase">Resolvidos</p>
-          </div>
-          <div className="bg-brand-card border border-red-500/20 rounded-sm p-4">
+          </button>
+          <button
+            onClick={() => setFilterStatus('rejeitado')}
+            className={`bg-brand-card rounded-sm p-4 text-left transition-all ${
+              filterStatus === 'rejeitado'
+                ? 'border-2 border-red-500 ring-2 ring-red-500/20'
+                : 'border border-red-500/20 hover:border-red-500/50'
+            }`}
+          >
             <p className="text-2xl font-bold text-red-400">{stats.rejeitados}</p>
             <p className="text-xs text-gray-500 uppercase">Rejeitados</p>
-          </div>
+          </button>
+          <button
+            onClick={() => setFilterStatus('')}
+            className={`bg-brand-card rounded-sm p-4 text-left transition-all ${
+              filterStatus === ''
+                ? 'border-2 border-white ring-2 ring-white/20'
+                : 'border border-white/5 hover:border-white/20'
+            }`}
+          >
+            <p className="text-2xl font-bold text-white">{stats.total}</p>
+            <p className="text-xs text-gray-500 uppercase">Total</p>
+          </button>
         </div>
       )}
 
@@ -241,6 +342,38 @@ export const Suporte: React.FC = () => {
             ))}
           </select>
 
+          {/* Date Range Filter */}
+          <div className="flex items-center gap-2 bg-brand-dark border border-white/10 rounded-sm px-3 py-1">
+            <Calendar className="w-4 h-4 text-gray-500" />
+            <input
+              type="date"
+              value={dateStart}
+              onChange={(e) => setDateStart(e.target.value)}
+              className="bg-transparent text-white text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
+              title="Data inicial"
+            />
+            <span className="text-gray-500">—</span>
+            <input
+              type="date"
+              value={dateEnd}
+              onChange={(e) => setDateEnd(e.target.value)}
+              className="bg-transparent text-white text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
+              title="Data final"
+            />
+            {(dateStart || dateEnd) && (
+              <button
+                onClick={() => {
+                  setDateStart('');
+                  setDateEnd('');
+                }}
+                className="text-gray-400 hover:text-white ml-1"
+                title="Limpar período"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
           {/* Clear Filters */}
           {hasFilters && (
             <button
@@ -282,8 +415,121 @@ export const Suporte: React.FC = () => {
         </div>
       )}
 
-      {/* Reports Table */}
-      {!loading && reports.length > 0 && (
+      {/* Kanban View */}
+      {!loading && reports.length > 0 && viewMode === 'kanban' && (
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {KANBAN_COLUMNS.map((column) => {
+            const columnReports = getReportsByStatus(column.status);
+            return (
+              <div
+                key={column.status}
+                className="flex-shrink-0 w-72 bg-brand-card border border-white/5 rounded-sm"
+              >
+                {/* Column Header */}
+                <div className={`p-3 border-b ${column.bgColor}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`font-bold text-sm uppercase ${column.color}`}>
+                      {column.label}
+                    </span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${column.bgColor} ${column.color}`}>
+                      {columnReports.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Column Content */}
+                <div className="p-2 space-y-2 max-h-[60vh] overflow-y-auto">
+                  {columnReports.length === 0 ? (
+                    <div className="text-center py-8 text-gray-600 text-sm">
+                      Nenhum report
+                    </div>
+                  ) : (
+                    columnReports.map((report) => (
+                      <div
+                        key={report.id}
+                        className="bg-brand-dark border border-white/5 rounded-sm p-3 hover:border-white/20 transition-colors cursor-pointer group"
+                        onClick={() => {
+                          setSelectedReport(report);
+                          setAdminResposta(report.admin_resposta || '');
+                        }}
+                      >
+                        {/* Question ID */}
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white font-mono text-sm">#{report.question_id}</span>
+                          <span className="text-[10px] text-gray-500">
+                            {formatDate(report.created_at)}
+                          </span>
+                        </div>
+
+                        {/* User */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-5 h-5 bg-brand-yellow/20 rounded-full flex items-center justify-center">
+                            <User size={10} className="text-brand-yellow" />
+                          </div>
+                          <span className="text-gray-300 text-xs truncate">
+                            {report.user_profile?.name || report.user_profile?.email || 'Anônimo'}
+                          </span>
+                        </div>
+
+                        {/* Motivo */}
+                        <p className="text-gray-400 text-xs mb-1">
+                          {REPORT_MOTIVOS.find((m) => m.value === report.motivo)?.label}
+                        </p>
+
+                        {/* Matéria */}
+                        <p className="text-gray-500 text-[10px] truncate">
+                          {report.question_materia}
+                          {report.question_banca && ` • ${report.question_banca}`}
+                        </p>
+
+                        {/* Quick Actions */}
+                        <div className="hidden group-hover:flex items-center gap-1 mt-2 pt-2 border-t border-white/5">
+                          {column.status === 'pendente' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveToStatus(report, 'em_analise');
+                              }}
+                              className="text-[10px] px-2 py-1 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30"
+                            >
+                              Analisar
+                            </button>
+                          )}
+                          {(column.status === 'pendente' || column.status === 'em_analise') && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveToStatus(report, 'resolvido');
+                                }}
+                                className="text-[10px] px-2 py-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30"
+                              >
+                                Resolver
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveToStatus(report, 'rejeitado');
+                                }}
+                                className="text-[10px] px-2 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                              >
+                                Rejeitar
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* List View (Table) */}
+      {!loading && reports.length > 0 && viewMode === 'list' && (
         <div className="bg-brand-card border border-white/5 rounded-sm overflow-hidden">
           <table className="w-full">
             <thead>
