@@ -2,8 +2,15 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Zap, Mic, Square, MessageSquare, GripHorizontal, Sparkles, Headphones, Radio, FileText, Video, Loader2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { chatWithTutor, TutorUserContext, generateAudioExplanation, generatePodcast, GeneratedAudio } from '../../services/geminiService';
+import { chatWithTutor, TutorUserContext, GeneratedAudio } from '../../services/geminiService';
+import { generateAudioWithCache, generatePodcastWithCache } from '../../services/audioCacheService';
+import { AudioPlayer } from '../ui/AudioPlayer';
 import { ParsedQuestion } from '../../types';
+import { useBatteryStore } from '../../stores/useBatteryStore';
+import { getTimeUntilRecharge } from '../../types/battery';
+
+// Delay simulado para áudios em cache (para dar impressão de geração)
+const CACHE_SIMULATION_DELAY = 1500; // 1.5 segundos
 
 // Shortcut options for AI-generated content
 interface ShortcutOption {
@@ -11,7 +18,7 @@ interface ShortcutOption {
     icon: React.ReactNode;
     label: string;
     description: string;
-    action: () => void;
+    action: (e?: React.MouseEvent) => void;
     disabled?: boolean;
 }
 
@@ -24,6 +31,9 @@ interface MentorChatProps {
     userContext?: TutorUserContext;
     isVisible?: boolean;
     onClose?: () => void;
+    userId?: string;
+    preparatorioId?: string;
+    checkoutUrl?: string;
 }
 
 interface Message {
@@ -121,7 +131,7 @@ const MAX_HEIGHT = 700;
 const DEFAULT_HEIGHT = 462; // 420px + 10%
 const COLLAPSED_HEIGHT = 72; // Just input field
 
-export function MentorChat({ contentContext, userContext, isVisible = true, onClose }: MentorChatProps) {
+export function MentorChat({ contentContext, userContext, isVisible = true, onClose, userId, preparatorioId, checkoutUrl }: MentorChatProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false); // Collapsed = only input visible
     const [threadId, setThreadId] = useState<string | undefined>(undefined);
@@ -130,6 +140,52 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
     const resizeStartY = useRef(0);
     const resizeStartHeight = useRef(0);
     const chatContainerRef = useRef<HTMLDivElement>(null);
+
+    // Battery store
+    const { consumeBattery, batteryStatus } = useBatteryStore();
+
+    // Helper para gerar mensagem de bateria insuficiente
+    const getBatteryEmptyMessage = (): string => {
+        const { hours, minutes } = getTimeUntilRecharge();
+        let timeMsg = '';
+        if (hours > 0) {
+            timeMsg = `${hours}h${minutes > 0 ? ` e ${minutes}min` : ''}`;
+        } else {
+            timeMsg = `${minutes} minutos`;
+        }
+
+        let message = `⚡ **Ops! Sua energia acabou.**\n\nVocê não tem energia suficiente para usar o chat agora.\n\n`;
+        message += `🔋 Sua bateria será recarregada em **${timeMsg}**.\n\n`;
+        if (checkoutUrl) {
+            message += `💡 **Dica:** Adquira o acesso ilimitado e nunca mais se preocupe com energia!`;
+        }
+        return message;
+    };
+
+    // Função para consumir bateria e verificar se pode prosseguir
+    const checkAndConsumeBattery = async (
+        actionType: 'chat_message' | 'chat_audio' | 'chat_podcast' | 'chat_summary',
+        clickX?: number,
+        clickY?: number
+    ): Promise<boolean> => {
+        if (!userId || !preparatorioId) {
+            // Se não tiver userId ou preparatorioId, permite sem consumir (modo demo)
+            return true;
+        }
+
+        const result = await consumeBattery(userId, preparatorioId, actionType, { clickX, clickY });
+
+        if (!result.success && result.error === 'insufficient_battery') {
+            // Adicionar mensagem de bateria insuficiente
+            setMessages(prev => [...prev, {
+                role: 'model',
+                text: getBatteryEmptyMessage()
+            }]);
+            return false;
+        }
+
+        return result.success || result.is_premium === true;
+    };
 
     // When controlled externally, always show expanded
     const isControlled = onClose !== undefined;
@@ -421,9 +477,17 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
     };
 
     // Shortcut handlers for AI-generated content
-    const handleGenerateAudio = async () => {
+    const handleGenerateAudio = async (e?: React.MouseEvent) => {
         setShowShortcuts(false);
+
+        // Verificar bateria ANTES de iniciar (sempre consome, mesmo do cache)
+        const canProceed = await checkAndConsumeBattery('chat_audio', e?.clientX, e?.clientY);
+        if (!canProceed) {
+            return;
+        }
+
         setIsGeneratingAudio(true);
+
         setMessages(prev => [...prev, {
             role: 'user',
             text: '🎧 Gerar explicação em áudio'
@@ -434,14 +498,21 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         }]);
 
         try {
-            const audio = await generateAudioExplanation(contentContext.title || 'o conteúdo', contentContext.text || '');
+            // Usar serviço com cache (verifica cache antes de gerar)
+            const audio = await generateAudioWithCache(contentContext.title || 'o conteúdo', contentContext.text || '');
+
             if (audio) {
+                // Se veio do cache, simular delay para parecer que está gerando
+                if (audio.fromCache) {
+                    await new Promise(resolve => setTimeout(resolve, CACHE_SIMULATION_DELAY));
+                }
+
                 setMessages(prev => {
                     const newMessages = [...prev];
                     newMessages[newMessages.length - 1] = {
                         role: 'model',
-                        text: `🎧 **Áudio gerado com sucesso!**\n\nOuça a explicação sobre **${contentContext.title || 'o conteúdo'}**:`,
-                        audio: audio
+                        text: `🎧 **Áudio gerado!**\n\nOuça a explicação sobre **${contentContext.title || 'o conteúdo'}**:`,
+                        audio: { audioUrl: audio.audioUrl, type: 'explanation' }
                     };
                     return newMessages;
                 });
@@ -470,9 +541,17 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         }
     };
 
-    const handleGeneratePodcast = async () => {
+    const handleGeneratePodcast = async (e?: React.MouseEvent) => {
         setShowShortcuts(false);
+
+        // Verificar bateria ANTES de iniciar (sempre consome, mesmo do cache)
+        const canProceed = await checkAndConsumeBattery('chat_podcast', e?.clientX, e?.clientY);
+        if (!canProceed) {
+            return;
+        }
+
         setIsGeneratingAudio(true);
+
         setMessages(prev => [...prev, {
             role: 'user',
             text: '🎙️ Gerar podcast sobre o tema'
@@ -483,14 +562,21 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         }]);
 
         try {
-            const audio = await generatePodcast(contentContext.title || 'o conteúdo', contentContext.text || '');
+            // Usar serviço com cache (verifica cache antes de gerar)
+            const audio = await generatePodcastWithCache(contentContext.title || 'o conteúdo', contentContext.text || '');
+
             if (audio) {
+                // Se veio do cache, simular delay para parecer que está gerando
+                if (audio.fromCache) {
+                    await new Promise(resolve => setTimeout(resolve, CACHE_SIMULATION_DELAY));
+                }
+
                 setMessages(prev => {
                     const newMessages = [...prev];
                     newMessages[newMessages.length - 1] = {
                         role: 'model',
-                        text: `🎙️ **Podcast gerado!**\n\nOuça a discussão entre os apresentadores sobre **${contentContext.title || 'o conteúdo'}**:`,
-                        audio: audio
+                        text: `🎙️ **Podcast gerado!**\n\nOuça a discussão sobre **${contentContext.title || 'o conteúdo'}**:`,
+                        audio: { audioUrl: audio.audioUrl, type: 'podcast' }
                     };
                     return newMessages;
                 });
@@ -519,14 +605,43 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         }
     };
 
-    const handleGenerateSummary = () => {
+    const handleGenerateSummary = async (e?: React.MouseEvent) => {
         setShowShortcuts(false);
-        setInputValue('Faça um resumo rápido e objetivo dos pontos principais deste conteúdo.');
-        // Auto-send after setting the input
-        setTimeout(() => {
-            const sendButton = document.querySelector('[data-send-button]') as HTMLButtonElement;
-            sendButton?.click();
-        }, 100);
+
+        // Verificar e consumir bateria antes de gerar resumo
+        const canProceed = await checkAndConsumeBattery('chat_summary', e?.clientX, e?.clientY);
+        if (!canProceed) {
+            return;
+        }
+
+        const summaryPrompt = 'Faça um resumo rápido e objetivo dos pontos principais deste conteúdo.';
+        setMessages(prev => [...prev, { role: 'user', text: summaryPrompt }]);
+        setIsLoading(true);
+
+        // Use actual question if provided, otherwise create a content-based context
+        const questionContext: ParsedQuestion = contentContext.question || {
+            id: 0,
+            materia: 'Conteúdo Teórico',
+            assunto: contentContext.title || 'Geral',
+            enunciado: contentContext.text || '',
+            parsedAlternativas: [],
+            alternativas: '[]',
+            gabarito: '',
+            comentario: '',
+            orgao: '',
+            banca: '',
+            ano: new Date().getFullYear(),
+            concurso: 'MentorChat',
+        };
+
+        const response = await chatWithTutor(messages, summaryPrompt, questionContext, userContext, threadId);
+
+        if (response.threadId) {
+            setThreadId(response.threadId);
+        }
+
+        setMessages(prev => [...prev, { role: 'model', text: response.text }]);
+        setIsLoading(false);
     };
 
     const shortcutOptions: ShortcutOption[] = [
@@ -565,9 +680,20 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         e?.stopPropagation();
         if (!inputValue.trim() || isLoading) return;
 
+        // Extract click coordinates for battery toast (only from mouse events)
+        const clickX = e && 'clientX' in e ? e.clientX : undefined;
+        const clickY = e && 'clientY' in e ? e.clientY : undefined;
+
         const userText = inputValue;
         setInputValue('');
         setMessages(prev => [...prev, { role: 'user', text: userText }]);
+
+        // Verificar e consumir bateria antes de enviar mensagem
+        const canProceed = await checkAndConsumeBattery('chat_message', clickX, clickY);
+        if (!canProceed) {
+            return;
+        }
+
         setIsLoading(true);
 
         // Use actual question if provided, otherwise create a content-based context
@@ -698,21 +824,10 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                             {/* Audio Player inline - shows when message has audio */}
                                             {msg.audio && (
                                                 <div className="mt-3 pt-3 border-t border-[#3A3A3A]">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <div className="bg-[#FFB800] p-1.5 rounded-lg">
-                                                            {msg.audio.type === 'podcast' ? <Radio size={16} className="text-black" /> : <Headphones size={16} className="text-black" />}
-                                                        </div>
-                                                        <span className="text-white text-xs font-medium">
-                                                            {msg.audio.type === 'podcast' ? 'Podcast' : 'Áudio Explicativo'}
-                                                        </span>
-                                                    </div>
-                                                    <audio
-                                                        controls
-                                                        className="w-full h-10"
+                                                    <AudioPlayer
                                                         src={msg.audio.audioUrl}
-                                                    >
-                                                        Seu navegador não suporta áudio.
-                                                    </audio>
+                                                        type={msg.audio.type}
+                                                    />
                                                 </div>
                                             )}
                                         </div>
@@ -754,7 +869,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                                 {shortcutOptions.map((option) => (
                                                     <button
                                                         key={option.id}
-                                                        onClick={option.action}
+                                                        onClick={(e) => option.action(e)}
                                                         disabled={option.disabled || isGeneratingAudio}
                                                         className={`w-full flex items-start gap-3 p-2.5 rounded-lg transition-colors text-left ${
                                                             option.disabled

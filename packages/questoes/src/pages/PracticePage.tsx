@@ -398,6 +398,24 @@ export default function PracticePage() {
 
     setIsSavingNotebook(true);
     try {
+      // Consumir bateria por criar caderno
+      const prep = getSelectedPreparatorio();
+      const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
+      if (prepIdToUse) {
+        const batteryResult = await consumeBattery(
+          user.id,
+          prepIdToUse,
+          'notebook_create',
+          { notebook_name: newNotebookName }
+        );
+
+        if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
+          console.log('[PracticePage] Bateria insuficiente para criar caderno');
+          setIsSavingNotebook(false);
+          return; // Modal será aberto automaticamente pelo store
+        }
+      }
+
       const settings = {
         questionCount,
         studyMode,
@@ -739,8 +757,9 @@ export default function PracticePage() {
 
     try {
       // Consumir bateria se usuario nao for premium
-      // Usa o preparatorio selecionado ou o primeiro disponivel
-      const prepIdToUse = selectedPreparatorioId || userPreparatorios[0]?.preparatorio_id;
+      // Usa o preparatorio_id correto (não o user_trail.id)
+      const selectedPrep = getSelectedPreparatorio();
+      const prepIdToUse = selectedPrep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
 
       if (user?.id && prepIdToUse) {
         const batteryResult = await consumeBattery(
@@ -822,9 +841,27 @@ export default function PracticePage() {
     }
   };
 
-  const handleAnswer = (letter: string) => {
+  const handleAnswer = async (letter: string, clickX?: number, clickY?: number) => {
     const question = questions[currentIndex];
     const isCorrect = letter === question.gabarito;
+
+    // Consumir bateria por responder a questão
+    const prep = getSelectedPreparatorio();
+    const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
+    if (user?.id && prepIdToUse) {
+      const batteryResult = await consumeBattery(
+        user.id,
+        prepIdToUse,
+        'question',
+        { question_id: question.id.toString(), clickX, clickY }
+      );
+
+      if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
+        console.log('[PracticePage] Bateria insuficiente para responder questão');
+        return; // Modal será aberto automaticamente pelo store
+      }
+    }
+
     setAnswers(new Map(answers.set(question.id, { letter, correct: isCorrect })));
     setSessionStats((prev) => ({
       correct: prev.correct + (isCorrect ? 1 : 0),
@@ -985,6 +1022,9 @@ export default function PracticePage() {
             question: currentQuestion
           }}
           userContext={{ name: user?.user_metadata?.name }}
+          userId={user?.id}
+          preparatorioId={getSelectedPreparatorio()?.preparatorio_id || userPreparatorios[0]?.preparatorio_id}
+          checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_8_questoes || userPreparatorios[0]?.preparatorio?.checkout_8_questoes}
         />
 
         {/* Floating Chat Button */}

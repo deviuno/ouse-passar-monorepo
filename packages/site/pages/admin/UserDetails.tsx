@@ -16,12 +16,16 @@ import {
   Loader2,
   AlertCircle,
   Award,
+  Zap,
+  RefreshCw,
+  Infinity,
 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import {
   getUserDetails,
   updateUserProfile,
   updateUserSettings,
+  rechargeBattery,
   UserDetailsData,
 } from '../../services/userDetailsService';
 
@@ -40,6 +44,7 @@ export const UserDetails: React.FC = () => {
     name: '',
     email: '',
   });
+  const [rechargingTrailId, setRechargingTrailId] = useState<string | null>(null);
 
   useEffect(() => {
     if (userId) {
@@ -135,6 +140,31 @@ export const UserDetails: React.FC = () => {
         },
       });
     }
+  };
+
+  const handleRechargeBattery = async (userTrailId: string, prepId: string) => {
+    if (!data) return;
+
+    setRechargingTrailId(userTrailId);
+
+    const { success, newBattery, error: err } = await rechargeBattery(userTrailId);
+
+    if (err) {
+      toast.error(`Erro ao recarregar bateria: ${err}`);
+    } else if (success) {
+      toast.success('Bateria recarregada com sucesso!');
+      // Update local state
+      setData({
+        ...data,
+        preparatorios: data.preparatorios.map((prep) =>
+          prep.id === prepId && prep.user_trail_id === userTrailId
+            ? { ...prep, battery_current: newBattery }
+            : prep
+        ),
+      });
+    }
+
+    setRechargingTrailId(null);
   };
 
   if (loading) {
@@ -387,30 +417,62 @@ export const UserDetails: React.FC = () => {
             <div className="space-y-3">
               {preparatorios.map((prep) => (
                 <div
-                  key={prep.id}
-                  className="flex items-center gap-3 p-3 bg-brand-dark/50 rounded-sm"
+                  key={`${prep.id}-${prep.user_trail_id || 'default'}`}
+                  className="flex items-start justify-between gap-4 p-4 bg-brand-dark/50 rounded-sm"
                 >
-                  {prep.logo_url ? (
-                    <img src={prep.logo_url} alt={prep.nome} className="w-12 h-12 rounded object-cover" />
-                  ) : (
-                    <div className="w-12 h-12 rounded bg-brand-yellow/20 flex items-center justify-center">
-                      <BookOpen className="w-6 h-6 text-brand-yellow" />
-                    </div>
-                  )}
+                  {/* Left side - Info */}
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-white font-medium">{prep.nome}</p>
-                      <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs font-bold rounded">
+                    {/* Title */}
+                    <p className="text-white font-bold text-base mb-1">{prep.nome}</p>
+
+                    {/* Status + Purchased date */}
+                    <p className="text-sm mb-3">
+                      <span className="text-green-400">Ativo</span>
+                      <span className="text-gray-500 mx-2">•</span>
+                      <span className="text-gray-500">Adquirido em {new Date(prep.purchased_at).toLocaleDateString('pt-BR')}</span>
+                    </p>
+
+                    {/* Badge + Unlimited indicator */}
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 bg-blue-500/20 text-blue-400 text-xs font-bold rounded">
                         {prep.product_type}
                       </span>
+                      {prep.has_unlimited_battery && (
+                        <span className="px-2.5 py-1 bg-purple-500/20 text-purple-400 text-xs font-bold rounded flex items-center gap-1">
+                          <Infinity className="w-3 h-3" />
+                          Ilimitado
+                        </span>
+                      )}
                     </div>
-                    <p className="text-gray-500 text-xs">
-                      Adquirido em {new Date(prep.purchased_at).toLocaleDateString('pt-BR')}
-                    </p>
                   </div>
-                  <span className="px-2 py-1 bg-green-500/20 text-green-500 text-xs font-bold rounded uppercase">
-                    {prep.status}
-                  </span>
+
+                  {/* Right side - Battery block */}
+                  {prep.user_trail_id && prep.battery_current !== undefined && (
+                    <div className="flex flex-col items-center bg-brand-dark rounded-lg p-3 min-w-[100px]">
+                      {/* Battery amount */}
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Zap className={`w-5 h-5 ${prep.battery_current > 20 ? 'text-yellow-400' : 'text-red-400'}`} />
+                        <span className={`font-bold text-lg ${prep.battery_current > 20 ? 'text-white' : 'text-red-400'}`}>
+                          {prep.battery_current}/100
+                        </span>
+                      </div>
+
+                      {/* Recharge button */}
+                      <button
+                        onClick={() => handleRechargeBattery(prep.user_trail_id!, prep.id)}
+                        disabled={rechargingTrailId === prep.user_trail_id || prep.battery_current === 100}
+                        className="w-full px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs font-bold rounded flex items-center justify-center gap-1.5 transition-colors"
+                        title="Recarregar bateria para o máximo"
+                      >
+                        {rechargingTrailId === prep.user_trail_id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        )}
+                        Recarregar
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

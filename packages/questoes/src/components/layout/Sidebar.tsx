@@ -21,6 +21,7 @@ import { calculateXPProgress } from '../../constants/levelConfig';
 import { NotificationPopover } from './NotificationPopover';
 import { BatteryIndicator } from '../battery/BatteryIndicator';
 import { BatteryEmptyModal } from '../battery/BatteryEmptyModal';
+import { BatteryInfoModal } from '../battery/BatteryInfoModal';
 
 const mainNavItems = [
   { path: '/', icon: Map, label: 'Minhas Trilhas', tourId: 'sidebar-trilha' },
@@ -55,6 +56,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
     closeEmptyModal,
   } = useBatteryStore();
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
+  const [isBatteryInfoOpen, setIsBatteryInfoOpen] = React.useState(false);
   const [triggerRect, setTriggerRect] = React.useState<DOMRect | null>(null);
   const notificationButtonRef = React.useRef<HTMLButtonElement>(null);
   const xpProgress = calculateXPProgress(stats.xp);
@@ -185,6 +187,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
               max={batteryStatus.battery_max}
               isPremium={isPremium}
               compact={false}
+              onClick={() => setIsBatteryInfoOpen(true)}
             />
           </div>
         )}
@@ -195,6 +198,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
               max={batteryStatus.battery_max}
               isPremium={isPremium}
               compact={true}
+              onClick={() => setIsBatteryInfoOpen(true)}
             />
           </div>
         )}
@@ -304,6 +308,18 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
       <BatteryEmptyModal
         isOpen={isEmptyModalOpen}
         onClose={closeEmptyModal}
+        checkoutUrl={selectedPrep?.preparatorio?.checkout_8_questoes}
+        price={selectedPrep?.preparatorio?.price_questoes}
+        preparatorioNome={selectedPrep?.preparatorio?.nome}
+      />
+
+      {/* Battery Info Modal - Opens when clicking on battery indicator */}
+      <BatteryInfoModal
+        isOpen={isBatteryInfoOpen}
+        onClose={() => setIsBatteryInfoOpen(false)}
+        currentBattery={batteryStatus?.battery_current || 0}
+        maxBattery={batteryStatus?.battery_max || 100}
+        isPremium={isPremium}
         checkoutUrl={selectedPrep?.preparatorio?.checkout_8_questoes}
         price={selectedPrep?.preparatorio?.price_questoes}
         preparatorioNome={selectedPrep?.preparatorio?.nome}

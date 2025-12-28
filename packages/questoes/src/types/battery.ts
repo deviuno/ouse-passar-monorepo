@@ -7,6 +7,9 @@ export type BatteryActionType =
   | 'question'
   | 'mission_start'
   | 'chat_message'
+  | 'chat_audio'
+  | 'chat_podcast'
+  | 'chat_summary'
   | 'notebook_create'
   | 'practice_session'
   | 'recharge'
@@ -20,6 +23,9 @@ export interface BatterySettings {
   cost_per_question: number;
   cost_per_mission_start: number;
   cost_per_chat_message: number;
+  cost_per_chat_audio: number;
+  cost_per_chat_podcast: number;
+  cost_per_chat_summary: number;
   cost_per_notebook_create: number;
   cost_per_practice_session: number;
   max_preparatorios_free: number;

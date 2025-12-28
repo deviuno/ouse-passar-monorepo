@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Battery, Zap, Clock, CheckCircle, ExternalLink } from 'lucide-react';
+import { X, Battery, Zap, Clock, CheckCircle, ExternalLink, MessageSquare, Headphones, Radio, FileText, Target, Rocket } from 'lucide-react';
 import { getTimeUntilRecharge } from '../../types/battery';
 
 interface BatteryInfoModalProps {
@@ -111,37 +111,63 @@ export function BatteryInfoModal({
               </div>
             </div>
 
-            {/* Content */}
+            {/* Content - Battery Costs */}
             <div className="px-6 pb-4 space-y-3">
+              <h3 className="text-white font-semibold text-sm">Consumo por ação:</h3>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center gap-2 p-2 bg-[#2A2A2A] rounded-lg">
+                  <Target className="w-4 h-4 text-[#FFB800]" />
+                  <div>
+                    <p className="text-white text-xs font-medium">Questão</p>
+                    <p className="text-[#6E6E6E] text-[10px]">-2 energia</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-[#2A2A2A] rounded-lg">
+                  <Rocket className="w-4 h-4 text-[#FFB800]" />
+                  <div>
+                    <p className="text-white text-xs font-medium">Iniciar Missão</p>
+                    <p className="text-[#6E6E6E] text-[10px]">-5 energia</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-[#2A2A2A] rounded-lg">
+                  <MessageSquare className="w-4 h-4 text-[#FFB800]" />
+                  <div>
+                    <p className="text-white text-xs font-medium">Chat com IA</p>
+                    <p className="text-[#6E6E6E] text-[10px]">-3 energia</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-[#2A2A2A] rounded-lg">
+                  <Headphones className="w-4 h-4 text-[#FFB800]" />
+                  <div>
+                    <p className="text-white text-xs font-medium">Gerar Áudio</p>
+                    <p className="text-[#6E6E6E] text-[10px]">-5 energia</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-[#2A2A2A] rounded-lg">
+                  <Radio className="w-4 h-4 text-[#FFB800]" />
+                  <div>
+                    <p className="text-white text-xs font-medium">Gerar Podcast</p>
+                    <p className="text-[#6E6E6E] text-[10px]">-10 energia</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-[#2A2A2A] rounded-lg">
+                  <FileText className="w-4 h-4 text-[#FFB800]" />
+                  <div>
+                    <p className="text-white text-xs font-medium">Resumo IA</p>
+                    <p className="text-[#6E6E6E] text-[10px]">-5 energia</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* How it works */}
+            <div className="px-6 pb-4 space-y-2">
               <h3 className="text-white font-semibold text-sm">Como funciona:</h3>
-
-              <div className="space-y-2">
-                <div className="flex items-start gap-3 text-sm">
-                  <div className="w-6 h-6 rounded-full bg-[#3A3A3A] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-[#FFB800] text-xs font-bold">1</span>
-                  </div>
-                  <p className="text-[#A0A0A0]">
-                    Cada ação (responder questões, iniciar missões) consome energia da sua bateria
-                  </p>
-                </div>
-
-                <div className="flex items-start gap-3 text-sm">
-                  <div className="w-6 h-6 rounded-full bg-[#3A3A3A] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-[#FFB800] text-xs font-bold">2</span>
-                  </div>
-                  <p className="text-[#A0A0A0]">
-                    Quando a bateria acaba, você precisa aguardar a recarga ou adquirir a bateria ilimitada
-                  </p>
-                </div>
-
-                <div className="flex items-start gap-3 text-sm">
-                  <div className="w-6 h-6 rounded-full bg-[#3A3A3A] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-[#FFB800] text-xs font-bold">3</span>
-                  </div>
-                  <p className="text-[#A0A0A0]">
-                    A bateria é recarregada automaticamente todos os dias à meia-noite
-                  </p>
-                </div>
+              <div className="text-[#A0A0A0] text-xs space-y-1">
+                <p>• Cada ação consome energia da sua bateria</p>
+                <p>• Quando acaba, aguarde a recarga ou assine</p>
+                <p>• Recarga automática todo dia à meia-noite</p>
               </div>
             </div>
 

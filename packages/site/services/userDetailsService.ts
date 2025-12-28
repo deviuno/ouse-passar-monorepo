@@ -21,6 +21,11 @@ export interface UserPreparatorio {
   purchased_at: string;
   status: string;
   product_type: string; // 'Planejador', 'Simulado', 'Reta Final', 'Ouse Questões', etc.
+  user_trail_id?: string;
+  // Battery info (only for Ouse Questões)
+  battery_current?: number;
+  has_unlimited_battery?: boolean;
+  bonus_battery?: number;
 }
 
 export interface UserActivity {
@@ -189,7 +194,7 @@ export async function getUserDetails(userId: string): Promise<{
     // 4. Ouse Questões (user_trails - matrículas no app de questões)
     const { data: userTrails } = await supabase
       .from('user_trails' as any)
-      .select('id, preparatorio_id, created_at, is_reta_final')
+      .select('id, preparatorio_id, created_at, is_reta_final, battery_current, has_unlimited_battery, bonus_battery')
       .eq('user_id', userId);
 
     if (userTrails && userTrails.length > 0) {
@@ -212,6 +217,11 @@ export async function getUserDetails(userId: string): Promise<{
               purchased_at: (trail as any)?.created_at || new Date().toISOString(),
               status: 'active',
               product_type: (trail as any)?.is_reta_final ? 'Reta Final' : 'Ouse Questões',
+              user_trail_id: (trail as any)?.id,
+              // Battery info
+              battery_current: (trail as any)?.battery_current,
+              has_unlimited_battery: (trail as any)?.has_unlimited_battery ?? false,
+              bonus_battery: (trail as any)?.bonus_battery ?? 0,
             });
           });
         }
@@ -345,6 +355,37 @@ export async function updateUserSettings(
     }
 
     return { success: true, error: null };
+  } catch (err: any) {
+    console.error('[userDetailsService] Exception:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Recharge battery for a user trail (Ouse Questões enrollment)
+ * Sets battery_current to 100 (default max)
+ */
+export async function rechargeBattery(
+  userTrailId: string
+): Promise<{ success: boolean; newBattery?: number; error: string | null }> {
+  try {
+    const BATTERY_MAX = 100;
+
+    // Update battery_current to max
+    const { error: updateError } = await supabase
+      .from('user_trails' as any)
+      .update({
+        battery_current: BATTERY_MAX,
+        battery_last_recharge: new Date().toISOString().split('T')[0] // YYYY-MM-DD
+      })
+      .eq('id', userTrailId);
+
+    if (updateError) {
+      console.error('[userDetailsService] Error recharging battery:', updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    return { success: true, newBattery: BATTERY_MAX, error: null };
   } catch (err: any) {
     console.error('[userDetailsService] Exception:', err);
     return { success: false, error: err.message };

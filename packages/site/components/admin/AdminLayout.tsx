@@ -67,8 +67,11 @@ export const AdminLayout: React.FC = () => {
         }
     }, [location.pathname]);
 
-    const isActive = (path: string) => {
-        return location.pathname === path ? 'bg-brand-yellow text-brand-darker' : 'text-gray-400 hover:text-white hover:bg-white/5';
+    const isActive = (path: string, exactMatch: boolean = true) => {
+        const isMatch = exactMatch
+            ? location.pathname === path
+            : location.pathname.startsWith(path);
+        return isMatch ? 'bg-brand-yellow text-brand-darker' : 'text-gray-400 hover:text-white hover:bg-white/5';
     };
 
     return (
@@ -164,7 +167,7 @@ export const AdminLayout: React.FC = () => {
                             {/* Usuários */}
                             <Link
                                 to="/admin/users"
-                                className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/users')}`}
+                                className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/users', false)}`}
                             >
                                 <Users className="w-5 h-5 mr-3" />
                                 Usuários

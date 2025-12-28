@@ -30,6 +30,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   const [tempStart, setTempStart] = useState<string | null>(value.start);
   const [tempEnd, setTempEnd] = useState<string | null>(value.end);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
 
   // Close on outside click
   useEffect(() => {
@@ -48,6 +50,17 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     setTempStart(value.start);
     setTempEnd(value.end);
   }, [value.start, value.end]);
+
+  // Calculate dropdown position when opening
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 8, // 8px margin
+        right: window.innerWidth - rect.right,
+      });
+    }
+  }, [isOpen]);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -144,9 +157,10 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     <div ref={containerRef} className="relative">
       {/* Trigger Button */}
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-2 bg-brand-dark border rounded-sm text-sm transition-colors ${
+        className={`flex items-center gap-2 px-4 py-2.5 bg-brand-dark border rounded-sm text-sm transition-colors ${
           hasValue
             ? 'border-brand-yellow/50 text-white'
             : 'border-white/10 text-gray-400 hover:border-white/20'
@@ -155,42 +169,32 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
         <Calendar size={16} className={hasValue ? 'text-brand-yellow' : 'text-gray-500'} />
         <span className="whitespace-nowrap">{displayText}</span>
         {hasValue && (
-          <button
-            type="button"
+          <span
+            role="button"
+            tabIndex={0}
             onClick={(e) => {
               e.stopPropagation();
               handleClear();
             }}
-            className="p-0.5 hover:bg-white/10 rounded"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+                handleClear();
+              }
+            }}
+            className="p-0.5 hover:bg-white/10 rounded cursor-pointer"
           >
             <X size={14} className="text-gray-400 hover:text-white" />
-          </button>
+          </span>
         )}
       </button>
 
       {/* Calendar Dropdown */}
       {isOpen && (
-        <div className="absolute top-full mt-2 right-0 z-50 bg-brand-card border border-white/10 rounded-lg shadow-xl p-4 min-w-[300px]">
-          {/* Selection Indicator */}
-          <div className="flex items-center gap-2 mb-4 text-xs">
-            <div className={`flex-1 p-2 rounded text-center border ${
-              selecting === 'start'
-                ? 'border-brand-yellow bg-brand-yellow/10 text-brand-yellow'
-                : 'border-white/10 text-gray-400'
-            }`}>
-              <span className="block text-[10px] uppercase">Data Inicial</span>
-              <span className="font-medium">{tempStart ? formatDisplayDate(tempStart) : '—'}</span>
-            </div>
-            <div className={`flex-1 p-2 rounded text-center border ${
-              selecting === 'end'
-                ? 'border-brand-yellow bg-brand-yellow/10 text-brand-yellow'
-                : 'border-white/10 text-gray-400'
-            }`}>
-              <span className="block text-[10px] uppercase">Data Final</span>
-              <span className="font-medium">{tempEnd ? formatDisplayDate(tempEnd) : '—'}</span>
-            </div>
-          </div>
-
+        <div
+          className="fixed z-50 bg-brand-card border border-white/10 rounded-lg shadow-xl p-4 min-w-[280px]"
+          style={{ top: dropdownPosition.top, right: dropdownPosition.right }}
+        >
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-4">
             <button

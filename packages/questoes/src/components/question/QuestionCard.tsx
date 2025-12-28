@@ -16,7 +16,7 @@ interface QuestionCardProps {
   onNext: () => void;
   onPrevious?: () => void;
   onOpenTutor: () => void;
-  onAnswer: (letter: string) => void;
+  onAnswer: (letter: string, clickX?: number, clickY?: number) => void;
   onRateDifficulty?: (difficulty: 'easy' | 'medium' | 'hard') => void;
   onTimeout?: () => void;
   studyMode?: PracticeMode;
@@ -26,11 +26,14 @@ interface QuestionCardProps {
   savedDifficultyRating?: 'easy' | 'medium' | 'hard' | null; // User's previous rating
   userRole?: 'admin' | 'user';
   showCorrectAnswers?: boolean; // When true, shows star on correct answer (admin or user with permission)
+  previousAnswer?: { letter: string; correct: boolean } | null; // Resposta anterior (modo read-only)
 }
 
-const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onPrevious, onOpenTutor, onAnswer, onRateDifficulty, onTimeout, studyMode = 'zen', initialTime = 120, userId, onShowToast, savedDifficultyRating, userRole, showCorrectAnswers = false }) => {
-  const [selectedAlt, setSelectedAlt] = useState<string | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onPrevious, onOpenTutor, onAnswer, onRateDifficulty, onTimeout, studyMode = 'zen', initialTime = 120, userId, onShowToast, savedDifficultyRating, userRole, showCorrectAnswers = false, previousAnswer = null }) => {
+  // Se tem resposta anterior, inicia com ela selecionada e submetida (modo read-only)
+  const [selectedAlt, setSelectedAlt] = useState<string | null>(previousAnswer?.letter || null);
+  const [isSubmitted, setIsSubmitted] = useState(!!previousAnswer);
+  const isReadOnly = !!previousAnswer; // Questão já respondida, não pode alterar
   const [explanation, setExplanation] = useState<string | null>(null);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
 
@@ -72,15 +75,25 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
 
   // Reset state when question changes
   useEffect(() => {
-    setSelectedAlt(null);
-    setIsSubmitted(false);
-    setExplanation(null);
+    // Se tem resposta anterior, usar ela
+    if (previousAnswer) {
+      setSelectedAlt(previousAnswer.letter);
+      setIsSubmitted(true);
+      // Carregar explicação se disponível
+      if (question.comentario) {
+        setExplanation(question.comentario);
+      }
+    } else {
+      setSelectedAlt(null);
+      setIsSubmitted(false);
+      setExplanation(null);
+    }
     setDifficultyRating(savedDifficultyRating || null);
     setShowStatsModal(false);
     setShowPegadinhaModal(false);
     setShowReportModal(false);
     setQuestionStats(null);
-  }, [question.id, savedDifficultyRating]);
+  }, [question.id, savedDifficultyRating, previousAnswer]);
 
   // Fetch statistics when question is answered
   useEffect(() => {
@@ -143,15 +156,19 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
   };
 
   const handleSelect = (letter: string) => {
-    if (isSubmitted) return;
+    if (isSubmitted || isReadOnly) return;
     setSelectedAlt(letter);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.MouseEvent) => {
     if (!selectedAlt) return;
 
+    // Extract click coordinates for battery toast
+    const clickX = e?.clientX;
+    const clickY = e?.clientY;
+
     // Notify parent about the answer
-    onAnswer(selectedAlt);
+    onAnswer(selectedAlt, clickX, clickY);
 
     // If Mode is Simulado (Hard), we do NOT show feedback. We move to next.
     if (studyMode === 'hard') {
@@ -328,7 +345,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
         {!isSubmitted ? (
           <RippleEffect className="w-full rounded-full">
             <button
-              onClick={handleSubmit}
+              onClick={(e) => handleSubmit(e)}
               disabled={!selectedAlt}
               className={`w-full py-4 rounded-full font-bold text-black uppercase tracking-wide transition-all touch-feedback ${selectedAlt ? 'bg-[#FFB800] shadow-[0_0_15px_rgba(255,184,0,0.4)]' : 'bg-gray-700 cursor-not-allowed opacity-50'
                 }`}

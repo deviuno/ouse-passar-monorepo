@@ -208,6 +208,44 @@ export const Tickets: React.FC = () => {
     return tickets.filter(t => t.status === status);
   };
 
+  // Drag and Drop
+  const [draggedTicket, setDraggedTicket] = useState<TicketType | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<TicketStatus | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, ticket: TicketType) => {
+    setDraggedTicket(ticket);
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => {
+      (e.target as HTMLElement).style.opacity = '0.5';
+    }, 0);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '1';
+    setDraggedTicket(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, status: TicketStatus) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverColumn(status);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, newStatus: TicketStatus) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+
+    if (draggedTicket && draggedTicket.status !== newStatus) {
+      await handleMoveToColumn(draggedTicket, newStatus);
+    }
+    setDraggedTicket(null);
+  };
+
   return (
     <div className="p-6 overflow-x-hidden">
       {/* Header */}
@@ -368,10 +406,18 @@ export const Tickets: React.FC = () => {
           <div className="flex gap-3" style={{ minWidth: `${KANBAN_COLUMNS.length * 25}%` }}>
           {KANBAN_COLUMNS.map((column) => {
             const columnTickets = getTicketsByStatus(column.status);
+            const isDragOver = dragOverColumn === column.status;
             return (
               <div
                 key={column.status}
-                className="flex-1 min-w-0 bg-brand-card border border-white/5 rounded-sm"
+                className={`flex-1 min-w-0 bg-brand-card border rounded-sm transition-colors ${
+                  isDragOver
+                    ? 'border-brand-yellow/50 bg-brand-yellow/5'
+                    : 'border-white/5'
+                }`}
+                onDragOver={(e) => handleDragOver(e, column.status)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, column.status)}
               >
                 {/* Column Header */}
                 <div className={`p-3 border-b ${column.bgColor}`}>
@@ -388,14 +434,17 @@ export const Tickets: React.FC = () => {
                 {/* Column Content */}
                 <div className="p-2 space-y-2 max-h-[60vh] overflow-y-auto">
                   {columnTickets.length === 0 ? (
-                    <div className="text-center py-8 text-gray-600 text-sm">
-                      Nenhum ticket
+                    <div className={`text-center py-8 text-sm ${isDragOver ? 'text-brand-yellow' : 'text-gray-600'}`}>
+                      {isDragOver ? 'Soltar aqui' : 'Nenhum ticket'}
                     </div>
                   ) : (
                     columnTickets.map((ticket) => (
                       <div
                         key={ticket.id}
-                        className="bg-brand-dark border border-white/5 rounded-sm p-3 hover:border-white/20 transition-colors cursor-pointer group"
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, ticket)}
+                        onDragEnd={handleDragEnd}
+                        className="bg-brand-dark border border-white/5 rounded-sm p-3 hover:border-white/20 transition-colors cursor-grab active:cursor-grabbing group relative"
                         onClick={() => openTicketDetail(ticket)}
                       >
                         {/* Ticket Header */}
@@ -441,8 +490,8 @@ export const Tickets: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Quick Actions */}
-                        <div className="hidden group-hover:flex items-center gap-1 mt-2 pt-2 border-t border-white/5">
+                        {/* Quick Actions - Overlay */}
+                        <div className="absolute inset-0 bg-brand-dark/95 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                           {column.status !== 'fechado' && (
                             <>
                               {column.status !== 'em_andamento' && (
@@ -451,7 +500,7 @@ export const Tickets: React.FC = () => {
                                     e.stopPropagation();
                                     handleMoveToColumn(ticket, 'em_andamento');
                                   }}
-                                  className="text-[10px] px-2 py-1 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30"
+                                  className="text-[10px] px-2 py-1 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 border border-blue-500/30"
                                 >
                                   Iniciar
                                 </button>
@@ -462,12 +511,15 @@ export const Tickets: React.FC = () => {
                                     e.stopPropagation();
                                     handleMoveToColumn(ticket, 'resolvido');
                                   }}
-                                  className="text-[10px] px-2 py-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30"
+                                  className="text-[10px] px-2 py-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 border border-green-500/30"
                                 >
                                   Resolver
                                 </button>
                               )}
                             </>
+                          )}
+                          {column.status === 'fechado' && (
+                            <span className="text-gray-400 text-xs">Arraste para mover</span>
                           )}
                         </div>
                       </div>

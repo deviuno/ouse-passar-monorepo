@@ -6,10 +6,12 @@ import { Header } from './Header';
 import { ToastContainer } from '../ui/Toast';
 import { ScrollToTop } from '../ui';
 import { ProductTour } from '../tour';
-import { useUIStore } from '../../stores';
+import { BatteryConsumeToast } from '../battery/BatteryConsumeToast';
+import { useUIStore, useBatteryStore } from '../../stores';
 
 export function MainLayout() {
   const { isSidebarOpen, isTourActive, isTourCompleted, startTour, completeTour, skipTour } = useUIStore();
+  const { consumeToast, hideConsumeToast } = useBatteryStore();
   const location = useLocation();
 
   // Check if we should start the tour (only on home page and if not completed)
@@ -65,6 +67,18 @@ export function MainLayout() {
 
       {/* Toast Container */}
       <ToastContainer />
+
+      {/* Battery Consume Toast */}
+      {consumeToast && (
+        <BatteryConsumeToast
+          key={consumeToast.key}
+          amount={consumeToast.amount}
+          isVisible={true}
+          onComplete={hideConsumeToast}
+          x={consumeToast.x}
+          y={consumeToast.y}
+        />
+      )}
 
       {/* Product Tour */}
       <ProductTour

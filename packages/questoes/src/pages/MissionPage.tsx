@@ -23,6 +23,7 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { Button, Card, Progress, CircularProgress, SuccessCelebration, FadeIn, FloatingChatButton, MarkdownContent, ConfirmModal } from '../components/ui';
 import { BatteryEmptyModal } from '../components/battery';
 import { QuestionCard } from '../components/question';
+import { QuestionNavigator } from '../components/question/QuestionNavigator';
 import { ParsedQuestion, TrailMission, MissionStatus, StudyMode } from '../types';
 import { TrailMap } from '../components/trail/TrailMap';
 import { CompactTrailMap } from '../components/trail/CompactTrailMap';
@@ -42,7 +43,15 @@ import {
   getQuestoesIdsMassificacao,
   getMassificacaoAttempts,
 } from '../services/massificacaoService';
-import { getQuestoesParaMissao } from '../services/missaoQuestoesService';
+import { getQuestoesFixasDaMissao } from '../services/missaoQuestoesFixasService';
+import {
+  getMissionProgress,
+  saveMissionProgress,
+  saveMissionProgressImmediate,
+  clearMissionProgress,
+  flushPendingSave,
+  MissionProgressData,
+} from '../services/missionProgressService';
 import {
   getMissaoConteudo,
   gerarConteudoMissao,
@@ -1157,6 +1166,7 @@ export default function MissionPage() {
   const [isCreatingMassificacao, setIsCreatingMassificacao] = useState(false);
   const [massificacaoId, setMassificacaoId] = useState<string | null>(null);
   const [selectedStudyMode, setSelectedStudyMode] = useState<'zen' | 'hard'>('zen');
+  const [isRestoringProgress, setIsRestoringProgress] = useState(false);
 
   // Content generation state
   const [missaoConteudo, setMissaoConteudo] = useState<MissaoConteudo | null>(null);
@@ -1349,7 +1359,7 @@ export default function MissionPage() {
     loadOrGenerateContent();
   }, [resolvedMissionId, user?.id, getSelectedPreparatorio, currentTrailMode]);
 
-  // Load questions for this mission
+  // Load questions for this mission (with progress restoration)
   useEffect(() => {
     async function loadQuestions() {
       if (!resolvedMissionId) {
@@ -1359,16 +1369,19 @@ export default function MissionPage() {
       }
 
       setIsLoadingQuestions(true);
+      setIsRestoringProgress(false);
+
       try {
         // Obter quantidade de questões do preparatório selecionado
         const preparatorio = getSelectedPreparatorio();
         const questoesPorMissao = preparatorio?.questoes_por_missao || 20;
 
         // Verificar e consumir bateria se necessario (apenas uma vez por missao)
-        if (user?.id && selectedPreparatorioId && !batteryConsumedMissions.current.has(resolvedMissionId)) {
+        const actualPreparatorioId = preparatorio?.preparatorio_id;
+        if (user?.id && actualPreparatorioId && !batteryConsumedMissions.current.has(resolvedMissionId)) {
           const batteryResult = await consumeBattery(
             user.id,
-            selectedPreparatorioId,
+            actualPreparatorioId,
             'mission_start',
             { mission_id: resolvedMissionId }
           );
@@ -1383,16 +1396,50 @@ export default function MissionPage() {
           batteryConsumedMissions.current.add(resolvedMissionId);
         }
 
-        console.log('[MissionPage] Carregando questoes para missao:', resolvedMissionId, '- Quantidade:', questoesPorMissao, '- Modo:', currentTrailMode);
-        const fetchedQuestions = await getQuestoesParaMissao(resolvedMissionId, questoesPorMissao, currentTrailMode);
+        // 1. Carregar questões FIXAS da missão (mesmas para todos os usuários)
+        console.log('[MissionPage] Carregando questões fixas para missão:', resolvedMissionId);
+        const fixedQuestions = await getQuestoesFixasDaMissao(resolvedMissionId, questoesPorMissao, currentTrailMode);
 
-        if (fetchedQuestions.length > 0) {
-          console.log('[MissionPage] Questoes carregadas:', fetchedQuestions.length);
-          setQuestions(fetchedQuestions);
-        } else {
-          console.warn('[MissionPage] Nenhuma questao encontrada, usando demo');
+        if (fixedQuestions.length === 0) {
+          console.warn('[MissionPage] Nenhuma questão encontrada, usando demo');
           setQuestions(DEMO_QUESTIONS);
           addToast('info', 'Usando questões de demonstração');
+        } else {
+          console.log('[MissionPage] Questões fixas carregadas:', fixedQuestions.length);
+          setQuestions(fixedQuestions);
+
+          // 2. Verificar se há progresso salvo (respostas do usuário)
+          if (user?.id) {
+            const savedProgress = await getMissionProgress(user.id, resolvedMissionId);
+
+            if (savedProgress && Object.keys(savedProgress.answers || {}).length > 0) {
+              console.log('[MissionPage] Progresso encontrado! Restaurando respostas...', {
+                answersCount: Object.keys(savedProgress.answers).length,
+                currentIndex: savedProgress.currentQuestionIndex,
+              });
+              setIsRestoringProgress(true);
+
+              // Restaurar respostas
+              const restoredAnswers = new Map<number, { letter: string; correct: boolean }>();
+              Object.entries(savedProgress.answers).forEach(([questionId, answer]) => {
+                restoredAnswers.set(Number(questionId), answer);
+              });
+              setAnswers(restoredAnswers);
+
+              // Ir para a próxima questão não respondida
+              const nextUnansweredIndex = fixedQuestions.findIndex(
+                q => !savedProgress.answers[q.id]
+              );
+              const targetIndex = nextUnansweredIndex >= 0
+                ? nextUnansweredIndex
+                : Math.min(savedProgress.currentQuestionIndex, fixedQuestions.length - 1);
+              setCurrentQuestionIndex(targetIndex);
+
+              // Ir direto para questões se tiver progresso
+              setPhase('questions');
+              addToast('info', 'Continuando de onde você parou!');
+            }
+          }
         }
       } catch (error) {
         console.error('[MissionPage] Erro ao carregar questoes:', error);
@@ -1400,6 +1447,7 @@ export default function MissionPage() {
         addToast('error', 'Erro ao carregar questões');
       } finally {
         setIsLoadingQuestions(false);
+        setIsRestoringProgress(false);
       }
     }
 
@@ -1419,11 +1467,84 @@ export default function MissionPage() {
     }
   }, [currentQuestionIndex, phase, questions.length]);
 
+  // Salvar progresso pendente ao sair da página (beforeunload)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Flush qualquer progresso pendente antes de sair
+      flushPendingSave();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Também flush ao desmontar o componente
+      flushPendingSave();
+    };
+  }, []);
+
   // Handler quando o usuário responde
-  const handleAnswer = (letter: string) => {
+  const handleAnswer = async (letter: string, clickX?: number, clickY?: number) => {
     const question = questions[currentQuestionIndex];
     const isCorrect = letter === question.gabarito;
-    setAnswers(new Map(answers.set(question.id, { letter, correct: isCorrect })));
+
+    // Consumir bateria por responder a questão
+    const prep = getSelectedPreparatorio();
+    if (user?.id && prep?.preparatorio_id) {
+      const batteryResult = await consumeBattery(
+        user.id,
+        prep.preparatorio_id,
+        'question',
+        { question_id: question.id.toString(), clickX, clickY }
+      );
+
+      if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
+        console.log('[MissionPage] Bateria insuficiente para responder questão');
+        return; // Modal será aberto automaticamente pelo store
+      }
+    }
+
+    // Atualizar respostas localmente
+    const newAnswers = new Map(answers);
+    newAnswers.set(question.id, { letter, correct: isCorrect });
+    setAnswers(newAnswers);
+
+    // Salvar progresso no banco IMEDIATAMENTE (sem debounce - crítico)
+    if (user?.id && resolvedMissionId) {
+      const answersRecord: Record<number, { letter: string; correct: boolean }> = {};
+      newAnswers.forEach((value, key) => {
+        answersRecord[key] = value;
+      });
+
+      console.log('[MissionPage] handleAnswer - Salvando progresso:', {
+        userId: user.id,
+        missionId: resolvedMissionId,
+        answersCount: Object.keys(answersRecord).length,
+        currentIndex: currentQuestionIndex,
+      });
+
+      // Usar save imediato para garantir que a resposta seja salva
+      // Não precisa enviar questoesIds - questões são fixas por missão
+      saveMissionProgressImmediate(user.id, {
+        missionId: resolvedMissionId,
+        answers: answersRecord,
+        currentQuestionIndex: currentQuestionIndex,
+        status: 'in_progress',
+      }).then(result => {
+        if (result.success) {
+          console.log('[MissionPage] Progresso salvo com sucesso!');
+        } else {
+          console.error('[MissionPage] Erro ao salvar progresso:', result.error);
+        }
+      }).catch(err => {
+        console.error('[MissionPage] Exceção ao salvar progresso:', err);
+      });
+    } else {
+      console.warn('[MissionPage] handleAnswer - Não salvando (userId ou missionId ausente):', {
+        userId: user?.id,
+        missionId: resolvedMissionId,
+      });
+    }
 
     // Scroll to show navigation buttons after answering
     setTimeout(() => {
@@ -1453,6 +1574,13 @@ export default function MissionPage() {
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(prev => prev - 1);
+    }
+  };
+
+  // Handler para navegar para uma questão específica (via QuestionNavigator)
+  const handleNavigateToQuestion = (index: number) => {
+    if (index >= 0 && index < questions.length) {
+      setCurrentQuestionIndex(index);
     }
   };
 
@@ -1578,6 +1706,9 @@ export default function MissionPage() {
         if (!success) {
           console.error('[MissionPage] Falha ao salvar progresso no banco');
         }
+
+        // Limpar progresso salvo (marcar como completed)
+        await clearMissionProgress(user.id, resolvedMissionId, 'completed', score);
       } catch (err) {
         console.error('[MissionPage] Erro ao salvar progresso:', err);
       }
@@ -1664,34 +1795,16 @@ export default function MissionPage() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => {
-                      if (answers.size > 0) {
-                        setShowExitConfirm(true);
-                      } else {
-                        navigate('/');
-                      }
-                    }}
-                    className="p-2 rounded-full hover:bg-[#252525] transition-colors hidden lg:block"
-                  >
-                    <ChevronLeft size={24} className="text-[#A0A0A0]" />
-                  </button>
-                  <Progress
-                    value={((currentQuestionIndex + 1) / questions.length) * 100}
-                    size="md"
-                    color={currentTrailMode === 'reta_final' ? 'retaFinal' : 'brand'}
-                    className="flex-1"
+                {/* Navegador de questões */}
+                {questions.length > 0 && (
+                  <QuestionNavigator
+                    totalQuestions={questions.length}
+                    currentIndex={currentQuestionIndex}
+                    answers={answers}
+                    questionIds={questions.map(q => q.id)}
+                    onNavigate={handleNavigateToQuestion}
                   />
-                  <span className="text-[#A0A0A0] text-sm font-medium">
-                    {currentQuestionIndex + 1}/{questions.length}
-                  </span>
-                </div>
-                {/* Stats da missão */}
-                <div className="flex justify-center gap-4 mt-2 text-xs">
-                  <span className="text-[#2ECC71]">✓ {correctCount}</span>
-                  <span className="text-[#E74C3C]">✗ {answers.size - correctCount}</span>
-                </div>
+                )}
               </div>
             )}
 
@@ -1771,6 +1884,7 @@ export default function MissionPage() {
                       userRole={userProfile?.role}
                       showCorrectAnswers={userProfile?.show_answers || false}
                       onShowToast={handleShowToast}
+                      previousAnswer={answers.get(currentQuestion.id) || null}
                     />
                   </motion.div>
                 )}
@@ -1829,6 +1943,9 @@ export default function MissionPage() {
             xp: stats.xp,
             streak: stats.streak
           }}
+          userId={user?.id}
+          preparatorioId={getSelectedPreparatorio()?.preparatorio_id}
+          checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_8_questoes}
         />
       </div>
 
@@ -1943,12 +2060,30 @@ export default function MissionPage() {
       <ConfirmModal
         isOpen={showExitConfirm}
         onClose={() => setShowExitConfirm(false)}
-        onConfirm={() => navigate('/')}
+        onConfirm={async () => {
+          // Salvar progresso imediatamente antes de sair
+          if (user?.id && resolvedMissionId && answers.size > 0) {
+            const answersRecord: Record<number, { letter: string; correct: boolean }> = {};
+            answers.forEach((value, key) => {
+              answersRecord[key] = value;
+            });
+
+            await saveMissionProgressImmediate(user.id, {
+              missionId: resolvedMissionId,
+              odaId: '',
+              questoesIds: questions.map(q => q.id),
+              answers: answersRecord,
+              currentQuestionIndex: currentQuestionIndex,
+              status: 'in_progress',
+            });
+          }
+          navigate('/');
+        }}
         title="Sair da Missão?"
-        message="Você tem progresso não salvo. Se sair agora, suas respostas serão perdidas."
-        confirmText="Sair"
+        message="Seu progresso será salvo. Quando voltar, você continuará de onde parou."
+        confirmText="Sair e Salvar"
         cancelText="Continuar"
-        variant="danger"
+        variant="warning"
         icon="exit"
       />
     </div>

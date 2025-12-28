@@ -451,10 +451,116 @@ export async function countQuestoesParaMissao(missaoId: string): Promise<number>
   }
 }
 
+/**
+ * Busca questões por IDs específicos (para restaurar progresso salvo)
+ * Mantém a ordem dos IDs fornecidos
+ */
+export async function getQuestoesByIds(ids: (number | string)[]): Promise<ParsedQuestion[]> {
+  if (!ids || ids.length === 0) return [];
+
+  try {
+    // Converter para números (banco pode retornar como strings)
+    const numericIds = ids.map(id => typeof id === 'string' ? parseInt(id, 10) : id).filter(id => !isNaN(id));
+
+    console.log('[MissaoQuestoesService] Buscando questões por IDs:', numericIds.length, 'IDs:', numericIds.slice(0, 5));
+
+    // Buscar em batches para evitar URLs muito longas
+    const BATCH_SIZE = 10;
+    let allData: any[] = [];
+
+    for (let i = 0; i < numericIds.length; i += BATCH_SIZE) {
+      const batch = numericIds.slice(i, i + BATCH_SIZE);
+      console.log(`[MissaoQuestoesService] Buscando batch ${i / BATCH_SIZE + 1}:`, batch.length, 'IDs');
+
+      const { data, error, status, statusText } = await questionsDb
+        .from('questoes_concurso')
+        .select('*')
+        .in('id', batch);
+
+      console.log('[MissaoQuestoesService] Resposta do batch:', {
+        status,
+        statusText,
+        dataLength: data?.length || 0,
+        error: error ? error.message : null,
+      });
+
+      if (error) {
+        console.error('[MissaoQuestoesService] Erro no batch:', error);
+        continue; // Tentar próximo batch mesmo com erro
+      }
+
+      if (data && data.length > 0) {
+        allData = [...allData, ...data];
+      }
+    }
+
+    console.log('[MissaoQuestoesService] Total de questões encontradas:', allData.length);
+
+    if (allData.length === 0) {
+      console.warn('[MissaoQuestoesService] Nenhuma questão encontrada para os IDs:', numericIds.slice(0, 5));
+      return [];
+    }
+
+    // Reordenar para manter a ordem original dos IDs
+    const dataMap = new Map(allData.map(q => [q.id, q]));
+    const orderedData = numericIds.map(id => dataMap.get(id)).filter(Boolean);
+
+    console.log('[MissaoQuestoesService] Questões ordenadas:', orderedData.length);
+
+    // Parse das questões (já ordenadas)
+    const parsedQuestions: ParsedQuestion[] = orderedData.map((q: any) => ({
+      id: q.id,
+      materia: q.materia || 'Não especificada',
+      assunto: q.assunto || '',
+      concurso: q.concurso || '',
+      enunciado: q.enunciado || '',
+      alternativas: q.alternativas || '[]',
+      parsedAlternativas: parseAlternativas(q.alternativas),
+      gabarito: (q.gabarito || '').trim().toUpperCase(),
+      comentario: q.comentario || '',
+      orgao: q.orgao || '',
+      banca: q.banca || '',
+      ano: q.ano || 0,
+    }));
+
+    console.log('[MissaoQuestoesService] Questões recuperadas:', parsedQuestions.length);
+    return parsedQuestions;
+  } catch (error) {
+    console.error('[MissaoQuestoesService] Erro:', error);
+    return [];
+  }
+}
+
+// Helper para parse de alternativas
+function parseAlternativas(alternativas: string | any[]): Array<{ letter: string; text: string }> {
+  if (!alternativas) return [];
+
+  try {
+    let alts = alternativas;
+    if (typeof alternativas === 'string') {
+      alts = JSON.parse(alternativas);
+    }
+
+    if (Array.isArray(alts)) {
+      return alts.map((alt: any, index: number) => {
+        if (typeof alt === 'string') {
+          return { letter: String.fromCharCode(65 + index), text: alt };
+        }
+        return { letter: alt.letter || String.fromCharCode(65 + index), text: alt.text || alt.texto || '' };
+      });
+    }
+  } catch (e) {
+    console.error('[MissaoQuestoesService] Erro ao parsear alternativas:', e);
+  }
+
+  return [];
+}
+
 export default {
   getMissaoFiltros,
   getMissaoEditalItems,
   getEditalItemsTitulos,
   getQuestoesParaMissao,
   countQuestoesParaMissao,
+  getQuestoesByIds,
 };

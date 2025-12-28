@@ -23,6 +23,9 @@ interface BatteryState {
   isEmptyModalOpen: boolean;
   isPrepLimitModalOpen: boolean;
 
+  // Toast state (with position for Instagram-like effect)
+  consumeToast: { amount: number; key: number; x?: number; y?: number } | null;
+
   // Actions
   fetchBatteryStatus: (userId: string, preparatorioId: string) => Promise<void>;
   fetchSettings: () => Promise<void>;
@@ -51,6 +54,9 @@ interface BatteryState {
   openPrepLimitModal: () => void;
   closePrepLimitModal: () => void;
 
+  // Toast controls
+  hideConsumeToast: () => void;
+
   // Reset
   reset: () => void;
 }
@@ -64,6 +70,7 @@ export const useBatteryStore = create<BatteryState>((set, get) => ({
   isConsuming: false,
   isEmptyModalOpen: false,
   isPrepLimitModalOpen: false,
+  consumeToast: null,
 
   fetchBatteryStatus: async (userId: string, preparatorioId: string) => {
     set({ isLoading: true });
@@ -109,6 +116,13 @@ export const useBatteryStore = create<BatteryState>((set, get) => ({
 
       // Update local battery status if successful
       if (result.success && result.battery_current !== undefined) {
+        const previousBattery = get().batteryStatus?.battery_current || 0;
+        const consumed = previousBattery - result.battery_current!;
+
+        // Extract click coordinates from context if provided
+        const clickX = context?.clickX as number | undefined;
+        const clickY = context?.clickY as number | undefined;
+
         set((state) => ({
           batteryStatus: state.batteryStatus
             ? {
@@ -116,6 +130,10 @@ export const useBatteryStore = create<BatteryState>((set, get) => ({
                 battery_current: result.battery_current!,
               }
             : null,
+          // Show toast if battery was actually consumed (not premium)
+          consumeToast: consumed > 0
+            ? { amount: consumed, key: Date.now(), x: clickX, y: clickY }
+            : state.consumeToast,
         }));
       }
 
@@ -172,6 +190,8 @@ export const useBatteryStore = create<BatteryState>((set, get) => ({
   openPrepLimitModal: () => set({ isPrepLimitModalOpen: true }),
   closePrepLimitModal: () => set({ isPrepLimitModalOpen: false }),
 
+  hideConsumeToast: () => set({ consumeToast: null }),
+
   reset: () => set({
     batteryStatus: null,
     currentPreparatorioId: null,
@@ -180,5 +200,6 @@ export const useBatteryStore = create<BatteryState>((set, get) => ({
     isConsuming: false,
     isEmptyModalOpen: false,
     isPrepLimitModalOpen: false,
+    consumeToast: null,
   }),
 }));
