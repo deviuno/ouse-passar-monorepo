@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -21,6 +21,7 @@ import {
 import { useMissionStore, useTrailStore, useUserStore, useUIStore, useBatteryStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
 import { Button, Card, Progress, CircularProgress, SuccessCelebration, FadeIn, FloatingChatButton, MarkdownContent, ConfirmModal } from '../components/ui';
+import { FloatingPracticeButton } from '../components/ui/FloatingPracticeButton';
 import { BatteryEmptyModal } from '../components/battery';
 import { QuestionCard } from '../components/question';
 import { QuestionNavigator } from '../components/question/QuestionNavigator';
@@ -1167,6 +1168,18 @@ export default function MissionPage() {
   const [massificacaoId, setMassificacaoId] = useState<string | null>(null);
   const [selectedStudyMode, setSelectedStudyMode] = useState<'zen' | 'hard'>('zen');
   const [isRestoringProgress, setIsRestoringProgress] = useState(false);
+  const [hasRestoredProgress, setHasRestoredProgress] = useState(false);
+
+  // Function to check if a mission has saved progress (for TrailMap)
+  const checkMissionProgress = useCallback(async (missionId: string): Promise<boolean> => {
+    if (!user?.id) return false;
+    try {
+      const progress = await getMissionProgress(user.id, missionId);
+      return progress !== null && Object.keys(progress.answers || {}).length > 0;
+    } catch {
+      return false;
+    }
+  }, [user?.id]);
 
   // Content generation state
   const [missaoConteudo, setMissaoConteudo] = useState<MissaoConteudo | null>(null);
@@ -1418,6 +1431,7 @@ export default function MissionPage() {
                 currentIndex: savedProgress.currentQuestionIndex,
               });
               setIsRestoringProgress(true);
+              setHasRestoredProgress(true);
 
               // Restaurar respostas
               const restoredAnswers = new Map<number, { letter: string; correct: boolean }>();
@@ -2014,6 +2028,7 @@ export default function MissionPage() {
                     userAvatar={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop"}
                     viewingRoundIndex={sidebarViewingRoundIndex}
                     onViewingRoundChange={setSidebarViewingRoundIndex}
+                    checkMissionProgress={checkMissionProgress}
                   />
                 </motion.div>
               ) : (
@@ -2043,6 +2058,13 @@ export default function MissionPage() {
         onClick={() => setShowMentorChat(!showMentorChat)}
         sidebarWidth={isMapExpanded ? 400 : 72}
         isChatVisible={showMentorChat}
+      />
+
+      {/* Floating Practice Button - appears only on content phase */}
+      <FloatingPracticeButton
+        isVisible={phase === 'content' && !isLoadingContent}
+        hasProgress={hasRestoredProgress}
+        onClick={() => setShowModeModal(true)}
       />
 
       {/* Mentor Chat - controlled by FloatingChatButton */}

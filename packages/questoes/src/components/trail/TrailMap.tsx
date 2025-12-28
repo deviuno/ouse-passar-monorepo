@@ -311,6 +311,8 @@ interface TrailMapProps {
     onAnimationComplete?: () => void;
     // Legacy support
     missions?: TrailMission[];
+    // Check if mission has saved progress (to decide which tab to open)
+    checkMissionProgress?: (missionId: string) => Promise<boolean>;
 }
 
 export function TrailMap({
@@ -323,6 +325,7 @@ export function TrailMap({
     onViewingRoundChange,
     justCompletedMissionId,
     onAnimationComplete,
+    checkMissionProgress,
 }: TrailMapProps) {
     // Support legacy missions prop by wrapping in a round
     const rounds = useMemo(() => {
@@ -498,7 +501,7 @@ export function TrailMap({
     }, []);
 
     // Handle mission click - check if it's a tecnica mission and show modal if needed
-    const handleMissionClick = useCallback((mission: TrailMission, index: number, tab?: 'teoria' | 'questoes') => {
+    const handleMissionClick = useCallback(async (mission: TrailMission, index: number, tab?: 'teoria' | 'questoes') => {
         // Allow click on missions that need massification even if "locked"
         if (mission.status === 'locked' && !mission.needsMassificacao) return;
 
@@ -508,9 +511,23 @@ export function TrailMap({
             return;
         }
 
-        // Otherwise, go directly to the mission
-        onMissionClick(mission, tab);
-    }, [onMissionClick, missionsNeedingMassificacao]);
+        // If tab was specified (from hover card), use it directly
+        if (tab) {
+            onMissionClick(mission, tab);
+            return;
+        }
+
+        // If checkMissionProgress is provided, check if user has progress
+        // If yes, go directly to questions; if no, go to theory
+        if (checkMissionProgress) {
+            const hasProgress = await checkMissionProgress(mission.id);
+            onMissionClick(mission, hasProgress ? 'questoes' : undefined);
+            return;
+        }
+
+        // Default: go to theory (no tab specified)
+        onMissionClick(mission);
+    }, [onMissionClick, missionsNeedingMassificacao, checkMissionProgress]);
 
     // Handle clicking on a mission from the tecnica modal
     const handleTecnicaMissionSelect = useCallback((mission: TrailMission) => {

@@ -15,20 +15,12 @@ export async function updateUserStats(
     correctAnswers?: number;
     totalAnswered?: number;
   }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; newStats?: { xp: number; coins: number } }> {
   try {
     console.log('[userStatsService] Updating stats for user:', userId, increments);
 
-    // Build the update object with increments
-    const updates: Record<string, number> = {};
-
-    if (increments.xp) updates.xp = increments.xp;
-    if (increments.coins) updates.coins = increments.coins;
-    if (increments.correctAnswers) updates.correct_answers = increments.correctAnswers;
-    if (increments.totalAnswered) updates.total_answered = increments.totalAnswered;
-
     // Use Supabase RPC to increment stats atomically
-    const { data, error } = await supabase.rpc('increment_user_stats', {
+    const { error } = await supabase.rpc('increment_user_stats', {
       p_user_id: userId,
       p_xp: increments.xp || 0,
       p_coins: increments.coins || 0,
@@ -37,28 +29,55 @@ export async function updateUserStats(
     });
 
     if (error) {
-      console.error('[userStatsService] Error updating stats:', error);
+      console.error('[userStatsService] RPC error:', error);
 
-      // Fallback to direct update if RPC doesn't exist
+      // Fallback: fetch current values and update with new totals
       console.log('[userStatsService] Trying fallback update method...');
+
+      // First, get current stats
+      const { data: currentProfile, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select('xp, coins, correct_answers, total_answered')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError || !currentProfile) {
+        console.error('[userStatsService] Failed to fetch current stats:', fetchError);
+        return { success: false, error: fetchError?.message || 'User not found' };
+      }
+
+      // Calculate new values
+      const newXp = (currentProfile.xp || 0) + (increments.xp || 0);
+      const newCoins = (currentProfile.coins || 0) + (increments.coins || 0);
+      const newCorrectAnswers = (currentProfile.correct_answers || 0) + (increments.correctAnswers || 0);
+      const newTotalAnswered = (currentProfile.total_answered || 0) + (increments.totalAnswered || 0);
+
+      // Calculate new level
+      const newLevel = Math.floor(newXp / 1000) + 1;
+
+      // Update with absolute values
       const { error: updateError } = await supabase
         .from('user_profiles')
         .update({
-          xp: supabase.raw(`xp + ${increments.xp || 0}`),
-          coins: supabase.raw(`coins + ${increments.coins || 0}`),
-          correct_answers: supabase.raw(`correct_answers + ${increments.correctAnswers || 0}`),
-          total_answered: supabase.raw(`total_answered + ${increments.totalAnswered || 0}`),
+          xp: newXp,
+          coins: newCoins,
+          correct_answers: newCorrectAnswers,
+          total_answered: newTotalAnswered,
+          level: newLevel,
           updated_at: new Date().toISOString(),
         })
         .eq('id', userId);
 
       if (updateError) {
-        console.error('[userStatsService] Fallback update also failed:', updateError);
+        console.error('[userStatsService] Fallback update failed:', updateError);
         return { success: false, error: updateError.message };
       }
+
+      console.log('[userStatsService] Stats updated via fallback. New XP:', newXp, 'New Coins:', newCoins);
+      return { success: true, newStats: { xp: newXp, coins: newCoins } };
     }
 
-    console.log('[userStatsService] Stats updated successfully');
+    console.log('[userStatsService] Stats updated successfully via RPC');
     return { success: true };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';

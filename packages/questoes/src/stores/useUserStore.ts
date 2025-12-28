@@ -56,8 +56,11 @@ export const useUserStore = create<UserState>()(
         })),
 
       incrementStats: async (increments) => {
+        console.log('[useUserStore] incrementStats called with:', increments);
+
         // Update local state immediately for responsive UI
         const newXP = get().stats.xp + (increments.xp || 0);
+        const newCoins = get().stats.coins + (increments.coins || 0);
         const newLevel = await calculateLevel(newXP);
 
         // Calculate streak locally
@@ -91,7 +94,7 @@ export const useUserStore = create<UserState>()(
           stats: {
             ...state.stats,
             xp: newXP,
-            coins: state.stats.coins + (increments.coins || 0),
+            coins: newCoins,
             correctAnswers: state.stats.correctAnswers + (increments.correctAnswers || 0),
             totalAnswered: state.stats.totalAnswered + (increments.totalAnswered || 0),
             level: newLevel,
@@ -100,22 +103,38 @@ export const useUserStore = create<UserState>()(
           },
         }));
 
-        // Persist to Supabase asynchronously
-        // Get userId from auth store
-        const { user } = await import('./useAuthStore').then(m => m.useAuthStore.getState());
-        if (user?.id) {
-          const result = await updateUserStats(user.id, increments);
-          if (!result.success) {
-            console.warn('[useUserStore] Failed to persist stats to Supabase:', result.error);
-          }
+        console.log('[useUserStore] Local state updated. New XP:', newXP, 'New Coins:', newCoins, 'New Level:', newLevel);
 
-          // Update level if XP changed
-          if (increments.xp) {
-            const currentStats = get().stats;
-            await updateUserLevel(user.id, currentStats.xp);
+        // Persist to Supabase asynchronously
+        // Get userId from auth store (dynamic import to avoid circular dependency)
+        try {
+          const authModule = await import('./useAuthStore');
+          const authState = authModule.useAuthStore.getState();
+          const userId = authState.user?.id;
+
+          console.log('[useUserStore] User ID from auth store:', userId);
+
+          if (userId) {
+            console.log('[useUserStore] Calling updateUserStats for user:', userId);
+            const result = await updateUserStats(userId, increments);
+
+            if (result.success) {
+              console.log('[useUserStore] Stats persisted to Supabase successfully!');
+
+              // Update level if XP changed
+              if (increments.xp && increments.xp > 0) {
+                const currentStats = get().stats;
+                await updateUserLevel(userId, currentStats.xp);
+                console.log('[useUserStore] Level updated in Supabase');
+              }
+            } else {
+              console.error('[useUserStore] Failed to persist stats to Supabase:', result.error);
+            }
+          } else {
+            console.warn('[useUserStore] No user ID available, stats not persisted to Supabase');
           }
-        } else {
-          console.warn('[useUserStore] No user ID available, stats not persisted to Supabase');
+        } catch (error) {
+          console.error('[useUserStore] Error persisting stats:', error);
         }
       },
 
