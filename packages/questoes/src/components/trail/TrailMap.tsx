@@ -325,7 +325,8 @@ export function TrailMap({
     onViewingRoundChange,
     justCompletedMissionId,
     onAnimationComplete,
-    checkMissionProgress,
+    // checkMissionProgress is kept in interface for backwards compatibility but not used
+    // Mission always opens to content/theory first, floating button shows if user has progress
 }: TrailMapProps) {
     // Support legacy missions prop by wrapping in a round
     const rounds = useMemo(() => {
@@ -517,17 +518,10 @@ export function TrailMap({
             return;
         }
 
-        // If checkMissionProgress is provided, check if user has progress
-        // If yes, go directly to questions; if no, go to theory
-        if (checkMissionProgress) {
-            const hasProgress = await checkMissionProgress(mission.id);
-            onMissionClick(mission, hasProgress ? 'questoes' : undefined);
-            return;
-        }
-
-        // Default: go to theory (no tab specified)
+        // ALWAYS open to theory/content first
+        // The floating "Praticar" button will be shown if user has progress
         onMissionClick(mission);
-    }, [onMissionClick, missionsNeedingMassificacao, checkMissionProgress]);
+    }, [onMissionClick, missionsNeedingMassificacao]);
 
     // Handle clicking on a mission from the tecnica modal
     const handleTecnicaMissionSelect = useCallback((mission: TrailMission) => {

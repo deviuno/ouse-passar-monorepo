@@ -1440,7 +1440,7 @@ export default function MissionPage() {
               });
               setAnswers(restoredAnswers);
 
-              // Ir para a próxima questão não respondida
+              // Calcular a próxima questão não respondida para quando o usuário clicar em Praticar
               const nextUnansweredIndex = fixedQuestions.findIndex(
                 q => !savedProgress.answers[q.id]
               );
@@ -1449,9 +1449,9 @@ export default function MissionPage() {
                 : Math.min(savedProgress.currentQuestionIndex, fixedQuestions.length - 1);
               setCurrentQuestionIndex(targetIndex);
 
-              // Ir direto para questões se tiver progresso
-              setPhase('questions');
-              addToast('info', 'Continuando de onde você parou!');
+              // NÃO ir automaticamente para questões!
+              // Usuário verá o botão flutuante "Continuar" para pular para questões
+              console.log('[MissionPage] Progresso restaurado. Botão flutuante mostrará "Continuar".');
             }
           }
         }
