@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useMissionStore, useTrailStore, useUserStore, useUIStore, useBatteryStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
-import { Button, Card, Progress, CircularProgress, SuccessCelebration, FadeIn, FloatingChatButton, MarkdownContent } from '../components/ui';
+import { Button, Card, Progress, CircularProgress, SuccessCelebration, FadeIn, FloatingChatButton, MarkdownContent, ConfirmModal } from '../components/ui';
 import { BatteryEmptyModal } from '../components/battery';
 import { QuestionCard } from '../components/question';
 import { ParsedQuestion, TrailMission, MissionStatus, StudyMode } from '../types';
@@ -1151,6 +1151,7 @@ export default function MissionPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Map<number, { letter: string; correct: boolean }>>(new Map());
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showMentorChat, setShowMentorChat] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [isCreatingMassificacao, setIsCreatingMassificacao] = useState(false);
@@ -1667,9 +1668,7 @@ export default function MissionPage() {
                   <button
                     onClick={() => {
                       if (answers.size > 0) {
-                        if (confirm('Tem certeza que deseja sair? Seu progresso será perdido.')) {
-                          navigate('/');
-                        }
+                        setShowExitConfirm(true);
                       } else {
                         navigate('/');
                       }
@@ -1938,6 +1937,19 @@ export default function MissionPage() {
         checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_8_questoes}
         price={getSelectedPreparatorio()?.preparatorio?.price_questoes}
         preparatorioNome={getSelectedPreparatorio()?.preparatorio?.nome}
+      />
+
+      {/* Exit Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showExitConfirm}
+        onClose={() => setShowExitConfirm(false)}
+        onConfirm={() => navigate('/')}
+        title="Sair da Missão?"
+        message="Você tem progresso não salvo. Se sair agora, suas respostas serão perdidas."
+        confirmText="Sair"
+        cancelText="Continuar"
+        variant="danger"
+        icon="exit"
       />
     </div>
   );

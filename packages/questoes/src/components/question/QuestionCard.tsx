@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ParsedQuestion, CommunityStats, PracticeMode } from '../../types';
 import { COLORS, MOCK_STATS } from '../../constants';
-import { MessageCircle, AlertTriangle, BarChart2, X, Timer, Coffee, Zap, BrainCircuit, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MessageCircle, AlertTriangle, BarChart2, X, Timer, Coffee, Zap, BrainCircuit, Star, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
 import { generateExplanation } from '../../services/geminiService';
 import { getQuestionStatistics, QuestionStatistics } from '../../services/questionFeedbackService';
 import CommentsSection from './CommentsSection';
+import { ReportQuestionModal } from './ReportQuestionModal';
 import { useHorizontalSwipe } from '../../hooks/useSwipe';
 import RippleEffect from '../ui/RippleEffect';
 
@@ -37,6 +38,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
   const [difficultyRating, setDifficultyRating] = useState<'easy' | 'medium' | 'hard' | null>(savedDifficultyRating || null);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showPegadinhaModal, setShowPegadinhaModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Statistics state
   const [questionStats, setQuestionStats] = useState<QuestionStatistics | null>(null);
@@ -76,6 +78,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
     setDifficultyRating(savedDifficultyRating || null);
     setShowStatsModal(false);
     setShowPegadinhaModal(false);
+    setShowReportModal(false);
     setQuestionStats(null);
   }, [question.id, savedDifficultyRating]);
 
@@ -442,6 +445,15 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
 
             {/* 4. Bottom Nav Buttons */}
             <div className="flex space-x-3 pb-4 border-b border-gray-800 mb-6">
+              {/* Botão de Report (primeiro, ao lado do Tirar Dúvida) */}
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="w-12 h-12 flex items-center justify-center bg-[#2A2A2A] text-[#E74C3C] border border-[#E74C3C] rounded-full hover:bg-[#E74C3C]/10 transition-colors flex-shrink-0"
+                title="Reportar problema"
+              >
+                <Flag size={18} />
+              </button>
+
               <button
                 onClick={onOpenTutor}
                 className="flex-1 flex items-center justify-center py-3 bg-[#2A2A2A] text-white border border-[#FFB800] rounded-full font-semibold hover:bg-[#333]"
@@ -557,6 +569,22 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
           </div>
         </div>
       )}
+
+      {/* Report Question Modal */}
+      <ReportQuestionModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        questionId={question.id}
+        questionInfo={{
+          materia: question.materia,
+          assunto: question.assunto,
+          banca: question.banca,
+          ano: question.ano,
+        }}
+        onSuccess={() => {
+          onShowToast?.('Report enviado com sucesso!', 'success');
+        }}
+      />
     </div>
   );
 };

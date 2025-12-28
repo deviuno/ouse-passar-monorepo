@@ -76,6 +76,7 @@ import { MensagensIncentivoAdmin } from './pages/admin/MensagensIncentivo';
 import { EditalAdmin } from './pages/admin/EditalAdmin';
 import { MissionBuilder } from './pages/admin/MissionBuilder';
 import { AutomacaoConteudoMissao } from './pages/admin/AutomacaoConteudoMissao';
+import { Suporte } from './pages/admin/Suporte';
 
 // Gamification Admin
 import {
@@ -283,6 +284,9 @@ const App: React.FC = () => {
                 <Route path="loja/produtos" element={<AdminOnlyRoute><StoreProducts /></AdminOnlyRoute>} />
                 <Route path="loja/pedidos" element={<AdminOnlyRoute><StorePurchases /></AdminOnlyRoute>} />
                 <Route path="loja/documentacao" element={<AdminOnlyRoute><StoreDocumentation /></AdminOnlyRoute>} />
+
+                {/* Suporte - Reports de questões */}
+                <Route path="suporte" element={<AdminOnlyRoute><Suporte /></AdminOnlyRoute>} />
 
                 {/* Documentação técnica - Acesso apenas via URL direta, sem links */}
                 <Route path="automacao-conteudo-missao" element={<AdminOnlyRoute><AutomacaoConteudoMissao /></AdminOnlyRoute>} />

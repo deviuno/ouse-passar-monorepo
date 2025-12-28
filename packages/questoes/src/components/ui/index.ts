@@ -1,6 +1,7 @@
 export { Button } from './Button';
 export { Card } from './Card';
 export { Modal } from './Modal';
+export { ConfirmModal } from './ConfirmModal';
 export { Progress, CircularProgress } from './Progress';
 export { ToastContainer } from './Toast';
 export { FadeIn, StaggerContainer, StaggerItem } from './animations/FadeIn';

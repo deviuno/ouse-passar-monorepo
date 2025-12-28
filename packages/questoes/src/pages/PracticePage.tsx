@@ -30,13 +30,14 @@ import {
   Eye,
   Edit,
 } from 'lucide-react';
-import { Button, Card, Progress } from '../components/ui';
+import { Button, Card, Progress, ConfirmModal } from '../components/ui';
+import { BatteryEmptyModal } from '../components/battery';
 import { QuestionCard } from '../components/question';
 import { MentorChat } from '../components/question/MentorChat';
 import { FloatingChatButton } from '../components/ui';
 import { ParsedQuestion, RawQuestion, PracticeMode, Alternative } from '../types';
 import { MOCK_QUESTIONS } from '../constants';
-import { useUserStore, useUIStore } from '../stores';
+import { useUserStore, useUIStore, useBatteryStore, useTrailStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
 import {
   fetchQuestions,
@@ -263,6 +264,14 @@ export default function PracticePage() {
   const { user, profile, fetchProfile } = useAuthStore();
   const { incrementStats } = useUserStore();
   const { addToast } = useUIStore();
+  const { selectedPreparatorioId, getSelectedPreparatorio, userPreparatorios } = useTrailStore();
+  const {
+    batteryStatus,
+    isEmptyModalOpen,
+    closeEmptyModal,
+    consumeBattery,
+    fetchBatteryStatus,
+  } = useBatteryStore();
 
   // Estado do dashboard
   const [activeTab, setActiveTab] = useState<'new' | 'notebooks'>('new');
@@ -319,6 +328,10 @@ export default function PracticePage() {
 
   // Estatisticas da sessao
   const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
+
+  // Modais de confirmação
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [deleteNotebookConfirm, setDeleteNotebookConfirm] = useState<string | null>(null);
 
   // Gamification settings (loaded from database)
   const [gamificationSettings, setGamificationSettings] = useState<GamificationSettings | null>(null);
@@ -530,13 +543,17 @@ export default function PracticePage() {
 
   const handleDeleteNotebook = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Excluir este caderno?')) return;
+    setDeleteNotebookConfirm(id);
+  };
 
-    const success = await deleteNotebook(id);
+  const confirmDeleteNotebook = async () => {
+    if (!deleteNotebookConfirm) return;
+    const success = await deleteNotebook(deleteNotebookConfirm);
     if (success) {
-      setNotebooks(prev => prev.filter(n => n.id !== id));
-      addToast('success', 'Caderno excluido.');
+      setNotebooks(prev => prev.filter(n => n.id !== deleteNotebookConfirm));
+      addToast('success', 'Caderno excluído.');
     }
+    setDeleteNotebookConfirm(null);
   };
 
   // Reset state when component mounts or route changes (handles navigation)
@@ -721,6 +738,25 @@ export default function PracticePage() {
     setIsLoading(true);
 
     try {
+      // Consumir bateria se usuario nao for premium
+      // Usa o preparatorio selecionado ou o primeiro disponivel
+      const prepIdToUse = selectedPreparatorioId || userPreparatorios[0]?.preparatorio_id;
+
+      if (user?.id && prepIdToUse) {
+        const batteryResult = await consumeBattery(
+          user.id,
+          prepIdToUse,
+          'practice_session',
+          { question_count: questionCount }
+        );
+
+        if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
+          console.log('[PracticePage] Bateria insuficiente');
+          setIsLoading(false);
+          return; // Modal sera aberto automaticamente pelo store
+        }
+      }
+
       let questionsToUse: ParsedQuestion[] = [];
 
       if (usingMockData) {
@@ -882,9 +918,7 @@ export default function PracticePage() {
   const handleBack = () => {
     if (mode === 'practicing') {
       if (answers.size > 0) {
-        if (confirm('Sair? Seu progresso sera perdido.')) {
-          setMode('selection');
-        }
+        setShowExitConfirm(true);
       } else {
         setMode('selection');
       }
@@ -959,6 +993,19 @@ export default function PracticePage() {
           onClick={() => setShowMentorChat(!showMentorChat)}
           sidebarWidth={0}
           isChatVisible={showMentorChat}
+        />
+
+        {/* Exit Confirmation Modal */}
+        <ConfirmModal
+          isOpen={showExitConfirm}
+          onClose={() => setShowExitConfirm(false)}
+          onConfirm={() => setMode('selection')}
+          title="Sair da Prática?"
+          message="Você tem progresso não salvo. Se sair agora, suas respostas serão perdidas."
+          confirmText="Sair"
+          cancelText="Continuar"
+          variant="danger"
+          icon="exit"
         />
       </div>
     );
@@ -1796,6 +1843,40 @@ export default function PracticePage() {
         )}
       </AnimatePresence>
 
+      {/* Battery Empty Modal */}
+      <BatteryEmptyModal
+        isOpen={isEmptyModalOpen}
+        onClose={closeEmptyModal}
+        checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_8_questoes || userPreparatorios[0]?.preparatorio?.checkout_8_questoes}
+        price={getSelectedPreparatorio()?.preparatorio?.price_questoes || userPreparatorios[0]?.preparatorio?.price_questoes}
+        preparatorioNome={getSelectedPreparatorio()?.preparatorio?.nome || userPreparatorios[0]?.preparatorio?.nome}
+      />
+
+      {/* Exit Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showExitConfirm}
+        onClose={() => setShowExitConfirm(false)}
+        onConfirm={() => setMode('selection')}
+        title="Sair da Prática?"
+        message="Você tem progresso não salvo. Se sair agora, suas respostas serão perdidas."
+        confirmText="Sair"
+        cancelText="Continuar"
+        variant="danger"
+        icon="exit"
+      />
+
+      {/* Delete Notebook Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteNotebookConfirm !== null}
+        onClose={() => setDeleteNotebookConfirm(null)}
+        onConfirm={confirmDeleteNotebook}
+        title="Excluir Caderno?"
+        message="Esta ação não pode ser desfeita. O caderno será removido permanentemente."
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="danger"
+        icon="delete"
+      />
     </div>
   );
 }

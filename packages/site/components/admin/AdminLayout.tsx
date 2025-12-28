@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 export const AdminLayout: React.FC = () => {
@@ -222,6 +222,15 @@ export const AdminLayout: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Suporte - Reports de questões */}
+                            <Link
+                                to="/admin/suporte"
+                                className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/suporte')}`}
+                            >
+                                <LifeBuoy className="w-5 h-5 mr-3" />
+                                Suporte
+                            </Link>
                         </>
                     )}
                 </nav>
