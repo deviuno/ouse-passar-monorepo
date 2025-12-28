@@ -10,13 +10,15 @@ import {
   Eye,
   MessageSquare,
   X,
-  Calendar,
   Send,
   Paperclip,
   ExternalLink,
   User,
   ArrowRight,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
+import { DateRangePicker } from '../../components/ui/DateRangePicker';
 import {
   ticketsService,
   Ticket as TicketType,
@@ -49,9 +51,17 @@ export const Tickets: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // View mode
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPrioridade, setFilterPrioridade] = useState<TicketPrioridade | ''>('');
+  const [filterMotivo, setFilterMotivo] = useState<TicketMotivo | ''>('');
+  const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({
+    start: null,
+    end: null,
+  });
 
   // Modal
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
@@ -74,6 +84,9 @@ export const Tickets: React.FC = () => {
         ticketsService.getAll({
           searchTerm: searchTerm || undefined,
           prioridade: filterPrioridade || undefined,
+          motivo: filterMotivo || undefined,
+          dateStart: dateRange.start || undefined,
+          dateEnd: dateRange.end || undefined,
         }),
         ticketsService.getStats(),
       ]);
@@ -93,7 +106,16 @@ export const Tickets: React.FC = () => {
       loadData();
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchTerm, filterPrioridade]);
+  }, [searchTerm, filterPrioridade, filterMotivo, dateRange.start, dateRange.end]);
+
+  const hasFilters = searchTerm || filterPrioridade || filterMotivo || dateRange.start || dateRange.end;
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterPrioridade('');
+    setFilterMotivo('');
+    setDateRange({ start: null, end: null });
+  };
 
   const openTicketDetail = async (ticket: TicketType) => {
     setSelectedTicket(ticket);
@@ -203,6 +225,32 @@ export const Tickets: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-1 bg-brand-card border border-white/5 rounded-sm p-1">
+          <button
+            onClick={() => setViewMode('kanban')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-sm text-sm font-medium transition-colors ${
+              viewMode === 'kanban'
+                ? 'bg-brand-yellow text-brand-darker'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <LayoutGrid size={16} />
+            Kanban
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-sm text-sm font-medium transition-colors ${
+              viewMode === 'list'
+                ? 'bg-brand-yellow text-brand-darker'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <List size={16} />
+            Lista
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -251,6 +299,21 @@ export const Tickets: React.FC = () => {
             </div>
           </div>
 
+          {/* Motivo Filter */}
+          <select
+            value={filterMotivo}
+            onChange={(e) => setFilterMotivo(e.target.value as TicketMotivo | '')}
+            className="px-4 py-2 bg-brand-dark border border-white/10 rounded-sm text-white focus:outline-none focus:border-brand-yellow"
+          >
+            <option value="">Todos os Assuntos</option>
+            {TICKET_MOTIVOS.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Prioridade Filter */}
           <select
             value={filterPrioridade}
             onChange={(e) => setFilterPrioridade(e.target.value as TicketPrioridade | '')}
@@ -263,6 +326,24 @@ export const Tickets: React.FC = () => {
               </option>
             ))}
           </select>
+
+          {/* Date Range Filter */}
+          <DateRangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            placeholder="Período"
+          />
+
+          {/* Clear Filters */}
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+            >
+              <X size={16} />
+              Limpar
+            </button>
+          )}
         </div>
       </div>
 
@@ -282,7 +363,7 @@ export const Tickets: React.FC = () => {
       )}
 
       {/* Kanban Board */}
-      {!loading && (
+      {!loading && viewMode === 'kanban' && (
         <div className="flex gap-4 overflow-x-auto pb-4">
           {KANBAN_COLUMNS.map((column) => {
             const columnTickets = getTicketsByStatus(column.status);
@@ -395,6 +476,112 @@ export const Tickets: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* List View */}
+      {!loading && viewMode === 'list' && tickets.length > 0 && (
+        <div className="bg-brand-card border border-white/5 rounded-sm overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-white/5">
+                <th className="text-left px-4 py-3 text-gray-500 text-xs uppercase font-medium">
+                  Usuário
+                </th>
+                <th className="text-left px-4 py-3 text-gray-500 text-xs uppercase font-medium">
+                  Assunto
+                </th>
+                <th className="text-left px-4 py-3 text-gray-500 text-xs uppercase font-medium">
+                  Mensagem
+                </th>
+                <th className="text-left px-4 py-3 text-gray-500 text-xs uppercase font-medium">
+                  Data
+                </th>
+                <th className="text-left px-4 py-3 text-gray-500 text-xs uppercase font-medium">
+                  Prioridade
+                </th>
+                <th className="text-left px-4 py-3 text-gray-500 text-xs uppercase font-medium">
+                  Status
+                </th>
+                <th className="text-right px-4 py-3 text-gray-500 text-xs uppercase font-medium">
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {tickets.map((ticket) => (
+                <tr
+                  key={ticket.id}
+                  className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                  onClick={() => openTicketDetail(ticket)}
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 bg-brand-yellow/20 rounded-full flex items-center justify-center">
+                        <User size={14} className="text-brand-yellow" />
+                      </div>
+                      <div>
+                        <p className="text-white text-sm font-medium">{ticket.user_name || 'Usuário'}</p>
+                        <p className="text-gray-500 text-xs">{ticket.user_email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-gray-300 text-sm">
+                      {TICKET_MOTIVOS.find(m => m.value === ticket.motivo)?.label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-gray-400 text-sm truncate max-w-[200px]">{ticket.mensagem}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-gray-500 text-sm">{formatDate(ticket.created_at)}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium border ${getPrioridadeColor(ticket.prioridade)}`}>
+                      {TICKET_PRIORIDADES.find(p => p.value === ticket.prioridade)?.label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium border ${
+                      ticket.status === 'aberto' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                      ticket.status === 'em_andamento' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                      ticket.status === 'aguardando_usuario' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
+                      ticket.status === 'resolvido' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                      'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                    }`}>
+                      {TICKET_STATUS.find(s => s.value === ticket.status)?.label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openTicketDetail(ticket);
+                      }}
+                      className="p-2 hover:bg-white/10 rounded-sm transition-colors text-gray-400 hover:text-white"
+                      title="Ver detalhes"
+                    >
+                      <Eye size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && tickets.length === 0 && (
+        <div className="text-center py-12">
+          <Ticket className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-white font-medium mb-2">Nenhum ticket encontrado</h3>
+          <p className="text-gray-500 text-sm">
+            {hasFilters
+              ? 'Tente ajustar os filtros de busca'
+              : 'Os tickets de suporte aparecerão aqui'}
+          </p>
         </div>
       )}
 

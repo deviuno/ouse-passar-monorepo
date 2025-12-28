@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  LifeBuoy,
   Search,
   Loader2,
   AlertCircle,
@@ -9,15 +8,13 @@ import {
   XCircle,
   Eye,
   MessageSquare,
-  Filter,
   X,
   Flag,
-  ExternalLink,
-  Calendar,
   LayoutGrid,
   List,
   User,
 } from 'lucide-react';
+import { DateRangePicker } from '../../components/ui/DateRangePicker';
 import {
   questionReportsService,
   QuestionReport,
@@ -45,8 +42,10 @@ export const Suporte: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<ReportStatus | ''>('');
   const [filterMotivo, setFilterMotivo] = useState<ReportMotivo | ''>('');
-  const [dateStart, setDateStart] = useState<string>('');
-  const [dateEnd, setDateEnd] = useState<string>('');
+  const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({
+    start: null,
+    end: null,
+  });
 
   // Modal
   const [selectedReport, setSelectedReport] = useState<QuestionReport | null>(null);
@@ -68,8 +67,8 @@ export const Suporte: React.FC = () => {
           status: filterStatus || undefined,
           motivo: filterMotivo || undefined,
           searchTerm: searchTerm || undefined,
-          dateStart: dateStart || undefined,
-          dateEnd: dateEnd || undefined,
+          dateStart: dateRange.start || undefined,
+          dateEnd: dateRange.end || undefined,
         }),
         questionReportsService.getStats(),
       ]);
@@ -89,7 +88,7 @@ export const Suporte: React.FC = () => {
       loadData();
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchTerm, filterStatus, filterMotivo, dateStart, dateEnd]);
+  }, [searchTerm, filterStatus, filterMotivo, dateRange.start, dateRange.end]);
 
   const handleUpdateStatus = async (status: ReportStatus) => {
     if (!selectedReport || !user?.id) return;
@@ -120,11 +119,10 @@ export const Suporte: React.FC = () => {
     setSearchTerm('');
     setFilterStatus('');
     setFilterMotivo('');
-    setDateStart('');
-    setDateEnd('');
+    setDateRange({ start: null, end: null });
   };
 
-  const hasFilters = searchTerm || filterStatus || filterMotivo || dateStart || dateEnd;
+  const hasFilters = searchTerm || filterStatus || filterMotivo || dateRange.start || dateRange.end;
 
   // Kanban columns
   const KANBAN_COLUMNS: { status: ReportStatus; label: string; color: string; bgColor: string }[] = [
@@ -343,36 +341,11 @@ export const Suporte: React.FC = () => {
           </select>
 
           {/* Date Range Filter */}
-          <div className="flex items-center gap-2 bg-brand-dark border border-white/10 rounded-sm px-3 py-1">
-            <Calendar className="w-4 h-4 text-gray-500" />
-            <input
-              type="date"
-              value={dateStart}
-              onChange={(e) => setDateStart(e.target.value)}
-              className="bg-transparent text-white text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
-              title="Data inicial"
-            />
-            <span className="text-gray-500">—</span>
-            <input
-              type="date"
-              value={dateEnd}
-              onChange={(e) => setDateEnd(e.target.value)}
-              className="bg-transparent text-white text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert"
-              title="Data final"
-            />
-            {(dateStart || dateEnd) && (
-              <button
-                onClick={() => {
-                  setDateStart('');
-                  setDateEnd('');
-                }}
-                className="text-gray-400 hover:text-white ml-1"
-                title="Limpar período"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
+          <DateRangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            placeholder="Período"
+          />
 
           {/* Clear Filters */}
           {hasFilters && (
