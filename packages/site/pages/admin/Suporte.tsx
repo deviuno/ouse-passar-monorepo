@@ -190,7 +190,7 @@ export const Suporte: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -390,7 +390,8 @@ export const Suporte: React.FC = () => {
 
       {/* Kanban View */}
       {!loading && reports.length > 0 && viewMode === 'kanban' && (
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="overflow-x-auto pb-4 -mx-6 px-6">
+          <div className="flex gap-4 min-w-max">
           {KANBAN_COLUMNS.map((column) => {
             const columnReports = getReportsByStatus(column.status);
             return (
@@ -498,6 +499,7 @@ export const Suporte: React.FC = () => {
               </div>
             );
           })}
+          </div>
         </div>
       )}
 

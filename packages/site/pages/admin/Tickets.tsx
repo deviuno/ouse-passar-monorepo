@@ -209,7 +209,7 @@ export const Tickets: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -363,8 +363,9 @@ export const Tickets: React.FC = () => {
       )}
 
       {/* Kanban Board */}
-      {!loading && viewMode === 'kanban' && (
-        <div className="flex gap-4 overflow-x-auto pb-4">
+      {!loading && viewMode === 'kanban' && tickets.length > 0 && (
+        <div className="overflow-x-auto pb-4 -mx-6 px-6">
+          <div className="flex gap-4 min-w-max">
           {KANBAN_COLUMNS.map((column) => {
             const columnTickets = getTicketsByStatus(column.status);
             return (
@@ -476,6 +477,7 @@ export const Tickets: React.FC = () => {
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
