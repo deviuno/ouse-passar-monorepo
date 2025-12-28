@@ -338,10 +338,10 @@ export const Tickets: React.FC = () => {
           {hasFilters && (
             <button
               onClick={clearFilters}
-              className="px-4 py-2 text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+              className="p-2 text-red-400/70 hover:text-red-400 hover:bg-red-500/10 rounded-sm transition-colors"
+              title="Limpar filtros"
             >
-              <X size={16} />
-              Limpar
+              <X size={18} />
             </button>
           )}
         </div>

@@ -170,7 +170,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
       {/* Calendar Dropdown */}
       {isOpen && (
-        <div className="absolute top-full mt-2 left-0 z-50 bg-brand-card border border-white/10 rounded-lg shadow-xl p-4 min-w-[300px]">
+        <div className="absolute top-full mt-2 right-0 z-50 bg-brand-card border border-white/10 rounded-lg shadow-xl p-4 min-w-[300px]">
           {/* Selection Indicator */}
           <div className="flex items-center gap-2 mb-4 text-xs">
             <div className={`flex-1 p-2 rounded text-center border ${
