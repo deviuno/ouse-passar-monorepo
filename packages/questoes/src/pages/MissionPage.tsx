@@ -1449,9 +1449,15 @@ export default function MissionPage() {
                 : Math.min(savedProgress.currentQuestionIndex, fixedQuestions.length - 1);
               setCurrentQuestionIndex(targetIndex);
 
+              // Restaurar modo de estudo salvo
+              if (savedProgress.studyMode) {
+                setSelectedStudyMode(savedProgress.studyMode);
+                console.log('[MissionPage] Modo de estudo restaurado:', savedProgress.studyMode);
+              }
+
               // NÃO ir automaticamente para questões!
-              // Usuário verá o botão flutuante "Continuar" para pular para questões
-              console.log('[MissionPage] Progresso restaurado. Botão flutuante mostrará "Continuar".');
+              // Usuário verá o botão flutuante "Praticar Questões" para pular para questões
+              console.log('[MissionPage] Progresso restaurado. Botão flutuante visível.');
             }
           }
         }
@@ -1544,6 +1550,7 @@ export default function MissionPage() {
         answers: answersRecord,
         currentQuestionIndex: currentQuestionIndex,
         status: 'in_progress',
+        studyMode: selectedStudyMode,
       }).then(result => {
         if (result.success) {
           console.log('[MissionPage] Progresso salvo com sucesso!');
@@ -2062,11 +2069,10 @@ export default function MissionPage() {
         isChatVisible={showMentorChat}
       />
 
-      {/* Floating Practice Button - appears only on content phase */}
+      {/* Floating Practice Button - appears only when user has progress */}
       <FloatingPracticeButton
-        isVisible={phase === 'content' && !isLoadingContent}
-        hasProgress={hasRestoredProgress}
-        onClick={() => setShowModeModal(true)}
+        isVisible={phase === 'content' && !isLoadingContent && hasRestoredProgress}
+        onClick={() => setPhase('questions')}
       />
 
       {/* Mentor Chat - controlled by FloatingChatButton */}
@@ -2099,6 +2105,7 @@ export default function MissionPage() {
               answers: answersRecord,
               currentQuestionIndex: currentQuestionIndex,
               status: 'in_progress',
+              studyMode: selectedStudyMode,
             });
           }
           navigate('/');

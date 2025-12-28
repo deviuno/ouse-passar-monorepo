@@ -179,10 +179,107 @@ export function invalidateSettingsCache(): void {
   cacheTimestamp = 0;
 }
 
+// ============================================================================
+// BONUS TRACKING
+// ============================================================================
+
+export interface BonusCheckResult {
+  daily_goal_bonus_awarded: boolean;
+  daily_goal_xp: number;
+  daily_goal_coins: number;
+  streak_7_bonus_awarded: boolean;
+  streak_7_xp: number;
+  streak_30_bonus_awarded: boolean;
+  streak_30_xp: number;
+}
+
+/**
+ * Check and award gamification bonuses (daily goal, streak milestones)
+ * This function is called after each question answered
+ */
+export async function checkAndAwardBonuses(
+  userId: string,
+  questionsIncrement: number = 1
+): Promise<BonusCheckResult | null> {
+  try {
+    const { data, error } = await (supabase as any).rpc('check_and_award_bonuses', {
+      p_user_id: userId,
+      p_questions_increment: questionsIncrement,
+    });
+
+    if (error) {
+      console.error('[gamificationSettings] Error checking bonuses:', error.message);
+      return null;
+    }
+
+    // RPC returns an array with one row
+    const result = Array.isArray(data) ? data[0] : data;
+
+    if (result) {
+      // Log any bonuses awarded
+      if (result.daily_goal_bonus_awarded) {
+        console.log(`[gamificationSettings] Daily goal bonus awarded! +${result.daily_goal_xp} XP, +${result.daily_goal_coins} coins`);
+      }
+      if (result.streak_7_bonus_awarded) {
+        console.log(`[gamificationSettings] 7-day streak bonus awarded! +${result.streak_7_xp} XP`);
+      }
+      if (result.streak_30_bonus_awarded) {
+        console.log(`[gamificationSettings] 30-day streak bonus awarded! +${result.streak_30_xp} XP`);
+      }
+    }
+
+    return result || null;
+  } catch (error: any) {
+    console.error('[gamificationSettings] Exception checking bonuses:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Get current daily goal progress for a user
+ */
+export async function getDailyGoalProgress(userId: string): Promise<{
+  questionsToday: number;
+  goalQuestions: number;
+  goalReached: boolean;
+  bonusClaimed: boolean;
+} | null> {
+  try {
+    const settings = await getGamificationSettings();
+
+    const { data, error } = await (supabase as any)
+      .from('user_profiles')
+      .select('questions_answered_today, last_questions_date, daily_goal_claimed_date')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = data.last_questions_date === today;
+    const questionsToday = isToday ? (data.questions_answered_today || 0) : 0;
+    const bonusClaimed = data.daily_goal_claimed_date === today;
+
+    return {
+      questionsToday,
+      goalQuestions: settings.daily_goal_questions,
+      goalReached: questionsToday >= settings.daily_goal_questions,
+      bonusClaimed,
+    };
+  } catch (error: any) {
+    console.error('[gamificationSettings] Error getting daily goal progress:', error.message);
+    return null;
+  }
+}
+
 export default {
   getGamificationSettings,
   calculateXpReward,
   calculateCoinsReward,
   calculateLevel,
   invalidateSettingsCache,
+  checkAndAwardBonuses,
+  getDailyGoalProgress,
 };

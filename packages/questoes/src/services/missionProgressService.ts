@@ -18,6 +18,7 @@ export interface MissionProgressData {
   currentQuestionIndex: number;
   status: 'in_progress' | 'completed' | 'needs_massificacao';
   startedAt?: string;
+  studyMode?: 'zen' | 'hard'; // Modo de estudo selecionado pelo usuário
 }
 
 // Debounce para evitar muitas requisições
@@ -77,6 +78,7 @@ export async function saveMissionProgress(
               questoes_ids: dataToSave.questoesIds?.map(String) || [],
               answers_json: dataToSave.answers,
               current_question_index: dataToSave.currentQuestionIndex,
+              study_mode: dataToSave.studyMode || 'zen',
               started_at: dataToSave.startedAt || new Date().toISOString(),
               last_attempt_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
@@ -131,6 +133,7 @@ export async function flushPendingSave(): Promise<void> {
           questoes_ids: dataToSave.questoesIds?.map(String) || [],
           answers_json: dataToSave.answers,
           current_question_index: dataToSave.currentQuestionIndex,
+          study_mode: dataToSave.studyMode || 'zen',
           started_at: dataToSave.startedAt || new Date().toISOString(),
           last_attempt_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -178,6 +181,7 @@ export async function saveMissionProgressImmediate(
           questoes_ids: data.questoesIds?.map(String) || [],
           answers_json: data.answers,
           current_question_index: data.currentQuestionIndex,
+          study_mode: data.studyMode || 'zen',
           started_at: data.startedAt || new Date().toISOString(),
           last_attempt_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -246,6 +250,7 @@ export async function getMissionProgress(
         currentQuestionIndex: data.current_question_index || 0,
         status: data.status as 'in_progress',
         startedAt: data.started_at,
+        studyMode: (data.study_mode as 'zen' | 'hard') || 'zen',
       };
     }
 

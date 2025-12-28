@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { UserStats, Flashcard, ReviewItem, Course } from '../types';
 import { INITIAL_USER_STATS, STORAGE_KEYS } from '../constants';
 import { updateUserStats, updateUserLevel } from '../services/userStatsService';
-import { calculateLevel } from '../services/gamificationSettingsService';
+import { calculateLevel, checkAndAwardBonuses, BonusCheckResult } from '../services/gamificationSettingsService';
 
 interface UserState {
   stats: UserStats;
@@ -126,6 +126,45 @@ export const useUserStore = create<UserState>()(
                 const currentStats = get().stats;
                 await updateUserLevel(userId, currentStats.xp);
                 console.log('[useUserStore] Level updated in Supabase');
+              }
+
+              // Check for gamification bonuses (daily goal, streak milestones)
+              if (increments.totalAnswered && increments.totalAnswered > 0) {
+                const bonusResult = await checkAndAwardBonuses(userId, increments.totalAnswered);
+
+                if (bonusResult) {
+                  let bonusXp = 0;
+                  let bonusCoins = 0;
+                  const bonusMessages: string[] = [];
+
+                  if (bonusResult.daily_goal_bonus_awarded) {
+                    bonusXp += bonusResult.daily_goal_xp;
+                    bonusCoins += bonusResult.daily_goal_coins;
+                    bonusMessages.push(`Meta diária: +${bonusResult.daily_goal_xp} XP, +${bonusResult.daily_goal_coins} moedas`);
+                  }
+                  if (bonusResult.streak_7_bonus_awarded) {
+                    bonusXp += bonusResult.streak_7_xp;
+                    bonusMessages.push(`Streak 7 dias: +${bonusResult.streak_7_xp} XP`);
+                  }
+                  if (bonusResult.streak_30_bonus_awarded) {
+                    bonusXp += bonusResult.streak_30_xp;
+                    bonusMessages.push(`Streak 30 dias: +${bonusResult.streak_30_xp} XP`);
+                  }
+
+                  // Update local state with bonus XP/coins
+                  if (bonusXp > 0 || bonusCoins > 0) {
+                    const updatedLevel = await calculateLevel(get().stats.xp + bonusXp);
+                    set((state) => ({
+                      stats: {
+                        ...state.stats,
+                        xp: state.stats.xp + bonusXp,
+                        coins: state.stats.coins + bonusCoins,
+                        level: updatedLevel,
+                      },
+                    }));
+                    console.log('[useUserStore] Bonuses awarded:', bonusMessages.join(', '));
+                  }
+                }
               }
             } else {
               console.error('[useUserStore] Failed to persist stats to Supabase:', result.error);
