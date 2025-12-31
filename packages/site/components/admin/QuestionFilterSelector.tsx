@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { X, Search, Check, Loader2, Filter, Hash, Building2, Calendar, BookOpen, FileText, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
+import { X, Search, Check, Loader2, Filter, Hash, Building2, Calendar, BookOpen, FileText, ChevronDown, ChevronUp, Briefcase, GraduationCap, CheckCircle } from 'lucide-react';
 import {
   getFilterOptions,
   getDynamicFilterOptions,
   countQuestionsForFilters,
   getAssuntosByMaterias,
   QuestionFilters,
-  isExternalDbAvailable
+  isExternalDbAvailable,
+  OPTIONS_ESCOLARIDADE,
+  OPTIONS_MODALIDADE
 } from '../../services/externalQuestionsService';
 
 interface QuestionFilterSelectorProps {
@@ -50,12 +52,14 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   const [selectedOrgaos, setSelectedOrgaos] = useState<string[]>(initialFilters?.orgaos || []);
   const [selectedCargos, setSelectedCargos] = useState<string[]>(initialFilters?.cargos || []);
   const [selectedAssuntos, setSelectedAssuntos] = useState<string[]>(initialFilters?.assuntos || []);
+  const [selectedEscolaridade, setSelectedEscolaridade] = useState<string[]>(initialFilters?.escolaridade || []);
+  const [selectedModalidade, setSelectedModalidade] = useState<string[]>(initialFilters?.modalidade || []);
 
   // Contagem de questoes
   const [questionsCount, setQuestionsCount] = useState<number>(0);
 
   // Secoes expandidas
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['materias', 'assuntos', 'bancas', 'anos', 'orgaos', 'cargos']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['materias', 'assuntos', 'bancas', 'anos', 'orgaos', 'cargos', 'escolaridade', 'modalidade']));
 
   // Busca por secao
   const [searchMaterias, setSearchMaterias] = useState('');
@@ -114,6 +118,8 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
       orgaos: selectedOrgaos.length > 0 ? selectedOrgaos : undefined,
       cargos: selectedCargos.length > 0 ? selectedCargos : undefined,
       assuntos: selectedAssuntos.length > 0 ? selectedAssuntos : undefined,
+      escolaridade: selectedEscolaridade.length > 0 ? selectedEscolaridade : undefined,
+      modalidade: selectedModalidade.length > 0 ? selectedModalidade : undefined,
     };
 
     try {
@@ -126,7 +132,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     } catch (error) {
       console.error('Erro ao atualizar opcoes dinamicas:', error);
     }
-  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos]);
+  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos, selectedEscolaridade, selectedModalidade]);
 
   // Carregar assuntos quando materias mudam
   useEffect(() => {
@@ -172,6 +178,8 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
         orgaos: selectedOrgaos.length > 0 ? selectedOrgaos : undefined,
         cargos: selectedCargos.length > 0 ? selectedCargos : undefined,
         assuntos: selectedAssuntos.length > 0 ? selectedAssuntos : undefined,
+        escolaridade: selectedEscolaridade.length > 0 ? selectedEscolaridade : undefined,
+        modalidade: selectedModalidade.length > 0 ? selectedModalidade : undefined,
       };
 
       const result = await countQuestionsForFilters(filters);
@@ -181,7 +189,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     } finally {
       setLoadingCount(false);
     }
-  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos]);
+  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos, selectedEscolaridade, selectedModalidade]);
 
   useEffect(() => {
     if (!loading) {
@@ -250,6 +258,22 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     );
   };
 
+  const toggleEscolaridade = (escolaridade: string) => {
+    setSelectedEscolaridade(prev =>
+      prev.includes(escolaridade)
+        ? prev.filter(e => e !== escolaridade)
+        : [...prev, escolaridade]
+    );
+  };
+
+  const toggleModalidade = (modalidade: string) => {
+    setSelectedModalidade(prev =>
+      prev.includes(modalidade)
+        ? prev.filter(m => m !== modalidade)
+        : [...prev, modalidade]
+    );
+  };
+
   const clearAllFilters = () => {
     setSelectedMaterias([]);
     setSelectedAssuntos([]);
@@ -257,6 +281,8 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     setSelectedAnos([]);
     setSelectedOrgaos([]);
     setSelectedCargos([]);
+    setSelectedEscolaridade([]);
+    setSelectedModalidade([]);
   };
 
   const handleSave = async () => {
@@ -269,6 +295,8 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
         anos: selectedAnos.length > 0 ? selectedAnos : undefined,
         orgaos: selectedOrgaos.length > 0 ? selectedOrgaos : undefined,
         cargos: selectedCargos.length > 0 ? selectedCargos : undefined,
+        escolaridade: selectedEscolaridade.length > 0 ? selectedEscolaridade : undefined,
+        modalidade: selectedModalidade.length > 0 ? selectedModalidade : undefined,
       };
 
       onSave(filters, questionsCount);
@@ -277,7 +305,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     }
   };
 
-  const hasAnyFilter = selectedMaterias.length > 0 || selectedAssuntos.length > 0 || selectedBancas.length > 0 || selectedAnos.length > 0 || selectedOrgaos.length > 0 || selectedCargos.length > 0;
+  const hasAnyFilter = selectedMaterias.length > 0 || selectedAssuntos.length > 0 || selectedBancas.length > 0 || selectedAnos.length > 0 || selectedOrgaos.length > 0 || selectedCargos.length > 0 || selectedEscolaridade.length > 0 || selectedModalidade.length > 0;
 
   // Filtrar opcoes por busca
   const filteredMaterias = dynamicMaterias.filter(m =>
@@ -578,6 +606,58 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
                 {filteredCargos.length === 0 && (
                   <p className="text-gray-500 text-sm text-center py-2">Nenhum cargo encontrado</p>
                 )}
+              </div>
+            </FilterSection>
+
+            {/* Escolaridade */}
+            <FilterSection
+              title="Escolaridade"
+              icon={<GraduationCap className="w-4 h-4" />}
+              expanded={expandedSections.has('escolaridade')}
+              onToggle={() => toggleSection('escolaridade')}
+              selectedCount={selectedEscolaridade.length}
+              totalCount={OPTIONS_ESCOLARIDADE.length}
+            >
+              <div className="flex flex-wrap gap-2">
+                {OPTIONS_ESCOLARIDADE.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => toggleEscolaridade(opt.value)}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                      selectedEscolaridade.includes(opt.value)
+                        ? 'bg-brand-yellow text-brand-darker'
+                        : 'bg-brand-dark border border-white/10 text-gray-300 hover:border-white/30'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </FilterSection>
+
+            {/* Modalidade (Tipo de Questao) */}
+            <FilterSection
+              title="Tipo de Questao"
+              icon={<CheckCircle className="w-4 h-4" />}
+              expanded={expandedSections.has('modalidade')}
+              onToggle={() => toggleSection('modalidade')}
+              selectedCount={selectedModalidade.length}
+              totalCount={OPTIONS_MODALIDADE.length}
+            >
+              <div className="flex flex-wrap gap-2">
+                {OPTIONS_MODALIDADE.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => toggleModalidade(opt.value)}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                      selectedModalidade.includes(opt.value)
+                        ? 'bg-brand-yellow text-brand-darker'
+                        : 'bg-brand-dark border border-white/10 text-gray-300 hover:border-white/30'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </FilterSection>
           </>

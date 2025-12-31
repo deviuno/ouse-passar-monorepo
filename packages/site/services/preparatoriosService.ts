@@ -955,6 +955,8 @@ export interface QuestaoFiltrosData {
   bancas?: string[];
   orgaos?: string[];
   anos?: number[];
+  escolaridade?: string[];
+  modalidade?: string[];
   questao_revisada?: boolean;
 }
 

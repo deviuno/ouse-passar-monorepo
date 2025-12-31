@@ -557,6 +557,8 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
         bancas: filters.bancas,
         orgaos: filters.orgaos,
         anos: filters.anos,
+        escolaridade: filters.escolaridade,
+        modalidade: filters.modalidade,
       };
 
       await missoesService.setQuestaoFiltros(savedMissaoId, filtrosData, count);

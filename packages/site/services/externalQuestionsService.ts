@@ -37,9 +37,22 @@ export interface QuestionFilters {
   orgaos?: string[];
   cargos?: string[];
   assuntos?: string[];
+  escolaridade?: string[];
+  modalidade?: string[];
   excludeIds?: number[];
   limit?: number;
 }
+
+// Opções estáticas para filtros
+export const OPTIONS_MODALIDADE = [
+  { value: 'Certo/Errado', label: 'Certo/Errado' },
+  { value: 'Múltipla Escolha', label: 'Múltipla Escolha' },
+];
+
+export const OPTIONS_ESCOLARIDADE = [
+  { value: 'Nível Médio', label: 'Nível Médio' },
+  { value: 'Nível Superior', label: 'Nível Superior' },
+];
 
 export interface QuestionsStats {
   total: number;
@@ -120,6 +133,14 @@ export async function getQuestionsForFilters(
       query = query.in('assunto', filters.assuntos);
     }
 
+    if (filters.escolaridade && filters.escolaridade.length > 0) {
+      query = query.in('escolaridade', filters.escolaridade);
+    }
+
+    if (filters.modalidade && filters.modalidade.length > 0) {
+      query = query.in('modalidade', filters.modalidade);
+    }
+
     if (filters.excludeIds && filters.excludeIds.length > 0) {
       query = query.not('id', 'in', `(${filters.excludeIds.join(',')})`);
     }
@@ -191,6 +212,14 @@ export async function countQuestionsForFilters(
 
     if (filters.assuntos && filters.assuntos.length > 0) {
       query = query.in('assunto', filters.assuntos);
+    }
+
+    if (filters.escolaridade && filters.escolaridade.length > 0) {
+      query = query.in('escolaridade', filters.escolaridade);
+    }
+
+    if (filters.modalidade && filters.modalidade.length > 0) {
+      query = query.in('modalidade', filters.modalidade);
     }
 
     if (filters.excludeIds && filters.excludeIds.length > 0) {
