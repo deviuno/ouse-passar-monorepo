@@ -58,7 +58,7 @@ export function Modal({
           />
 
           {/* Modal Container - Responsivo */}
-          <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 pb-24 md:pb-4 pointer-events-none">
+          <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 pb-24 md:p-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, y: 100 }}
               animate={{ opacity: 1, y: 0 }}
