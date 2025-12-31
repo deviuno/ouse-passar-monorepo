@@ -289,6 +289,7 @@ function ContentPhase({
   const audioRef = useRef<HTMLAudioElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
+  const questionsContainerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerLeft, setContainerLeft] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -979,6 +980,9 @@ export default function MissionPage() {
   // Ref para rastrear missoes que ja consumiram bateria (evita consumir multiplas vezes)
   const batteryConsumedMissions = useRef<Set<string>>(new Set());
 
+  // Ref para o container de questões (scroll)
+  const questionsContainerRef = useRef<HTMLDivElement>(null);
+
   // Estado local para controle independente do sidebar
   const [sidebarViewingRoundIndex, setSidebarViewingRoundIndex] = useState(viewingRoundIndex || 0);
 
@@ -1464,10 +1468,13 @@ export default function MissionPage() {
   // Scroll to top when question changes
   useEffect(() => {
     if (phase === 'questions' && questions.length > 0) {
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
+      // Scroll do container interno (não da window)
+      if (questionsContainerRef.current) {
+        questionsContainerRef.current.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+      }
     }
   }, [currentQuestionIndex, phase, questions.length]);
 
@@ -1551,13 +1558,7 @@ export default function MissionPage() {
       });
     }
 
-    // Scroll to show navigation buttons after answering
-    setTimeout(() => {
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: 'smooth'
-      });
-    }, 100);
+    // Scroll é gerenciado pelo QuestionCard (navigationButtonsRef)
 
     // Save answer to database for statistics
     saveUserAnswer({
@@ -1765,21 +1766,16 @@ export default function MissionPage() {
   return (
     <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A]">
       <div className={`flex flex-col min-w-0 relative transition-all duration-300 ${isMapExpanded ? 'xl:mr-[400px]' : 'xl:mr-[72px]'}`}>
-        <div className="flex-1 relative overflow-y-auto px-0 md:px-4 py-4 md:py-6 scrollbar-thin scrollbar-thumb-zinc-800">
+        <div ref={questionsContainerRef} className="flex-1 relative overflow-y-auto px-0 md:px-4 py-4 md:py-6 scrollbar-thin scrollbar-thumb-zinc-800">
           <div className="w-full md:max-w-[900px] mx-auto flex flex-col min-h-full">
             {/* Celebration */}
             <SuccessCelebration isActive={showCelebration} />
 
             {/* Header - só aparece na fase de questões */}
             {phase === 'questions' && (
-              <div
-                className="p-4 border-b bg-[#1A1A1A]"
-                style={{
-                  borderColor: currentTrailMode === 'reta_final' ? RETA_FINAL_THEME.colors.primary : '#3A3A3A',
-                }}
-              >
+              <div className="px-4 py-2 bg-[#1A1A1A]">
                 {/* Badges de modo */}
-                <div className="flex justify-center gap-2 mb-2">
+                <div className="flex justify-center gap-2">
                   {/* Badge de Reta Final */}
                   {currentTrailMode === 'reta_final' && (
                     <span
@@ -1802,7 +1798,7 @@ export default function MissionPage() {
                     </span>
                   )}
                 </div>
-                {/* Navegador de questões */}
+                {/* Navegador de questões - só aparece no modo zen */}
                 {questions.length > 0 && (
                   <QuestionNavigator
                     totalQuestions={questions.length}
@@ -1810,6 +1806,7 @@ export default function MissionPage() {
                     answers={answers}
                     questionIds={questions.map(q => q.id)}
                     onNavigate={handleNavigateToQuestion}
+                    studyMode={selectedStudyMode}
                   />
                 )}
               </div>

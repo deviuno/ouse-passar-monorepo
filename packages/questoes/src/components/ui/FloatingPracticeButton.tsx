@@ -24,7 +24,7 @@ export function FloatingPracticeButton({
                      shadow-lg hover:shadow-xl hover:bg-[#E5A600]
                      transition-all duration-200
                      bottom-20 lg:bottom-8
-                     left-1/2 -translate-x-1/2"
+                     left-0 right-0 mx-auto w-fit"
         >
           <BookOpen size={20} />
           <span>Praticar Questões</span>

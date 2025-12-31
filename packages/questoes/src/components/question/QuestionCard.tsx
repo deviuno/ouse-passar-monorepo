@@ -53,6 +53,9 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
   // Ref para os botões de navegação principais
   const navigationButtonsRef = useRef<HTMLDivElement>(null);
 
+  // Ref para o botão de responder
+  const submitButtonRef = useRef<HTMLDivElement>(null);
+
   // Swipe gestures para navegação mobile (apenas se já respondeu)
   const swipeHandlersRaw = useHorizontalSwipe(
     () => {
@@ -129,20 +132,30 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       // Pequeno delay para garantir que o DOM foi atualizado com o feedback
       setTimeout(() => {
         if (navigationButtonsRef.current) {
-          // Verifica se o elemento está visível no viewport
-          const rect = navigationButtonsRef.current.getBoundingClientRect();
+          const element = navigationButtonsRef.current;
+          const rect = element.getBoundingClientRect();
           const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+          const bottomMenuHeight = 80; // Altura do menu fixo do rodapé
+
+          // Verifica se o elemento está visível (considerando o menu do rodapé)
           const isVisible = (
             rect.top >= 0 &&
-            rect.bottom <= viewportHeight
+            rect.bottom <= (viewportHeight - bottomMenuHeight)
           );
 
           // Só rola se não estiver visível
           if (!isVisible) {
-            navigationButtonsRef.current.scrollIntoView({
-              behavior: 'smooth',
-              block: 'nearest'
-            });
+            const absoluteElementTop = rect.top + window.pageYOffset;
+            const offset = rect.height + bottomMenuHeight;
+            const targetScroll = absoluteElementTop - viewportHeight + offset + 20;
+
+            // Só rola se for para cima (revelar conteúdo abaixo), nunca para baixo
+            if (targetScroll > window.pageYOffset) {
+              window.scrollTo({
+                top: targetScroll,
+                behavior: 'smooth'
+              });
+            }
           }
         }
       }, 100);
@@ -158,6 +171,27 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
   const handleSelect = (letter: string) => {
     if (isSubmitted || isReadOnly) return;
     setSelectedAlt(letter);
+
+    // Scroll suave para mostrar o botão de responder (com offset para o menu fixo do rodapé)
+    setTimeout(() => {
+      if (submitButtonRef.current) {
+        const element = submitButtonRef.current;
+        const elementRect = element.getBoundingClientRect();
+        const absoluteElementTop = elementRect.top + window.pageYOffset;
+        const bottomMenuHeight = 80; // Altura aproximada do menu fixo
+        const offset = elementRect.height + bottomMenuHeight;
+
+        const targetScroll = absoluteElementTop - window.innerHeight + offset + 20;
+
+        // Só rola se for para cima (revelar conteúdo abaixo), nunca para baixo
+        if (targetScroll > window.pageYOffset) {
+          window.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth'
+          });
+        }
+      }
+    }, 100);
   };
 
   const handleSubmit = async (e?: React.MouseEvent) => {
@@ -265,7 +299,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
 
   return (
     <div
-      className="flex flex-col h-full overflow-y-auto no-scrollbar pb-24 px-3 md:px-4 pt-4 md:pt-6"
+      className="flex flex-col pb-24 px-3 md:px-4 pt-4 md:pt-6"
       {...(isSubmitted ? swipeHandlers : {})}
     >
       {/* Header Info */}
@@ -341,7 +375,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       </div>
 
       {/* Actions / Feedback Area */}
-      <div className="mt-auto">
+      <div className="mt-auto" ref={submitButtonRef}>
         {!isSubmitted ? (
           <RippleEffect className="w-full rounded-full">
             <button
