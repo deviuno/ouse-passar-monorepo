@@ -219,17 +219,32 @@ function normalizeMateria(materia: string): string {
  * Isso garante que encontremos questões mesmo com nomes diferentes
  */
 const MATERIA_MAPPING: Record<string, string[]> = {
-  'lingua portuguesa': ['Língua Portuguesa', 'Português', 'LÍNGUA PORTUGUESA', 'PORTUGUÊS', 'Lingua Portuguesa'],
-  'portugues': ['Língua Portuguesa', 'Português', 'LÍNGUA PORTUGUESA', 'PORTUGUÊS'],
-  'raciocinio logico': ['Raciocínio Lógico', 'RACIOCÍNIO LÓGICO', 'Raciocinio Logico', 'Lógica'],
-  'direito constitucional': ['Direito Constitucional', 'DIREITO CONSTITUCIONAL', 'Constitucional'],
-  'direito administrativo': ['Direito Administrativo', 'DIREITO ADMINISTRATIVO', 'Administrativo'],
-  'direito penal': ['Direito Penal', 'DIREITO PENAL', 'Penal'],
-  'direito processual penal': ['Direito Processual Penal', 'DIREITO PROCESSUAL PENAL', 'Processo Penal'],
-  'informatica': ['Informática', 'INFORMÁTICA', 'Noções de Informática'],
-  'legislacao': ['Legislação', 'LEGISLAÇÃO', 'Legislação Especial'],
-  'atualidades': ['Atualidades', 'ATUALIDADES', 'Conhecimentos Gerais'],
-  'redacao': ['Redação', 'REDAÇÃO', 'Redação Oficial'],
+  'lingua portuguesa': ['Língua Portuguesa', 'Português', 'LÍNGUA PORTUGUESA', 'PORTUGUÊS', 'Lingua Portuguesa', 'PORTUGUES', 'portugues', 'Linguagem'],
+  'portugues': ['Língua Portuguesa', 'Português', 'LÍNGUA PORTUGUESA', 'PORTUGUÊS', 'PORTUGUES', 'portugues'],
+  'raciocinio logico': ['Raciocínio Lógico', 'RACIOCÍNIO LÓGICO', 'Raciocinio Logico', 'Lógica', 'LÓGICA', 'Logica', 'LOGICA', 'Raciocínio Lógico-Matemático'],
+  'direito constitucional': ['Direito Constitucional', 'DIREITO CONSTITUCIONAL', 'Constitucional', 'CONSTITUCIONAL'],
+  'direito administrativo': ['Direito Administrativo', 'DIREITO ADMINISTRATIVO', 'Administrativo', 'ADMINISTRATIVO'],
+  'direito penal': ['Direito Penal', 'DIREITO PENAL', 'Penal', 'PENAL'],
+  'direito processual penal': ['Direito Processual Penal', 'DIREITO PROCESSUAL PENAL', 'Processo Penal', 'PROCESSO PENAL', 'Processual Penal'],
+  'informatica': ['Informática', 'INFORMÁTICA', 'Noções de Informática', 'NOÇÕES DE INFORMÁTICA', 'Informatica', 'INFORMATICA'],
+  'legislacao': ['Legislação', 'LEGISLAÇÃO', 'Legislação Especial', 'Legislacao', 'LEGISLACAO'],
+  'atualidades': ['Atualidades', 'ATUALIDADES', 'Conhecimentos Gerais', 'CONHECIMENTOS GERAIS'],
+  'redacao': ['Redação', 'REDAÇÃO', 'Redação Oficial', 'Redacao', 'REDACAO'],
+};
+
+// Palavras-chave para busca ILIKE por matéria
+const MATERIA_KEYWORDS: Record<string, string[]> = {
+  'lingua portuguesa': ['portugu', 'lingua'],
+  'portugues': ['portugu', 'lingua'],
+  'raciocinio logico': ['logic', 'raciocin'],
+  'direito constitucional': ['constitucional'],
+  'direito administrativo': ['administrativ'],
+  'direito penal': ['penal'],
+  'direito processual penal': ['processual penal', 'processo penal'],
+  'informatica': ['informatic', 'informatik'],
+  'legislacao': ['legisla'],
+  'atualidades': ['atualidade', 'conhecimentos gerais'],
+  'redacao': ['redaca', 'redação'],
 };
 
 /**
@@ -338,35 +353,60 @@ async function fetchQuestionsWithFilters(
       console.log('[MissaoQuestoesService] Tentando busca ILIKE por matéria...');
 
       for (const materia of materiasObrigatorias) {
-        // Extrair palavras-chave da matéria
-        const materiaKeywords = extractKeywords(materia);
-        const mainKeyword = materiaKeywords.find(kw => kw.length >= 4) || materiaKeywords[0];
+        const normalized = normalizeMateria(materia);
 
-        if (!mainKeyword) continue;
+        // Primeiro tentar keywords otimizadas do mapeamento
+        let keywordsToTry: string[] = [];
 
-        const sanitizedKeyword = sanitizeKeywordForQuery(mainKeyword);
-        if (!sanitizedKeyword || sanitizedKeyword.length < 3) continue;
-
-        console.log('[MissaoQuestoesService] Tentando ILIKE matéria com:', sanitizedKeyword);
-
-        let iLikeQuery = questionsDb
-          .from('questoes_concurso')
-          .select('*')
-          .ilike('materia', `%${sanitizedKeyword}%`);
-
-        if (filtros.bancas && filtros.bancas.length > 0) {
-          iLikeQuery = iLikeQuery.in('banca', filtros.bancas);
+        // Buscar no mapeamento MATERIA_KEYWORDS
+        if (MATERIA_KEYWORDS[normalized]) {
+          keywordsToTry = MATERIA_KEYWORDS[normalized];
+        } else {
+          // Procurar correspondência parcial no mapeamento
+          for (const [key, keywords] of Object.entries(MATERIA_KEYWORDS)) {
+            if (normalized.includes(key) || key.includes(normalized)) {
+              keywordsToTry = keywords;
+              break;
+            }
+          }
         }
 
-        iLikeQuery = applyQualityFilters(iLikeQuery);
-        iLikeQuery = iLikeQuery.limit(limit * 3);
-        const { data: iLikeData, error: iLikeError } = await iLikeQuery;
+        // Se não encontrou no mapeamento, extrair da matéria diretamente
+        if (keywordsToTry.length === 0) {
+          const materiaKeywords = extractKeywords(materia);
+          const mainKeyword = materiaKeywords.find(kw => kw.length >= 4) || materiaKeywords[0];
+          if (mainKeyword) {
+            keywordsToTry = [mainKeyword];
+          }
+        }
 
-        if (!iLikeError && iLikeData && iLikeData.length > 0) {
-          const validILike = iLikeData.filter(isValidQuestion);
-          console.log('[MissaoQuestoesService] Encontradas', validILike.length, 'questões via ILIKE matéria');
-          const shuffledILike = validILike.sort(() => Math.random() - 0.5).slice(0, limit);
-          return shuffledILike.map(transformQuestion);
+        console.log('[MissaoQuestoesService] Keywords para ILIKE:', keywordsToTry);
+
+        for (const keyword of keywordsToTry) {
+          const sanitizedKeyword = sanitizeKeywordForQuery(keyword);
+          if (!sanitizedKeyword || sanitizedKeyword.length < 3) continue;
+
+          console.log('[MissaoQuestoesService] Tentando ILIKE matéria com:', sanitizedKeyword);
+
+          let iLikeQuery = questionsDb
+            .from('questoes_concurso')
+            .select('*')
+            .ilike('materia', `%${sanitizedKeyword}%`);
+
+          if (filtros.bancas && filtros.bancas.length > 0) {
+            iLikeQuery = iLikeQuery.in('banca', filtros.bancas);
+          }
+
+          iLikeQuery = applyQualityFilters(iLikeQuery);
+          iLikeQuery = iLikeQuery.limit(limit * 3);
+          const { data: iLikeData, error: iLikeError } = await iLikeQuery;
+
+          if (!iLikeError && iLikeData && iLikeData.length > 0) {
+            const validILike = iLikeData.filter(isValidQuestion);
+            console.log('[MissaoQuestoesService] Encontradas', validILike.length, 'questões via ILIKE matéria');
+            const shuffledILike = validILike.sort(() => Math.random() - 0.5).slice(0, limit);
+            return shuffledILike.map(transformQuestion);
+          }
         }
       }
 
