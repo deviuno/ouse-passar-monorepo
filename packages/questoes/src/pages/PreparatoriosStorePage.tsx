@@ -7,6 +7,7 @@ import {
   Check,
   Loader2,
   ShoppingCart,
+  X,
 } from 'lucide-react';
 import { Button, Modal } from '../components/ui';
 import { Preparatorio, UserLevel } from '../types';
@@ -153,20 +154,21 @@ export default function PreparatoriosStorePage() {
           <Modal
             isOpen={showConfirmModal}
             onClose={() => setShowConfirmModal(false)}
-            title=""
+            hideHeader
+            noPadding
           >
-            <div className="overflow-hidden -mt-4 -mx-4">
-              {/* Cover Image Section */}
-              <div className="relative h-40 w-full">
+            <div className="overflow-hidden">
+              {/* Cover Image Section - vai até o topo com bordas arredondadas */}
+              <div className="relative h-48 w-full">
                 {selectedPrep.imagem_capa ? (
                   <img
                     src={selectedPrep.imagem_capa}
                     alt={selectedPrep.nome}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover rounded-t-2xl"
                   />
                 ) : (
                   <div
-                    className="w-full h-full flex items-center justify-center"
+                    className="w-full h-full flex items-center justify-center rounded-t-2xl"
                     style={{ backgroundColor: selectedPrep.cor || '#FFB800' }}
                   >
                     {selectedPrep.icone ? (
@@ -177,11 +179,19 @@ export default function PreparatoriosStorePage() {
                   </div>
                 )}
                 {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#252525] via-transparent to-transparent" />
+
+                {/* Botão fechar */}
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors z-10"
+                >
+                  <X size={20} className="text-white" />
+                </button>
               </div>
 
               {/* Content */}
-              <div className="p-6 -mt-8 relative z-10">
+              <div className="p-6 -mt-6 relative z-10">
                 {/* Title & Badge */}
                 <div className="mb-4">
                   {selectedPrep.banca && (
