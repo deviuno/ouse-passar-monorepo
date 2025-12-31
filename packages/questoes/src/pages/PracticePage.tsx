@@ -574,6 +574,9 @@ export default function PracticePage() {
     setDeleteNotebookConfirm(null);
   };
 
+  // Contador para forçar reload quando navegar para a página
+  const [loadKey, setLoadKey] = useState(0);
+
   // Reset state when component mounts or route changes (handles navigation)
   useEffect(() => {
     console.log('[PracticePage] Component mounted/route changed, resetting state...');
@@ -584,15 +587,21 @@ export default function PracticePage() {
     setSessionStats({ correct: 0, total: 0 });
     setSessionStartTime(null);
     setIsLoadingFilters(true); // Reset loading state for fresh filter load
-  }, [location.key]);
+    // Incrementar key para forçar reload dos dados
+    setLoadKey(prev => prev + 1);
+  }, [location.pathname]);
 
-  // Carregar opcoes de filtro ao montar ou quando a rota muda
+  // Carregar opcoes de filtro ao montar ou quando loadKey muda
   useEffect(() => {
+    let isMounted = true;
+
     const loadFilterOptions = async () => {
-      console.log('[PracticePage] Carregando opções de filtro...');
+      console.log('[PracticePage] Carregando opções de filtro... (loadKey:', loadKey, ')');
 
       try {
         const [filterOptions, count] = await Promise.all([fetchFilterOptions(), getQuestionsCount()]);
+
+        if (!isMounted) return;
 
         console.log('[PracticePage] Filtros carregados:', {
           materias: filterOptions.materias.length,
@@ -615,18 +624,25 @@ export default function PracticePage() {
           addToast('info', 'Conectado ao banco, mas nenhuma questão encontrada.');
         }
       } catch (error) {
+        if (!isMounted) return;
         console.error('[PracticePage] Erro ao carregar filtros após retries:', error);
         addToast('error', 'Erro ao conectar ao banco de questões. Usando dados de exemplo.');
         setTotalQuestions(MOCK_QUESTIONS.length);
         setFilteredCount(MOCK_QUESTIONS.length);
         setUsingMockData(true);
       } finally {
-        setIsLoadingFilters(false);
+        if (isMounted) {
+          setIsLoadingFilters(false);
+        }
       }
     };
 
     loadFilterOptions();
-  }, [location.key]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [loadKey]);
 
   // Carregar assuntos quando materias sao selecionadas
   useEffect(() => {

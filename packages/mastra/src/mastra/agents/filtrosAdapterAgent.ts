@@ -1,8 +1,9 @@
 /**
  * Agente de Adaptação de Filtros de Questões
  *
- * Este agente é responsável por adaptar os termos de matéria e assuntos
- * do edital para os termos que existem no banco de questões.
+ * Este agente é responsável por adaptar TODOS os termos de filtros
+ * (matérias, assuntos, bancas, órgãos) do edital para os termos
+ * que existem no banco de questões.
  *
  * Exemplo:
  * - Edital: "Língua Portuguesa"
@@ -55,9 +56,12 @@ function getSupabaseQuestoesClient(): SupabaseClient {
 // ==================== TIPOS ====================
 
 interface FiltrosMissao {
+    materias?: string[];
     assuntos?: string[];
     bancas?: string[];
-    materias?: string[];
+    orgaos?: string[];
+    anos?: number[];
+    questao_revisada?: boolean;
 }
 
 interface MissaoComFiltros {
@@ -84,125 +88,95 @@ interface ResultadoOtimizacao {
     error?: string;
 }
 
+// Cache de valores únicos do banco de questões
+interface CacheValoresUnicos {
+    materias: string[];
+    assuntos: string[];
+    bancas: string[];
+    orgaos: string[];
+}
+
 // ==================== FUNÇÕES AUXILIARES ====================
 
 /**
- * Busca todas as matérias únicas do banco de questões
- * Usa estratégia de sampling com múltiplos offsets para cobrir toda a base
+ * Busca valores únicos de uma coluna usando estratégia de sampling
  */
-async function buscarMateriasUnicasDoBanco(): Promise<string[]> {
+async function buscarValoresUnicosDoBanco(
+    coluna: string,
+    numSamplesMax: number = 20
+): Promise<string[]> {
     const supabase = getSupabaseQuestoesClient();
 
     try {
-        console.log('[FiltrosAdapter] Buscando matérias únicas do banco de questões...');
+        console.log(`[FiltrosAdapter] Buscando ${coluna} únicos do banco de questões...`);
 
-        // Primeiro, verificar se a tabela existe e tem dados
         const { count: totalCount, error: countError } = await supabase
             .from('questoes_concurso')
             .select('*', { count: 'exact', head: true });
 
         const total = totalCount || 0;
-        console.log(`[FiltrosAdapter] Total de questões no banco: ${total}`);
         if (countError) {
-            console.error('[FiltrosAdapter] Erro ao contar questões:', countError);
+            console.error(`[FiltrosAdapter] Erro ao contar questões:`, countError);
         }
 
-        // Estratégia: buscar samples em diferentes partes do banco
-        // Isso é MUITO mais eficiente do que percorrer 155k registros
-        const materiasSet = new Set<string>();
+        const valoresSet = new Set<string>();
         const SAMPLE_SIZE = 1000;
+        const numSamples = Math.min(numSamplesMax, Math.ceil(total / 10000));
+        const step = Math.floor(total / Math.max(numSamples, 1));
 
-        // Calcular offsets distribuídos ao longo do banco
-        const numSamples = Math.min(20, Math.ceil(total / 10000)); // Max 20 samples
-        const step = Math.floor(total / numSamples);
-
-        console.log(`[FiltrosAdapter] Usando ${numSamples} samples com step de ${step}...`);
+        console.log(`[FiltrosAdapter] ${coluna}: ${numSamples} samples com step de ${step}...`);
 
         for (let i = 0; i < numSamples; i++) {
             const offset = i * step;
 
             const { data, error } = await supabase
                 .from('questoes_concurso')
-                .select('materia')
-                .not('materia', 'is', null)
-                .neq('materia', '')
+                .select(coluna)
+                .not(coluna, 'is', null)
+                .neq(coluna, '')
                 .range(offset, offset + SAMPLE_SIZE - 1);
 
             if (error) {
-                console.error(`[FiltrosAdapter] Erro no sample ${i + 1}:`, error);
+                console.error(`[FiltrosAdapter] Erro no sample ${i + 1} de ${coluna}:`, error);
                 continue;
             }
 
             if (data && data.length > 0) {
                 for (const row of data) {
-                    if (row.materia && typeof row.materia === 'string' && row.materia.trim()) {
-                        materiasSet.add(row.materia.trim());
+                    const valor = (row as any)[coluna];
+                    if (valor && typeof valor === 'string' && valor.trim()) {
+                        valoresSet.add(valor.trim());
                     }
                 }
-                console.log(`[FiltrosAdapter] Sample ${i + 1}/${numSamples} (offset ${offset}): ${data.length} registros, ${materiasSet.size} matérias únicas até agora`);
             }
         }
 
-        const materias = Array.from(materiasSet).sort();
-        console.log(`[FiltrosAdapter] Total: ${materias.length} matérias únicas encontradas`);
-        console.log(`[FiltrosAdapter] Matérias: ${materias.join(', ')}`);
+        const valores = Array.from(valoresSet).sort();
+        console.log(`[FiltrosAdapter] Total: ${valores.length} ${coluna} únicos encontrados`);
 
-        return materias;
+        return valores;
     } catch (error) {
-        console.error('[FiltrosAdapter] Erro:', error);
+        console.error(`[FiltrosAdapter] Erro ao buscar ${coluna}:`, error);
         return [];
     }
 }
 
 /**
- * Busca todas as bancas únicas do banco de questões
- * Usa estratégia de sampling similar à busca de matérias
+ * Busca todos os valores únicos do banco de questões (matérias, assuntos, bancas, órgãos)
  */
-async function buscarBancasUnicasDoBanco(): Promise<string[]> {
-    const supabase = getSupabaseQuestoesClient();
+async function buscarTodosValoresUnicos(): Promise<CacheValoresUnicos> {
+    console.log('[FiltrosAdapter] Buscando todos os valores únicos do banco de questões...');
 
-    try {
-        console.log('[FiltrosAdapter] Buscando bancas únicas do banco de questões...');
+    const [materias, assuntos, bancas, orgaos] = await Promise.all([
+        buscarValoresUnicosDoBanco('materia', 20),
+        buscarValoresUnicosDoBanco('assunto', 25), // Mais samples para assuntos (maior variedade)
+        buscarValoresUnicosDoBanco('banca', 10),
+        buscarValoresUnicosDoBanco('orgao', 15),
+    ]);
 
-        const { count: totalCount } = await supabase
-            .from('questoes_concurso')
-            .select('*', { count: 'exact', head: true });
+    console.log(`[FiltrosAdapter] Cache carregado: ${materias.length} matérias, ${assuntos.length} assuntos, ${bancas.length} bancas, ${orgaos.length} órgãos`);
 
-        const total = totalCount || 0;
-        const bancasSet = new Set<string>();
-        const SAMPLE_SIZE = 1000;
-        const numSamples = Math.min(10, Math.ceil(total / 20000)); // Menos samples para bancas
-        const step = Math.floor(total / numSamples);
-
-        for (let i = 0; i < numSamples; i++) {
-            const offset = i * step;
-
-            const { data, error } = await supabase
-                .from('questoes_concurso')
-                .select('banca')
-                .not('banca', 'is', null)
-                .neq('banca', '')
-                .range(offset, offset + SAMPLE_SIZE - 1);
-
-            if (error) continue;
-
-            if (data && data.length > 0) {
-                for (const row of data) {
-                    if (row.banca && typeof row.banca === 'string' && row.banca.trim()) {
-                        bancasSet.add(row.banca.trim());
-                    }
-                }
-            }
-        }
-
-        const bancas = Array.from(bancasSet).sort();
-        console.log(`[FiltrosAdapter] Total: ${bancas.length} bancas únicas encontradas`);
-
-        return bancas;
-    } catch (error) {
-        console.error('[FiltrosAdapter] Erro ao buscar bancas:', error);
-        return [];
-    }
+    return { materias, assuntos, bancas, orgaos };
 }
 
 /**
@@ -222,8 +196,20 @@ async function contarQuestoesComFiltros(filtros: FiltrosMissao): Promise<number>
             query = query.in('materia', filtros.materias);
         }
 
+        if (filtros.assuntos && filtros.assuntos.length > 0) {
+            query = query.in('assunto', filtros.assuntos);
+        }
+
         if (filtros.bancas && filtros.bancas.length > 0) {
             query = query.in('banca', filtros.bancas);
+        }
+
+        if (filtros.orgaos && filtros.orgaos.length > 0) {
+            query = query.in('orgao', filtros.orgaos);
+        }
+
+        if (filtros.anos && filtros.anos.length > 0) {
+            query = query.in('ano', filtros.anos);
         }
 
         const { count, error } = await query;
@@ -355,7 +341,7 @@ export const filtrosAdapterAgent = new Agent({
     instructions: `Você é um agente especializado em adaptar termos de editais de concursos para os termos usados em bancos de questões.
 
 Sua função é:
-1. Receber um termo do edital (matéria ou assunto)
+1. Receber um termo do edital (matéria, assunto, banca ou órgão)
 2. Analisar a lista de termos disponíveis no banco de questões
 3. Encontrar o termo mais adequado que represente o mesmo conteúdo
 
@@ -364,11 +350,161 @@ Regras importantes:
 - "Língua Portuguesa" e "Português" são equivalentes
 - "Raciocínio Lógico" e "Lógica" são equivalentes
 - "Direito Constitucional" pode estar como "Constitucional"
+- IDECAN = Instituto de Desenvolvimento Educacional, Cultural e Assistencial Nacional
+- FGV = Fundação Getúlio Vargas
+- CESPE = Centro de Seleção e de Promoção de Eventos (CEBRASPE)
+- FCC = Fundação Carlos Chagas
 - Considere variações de acentuação e capitalização
-- Se não encontrar correspondência, mantenha o termo original
+- Se não encontrar correspondência, retorne null
 - Sempre retorne uma explicação clara da adaptação feita`,
     model: google("gemini-2.0-flash"),
 });
+
+// ==================== FUNÇÕES DE ADAPTAÇÃO ====================
+
+/**
+ * Tenta encontrar correspondência exata (case-insensitive)
+ */
+function buscarCorrespondenciaExata(termo: string, disponiveis: string[]): string | null {
+    return disponiveis.find(d => d.toLowerCase() === termo.toLowerCase()) || null;
+}
+
+/**
+ * Tenta encontrar correspondência por sigla ou nome parcial
+ */
+function buscarCorrespondenciaParcial(termo: string, disponiveis: string[]): string | null {
+    const termoLower = termo.toLowerCase();
+
+    return disponiveis.find(d => {
+        const dLower = d.toLowerCase();
+
+        // Verifica se um contém o outro
+        if (dLower.includes(termoLower) || termoLower.includes(dLower)) {
+            return true;
+        }
+
+        // Verifica se é uma sigla (primeiras letras de cada palavra)
+        const sigla = d.split(/\s+/).map(w => w[0]).join('').toLowerCase();
+        if (sigla === termoLower) {
+            return true;
+        }
+
+        // Verifica correspondência parcial (primeiros 5 caracteres)
+        if (termoLower.length >= 5 && dLower.length >= 5) {
+            if (dLower.includes(termoLower.substring(0, 5)) ||
+                termoLower.includes(dLower.substring(0, 5))) {
+                return true;
+            }
+        }
+
+        return false;
+    }) || null;
+}
+
+/**
+ * Usa IA para encontrar correspondência semântica
+ */
+async function buscarCorrespondenciaIA(
+    termo: string,
+    disponiveis: string[],
+    tipoFiltro: string,
+    contextoExtra: string = ''
+): Promise<{ termo: string | null; explicacao: string }> {
+    try {
+        const prompt = `
+Termo do edital (${tipoFiltro}): "${termo}"
+
+Lista de ${tipoFiltro}s disponíveis no banco de questões:
+${disponiveis.slice(0, 150).join('\n')}
+
+${contextoExtra}
+
+Qual item da lista acima melhor corresponde ao termo "${termo}"?
+Considere sinônimos, abreviações, siglas e variações de nomenclatura.
+
+Responda APENAS no formato JSON:
+{
+  "termoEncontrado": "nome exato do termo encontrado ou null se não encontrar",
+  "explicacao": "breve explicação da adaptação ou motivo de não encontrar"
+}`;
+
+        const result = await filtrosAdapterAgent.generate([
+            { role: "user", content: prompt }
+        ]);
+
+        const responseText = result.text || '';
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+
+        if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+
+            if (parsed.termoEncontrado && parsed.termoEncontrado !== 'null') {
+                // Validar se o termo retornado realmente existe na lista
+                const termoValido = disponiveis.find(
+                    d => d.toLowerCase() === parsed.termoEncontrado.toLowerCase()
+                );
+
+                if (termoValido) {
+                    return { termo: termoValido, explicacao: parsed.explicacao };
+                }
+            }
+
+            return { termo: null, explicacao: parsed.explicacao || 'Sem correspondência' };
+        }
+
+        return { termo: null, explicacao: 'Erro ao processar resposta da IA' };
+    } catch (error) {
+        console.error(`[FiltrosAdapter] Erro na adaptação IA de ${tipoFiltro}:`, error);
+        return { termo: null, explicacao: 'Erro na adaptação por IA' };
+    }
+}
+
+/**
+ * Adapta um array de termos para os valores disponíveis no banco
+ */
+async function adaptarFiltros(
+    termosOriginais: string[],
+    disponiveis: string[],
+    tipoFiltro: string,
+    contextoExtra: string = ''
+): Promise<{ termosAdaptados: string[]; observacoes: string[] }> {
+    const termosAdaptados: string[] = [];
+    const observacoes: string[] = [];
+
+    for (const termo of termosOriginais) {
+        // 1. Tentar correspondência exata
+        const exato = buscarCorrespondenciaExata(termo, disponiveis);
+        if (exato) {
+            termosAdaptados.push(exato);
+            continue;
+        }
+
+        // 2. Tentar correspondência parcial/sigla
+        const parcial = buscarCorrespondenciaParcial(termo, disponiveis);
+        if (parcial) {
+            termosAdaptados.push(parcial);
+            observacoes.push(`${tipoFiltro}: "${termo}" → "${parcial}" (correspondência encontrada)`);
+            console.log(`[FiltrosAdapter] ${tipoFiltro} adaptado: ${termo} → ${parcial}`);
+            continue;
+        }
+
+        // 3. Usar IA para encontrar correspondência semântica
+        const { termo: termoIA, explicacao } = await buscarCorrespondenciaIA(
+            termo, disponiveis, tipoFiltro, contextoExtra
+        );
+
+        if (termoIA) {
+            termosAdaptados.push(termoIA);
+            observacoes.push(`${tipoFiltro}: "${termo}" → "${termoIA}" (${explicacao})`);
+            console.log(`[FiltrosAdapter] ${tipoFiltro} adaptado por IA: ${termo} → ${termoIA}`);
+        } else {
+            observacoes.push(`${tipoFiltro}: "${termo}" - Não encontrado (${explicacao})`);
+            console.log(`[FiltrosAdapter] ${tipoFiltro} não encontrado: ${termo}`);
+        }
+    }
+
+    return { termosAdaptados, observacoes };
+}
 
 // ==================== FUNÇÃO PRINCIPAL ====================
 
@@ -382,13 +518,10 @@ export async function otimizarFiltrosPreparatorio(
     console.log(`[FiltrosAdapter] Iniciando otimização de filtros para preparatório: ${preparatorioId}`);
 
     try {
-        // 1. Buscar matérias e bancas únicas do banco de questões
-        const [materiasDisponiveis, bancasDisponiveis] = await Promise.all([
-            buscarMateriasUnicasDoBanco(),
-            buscarBancasUnicasDoBanco(),
-        ]);
+        // 1. Buscar todos os valores únicos do banco de questões
+        const cache = await buscarTodosValoresUnicos();
 
-        if (materiasDisponiveis.length === 0) {
+        if (cache.materias.length === 0) {
             return {
                 success: false,
                 missoesProcessadas: 0,
@@ -397,8 +530,6 @@ export async function otimizarFiltrosPreparatorio(
                 error: 'Não foi possível buscar matérias do banco de questões',
             };
         }
-
-        console.log(`[FiltrosAdapter] Bancas disponíveis: ${bancasDisponiveis.slice(0, 10).join(', ')}${bancasDisponiveis.length > 10 ? '...' : ''}`);
 
         // 2. Buscar missões com seus filtros
         const missoes = await buscarMissoesComFiltros(preparatorioId);
@@ -414,6 +545,33 @@ export async function otimizarFiltrosPreparatorio(
 
         console.log(`[FiltrosAdapter] Processando ${missoes.length} missões...`);
 
+        // Contextos extras para ajudar a IA
+        const contextoBancas = `
+Siglas comuns de bancas:
+- IDECAN = Instituto de Desenvolvimento Educacional, Cultural e Assistencial Nacional
+- FGV = Fundação Getúlio Vargas
+- CESPE/CEBRASPE = Centro de Seleção e de Promoção de Eventos
+- FCC = Fundação Carlos Chagas
+- VUNESP = Fundação para o Vestibular da Universidade Estadual Paulista
+- IBFC = Instituto Brasileiro de Formação e Capacitação
+- IADES = Instituto Americano de Desenvolvimento
+- CONSULPLAN = Consultoria e Planejamento
+- FUNCAB = Fundação Professor Carlos Augusto Bittencourt`;
+
+        const contextoOrgaos = `
+Siglas comuns de órgãos:
+- TRF = Tribunal Regional Federal
+- TRT = Tribunal Regional do Trabalho
+- TJ = Tribunal de Justiça
+- STF = Supremo Tribunal Federal
+- STJ = Superior Tribunal de Justiça
+- MPF = Ministério Público Federal
+- MPU = Ministério Público da União
+- AGU = Advocacia-Geral da União
+- PF = Polícia Federal
+- PRF = Polícia Rodoviária Federal
+- INSS = Instituto Nacional do Seguro Social`;
+
         // 3. Para cada missão, adaptar os filtros
         const adaptacoes: AdaptacaoResultado[] = [];
         let missoesOtimizadas = 0;
@@ -422,119 +580,94 @@ export async function otimizarFiltrosPreparatorio(
             console.log(`[FiltrosAdapter] Processando missão ${missao.numero}: ${missao.materia}`);
 
             const filtrosOriginais = { ...missao.filtros };
-            const observacoes: string[] = [];
+            const observacoesTodas: string[] = [];
             let filtrosOtimizados: FiltrosMissao = { ...filtrosOriginais };
 
-            // Adaptar matéria
-            if (missao.materia && filtrosOriginais.materias) {
-                const materiaOriginal = filtrosOriginais.materias[0] || missao.materia;
-
-                // Verificar se a matéria original existe no banco
-                const materiaExata = materiasDisponiveis.find(
-                    m => m.toLowerCase() === materiaOriginal.toLowerCase()
+            // Adaptar MATÉRIAS
+            if (filtrosOtimizados.materias && filtrosOtimizados.materias.length > 0) {
+                const { termosAdaptados, observacoes } = await adaptarFiltros(
+                    filtrosOtimizados.materias,
+                    cache.materias,
+                    'Matéria'
                 );
 
-                if (materiaExata) {
-                    // Matéria existe exatamente, não precisa adaptar
-                    filtrosOtimizados.materias = [materiaExata];
+                if (termosAdaptados.length > 0) {
+                    filtrosOtimizados.materias = termosAdaptados;
                 } else {
-                    // Usar IA para encontrar a melhor correspondência
-                    try {
-                        const prompt = `
-Termo do edital: "${materiaOriginal}"
-
-Lista de matérias disponíveis no banco de questões:
-${materiasDisponiveis.slice(0, 100).join('\n')}
-
-Qual matéria da lista acima melhor corresponde ao termo "${materiaOriginal}"?
-
-Responda APENAS no formato JSON:
-{
-  "materiaEncontrada": "nome exato da matéria encontrada ou null se não encontrar",
-  "explicacao": "breve explicação da adaptação"
-}`;
-
-                        const result = await filtrosAdapterAgent.generate([
-                            { role: "user", content: prompt }
-                        ]);
-
-                        const responseText = result.text || '';
-
-                        // Extrair JSON da resposta
-                        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-                        if (jsonMatch) {
-                            const parsed = JSON.parse(jsonMatch[0]);
-
-                            if (parsed.materiaEncontrada && parsed.materiaEncontrada !== 'null') {
-                                filtrosOtimizados.materias = [parsed.materiaEncontrada];
-                                observacoes.push(`Matéria: "${materiaOriginal}" → "${parsed.materiaEncontrada}" (${parsed.explicacao})`);
-                                console.log(`[FiltrosAdapter] Adaptação: ${materiaOriginal} → ${parsed.materiaEncontrada}`);
-                            } else {
-                                // Tentar busca parcial
-                                const materiaParcial = materiasDisponiveis.find(m =>
-                                    m.toLowerCase().includes(materiaOriginal.toLowerCase().substring(0, 5)) ||
-                                    materiaOriginal.toLowerCase().includes(m.toLowerCase().substring(0, 5))
-                                );
-
-                                if (materiaParcial) {
-                                    filtrosOtimizados.materias = [materiaParcial];
-                                    observacoes.push(`Matéria: "${materiaOriginal}" → "${materiaParcial}" (correspondência parcial)`);
-                                } else {
-                                    observacoes.push(`Matéria: "${materiaOriginal}" - Mantido original (sem correspondência encontrada)`);
-                                }
-                            }
-                        }
-                    } catch (error) {
-                        console.error(`[FiltrosAdapter] Erro ao adaptar matéria: ${error}`);
-                        observacoes.push(`Matéria: "${materiaOriginal}" - Erro na adaptação, mantido original`);
-                    }
+                    delete filtrosOtimizados.materias;
+                    observacoes.push('Matérias: Removido filtro (nenhuma correspondência encontrada)');
                 }
+                observacoesTodas.push(...observacoes);
             }
 
-            // Verificar e adaptar bancas
+            // Adaptar ASSUNTOS
+            if (filtrosOtimizados.assuntos && filtrosOtimizados.assuntos.length > 0) {
+                const { termosAdaptados, observacoes } = await adaptarFiltros(
+                    filtrosOtimizados.assuntos,
+                    cache.assuntos,
+                    'Assunto'
+                );
+
+                if (termosAdaptados.length > 0) {
+                    filtrosOtimizados.assuntos = termosAdaptados;
+                } else {
+                    delete filtrosOtimizados.assuntos;
+                    observacoes.push('Assuntos: Removido filtro (nenhuma correspondência encontrada)');
+                }
+                observacoesTodas.push(...observacoes);
+            }
+
+            // Adaptar BANCAS
             if (filtrosOtimizados.bancas && filtrosOtimizados.bancas.length > 0) {
-                const bancasOriginais = [...filtrosOtimizados.bancas];
-                const bancasValidas: string[] = [];
-                const bancasRemovidas: string[] = [];
+                const { termosAdaptados, observacoes } = await adaptarFiltros(
+                    filtrosOtimizados.bancas,
+                    cache.bancas,
+                    'Banca',
+                    contextoBancas
+                );
 
-                for (const banca of bancasOriginais) {
-                    // Verificar se a banca existe no banco (case insensitive)
-                    const bancaEncontrada = bancasDisponiveis.find(
-                        b => b.toLowerCase() === banca.toLowerCase()
-                    );
-
-                    if (bancaEncontrada) {
-                        bancasValidas.push(bancaEncontrada);
-                    } else {
-                        bancasRemovidas.push(banca);
-                    }
+                if (termosAdaptados.length > 0) {
+                    filtrosOtimizados.bancas = termosAdaptados;
+                } else {
+                    delete filtrosOtimizados.bancas;
+                    observacoes.push('Bancas: Removido filtro (nenhuma correspondência - busca em todas as bancas)');
                 }
-
-                if (bancasRemovidas.length > 0) {
-                    if (bancasValidas.length > 0) {
-                        filtrosOtimizados.bancas = bancasValidas;
-                        observacoes.push(`Bancas: Removidas ${bancasRemovidas.join(', ')} (não encontradas no banco)`);
-                    } else {
-                        // Nenhuma banca válida, remover filtro de banca para buscar de todas
-                        delete filtrosOtimizados.bancas;
-                        observacoes.push(`Bancas: Removido filtro de banca (${bancasRemovidas.join(', ')} não encontradas - busca em todas as bancas)`);
-                        console.log(`[FiltrosAdapter] Removido filtro de banca: ${bancasRemovidas.join(', ')}`);
-                    }
-                }
+                observacoesTodas.push(...observacoes);
             }
+
+            // Adaptar ÓRGÃOS
+            if (filtrosOtimizados.orgaos && filtrosOtimizados.orgaos.length > 0) {
+                const { termosAdaptados, observacoes } = await adaptarFiltros(
+                    filtrosOtimizados.orgaos,
+                    cache.orgaos,
+                    'Órgão',
+                    contextoOrgaos
+                );
+
+                if (termosAdaptados.length > 0) {
+                    filtrosOtimizados.orgaos = termosAdaptados;
+                } else {
+                    delete filtrosOtimizados.orgaos;
+                    observacoes.push('Órgãos: Removido filtro (nenhuma correspondência encontrada)');
+                }
+                observacoesTodas.push(...observacoes);
+            }
+
+            // Anos não precisam de adaptação (são números)
+            // questao_revisada também não precisa (é boolean)
 
             // Contar questões com os novos filtros
             const questoesCount = await contarQuestoesComFiltros(filtrosOtimizados);
 
             // Só considerar otimizado se houve alguma adaptação
-            const foiOtimizado = observacoes.length > 0;
+            const foiOtimizado = observacoesTodas.length > 0;
 
             // Salvar filtros otimizados
             const salvou = await salvarFiltrosOtimizados(
                 missao.id,
                 filtrosOriginais,
                 filtrosOtimizados,
-                observacoes,
+                observacoesTodas,
                 questoesCount
             );
 
@@ -546,7 +679,7 @@ Responda APENAS no formato JSON:
                 missaoId: missao.id,
                 filtrosOriginais,
                 filtrosOtimizados,
-                observacoes,
+                observacoes: observacoesTodas,
                 questoesEncontradas: questoesCount,
             });
         }
@@ -575,5 +708,6 @@ Responda APENAS no formato JSON:
 export default {
     filtrosAdapterAgent,
     otimizarFiltrosPreparatorio,
-    buscarMateriasUnicasDoBanco,
+    buscarValoresUnicosDoBanco,
+    buscarTodosValoresUnicos,
 };

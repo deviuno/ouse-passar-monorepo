@@ -334,58 +334,63 @@ export const fetchAssuntosByMaterias = async (materias: string[]): Promise<strin
 };
 
 // Conta total de questões (com filtros opcionais)
+// Usa função RPC otimizada para evitar timeout
 // Com retry automático
 export const getQuestionsCount = async (filters?: Omit<QuestionFilters, 'limit' | 'offset' | 'shuffle'>): Promise<number> => {
   return withRetry(async () => {
-    let query = questionsDb
-      .from('questoes_concurso')
-      .select('*', { count: 'exact', head: true })
-      // Filtro oculto: excluir questões deletadas ou sem enunciado
-      .not('enunciado', 'is', null)
-      .neq('enunciado', '')
-      .neq('enunciado', 'deleted');
+    // Preparar parâmetros para a função RPC
+    const params: {
+      p_materias?: string[];
+      p_assuntos?: string[];
+      p_bancas?: string[];
+      p_orgaos?: string[];
+      p_anos?: number[];
+      p_cargos?: string[];
+      p_apenas_revisadas?: boolean;
+      p_apenas_com_comentario?: boolean;
+    } = {};
 
     if (filters?.materias && filters.materias.length > 0) {
-      query = query.in('materia', filters.materias);
+      params.p_materias = filters.materias;
     }
 
     if (filters?.assuntos && filters.assuntos.length > 0) {
-      query = query.in('assunto', filters.assuntos);
+      params.p_assuntos = filters.assuntos;
     }
 
     if (filters?.bancas && filters.bancas.length > 0) {
-      query = query.in('banca', filters.bancas);
+      params.p_bancas = filters.bancas;
     }
 
     if (filters?.orgaos && filters.orgaos.length > 0) {
-      query = query.in('orgao', filters.orgaos);
+      params.p_orgaos = filters.orgaos;
     }
 
     if (filters?.anos && filters.anos.length > 0) {
-      query = query.in('ano', filters.anos);
+      params.p_anos = filters.anos;
     }
 
     if (filters?.cargos && filters.cargos.length > 0) {
-      query = query.in('cargo_area_especialidade_edicao', filters.cargos);
+      params.p_cargos = filters.cargos;
     }
 
     if (filters?.apenasRevisadas) {
-      query = query.or('questao_revisada.eq.true,questao_revisada.eq.sim');
+      params.p_apenas_revisadas = true;
     }
 
     if (filters?.apenasComComentario) {
-      query = query.not('comentario', 'is', null).neq('comentario', '');
+      params.p_apenas_com_comentario = true;
     }
 
-    const { count, error } = await query;
+    const { data, error } = await questionsDb.rpc('get_questions_count', params);
 
     if (error) {
       console.error('[getQuestionsCount] Erro ao contar questões:', error);
       throw error; // Lança erro para acionar retry
     }
 
-    console.log('[getQuestionsCount] Total:', count);
-    return count || 0;
+    console.log('[getQuestionsCount] Total:', data);
+    return data || 0;
   });
 };
 

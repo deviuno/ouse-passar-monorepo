@@ -93,25 +93,37 @@ export const MissoesAdmin: React.FC = () => {
 
   const getTipoIcon = (tipo: MissaoTipo) => {
     switch (tipo) {
-      case 'padrao': return <BookOpen className="w-4 h-4" />;
+      case 'padrao':
+      case 'estudo': return <BookOpen className="w-4 h-4" />;
       case 'revisao': return <RotateCcw className="w-4 h-4" />;
       case 'acao': return <Zap className="w-4 h-4" />;
+      case 'tecnicas': return <FileText className="w-4 h-4" />;
+      case 'simulado': return <Edit className="w-4 h-4" />;
+      default: return <BookOpen className="w-4 h-4" />;
     }
   };
 
   const getTipoColor = (tipo: MissaoTipo) => {
     switch (tipo) {
-      case 'padrao': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'padrao':
+      case 'estudo': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
       case 'revisao': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
       case 'acao': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+      case 'tecnicas': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'simulado': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
 
   const getTipoBg = (tipo: MissaoTipo) => {
     switch (tipo) {
-      case 'padrao': return 'border-l-blue-500';
+      case 'padrao':
+      case 'estudo': return 'border-l-blue-500';
       case 'revisao': return 'border-l-purple-500';
       case 'acao': return 'border-l-orange-500';
+      case 'tecnicas': return 'border-l-green-500';
+      case 'simulado': return 'border-l-red-500';
+      default: return 'border-l-gray-500';
     }
   };
 
@@ -236,7 +248,7 @@ export const MissoesAdmin: React.FC = () => {
           {filteredMissoes.map((missao) => (
             <div
               key={missao.id}
-              className={`bg-brand-card border border-white/10 rounded-sm overflow-hidden border-l-4 ${getTipoBg(missao.tipo)} hover:border-white/20 transition-colors`}
+              className={`bg-brand-card border border-white/10 rounded-sm border-l-4 ${getTipoBg(missao.tipo)} hover:border-white/20 transition-colors`}
             >
               <div className="flex items-start gap-4 p-4">
                 <div className="flex items-center gap-2">
@@ -257,7 +269,7 @@ export const MissoesAdmin: React.FC = () => {
                     )}
                   </div>
 
-                  {missao.tipo === 'padrao' && (
+                  {(missao.tipo === 'padrao' || missao.tipo === 'estudo') && (
                     <>
                       {missao.assunto && (
                         <p className="text-gray-300 text-sm mb-1 line-clamp-2">{missao.assunto}</p>
@@ -303,7 +315,7 @@ export const MissoesAdmin: React.FC = () => {
                   </button>
 
                   {openMenuId === missao.id && (
-                    <div className="absolute right-0 top-full mt-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl z-10 min-w-[140px]">
+                    <div className="absolute right-0 bottom-full mb-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl z-50 min-w-[140px]">
                       <button
                         onClick={() => {
                           setEditingMissao(missao);
@@ -385,7 +397,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
 
   const [formData, setFormData] = useState({
     numero: missao?.numero ?? nextNumero,
-    tipo: missao?.tipo ?? 'padrao' as MissaoTipo,
+    tipo: missao?.tipo ?? 'estudo' as MissaoTipo,
     materia: missao?.materia || '',
     assunto: missao?.assunto || '',
     instrucoes: missao?.instrucoes || '',
@@ -396,14 +408,17 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
     ordem: missao?.ordem ?? parseInt(nextNumero)
   });
 
-  const [newExtra, setNewExtra] = useState('');
-
   // Estado para topicos do edital
   const [showTopicSelector, setShowTopicSelector] = useState(false);
   const [selectedEditalItemIds, setSelectedEditalItemIds] = useState<string[]>([]);
   const [selectedEditalItems, setSelectedEditalItems] = useState<EditalItem[]>([]);
   const [usedEditalItemIds, setUsedEditalItemIds] = useState<string[]>([]);
   const [loadingTopics, setLoadingTopics] = useState(false);
+
+  // Estado para dropdown de matérias do edital
+  const [materiasEdital, setMateriasEdital] = useState<EditalItem[]>([]);
+  const [showMateriaDropdown, setShowMateriaDropdown] = useState(false);
+  const [materiaFilter, setMateriaFilter] = useState('');
 
   // Estado para filtros de questoes
   const [existingFiltros, setExistingFiltros] = useState<MissaoQuestaoFiltros | null>(null);
@@ -418,6 +433,11 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
         // Carregar topicos ja usados em outras missoes
         const usedIds = await missoesService.getUsedEditalItemIds(preparatorioId);
         setUsedEditalItemIds(usedIds);
+
+        // Carregar todas as matérias do edital para o dropdown
+        const allItems = await editalService.getByPreparatorio(preparatorioId);
+        const materias = allItems.filter(item => item.tipo === 'materia');
+        setMateriasEdital(materias);
 
         // Se estiver editando, carregar topicos desta missao
         if (missao) {
@@ -475,13 +495,16 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
     setLoading(true);
 
     try {
+      // Tipos que usam campos de estudo (materia, assunto, instrucoes)
+      const isTipoEstudo = formData.tipo === 'padrao' || formData.tipo === 'estudo';
+
       const data = {
         numero: formData.numero,
         tipo: formData.tipo,
-        materia: formData.tipo === 'padrao' ? formData.materia || null : null,
-        assunto: formData.tipo === 'padrao' ? formData.assunto || null : null,
-        instrucoes: formData.tipo === 'padrao' ? formData.instrucoes || null : null,
-        tema: formData.tipo === 'revisao' || formData.tipo === 'padrao' ? formData.tema || null : null,
+        materia: isTipoEstudo ? formData.materia || null : null,
+        assunto: isTipoEstudo ? formData.assunto || null : null,
+        instrucoes: isTipoEstudo ? formData.instrucoes || null : null,
+        tema: formData.tipo === 'revisao' || isTipoEstudo ? formData.tema || null : null,
         acao: formData.tipo === 'acao' ? formData.acao || null : null,
         extra: formData.extra.length > 0 ? formData.extra : null,
         obs: formData.obs || null,
@@ -504,15 +527,15 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
       setSavedMissaoId(missaoId);
 
       // Salvar vinculos com topicos do edital
-      if (missaoId && formData.tipo === 'padrao') {
+      if (missaoId && isTipoEstudo) {
         await missoesService.setEditalItems(missaoId, selectedEditalItemIds);
       }
 
-      // Se for tipo padrao, avancar para etapa 2 (filtros de questoes)
-      if (formData.tipo === 'padrao') {
+      // Se for tipo estudo, avancar para etapa 2 (filtros de questoes)
+      if (isTipoEstudo) {
         setStep(2);
       } else {
-        // Se nao for padrao, finalizar
+        // Se nao for tipo estudo, finalizar
         onSave();
       }
     } catch (error) {
@@ -549,20 +572,6 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
     onSave();
   };
 
-  const addExtra = () => {
-    if (newExtra.trim()) {
-      setFormData({ ...formData, extra: [...formData.extra, newExtra.trim()] });
-      setNewExtra('');
-    }
-  };
-
-  const removeExtra = (index: number) => {
-    setFormData({
-      ...formData,
-      extra: formData.extra.filter((_, i) => i !== index)
-    });
-  };
-
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-brand-card border border-white/10 w-full max-w-2xl rounded-sm my-8">
@@ -572,7 +581,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
             <h3 className="text-xl font-bold text-white uppercase">
               {missao ? 'Editar Missao' : 'Nova Missao'}
             </h3>
-            {formData.tipo === 'padrao' && (
+            {(formData.tipo === 'padrao' || formData.tipo === 'estudo') && (
               <div className="flex items-center gap-2 mt-2">
                 <div className={`flex items-center gap-1 text-xs ${step === 1 ? 'text-brand-yellow' : 'text-gray-500'}`}>
                   <span className={`w-5 h-5 flex items-center justify-center rounded-full border ${step === 1 ? 'border-brand-yellow bg-brand-yellow/20' : 'border-gray-600'}`}>1</span>
@@ -613,26 +622,28 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
                   onChange={(e) => setFormData({ ...formData, tipo: e.target.value as MissaoTipo })}
                   className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
                 >
-                  <option value="padrao">Padrao (Estudo)</option>
+                  <option value="estudo">Estudo</option>
                   <option value="revisao">Revisao</option>
                   <option value="acao">Acao</option>
+                  <option value="tecnicas">Tecnicas</option>
+                  <option value="simulado">Simulado</option>
                 </select>
               </div>
             </div>
 
-            {/* Campos para tipo PADRAO */}
-            {formData.tipo === 'padrao' && (
+            {/* Campos para tipo PADRAO ou ESTUDO */}
+            {(formData.tipo === 'padrao' || formData.tipo === 'estudo') && (
               <>
-                {/* Topicos do Edital */}
+                {/* Assuntos do Edital */}
                 <div>
                   <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
-                    Topicos do Edital
+                    Assuntos do Edital
                   </label>
                   <div className="bg-brand-dark border border-white/10 p-3">
                     {loadingTopics ? (
                       <p className="text-gray-500 text-sm">Carregando...</p>
                     ) : selectedEditalItems.length === 0 ? (
-                      <p className="text-gray-500 text-sm mb-3">Nenhum topico selecionado</p>
+                      <p className="text-gray-500 text-sm mb-3">Nenhum assunto selecionado</p>
                     ) : (
                       <div className="flex flex-wrap gap-2 mb-3">
                         {selectedEditalItems.map(item => (
@@ -659,20 +670,67 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
                       className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 text-gray-300 text-sm hover:bg-white/10 hover:text-white transition-colors"
                     >
                       <Plus className="w-4 h-4" />
-                      Selecionar Topicos do Edital
+                      Selecionar Assuntos do Edital
                     </button>
                   </div>
                 </div>
 
-                <div>
+                <div className="relative">
                   <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Materia</label>
-                  <input
-                    type="text"
-                    value={formData.materia}
-                    onChange={(e) => setFormData({ ...formData, materia: e.target.value })}
-                    className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-                    placeholder="Ex: Direito Constitucional"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.materia}
+                      onChange={(e) => {
+                        setFormData({ ...formData, materia: e.target.value });
+                        setMateriaFilter(e.target.value);
+                        setShowMateriaDropdown(true);
+                      }}
+                      onFocus={() => setShowMateriaDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowMateriaDropdown(false), 200)}
+                      className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                      placeholder={materiasEdital.length > 0 ? "Selecione ou digite uma matéria..." : "Ex: Direito Constitucional"}
+                    />
+                    {showMateriaDropdown && materiasEdital.length > 0 && (
+                      <div className="absolute z-20 w-full mt-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl max-h-48 overflow-y-auto">
+                        {materiasEdital
+                          .filter(m =>
+                            !formData.materia ||
+                            m.titulo.toLowerCase().includes(formData.materia.toLowerCase())
+                          )
+                          .map(materia => (
+                            <button
+                              key={materia.id}
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setFormData({ ...formData, materia: materia.titulo });
+                                setShowMateriaDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors ${
+                                formData.materia === materia.titulo
+                                  ? 'bg-brand-yellow/20 text-brand-yellow'
+                                  : 'text-gray-300'
+                              }`}
+                            >
+                              {materia.titulo}
+                            </button>
+                          ))
+                        }
+                        {formData.materia &&
+                          !materiasEdital.some(m => m.titulo.toLowerCase() === formData.materia.toLowerCase()) && (
+                          <div className="px-3 py-2 text-xs text-gray-500 border-t border-white/10">
+                            Pressione Enter para usar: "{formData.materia}"
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {materiasEdital.length === 0 && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      Nenhuma matéria cadastrada no edital. Digite o nome da matéria.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Assunto</label>
@@ -697,8 +755,8 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
               </>
             )}
 
-            {/* Campo para tipo REVISAO ou adicional do PADRAO */}
-            {(formData.tipo === 'revisao' || formData.tipo === 'padrao') && (
+            {/* Campo para tipo REVISAO ou adicional do ESTUDO */}
+            {(formData.tipo === 'revisao' || formData.tipo === 'padrao' || formData.tipo === 'estudo') && (
               <div>
                 <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
                   {formData.tipo === 'revisao' ? 'Tema da Revisao *' : 'Tema de Revisao (opcional)'}
@@ -729,44 +787,6 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
               </div>
             )}
 
-            {/* Extras */}
-            <div>
-              <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Extras (opcional)</label>
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={newExtra}
-                  onChange={(e) => setNewExtra(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addExtra())}
-                  className="flex-1 bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-                  placeholder="Ex: Revisao: Parte 1 - Direito Constitucional"
-                />
-                <button
-                  type="button"
-                  onClick={addExtra}
-                  className="px-4 bg-white/10 text-white hover:bg-white/20 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-              {formData.extra.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {formData.extra.map((item, i) => (
-                    <span key={i} className="flex items-center gap-1 px-2 py-1 bg-brand-dark/50 text-gray-300 text-sm rounded">
-                      {item}
-                      <button
-                        type="button"
-                        onClick={() => removeExtra(i)}
-                        className="text-gray-500 hover:text-red-400"
-                      >
-                        &times;
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Observacao */}
             <div>
               <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Observacao (opcional)</label>
@@ -794,6 +814,23 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
               </div>
             )}
 
+            {/* Observações de adaptação da IA */}
+            {existingFiltros?.adaptacoes_observacoes && (
+              <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded-sm">
+                <div className="flex items-start gap-2">
+                  <span className="text-purple-400 text-xs font-bold uppercase">Adaptações da IA:</span>
+                </div>
+                <p className="text-purple-300 text-sm mt-1 whitespace-pre-wrap">
+                  {existingFiltros.adaptacoes_observacoes}
+                </p>
+                {existingFiltros.otimizado_por_ia && (
+                  <p className="text-purple-400/60 text-xs mt-2 italic">
+                    Filtros otimizados automaticamente pela IA
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="flex justify-end gap-3 pt-4">
               <button
                 type="button"
@@ -809,7 +846,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
               >
                 {loading ? (
                   'Salvando...'
-                ) : formData.tipo === 'padrao' ? (
+                ) : (formData.tipo === 'padrao' || formData.tipo === 'estudo') ? (
                   <>
                     Proximo
                     <ArrowRight className="w-4 h-4" />

@@ -965,6 +965,10 @@ export interface MissaoQuestaoFiltros {
   questoes_count: number;
   created_at: string;
   updated_at: string;
+  // Campos de otimização por IA
+  adaptacoes_observacoes?: string | null;
+  otimizado_por_ia?: boolean;
+  filtros_originais?: QuestaoFiltrosData | null;
 }
 
 // ==================== MENSAGENS DE INCENTIVO ====================

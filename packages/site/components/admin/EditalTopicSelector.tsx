@@ -229,9 +229,9 @@ export const EditalTopicSelector: React.FC<EditalTopicSelectorProps> = ({
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-white/10">
           <div>
-            <h3 className="text-lg font-bold text-white">Selecionar Topicos do Edital</h3>
+            <h3 className="text-lg font-bold text-white">Selecionar Assuntos do Edital</h3>
             <p className="text-sm text-gray-500">
-              {totalSelected} topico{totalSelected !== 1 ? 's' : ''} selecionado{totalSelected !== 1 ? 's' : ''}
+              {totalSelected} assunto{totalSelected !== 1 ? 's' : ''} selecionado{totalSelected !== 1 ? 's' : ''}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white">
@@ -247,7 +247,7 @@ export const EditalTopicSelector: React.FC<EditalTopicSelectorProps> = ({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar topico..."
+              placeholder="Buscar assunto..."
               className="w-full bg-brand-dark border border-white/10 pl-10 pr-4 py-2 text-white text-sm focus:border-brand-yellow/50 outline-none transition-colors"
             />
           </div>
@@ -264,20 +264,20 @@ export const EditalTopicSelector: React.FC<EditalTopicSelectorProps> = ({
               <FileText className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-500">Nenhum item no edital</p>
               <p className="text-gray-600 text-sm mt-1">
-                Cadastre o edital primeiro para poder selecionar topicos
+                Cadastre o edital verticalizado primeiro para poder selecionar assuntos
               </p>
             </div>
           ) : (
             <div>
               {items.map(item => renderItem(item))}
 
-              {/* Mensagem se todos os topicos ja foram usados */}
+              {/* Mensagem se todos os assuntos ja foram usados */}
               {items.every(item => !hasAvailableChildren(item)) && (
                 <div className="text-center py-12">
                   <Check className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                  <p className="text-gray-400">Todos os topicos ja foram atribuidos</p>
+                  <p className="text-gray-400">Todos os assuntos ja foram atribuidos</p>
                   <p className="text-gray-600 text-sm mt-1">
-                    Nao ha mais topicos disponiveis para selecao
+                    Nao ha mais assuntos disponiveis para selecao
                   </p>
                 </div>
               )}
