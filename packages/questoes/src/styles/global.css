@@ -5,6 +5,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Utility: Hide scrollbar */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
 /* CSS Variables */
 :root {
   --color-brand: #FFB800;
