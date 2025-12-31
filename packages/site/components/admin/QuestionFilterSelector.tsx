@@ -4,6 +4,7 @@ import {
   getFilterOptions,
   getDynamicFilterOptions,
   countQuestionsForFilters,
+  getAssuntosByMaterias,
   QuestionFilters,
   isExternalDbAvailable
 } from '../../services/externalQuestionsService';
@@ -38,21 +39,27 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   const [dynamicOrgaos, setDynamicOrgaos] = useState<string[]>([]);
   const [dynamicCargos, setDynamicCargos] = useState<string[]>([]);
 
+  // Assuntos (dinamico, baseado em materias)
+  const [availableAssuntos, setAvailableAssuntos] = useState<string[]>([]);
+  const [loadingAssuntos, setLoadingAssuntos] = useState(false);
+
   // Filtros selecionados
   const [selectedMaterias, setSelectedMaterias] = useState<string[]>(initialFilters?.materias || []);
   const [selectedBancas, setSelectedBancas] = useState<string[]>(initialFilters?.bancas || []);
   const [selectedAnos, setSelectedAnos] = useState<number[]>(initialFilters?.anos || []);
   const [selectedOrgaos, setSelectedOrgaos] = useState<string[]>(initialFilters?.orgaos || []);
   const [selectedCargos, setSelectedCargos] = useState<string[]>(initialFilters?.cargos || []);
+  const [selectedAssuntos, setSelectedAssuntos] = useState<string[]>(initialFilters?.assuntos || []);
 
   // Contagem de questoes
   const [questionsCount, setQuestionsCount] = useState<number>(0);
 
   // Secoes expandidas
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['materias', 'bancas', 'anos', 'orgaos', 'cargos']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['materias', 'assuntos', 'bancas', 'anos', 'orgaos', 'cargos']));
 
   // Busca por secao
   const [searchMaterias, setSearchMaterias] = useState('');
+  const [searchAssuntos, setSearchAssuntos] = useState('');
   const [searchBancas, setSearchBancas] = useState('');
   const [searchOrgaos, setSearchOrgaos] = useState('');
   const [searchCargos, setSearchCargos] = useState('');
@@ -106,6 +113,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
       anos: selectedAnos.length > 0 ? selectedAnos : undefined,
       orgaos: selectedOrgaos.length > 0 ? selectedOrgaos : undefined,
       cargos: selectedCargos.length > 0 ? selectedCargos : undefined,
+      assuntos: selectedAssuntos.length > 0 ? selectedAssuntos : undefined,
     };
 
     try {
@@ -118,7 +126,38 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     } catch (error) {
       console.error('Erro ao atualizar opcoes dinamicas:', error);
     }
-  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos]);
+  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos]);
+
+  // Carregar assuntos quando materias mudam
+  useEffect(() => {
+    const loadAssuntos = async () => {
+      if (selectedMaterias.length === 0) {
+        setAvailableAssuntos([]);
+        // Limpar assuntos selecionados se nao ha materias
+        if (selectedAssuntos.length > 0) {
+          setSelectedAssuntos([]);
+        }
+        return;
+      }
+
+      setLoadingAssuntos(true);
+      try {
+        const result = await getAssuntosByMaterias(selectedMaterias);
+        setAvailableAssuntos(result.assuntos);
+        // Manter apenas assuntos que ainda existem
+        setSelectedAssuntos(prev => prev.filter(a => result.assuntos.includes(a)));
+      } catch (error) {
+        console.error('Erro ao carregar assuntos:', error);
+        setAvailableAssuntos([]);
+      } finally {
+        setLoadingAssuntos(false);
+      }
+    };
+
+    if (dbConfigured && !loading) {
+      loadAssuntos();
+    }
+  }, [selectedMaterias, dbConfigured, loading]);
 
   // Atualizar contagem quando filtros mudam
   const updateCount = useCallback(async () => {
@@ -132,6 +171,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
         anos: selectedAnos.length > 0 ? selectedAnos : undefined,
         orgaos: selectedOrgaos.length > 0 ? selectedOrgaos : undefined,
         cargos: selectedCargos.length > 0 ? selectedCargos : undefined,
+        assuntos: selectedAssuntos.length > 0 ? selectedAssuntos : undefined,
       };
 
       const result = await countQuestionsForFilters(filters);
@@ -141,7 +181,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     } finally {
       setLoadingCount(false);
     }
-  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos]);
+  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos]);
 
   useEffect(() => {
     if (!loading) {
@@ -202,8 +242,17 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     );
   };
 
+  const toggleAssunto = (assunto: string) => {
+    setSelectedAssuntos(prev =>
+      prev.includes(assunto)
+        ? prev.filter(a => a !== assunto)
+        : [...prev, assunto]
+    );
+  };
+
   const clearAllFilters = () => {
     setSelectedMaterias([]);
+    setSelectedAssuntos([]);
     setSelectedBancas([]);
     setSelectedAnos([]);
     setSelectedOrgaos([]);
@@ -215,6 +264,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     try {
       const filters: QuestionFilters = {
         materias: selectedMaterias.length > 0 ? selectedMaterias : undefined,
+        assuntos: selectedAssuntos.length > 0 ? selectedAssuntos : undefined,
         bancas: selectedBancas.length > 0 ? selectedBancas : undefined,
         anos: selectedAnos.length > 0 ? selectedAnos : undefined,
         orgaos: selectedOrgaos.length > 0 ? selectedOrgaos : undefined,
@@ -227,7 +277,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     }
   };
 
-  const hasAnyFilter = selectedMaterias.length > 0 || selectedBancas.length > 0 || selectedAnos.length > 0 || selectedOrgaos.length > 0 || selectedCargos.length > 0;
+  const hasAnyFilter = selectedMaterias.length > 0 || selectedAssuntos.length > 0 || selectedBancas.length > 0 || selectedAnos.length > 0 || selectedOrgaos.length > 0 || selectedCargos.length > 0;
 
   // Filtrar opcoes por busca
   const filteredMaterias = dynamicMaterias.filter(m =>
@@ -241,6 +291,9 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   );
   const filteredCargos = dynamicCargos.filter(c =>
     c.toLowerCase().includes(searchCargos.toLowerCase())
+  );
+  const filteredAssuntos = availableAssuntos.filter(a =>
+    a.toLowerCase().includes(searchAssuntos.toLowerCase())
   );
 
   if (!dbConfigured) {
@@ -336,6 +389,59 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
                   <p className="text-gray-500 text-sm text-center py-2">Nenhuma materia encontrada</p>
                 )}
               </div>
+            </FilterSection>
+
+            {/* Assuntos (dinamico, baseado em materias) */}
+            <FilterSection
+              title="Assuntos"
+              icon={<FileText className="w-4 h-4" />}
+              expanded={expandedSections.has('assuntos')}
+              onToggle={() => toggleSection('assuntos')}
+              selectedCount={selectedAssuntos.length}
+              totalCount={availableAssuntos.length}
+            >
+              {selectedMaterias.length === 0 ? (
+                <div className="text-gray-500 text-sm text-center py-4">
+                  Selecione uma ou mais materias primeiro
+                </div>
+              ) : loadingAssuntos ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 text-brand-yellow animate-spin" />
+                  <span className="ml-2 text-gray-400 text-sm">Carregando assuntos...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-2">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                      <input
+                        type="text"
+                        value={searchAssuntos}
+                        onChange={(e) => setSearchAssuntos(e.target.value)}
+                        placeholder="Buscar assunto..."
+                        className="w-full bg-brand-dark border border-white/10 pl-8 pr-3 py-1.5 text-sm text-white focus:border-brand-yellow/50 outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {filteredAssuntos.map(assunto => (
+                      <FilterOption
+                        key={assunto}
+                        label={assunto}
+                        selected={selectedAssuntos.includes(assunto)}
+                        available={true}
+                        onClick={() => toggleAssunto(assunto)}
+                      />
+                    ))}
+                    {filteredAssuntos.length === 0 && availableAssuntos.length > 0 && (
+                      <p className="text-gray-500 text-sm text-center py-2">Nenhum assunto encontrado</p>
+                    )}
+                    {availableAssuntos.length === 0 && (
+                      <p className="text-gray-500 text-sm text-center py-2">Nenhum assunto disponivel para as materias selecionadas</p>
+                    )}
+                  </div>
+                </>
+              )}
             </FilterSection>
 
             {/* Bancas */}

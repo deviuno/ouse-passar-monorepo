@@ -383,6 +383,57 @@ export async function getDynamicFilterOptions(currentFilters: QuestionFilters): 
 }
 
 /**
+ * Get assuntos available for selected materias
+ * Loads dynamically based on selected materias
+ */
+export async function getAssuntosByMaterias(
+  materias: string[]
+): Promise<{ assuntos: string[]; error?: string }> {
+  if (!questionsDb) {
+    return {
+      assuntos: [],
+      error: 'Banco de questões não configurado.'
+    };
+  }
+
+  if (!materias || materias.length === 0) {
+    return { assuntos: [] };
+  }
+
+  try {
+    // Buscar em lotes pequenos para cada matéria e coletar assuntos únicos
+    const assuntosSet = new Set<string>();
+
+    for (const materia of materias) {
+      const { data, error } = await questionsDb
+        .from('questoes_concurso')
+        .select('assunto')
+        .eq('materia', materia)
+        .not('assunto', 'is', null)
+        .not('enunciado', 'is', null)
+        .neq('enunciado', '')
+        .neq('enunciado', 'deleted')
+        .limit(1000);
+
+      if (error) {
+        console.error(`Erro ao buscar assuntos para ${materia}:`, error);
+        continue;
+      }
+
+      (data || []).forEach(r => {
+        if (r.assunto) assuntosSet.add(r.assunto);
+      });
+    }
+
+    const uniqueAssuntos = Array.from(assuntosSet).sort();
+    return { assuntos: uniqueAssuntos };
+  } catch (error: any) {
+    console.error('Erro ao buscar assuntos:', error);
+    return { assuntos: [], error: error.message };
+  }
+}
+
+/**
  * Get statistics about the questions database
  */
 export async function getQuestionsStats(): Promise<{ stats: QuestionsStats | null; error?: string }> {
