@@ -40,6 +40,9 @@ function getSupabaseQuestoesClient(): SupabaseClient {
         const supabaseUrl = process.env.VITE_QUESTIONS_DB_URL || '';
         const supabaseKey = process.env.VITE_QUESTIONS_DB_ANON_KEY || '';
 
+        console.log('[FiltrosAdapter] Questions DB URL:', supabaseUrl ? supabaseUrl.substring(0, 40) + '...' : 'NÃO DEFINIDA');
+        console.log('[FiltrosAdapter] Questions DB Key:', supabaseKey ? `DEFINIDA (${supabaseKey.length} chars)` : 'NÃO DEFINIDA');
+
         if (!supabaseUrl || !supabaseKey) {
             throw new Error('Supabase Questions DB URL and Key are required. Check your .env file.');
         }
@@ -85,37 +88,119 @@ interface ResultadoOtimizacao {
 
 /**
  * Busca todas as matérias únicas do banco de questões
+ * Usa estratégia de sampling com múltiplos offsets para cobrir toda a base
  */
 async function buscarMateriasUnicasDoBanco(): Promise<string[]> {
     const supabase = getSupabaseQuestoesClient();
 
     try {
-        // Buscar matérias distintas
-        const { data, error } = await supabase
-            .from('questoes_concurso')
-            .select('materia')
-            .not('materia', 'is', null)
-            .limit(10000);
+        console.log('[FiltrosAdapter] Buscando matérias únicas do banco de questões...');
 
-        if (error) {
-            console.error('[FiltrosAdapter] Erro ao buscar matérias:', error);
-            return [];
+        // Primeiro, verificar se a tabela existe e tem dados
+        const { count: totalCount, error: countError } = await supabase
+            .from('questoes_concurso')
+            .select('*', { count: 'exact', head: true });
+
+        const total = totalCount || 0;
+        console.log(`[FiltrosAdapter] Total de questões no banco: ${total}`);
+        if (countError) {
+            console.error('[FiltrosAdapter] Erro ao contar questões:', countError);
         }
 
-        // Extrair matérias únicas
+        // Estratégia: buscar samples em diferentes partes do banco
+        // Isso é MUITO mais eficiente do que percorrer 155k registros
         const materiasSet = new Set<string>();
-        for (const row of data || []) {
-            if (row.materia && typeof row.materia === 'string' && row.materia.trim()) {
-                materiasSet.add(row.materia.trim());
+        const SAMPLE_SIZE = 1000;
+
+        // Calcular offsets distribuídos ao longo do banco
+        const numSamples = Math.min(20, Math.ceil(total / 10000)); // Max 20 samples
+        const step = Math.floor(total / numSamples);
+
+        console.log(`[FiltrosAdapter] Usando ${numSamples} samples com step de ${step}...`);
+
+        for (let i = 0; i < numSamples; i++) {
+            const offset = i * step;
+
+            const { data, error } = await supabase
+                .from('questoes_concurso')
+                .select('materia')
+                .not('materia', 'is', null)
+                .neq('materia', '')
+                .range(offset, offset + SAMPLE_SIZE - 1);
+
+            if (error) {
+                console.error(`[FiltrosAdapter] Erro no sample ${i + 1}:`, error);
+                continue;
+            }
+
+            if (data && data.length > 0) {
+                for (const row of data) {
+                    if (row.materia && typeof row.materia === 'string' && row.materia.trim()) {
+                        materiasSet.add(row.materia.trim());
+                    }
+                }
+                console.log(`[FiltrosAdapter] Sample ${i + 1}/${numSamples} (offset ${offset}): ${data.length} registros, ${materiasSet.size} matérias únicas até agora`);
             }
         }
 
         const materias = Array.from(materiasSet).sort();
-        console.log(`[FiltrosAdapter] Encontradas ${materias.length} matérias únicas no banco`);
+        console.log(`[FiltrosAdapter] Total: ${materias.length} matérias únicas encontradas`);
+        console.log(`[FiltrosAdapter] Matérias: ${materias.join(', ')}`);
 
         return materias;
     } catch (error) {
         console.error('[FiltrosAdapter] Erro:', error);
+        return [];
+    }
+}
+
+/**
+ * Busca todas as bancas únicas do banco de questões
+ * Usa estratégia de sampling similar à busca de matérias
+ */
+async function buscarBancasUnicasDoBanco(): Promise<string[]> {
+    const supabase = getSupabaseQuestoesClient();
+
+    try {
+        console.log('[FiltrosAdapter] Buscando bancas únicas do banco de questões...');
+
+        const { count: totalCount } = await supabase
+            .from('questoes_concurso')
+            .select('*', { count: 'exact', head: true });
+
+        const total = totalCount || 0;
+        const bancasSet = new Set<string>();
+        const SAMPLE_SIZE = 1000;
+        const numSamples = Math.min(10, Math.ceil(total / 20000)); // Menos samples para bancas
+        const step = Math.floor(total / numSamples);
+
+        for (let i = 0; i < numSamples; i++) {
+            const offset = i * step;
+
+            const { data, error } = await supabase
+                .from('questoes_concurso')
+                .select('banca')
+                .not('banca', 'is', null)
+                .neq('banca', '')
+                .range(offset, offset + SAMPLE_SIZE - 1);
+
+            if (error) continue;
+
+            if (data && data.length > 0) {
+                for (const row of data) {
+                    if (row.banca && typeof row.banca === 'string' && row.banca.trim()) {
+                        bancasSet.add(row.banca.trim());
+                    }
+                }
+            }
+        }
+
+        const bancas = Array.from(bancasSet).sort();
+        console.log(`[FiltrosAdapter] Total: ${bancas.length} bancas únicas encontradas`);
+
+        return bancas;
+    } catch (error) {
+        console.error('[FiltrosAdapter] Erro ao buscar bancas:', error);
         return [];
     }
 }
@@ -297,8 +382,11 @@ export async function otimizarFiltrosPreparatorio(
     console.log(`[FiltrosAdapter] Iniciando otimização de filtros para preparatório: ${preparatorioId}`);
 
     try {
-        // 1. Buscar matérias únicas do banco de questões
-        const materiasDisponiveis = await buscarMateriasUnicasDoBanco();
+        // 1. Buscar matérias e bancas únicas do banco de questões
+        const [materiasDisponiveis, bancasDisponiveis] = await Promise.all([
+            buscarMateriasUnicasDoBanco(),
+            buscarBancasUnicasDoBanco(),
+        ]);
 
         if (materiasDisponiveis.length === 0) {
             return {
@@ -309,6 +397,8 @@ export async function otimizarFiltrosPreparatorio(
                 error: 'Não foi possível buscar matérias do banco de questões',
             };
         }
+
+        console.log(`[FiltrosAdapter] Bancas disponíveis: ${bancasDisponiveis.slice(0, 10).join(', ')}${bancasDisponiveis.length > 10 ? '...' : ''}`);
 
         // 2. Buscar missões com seus filtros
         const missoes = await buscarMissoesComFiltros(preparatorioId);
@@ -397,6 +487,38 @@ Responda APENAS no formato JSON:
                     } catch (error) {
                         console.error(`[FiltrosAdapter] Erro ao adaptar matéria: ${error}`);
                         observacoes.push(`Matéria: "${materiaOriginal}" - Erro na adaptação, mantido original`);
+                    }
+                }
+            }
+
+            // Verificar e adaptar bancas
+            if (filtrosOtimizados.bancas && filtrosOtimizados.bancas.length > 0) {
+                const bancasOriginais = [...filtrosOtimizados.bancas];
+                const bancasValidas: string[] = [];
+                const bancasRemovidas: string[] = [];
+
+                for (const banca of bancasOriginais) {
+                    // Verificar se a banca existe no banco (case insensitive)
+                    const bancaEncontrada = bancasDisponiveis.find(
+                        b => b.toLowerCase() === banca.toLowerCase()
+                    );
+
+                    if (bancaEncontrada) {
+                        bancasValidas.push(bancaEncontrada);
+                    } else {
+                        bancasRemovidas.push(banca);
+                    }
+                }
+
+                if (bancasRemovidas.length > 0) {
+                    if (bancasValidas.length > 0) {
+                        filtrosOtimizados.bancas = bancasValidas;
+                        observacoes.push(`Bancas: Removidas ${bancasRemovidas.join(', ')} (não encontradas no banco)`);
+                    } else {
+                        // Nenhuma banca válida, remover filtro de banca para buscar de todas
+                        delete filtrosOtimizados.bancas;
+                        observacoes.push(`Bancas: Removido filtro de banca (${bancasRemovidas.join(', ')} não encontradas - busca em todas as bancas)`);
+                        console.log(`[FiltrosAdapter] Removido filtro de banca: ${bancasRemovidas.join(', ')}`);
                     }
                 }
             }
