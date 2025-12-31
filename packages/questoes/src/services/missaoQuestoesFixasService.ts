@@ -207,6 +207,85 @@ export async function getQuestaoIdsDaMissao(missaoId: string): Promise<number[]>
   }
 }
 
+/**
+ * Limpa as questões fixas de uma missão para forçar regeneração
+ * Útil quando as questões foram geradas incorretamente
+ */
+export async function limparQuestoesFixasDaMissao(missaoId: string): Promise<boolean> {
+  console.log('[MissaoQuestoesFixas] Limpando questões fixas da missão:', missaoId);
+
+  try {
+    const { error } = await supabase
+      .from('missao_questoes')
+      .delete()
+      .eq('missao_id', missaoId);
+
+    if (error) {
+      console.error('[MissaoQuestoesFixas] Erro ao limpar questões:', error);
+      return false;
+    }
+
+    console.log('[MissaoQuestoesFixas] Questões fixas limpas com sucesso!');
+    return true;
+  } catch (error) {
+    console.error('[MissaoQuestoesFixas] Exceção ao limpar:', error);
+    return false;
+  }
+}
+
+/**
+ * Limpa todas as questões fixas de um preparatório
+ * Útil quando precisa regenerar todas as missões
+ */
+export async function limparTodasQuestoesFixasDoPreparatorio(preparatorioId: string): Promise<{ success: boolean; count: number }> {
+  console.log('[MissaoQuestoesFixas] Limpando TODAS as questões fixas do preparatório:', preparatorioId);
+
+  try {
+    // Primeiro buscar todas as missões do preparatório
+    const { data: rodadas, error: rodadasError } = await supabase
+      .from('rodadas')
+      .select('id')
+      .eq('preparatorio_id', preparatorioId);
+
+    if (rodadasError || !rodadas || rodadas.length === 0) {
+      console.log('[MissaoQuestoesFixas] Nenhuma rodada encontrada');
+      return { success: true, count: 0 };
+    }
+
+    const rodadaIds = rodadas.map(r => r.id);
+
+    // Buscar missões dessas rodadas
+    const { data: missoes, error: missoesError } = await supabase
+      .from('missoes')
+      .select('id')
+      .in('rodada_id', rodadaIds);
+
+    if (missoesError || !missoes || missoes.length === 0) {
+      console.log('[MissaoQuestoesFixas] Nenhuma missão encontrada');
+      return { success: true, count: 0 };
+    }
+
+    const missaoIds = missoes.map(m => m.id);
+
+    // Deletar questões fixas dessas missões
+    const { error: deleteError } = await supabase
+      .from('missao_questoes')
+      .delete()
+      .in('missao_id', missaoIds);
+
+    if (deleteError) {
+      console.error('[MissaoQuestoesFixas] Erro ao limpar questões:', deleteError);
+      return { success: false, count: 0 };
+    }
+
+    console.log(`[MissaoQuestoesFixas] Limpas questões de ${missaoIds.length} missões`);
+    return { success: true, count: missaoIds.length };
+  } catch (error) {
+    console.error('[MissaoQuestoesFixas] Exceção ao limpar:', error);
+    return { success: false, count: 0 };
+  }
+}
+
 // Helper para parse de alternativas
 function parseAlternativas(alternativas: string | any[]): Array<{ letter: string; text: string }> {
   if (!alternativas) return [];
