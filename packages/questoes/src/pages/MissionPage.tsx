@@ -1950,7 +1950,7 @@ export default function MissionPage() {
           }}
           userId={user?.id}
           preparatorioId={getSelectedPreparatorio()?.preparatorio_id}
-          checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_8_questoes}
+          checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_ouse_questoes}
         />
       </div>
 
@@ -2063,7 +2063,7 @@ export default function MissionPage() {
       <BatteryEmptyModal
         isOpen={isEmptyModalOpen}
         onClose={closeEmptyModal}
-        checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_8_questoes}
+        checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_ouse_questoes}
         price={getSelectedPreparatorio()?.preparatorio?.price_questoes}
         preparatorioNome={getSelectedPreparatorio()?.preparatorio?.nome}
       />

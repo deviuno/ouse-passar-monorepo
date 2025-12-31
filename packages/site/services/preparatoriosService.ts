@@ -161,7 +161,7 @@ export interface CreatePreparatorioInput {
   guru_product_id_planejador?: string;
   preco_8_questoes?: number | null;
   preco_8_questoes_desconto?: number | null;
-  checkout_8_questoes?: string;
+  checkout_ouse_questoes?: string;
   guru_product_id_8_questoes?: string;
   preco_simulados?: number | null;
   preco_simulados_desconto?: number | null;
@@ -233,7 +233,7 @@ export interface UpdatePreparatorioInput {
   guru_product_id_planejador?: string;
   preco_8_questoes?: number | null;
   preco_8_questoes_desconto?: number | null;
-  checkout_8_questoes?: string;
+  checkout_ouse_questoes?: string;
   guru_product_id_8_questoes?: string;
   preco_simulados?: number | null;
   preco_simulados_desconto?: number | null;

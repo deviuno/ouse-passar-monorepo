@@ -30,7 +30,7 @@ export interface Preparatorio {
   edital_url?: string;
   checkout_url?: string; // URL de checkout para upsell de modos
   // URLs de checkout por produto
-  checkout_8_questoes?: string; // Ouse Questões (bateria ilimitada)
+  checkout_ouse_questoes?: string; // Ouse Questões (bateria ilimitada)
   checkout_planejador?: string;
   checkout_simulados?: string;
   checkout_reta_final?: string;

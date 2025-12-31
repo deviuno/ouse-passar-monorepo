@@ -1040,7 +1040,7 @@ export default function PracticePage() {
           userContext={{ name: user?.user_metadata?.name }}
           userId={user?.id}
           preparatorioId={getSelectedPreparatorio()?.preparatorio_id || userPreparatorios[0]?.preparatorio_id}
-          checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_8_questoes || userPreparatorios[0]?.preparatorio?.checkout_8_questoes}
+          checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_ouse_questoes || userPreparatorios[0]?.preparatorio?.checkout_ouse_questoes}
         />
 
         {/* Floating Chat Button */}
@@ -1903,7 +1903,7 @@ export default function PracticePage() {
       <BatteryEmptyModal
         isOpen={isEmptyModalOpen}
         onClose={closeEmptyModal}
-        checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_8_questoes || userPreparatorios[0]?.preparatorio?.checkout_8_questoes}
+        checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_ouse_questoes || userPreparatorios[0]?.preparatorio?.checkout_ouse_questoes}
         price={getSelectedPreparatorio()?.preparatorio?.price_questoes || userPreparatorios[0]?.preparatorio?.price_questoes}
         preparatorioNome={getSelectedPreparatorio()?.preparatorio?.nome || userPreparatorios[0]?.preparatorio?.nome}
       />

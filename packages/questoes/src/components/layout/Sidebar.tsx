@@ -308,7 +308,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
       <BatteryEmptyModal
         isOpen={isEmptyModalOpen}
         onClose={closeEmptyModal}
-        checkoutUrl={selectedPrep?.preparatorio?.checkout_8_questoes}
+        checkoutUrl={selectedPrep?.preparatorio?.checkout_ouse_questoes}
         price={selectedPrep?.preparatorio?.price_questoes}
         preparatorioNome={selectedPrep?.preparatorio?.nome}
       />
@@ -320,7 +320,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
         currentBattery={batteryStatus?.battery_current || 0}
         maxBattery={batteryStatus?.battery_max || 100}
         isPremium={isPremium}
-        checkoutUrl={selectedPrep?.preparatorio?.checkout_8_questoes}
+        checkoutUrl={selectedPrep?.preparatorio?.checkout_ouse_questoes}
         price={selectedPrep?.preparatorio?.price_questoes}
         preparatorioNome={selectedPrep?.preparatorio?.nome}
       />

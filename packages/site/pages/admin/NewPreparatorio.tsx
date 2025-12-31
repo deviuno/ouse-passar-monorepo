@@ -79,7 +79,7 @@ export const NewPreparatorio: React.FC = () => {
         guru_product_id_planejador: data.guruProductIdPlanejador || undefined,
         preco_8_questoes: parseNumber(data.preco8Questoes),
         preco_8_questoes_desconto: parseNumber(data.preco8QuestoesDesconto),
-        checkout_8_questoes: data.checkout8Questoes || undefined,
+        checkout_ouse_questoes: data.checkout8Questoes || undefined,
         guru_product_id_8_questoes: data.guruProductId8Questoes || undefined,
         preco_simulados: parseNumber(data.precoSimulados),
         preco_simulados_desconto: parseNumber(data.precoSimuladosDesconto),

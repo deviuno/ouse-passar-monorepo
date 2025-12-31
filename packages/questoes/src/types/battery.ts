@@ -35,7 +35,7 @@ export interface BatterySettings {
   notebooks_enabled_free: boolean;
   notebooks_max_free: number;
   practice_enabled_free: boolean;
-  // NOTA: URL de checkout vem do preparatório (checkout_8_questoes)
+  // NOTA: URL de checkout vem do preparatório (checkout_ouse_questoes)
   // O usuário compra "Ouse Questões" do preparatório específico para ter bateria ilimitada
 }
 
