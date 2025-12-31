@@ -32,6 +32,7 @@ import {
     finalizarMontagem,
     getMissoesPorRodada,
 } from './services/missionBuilderService.js';
+import { otimizarFiltrosPreparatorio } from './mastra/agents/filtrosAdapterAgent.js';
 import * as storeService from './services/storeService.js';
 import { buscarOuGerarLogo } from './services/logoService.js';
 import { generateSimuladoPDF } from './services/pdfService.js';
@@ -4146,6 +4147,30 @@ app.post('/api/preparatorio/:id/finalizar-montagem', async (req, res) => {
         // IMPORTANTE: Disparar geração automática das primeiras 2 missões em background
         // Isso garante que o conteúdo estará pronto quando o primeiro aluno acessar
         if (result.success) {
+            // ========== OTIMIZAÇÃO DE FILTROS POR IA ==========
+            // Adapta os termos de matéria/assunto do edital para os termos do banco de questões
+            console.log(`[Builder] Disparando otimização de filtros por IA para ${preparatorioId}...`);
+            otimizarFiltrosPreparatorio(preparatorioId)
+                .then(otimizacaoResult => {
+                    if (otimizacaoResult.success) {
+                        console.log(`[Builder] Filtros otimizados: ${otimizacaoResult.missoesOtimizadas}/${otimizacaoResult.missoesProcessadas} missões adaptadas`);
+                        // Log das adaptações feitas
+                        for (const adaptacao of otimizacaoResult.adaptacoes) {
+                            if (adaptacao.observacoes.length > 0) {
+                                console.log(`[Builder] Adaptações missão ${adaptacao.missaoId}:`);
+                                for (const obs of adaptacao.observacoes) {
+                                    console.log(`  - ${obs}`);
+                                }
+                            }
+                        }
+                    } else {
+                        console.error(`[Builder] Erro na otimização de filtros:`, otimizacaoResult.error);
+                    }
+                })
+                .catch(err => {
+                    console.error(`[Builder] Erro ao otimizar filtros:`, err.message);
+                });
+
             console.log(`[Builder] Disparando geração automática de conteúdo para ${preparatorioId}...`);
 
             // Buscar as primeiras 2 missões do tipo 'padrao' (as que têm conteúdo)
@@ -4175,6 +4200,39 @@ app.post('/api/preparatorio/:id/finalizar-montagem', async (req, res) => {
         return res.status(500).json({
             success: false,
             error: error.message || 'Erro ao finalizar montagem',
+        });
+    }
+});
+
+/**
+ * Otimizar filtros de questões de um preparatório usando IA
+ * Endpoint para rodar manualmente ou reprocessar
+ */
+app.post('/api/preparatorio/:id/otimizar-filtros', async (req, res) => {
+    const { id: preparatorioId } = req.params;
+
+    if (!preparatorioId) {
+        return res.status(400).json({
+            success: false,
+            error: 'preparatorioId é obrigatório',
+        });
+    }
+
+    console.log(`[FiltrosAdapter] Iniciando otimização manual para ${preparatorioId}...`);
+
+    try {
+        const result = await otimizarFiltrosPreparatorio(preparatorioId);
+
+        if (result.success) {
+            console.log(`[FiltrosAdapter] Otimização concluída: ${result.missoesOtimizadas}/${result.missoesProcessadas} missões`);
+        }
+
+        return res.json(result);
+    } catch (error: any) {
+        console.error('[FiltrosAdapter] Erro:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao otimizar filtros',
         });
     }
 });
