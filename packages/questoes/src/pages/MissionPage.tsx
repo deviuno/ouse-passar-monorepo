@@ -16,8 +16,7 @@ import {
   Target,
   BookOpen,
   Zap,
-  Flame,
-  Eye
+  Flame
 } from 'lucide-react';
 import { useMissionStore, useTrailStore, useUserStore, useUIStore, useBatteryStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -287,8 +286,6 @@ function ContentPhase({
   mission?: TrailMission;
 }) {
   const [showModeModal, setShowModeModal] = useState(false);
-  const [showAssuntosPopover, setShowAssuntosPopover] = useState(false);
-  const eyeButtonRef = useRef<HTMLButtonElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
@@ -548,102 +545,6 @@ function ContentPhase({
       )}
 
       <div ref={contentContainerRef} className="flex-1 overflow-y-auto p-4">
-        {/* Header with Back Button */}
-        <div className="flex items-center gap-3 mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-            className="mr-2 hidden lg:flex"
-          >
-            <ChevronLeft size={20} />
-          </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-white font-semibold">
-                {mission ? `Missão ${mission.ordem}` : 'Missão'}
-                {mission?.materia?.materia && (
-                  <span className="text-[#A0A0A0] font-normal"> - {mission.materia.materia}</span>
-                )}
-              </h2>
-              {mission?.assunto?.nome && (
-                <div className="relative">
-                  <button
-                    ref={eyeButtonRef}
-                    onClick={() => setShowAssuntosPopover(!showAssuntosPopover)}
-                    className="p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors"
-                    title="Ver assuntos"
-                  >
-                    <Eye size={18} className="text-[#A0A0A0] hover:text-[#FFB800]" />
-                  </button>
-
-                  {/* Popover de Assuntos */}
-                  <AnimatePresence>
-                    {showAssuntosPopover && (
-                      <>
-                        {/* Backdrop para fechar ao clicar fora */}
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowAssuntosPopover(false)}
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          transition={{ duration: 0.2 }}
-                          className="absolute left-0 top-full mt-2 w-72 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden"
-                        >
-                          {/* Header do Popover */}
-                          <div className="p-3 border-b border-zinc-800 bg-gradient-to-r from-zinc-800 to-zinc-900">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <BookOpen size={14} className="text-emerald-500" />
-                              <h3 className="font-bold text-sm leading-tight text-white">
-                                Missão {mission.ordem}
-                              </h3>
-                            </div>
-                            <p className="text-xs text-zinc-400 line-clamp-1">
-                              {mission.materia?.materia || 'Matéria'}
-                            </p>
-                          </div>
-
-                          {/* Body do Popover */}
-                          <div className="p-3 bg-zinc-900">
-                            <p className="text-[10px] uppercase font-bold text-zinc-500 mb-2">Assuntos Abordados:</p>
-                            {(() => {
-                              const assuntoName = mission.assunto?.nome || '';
-                              const subjects = assuntoName
-                                .split(/(?=\b\d+\.\d+\s)|(?=\b\d+\.\s)/g)
-                                .map(s => s.trim())
-                                .filter(Boolean);
-                              const items = subjects.length > 0 ? subjects : [assuntoName];
-
-                              return (
-                                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                                  {items.map((subject, idx) => (
-                                    <div key={idx} className="flex items-start gap-2">
-                                      <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-emerald-500" />
-                                      <p className="text-xs text-zinc-300 font-medium leading-snug">
-                                        {subject}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
-            </div>
-            <p className="text-[#6E6E6E] text-sm">
-              {isRetaFinal ? 'Resumo focado no essencial' : 'Leia com atenção antes de praticar'}
-            </p>
-          </div>
-        </div>
-
         {/* Audio Player */}
         {content?.audio_url && (
           <div ref={playerRef}>

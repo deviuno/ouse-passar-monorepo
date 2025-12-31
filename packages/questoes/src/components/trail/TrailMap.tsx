@@ -678,46 +678,41 @@ export function TrailMap({
                             }}
                             initial={{
                                 x: 0,
-                                y: -80,
+                                y: -64,
                             }}
                             animate={{
                                 x: targetPosition.x - avatarPosition.x,
-                                y: targetPosition.y - avatarPosition.y - 80,
+                                y: targetPosition.y - avatarPosition.y - 64,
                             }}
                             transition={{
                                 duration: 1.2,
                                 ease: [0.4, 0, 0.2, 1],
                             }}
                         >
-                            {/* Badge with mission progress info */}
+                            {/* Badge - simple "Você está aqui" */}
                             <motion.div
                                 animate={{ scale: [1, 1.05, 1] }}
                                 transition={{ duration: 0.8, repeat: Infinity }}
-                                className="bg-emerald-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-lg mb-2 whitespace-nowrap relative"
+                                className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg mb-1 whitespace-nowrap relative"
                             >
-                                <div className="flex flex-col items-center gap-0.5">
-                                    <span className="text-[11px]">Você está aqui</span>
-                                    <span className="text-[9px] opacity-90">
-                                        Saindo da M{startMissionIndex + animationFromIndex + 1} → M{startMissionIndex + currentMissionIndexInRound + 1}
-                                    </span>
-                                </div>
-                                <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-emerald-500 rotate-45" />
+                                Você está aqui
+                                <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-emerald-500 rotate-45" />
                             </motion.div>
                             {userAvatar ? (
                                 <motion.img
                                     alt="User"
-                                    className="w-12 h-12 rounded-full border-3 border-emerald-500 shadow-lg object-cover"
+                                    className="w-8 h-8 rounded-full border-2 border-[#e7cb00] shadow-lg object-cover"
                                     src={userAvatar}
                                     animate={{ rotate: [0, -5, 5, -5, 0] }}
-                                    transition={{ duration: 0.3, repeat: Infinity }}
+                                    transition={{ duration: 0.3, repeat: 10 }}
                                 />
                             ) : (
                                 <motion.div
-                                    className="w-12 h-12 rounded-full border-3 border-emerald-500 shadow-lg bg-zinc-800 flex items-center justify-center text-emerald-500"
+                                    className="w-8 h-8 rounded-full border-2 border-[#e7cb00] shadow-lg bg-zinc-800 flex items-center justify-center text-[#e7cb00]"
                                     animate={{ rotate: [0, -5, 5, -5, 0] }}
-                                    transition={{ duration: 0.3, repeat: Infinity }}
+                                    transition={{ duration: 0.3, repeat: 10 }}
                                 >
-                                    <User size={24} />
+                                    <User size={16} />
                                 </motion.div>
                             )}
                         </motion.div>

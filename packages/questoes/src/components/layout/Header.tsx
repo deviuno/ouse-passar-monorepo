@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Flame } from 'lucide-react';
+import { ChevronLeft, Flame, Eye, BookOpen } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTrailStore, useAuthStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
 import { PreparatorioDropdown } from '../trail/PreparatorioDropdown';
@@ -13,6 +14,14 @@ export function Header() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
+  const [showAssuntosPopover, setShowAssuntosPopover] = useState(false);
+  const eyeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Close popover when location changes
+  useEffect(() => {
+    setShowAssuntosPopover(false);
+  }, [location.pathname]);
+
   const {
     userPreparatorios,
     selectedPreparatorioId,
@@ -130,7 +139,81 @@ export function Header() {
                 <div className="flex items-center gap-2 lg:hidden">
                   <h1 className="text-base font-semibold text-white">
                     {getMissionTitle()}
+                    {currentMission?.materia?.materia && (
+                      <span className="text-[#A0A0A0] font-normal"> - {currentMission.materia.materia}</span>
+                    )}
                   </h1>
+                  {currentMission?.assunto?.nome && (
+                    <div className="relative">
+                      <button
+                        ref={eyeButtonRef}
+                        onClick={() => setShowAssuntosPopover(!showAssuntosPopover)}
+                        className="p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors"
+                        title="Ver assuntos"
+                      >
+                        <Eye size={18} className="text-[#A0A0A0] hover:text-[#FFB800]" />
+                      </button>
+
+                      {/* Popover de Assuntos */}
+                      <AnimatePresence>
+                        {showAssuntosPopover && (
+                          <>
+                            {/* Backdrop para fechar ao clicar fora */}
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setShowAssuntosPopover(false)}
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                              transition={{ duration: 0.2 }}
+                              className="fixed left-4 right-4 top-16 w-auto max-w-sm bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden"
+                            >
+                              {/* Header do Popover */}
+                              <div className="p-3 border-b border-zinc-800 bg-gradient-to-r from-zinc-800 to-zinc-900">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <BookOpen size={14} className="text-emerald-500" />
+                                  <h3 className="font-bold text-sm leading-tight text-white">
+                                    {getMissionTitle()}
+                                  </h3>
+                                </div>
+                                <p className="text-xs text-zinc-400 line-clamp-1">
+                                  {currentMission?.materia?.materia || 'Matéria'}
+                                </p>
+                              </div>
+
+                              {/* Body do Popover */}
+                              <div className="p-3 bg-zinc-900">
+                                <p className="text-[10px] uppercase font-bold text-zinc-500 mb-2">Assuntos Abordados:</p>
+                                {(() => {
+                                  const assuntoName = currentMission?.assunto?.nome || '';
+                                  const subjects = assuntoName
+                                    .split(/(?=\b\d+\.\d+\s)|(?=\b\d+\.\s)/g)
+                                    .map((s: string) => s.trim())
+                                    .filter(Boolean);
+                                  const items = subjects.length > 0 ? subjects : [assuntoName];
+
+                                  return (
+                                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                                      {items.map((subject: string, idx: number) => (
+                                        <div key={idx} className="flex items-start gap-2">
+                                          <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-emerald-500" />
+                                          <p className="text-xs text-zinc-300 font-medium leading-snug">
+                                            {subject}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
                   {currentMode === 'reta_final' && (
                     <span
                       className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold"
