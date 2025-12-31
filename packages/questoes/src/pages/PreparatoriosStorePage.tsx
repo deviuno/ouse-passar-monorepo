@@ -159,7 +159,7 @@ export default function PreparatoriosStorePage() {
           >
             <div className="overflow-hidden">
               {/* Cover Image Section - vai até o topo com bordas arredondadas */}
-              <div className="relative h-48 w-full">
+              <div className="relative h-[17rem] w-full">
                 {selectedPrep.imagem_capa ? (
                   <img
                     src={selectedPrep.imagem_capa}
