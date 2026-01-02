@@ -8,12 +8,10 @@ import {
   CheckCircle,
   AlertCircle,
   FileText,
-  MoreVertical,
   Edit,
   Trash2,
-  Eye,
   Sparkles,
-  Clock,
+  Target,
 } from 'lucide-react';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { editalService } from '../../services/editalService';
@@ -35,8 +33,8 @@ export const Preparatorios: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | PreparatorioContentType>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showQuickCreate, setShowQuickCreate] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -96,10 +94,29 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
     try {
       await preparatoriosService.delete(id);
       setPreparatorios((prev) => prev.filter((p) => p.id !== id));
-      setOpenMenu(null);
       toast.success('Preparatório excluído com sucesso!');
     } catch (err: any) {
       toast.error('Erro ao excluir preparatório');
+    }
+  };
+
+  const handleToggleActive = async (prep: PreparatorioWithStats) => {
+    setTogglingId(prep.id);
+    try {
+      await preparatoriosService.update(prep.id, { is_active: !prep.is_active });
+      setPreparatorios((prev) =>
+        prev.map((p) => (p.id === prep.id ? { ...p, is_active: !p.is_active } : p))
+      );
+      // Update stats
+      setStats((prev) => ({
+        ...prev,
+        active: prev.active + (prep.is_active ? -1 : 1),
+      }));
+      toast.success(prep.is_active ? 'Preparatório despublicado' : 'Preparatório publicado');
+    } catch (err: any) {
+      toast.error('Erro ao alterar status');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -349,48 +366,49 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
                     </div>
                   </td>
                   <td className="py-4 px-6">
-                    <div className="flex items-center justify-end gap-2 relative">
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Toggle Ativo/Inativo */}
+                      <button
+                        onClick={() => handleToggleActive(prep)}
+                        disabled={togglingId === prep.id}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${
+                          prep.is_active ? 'bg-green-500' : 'bg-gray-600'
+                        } ${togglingId === prep.id ? 'opacity-50' : ''}`}
+                        title={prep.is_active ? 'Clique para despublicar' : 'Clique para publicar'}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                            prep.is_active ? 'translate-x-5' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </button>
+
+                      {/* Ver Rodadas */}
+                      <Link
+                        to={`/admin/preparatorios/${prep.id}/rodadas`}
+                        className="p-2 text-gray-400 hover:text-brand-yellow transition-colors"
+                        title="Ver Rodadas"
+                      >
+                        <Target className="w-4 h-4" />
+                      </Link>
+
+                      {/* Editar */}
                       <Link
                         to={`/admin/preparatorios/edit/${prep.id}`}
-                        className="p-2 text-gray-400 hover:text-brand-yellow transition-colors"
+                        className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
                         title="Editar"
                       >
                         <Edit className="w-4 h-4" />
                       </Link>
 
-                      <div className="relative">
-                        <button
-                          onClick={() => setOpenMenu(openMenu === prep.id ? null : prep.id)}
-                          className="p-2 text-gray-400 hover:text-white transition-colors"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-
-                        {openMenu === prep.id && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-10"
-                              onClick={() => setOpenMenu(null)}
-                            />
-                            <div className="absolute right-0 top-full mt-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl z-20 min-w-[150px]">
-                              <Link
-                                to={`/admin/preparatorios/edit/${prep.id}`}
-                                className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-                              >
-                                <Eye className="w-4 h-4" />
-                                Ver detalhes
-                              </Link>
-                              <button
-                                onClick={() => handleDelete(prep.id)}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-red-500/10 transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                Excluir
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      {/* Excluir */}
+                      <button
+                        onClick={() => handleDelete(prep.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
