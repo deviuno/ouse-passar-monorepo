@@ -95,6 +95,8 @@ import {
   EmailLog,
   PRODUTOS_EMAIL,
 } from '../../services/emailService';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 // ============================================================================
 // TYPES
@@ -852,6 +854,27 @@ function EmailsSection() {
   // Logs
   const [logs, setLogs] = useState<EmailLog[]>([]);
 
+  // Quill editor config
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      [{ 'indent': '-1' }, { 'indent': '+1' }],
+      [{ 'align': [] }],
+      ['blockquote'],
+      ['link'],
+      [{ 'color': [] }, { 'background': [] }],
+      ['clean']
+    ]
+  };
+
+  const quillFormats = [
+    'header', 'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet', 'indent', 'align',
+    'blockquote', 'link', 'color', 'background'
+  ];
+
   useEffect(() => {
     loadData();
   }, []);
@@ -1158,15 +1181,114 @@ function EmailsSection() {
                     <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
                       Corpo do E-mail (HTML)
                     </label>
-                    <textarea
-                      value={editingTemplate.corpo_html}
-                      onChange={(e) => setEditingTemplate({ ...editingTemplate, corpo_html: e.target.value })}
-                      rows={10}
-                      className="w-full bg-brand-dark border border-white/10 rounded-sm px-4 py-2 text-white font-mono text-sm focus:border-brand-yellow focus:outline-none"
-                    />
-                    <p className="text-gray-600 text-xs mt-1">
+                    <div className="email-editor">
+                      <ReactQuill
+                        theme="snow"
+                        value={editingTemplate.corpo_html}
+                        onChange={(value) => setEditingTemplate({ ...editingTemplate, corpo_html: value })}
+                        modules={quillModules}
+                        formats={quillFormats}
+                        placeholder="Escreva o conteúdo do e-mail aqui..."
+                      />
+                    </div>
+                    <p className="text-gray-600 text-xs mt-2">
                       Variáveis disponíveis: {'{{nome}}'}, {'{{email}}'}, {'{{produto}}'}
                     </p>
+                    <style>{`
+                      .email-editor {
+                        background: #1a1a1a;
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        border-radius: 2px;
+                      }
+                      .email-editor .ql-toolbar {
+                        background: #2a2a2a;
+                        border: none !important;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+                        padding: 12px;
+                      }
+                      .email-editor .ql-container {
+                        border: none !important;
+                        font-size: 14px;
+                        min-height: 250px;
+                      }
+                      .email-editor .ql-editor {
+                        color: #ffffff;
+                        min-height: 250px;
+                        padding: 16px;
+                      }
+                      .email-editor .ql-editor.ql-blank::before {
+                        color: rgba(255, 255, 255, 0.4);
+                        font-style: normal;
+                      }
+                      .email-editor .ql-toolbar button {
+                        color: #ffffff;
+                      }
+                      .email-editor .ql-toolbar button:hover {
+                        color: #fbbf24;
+                      }
+                      .email-editor .ql-toolbar button.ql-active {
+                        color: #fbbf24;
+                      }
+                      .email-editor .ql-toolbar .ql-stroke {
+                        stroke: #ffffff;
+                      }
+                      .email-editor .ql-toolbar .ql-stroke:hover {
+                        stroke: #fbbf24;
+                      }
+                      .email-editor .ql-toolbar .ql-fill {
+                        fill: #ffffff;
+                      }
+                      .email-editor .ql-toolbar .ql-fill:hover {
+                        fill: #fbbf24;
+                      }
+                      .email-editor .ql-toolbar button:hover .ql-stroke {
+                        stroke: #fbbf24;
+                      }
+                      .email-editor .ql-toolbar button:hover .ql-fill {
+                        fill: #fbbf24;
+                      }
+                      .email-editor .ql-toolbar button.ql-active .ql-stroke {
+                        stroke: #fbbf24;
+                      }
+                      .email-editor .ql-toolbar button.ql-active .ql-fill {
+                        fill: #fbbf24;
+                      }
+                      .email-editor .ql-toolbar .ql-picker-label {
+                        color: #ffffff;
+                      }
+                      .email-editor .ql-toolbar .ql-picker-label:hover {
+                        color: #fbbf24;
+                      }
+                      .email-editor .ql-toolbar .ql-picker-label.ql-active {
+                        color: #fbbf24;
+                      }
+                      .email-editor .ql-toolbar .ql-picker-options {
+                        background: #2a2a2a;
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                      }
+                      .email-editor .ql-toolbar .ql-picker-item {
+                        color: #ffffff;
+                      }
+                      .email-editor .ql-toolbar .ql-picker-item:hover {
+                        color: #fbbf24;
+                      }
+                      .email-editor .ql-editor h1,
+                      .email-editor .ql-editor h2,
+                      .email-editor .ql-editor h3,
+                      .email-editor .ql-editor h4,
+                      .email-editor .ql-editor h5,
+                      .email-editor .ql-editor h6 {
+                        color: #ffffff;
+                      }
+                      .email-editor .ql-editor a {
+                        color: #fbbf24;
+                      }
+                      .email-editor .ql-editor blockquote {
+                        border-left: 4px solid #fbbf24;
+                        padding-left: 16px;
+                        color: #a0a0a0;
+                      }
+                    `}</style>
                   </div>
                   <div>
                     <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
