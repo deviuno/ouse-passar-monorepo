@@ -850,6 +850,7 @@ function EmailsSection() {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
+  const [showPlainTextPreview, setShowPlainTextPreview] = useState(false);
 
   // Logs
   const [logs, setLogs] = useState<EmailLog[]>([]);
@@ -1291,15 +1292,60 @@ function EmailsSection() {
                     `}</style>
                   </div>
                   <div>
-                    <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
-                      Corpo do E-mail (Texto Puro)
-                    </label>
-                    <textarea
-                      value={editingTemplate.corpo_texto}
-                      onChange={(e) => setEditingTemplate({ ...editingTemplate, corpo_texto: e.target.value })}
-                      rows={6}
-                      className="w-full bg-brand-dark border border-white/10 rounded-sm px-4 py-2 text-white font-mono text-sm focus:border-brand-yellow focus:outline-none"
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-gray-400 text-xs font-bold uppercase">
+                        Corpo do E-mail (Texto Puro)
+                      </label>
+                      <div className="flex gap-1 bg-brand-dark border border-white/10 rounded-sm p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowPlainTextPreview(false)}
+                          className={`px-3 py-1 text-xs font-bold uppercase rounded-sm transition-colors ${
+                            !showPlainTextPreview
+                              ? 'bg-brand-yellow text-brand-darker'
+                              : 'text-gray-400 hover:text-white'
+                          }`}
+                        >
+                          <Pencil className="w-3 h-3 inline mr-1" />
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowPlainTextPreview(true)}
+                          className={`px-3 py-1 text-xs font-bold uppercase rounded-sm transition-colors ${
+                            showPlainTextPreview
+                              ? 'bg-brand-yellow text-brand-darker'
+                              : 'text-gray-400 hover:text-white'
+                          }`}
+                        >
+                          <Eye className="w-3 h-3 inline mr-1" />
+                          Preview
+                        </button>
+                      </div>
+                    </div>
+
+                    {!showPlainTextPreview ? (
+                      <textarea
+                        value={editingTemplate.corpo_texto}
+                        onChange={(e) => setEditingTemplate({ ...editingTemplate, corpo_texto: e.target.value })}
+                        rows={8}
+                        placeholder="Versão em texto puro do e-mail para clientes que não suportam HTML..."
+                        className="w-full bg-brand-dark border border-white/10 rounded-sm px-4 py-3 text-white font-mono text-sm focus:border-brand-yellow focus:outline-none leading-relaxed"
+                      />
+                    ) : (
+                      <div className="bg-white border border-gray-300 rounded-sm p-6 min-h-[200px]">
+                        <div className="font-mono text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {replaceTemplateVariables(editingTemplate.corpo_texto, {
+                            nome: 'João Silva',
+                            email: 'joao@exemplo.com',
+                            produto: editingTemplate.nome_produto,
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-gray-600 text-xs mt-2">
+                      Esta versão é exibida em clientes de e-mail que não suportam HTML. Variáveis: {'{{nome}}'}, {'{{email}}'}, {'{{produto}}'}
+                    </p>
                   </div>
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 cursor-pointer">
