@@ -705,9 +705,189 @@ Siglas comuns de órgãos:
     }
 }
 
+// ==================== SUGESTÃO DE FILTROS PARA MISSÃO ====================
+
+interface SugestaoFiltrosInput {
+    materiaEdital: string;
+    assuntoEdital?: string;
+    banca?: string;
+    cargo?: string;
+    escolaridade?: string;
+    modalidade?: string;
+}
+
+interface SugestaoFiltrosOutput {
+    success: boolean;
+    filtrosSugeridos: {
+        materias: string[];
+        assuntos: string[];
+        bancas: string[];
+        escolaridade?: string[];
+        modalidade?: string[];
+    };
+    observacoes: string[];
+    questoesDisponiveis: number;
+    error?: string;
+}
+
+/**
+ * Sugere filtros de questões para uma missão baseado nos dados do edital e preparatório
+ */
+export async function sugerirFiltrosMissao(input: SugestaoFiltrosInput): Promise<SugestaoFiltrosOutput> {
+    console.log(`[FiltrosAdapter] Sugerindo filtros para: ${input.materiaEdital} - ${input.assuntoEdital || 'sem assunto'}`);
+
+    try {
+        // 1. Buscar valores únicos do banco de questões
+        const cache = await buscarTodosValoresUnicos();
+
+        if (cache.materias.length === 0) {
+            return {
+                success: false,
+                filtrosSugeridos: { materias: [], assuntos: [], bancas: [] },
+                observacoes: [],
+                questoesDisponiveis: 0,
+                error: 'Não foi possível buscar matérias do banco de questões',
+            };
+        }
+
+        const observacoes: string[] = [];
+        const filtrosSugeridos: SugestaoFiltrosOutput['filtrosSugeridos'] = {
+            materias: [],
+            assuntos: [],
+            bancas: [],
+        };
+
+        // 2. Adaptar MATÉRIA do edital
+        if (input.materiaEdital) {
+            const { termosAdaptados, observacoes: obsMateria } = await adaptarFiltros(
+                [input.materiaEdital],
+                cache.materias,
+                'Matéria'
+            );
+
+            if (termosAdaptados.length > 0) {
+                filtrosSugeridos.materias = termosAdaptados;
+            }
+            observacoes.push(...obsMateria);
+        }
+
+        // 3. Adaptar ASSUNTO do edital (se fornecido)
+        if (input.assuntoEdital) {
+            // Contexto extra para ajudar a IA a encontrar o assunto correto
+            const contextoAssunto = `
+A matéria é "${input.materiaEdital}".
+Busque assuntos que correspondam a "${input.assuntoEdital}" dentro dessa matéria.
+Considere variações como:
+- Nomes abreviados
+- Termos técnicos equivalentes
+- Tópicos que englobam o assunto`;
+
+            const { termosAdaptados, observacoes: obsAssunto } = await adaptarFiltros(
+                [input.assuntoEdital],
+                cache.assuntos,
+                'Assunto',
+                contextoAssunto
+            );
+
+            if (termosAdaptados.length > 0) {
+                filtrosSugeridos.assuntos = termosAdaptados;
+            }
+            observacoes.push(...obsAssunto);
+        }
+
+        // 4. Adaptar BANCA (se fornecida)
+        if (input.banca) {
+            const contextoBancas = `
+Siglas comuns de bancas:
+- IDECAN = Instituto de Desenvolvimento Educacional, Cultural e Assistencial Nacional
+- FGV = Fundação Getúlio Vargas
+- CESPE/CEBRASPE = Centro de Seleção e de Promoção de Eventos
+- FCC = Fundação Carlos Chagas
+- VUNESP = Fundação para o Vestibular da Universidade Estadual Paulista
+- IBFC = Instituto Brasileiro de Formação e Capacitação`;
+
+            const { termosAdaptados, observacoes: obsBanca } = await adaptarFiltros(
+                [input.banca],
+                cache.bancas,
+                'Banca',
+                contextoBancas
+            );
+
+            if (termosAdaptados.length > 0) {
+                filtrosSugeridos.bancas = termosAdaptados;
+            }
+            observacoes.push(...obsBanca);
+        }
+
+        // 5. Escolaridade e Modalidade (passthrough - não precisam de adaptação)
+        if (input.escolaridade) {
+            // Mapear escolaridade para o formato do banco
+            const escolaridadeMap: Record<string, string[]> = {
+                'superior': ['Superior'],
+                'medio': ['Médio'],
+                'fundamental': ['Fundamental'],
+            };
+            const escNormalizada = input.escolaridade.toLowerCase();
+            filtrosSugeridos.escolaridade = escolaridadeMap[escNormalizada] || [input.escolaridade];
+        }
+
+        if (input.modalidade) {
+            filtrosSugeridos.modalidade = [input.modalidade];
+        }
+
+        // 6. Contar questões disponíveis com os filtros sugeridos
+        const filtrosParaContagem: FiltrosMissao = {};
+
+        if (filtrosSugeridos.materias.length > 0) {
+            filtrosParaContagem.materias = filtrosSugeridos.materias;
+        }
+        if (filtrosSugeridos.assuntos.length > 0) {
+            filtrosParaContagem.assuntos = filtrosSugeridos.assuntos;
+        }
+        if (filtrosSugeridos.bancas.length > 0) {
+            filtrosParaContagem.bancas = filtrosSugeridos.bancas;
+        }
+
+        const questoesDisponiveis = await contarQuestoesComFiltros(filtrosParaContagem);
+
+        // Se não encontrou questões com os filtros completos, tentar apenas com matéria
+        if (questoesDisponiveis === 0 && filtrosSugeridos.materias.length > 0) {
+            const questoesSoMateria = await contarQuestoesComFiltros({
+                materias: filtrosSugeridos.materias,
+            });
+
+            if (questoesSoMateria > 0) {
+                observacoes.push(`Nenhuma questão encontrada com os filtros completos. ${questoesSoMateria} questões encontradas apenas com a matéria "${filtrosSugeridos.materias.join(', ')}".`);
+                // Sugerir remover filtro de assunto
+                filtrosSugeridos.assuntos = [];
+            }
+        }
+
+        console.log(`[FiltrosAdapter] Filtros sugeridos: ${JSON.stringify(filtrosSugeridos)}, ${questoesDisponiveis} questões`);
+
+        return {
+            success: true,
+            filtrosSugeridos,
+            observacoes,
+            questoesDisponiveis,
+        };
+
+    } catch (error: any) {
+        console.error('[FiltrosAdapter] Erro ao sugerir filtros:', error);
+        return {
+            success: false,
+            filtrosSugeridos: { materias: [], assuntos: [], bancas: [] },
+            observacoes: [],
+            questoesDisponiveis: 0,
+            error: error.message || 'Erro ao sugerir filtros',
+        };
+    }
+}
+
 export default {
     filtrosAdapterAgent,
     otimizarFiltrosPreparatorio,
+    sugerirFiltrosMissao,
     buscarValoresUnicosDoBanco,
     buscarTodosValoresUnicos,
 };

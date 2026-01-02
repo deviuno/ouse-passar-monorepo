@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, ChevronLeft, List, MoreVertical, ChevronRight, GripVertical, Sparkles } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronLeft, List, ChevronRight, GripVertical, Sparkles, Eye } from 'lucide-react';
 import { preparatoriosService, rodadasService } from '../../services/preparatoriosService';
 import { PreparatorioComN8N, Rodada } from '../../lib/database.types';
 import { GerarRodadasModal } from '../../components/admin/GerarRodadasModal';
@@ -17,7 +17,6 @@ export const RodadasAdmin: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingRodada, setEditingRodada] = useState<Rodada | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showGerarModal, setShowGerarModal] = useState(false);
 
   const loadData = async () => {
@@ -68,17 +67,6 @@ export const RodadasAdmin: React.FC = () => {
     }
   };
 
-  const toggleMenu = (id: string) => {
-    setOpenMenuId(openMenuId === id ? null : id);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = () => setOpenMenuId(null);
-    if (openMenuId) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [openMenuId]);
 
   if (loading) {
     return (
@@ -164,8 +152,8 @@ export const RodadasAdmin: React.FC = () => {
                 <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-24">
                   Missoes
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase w-32">
-                  Acoes
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">
+                  Ações
                 </th>
               </tr>
             </thead>
@@ -192,52 +180,34 @@ export const RodadasAdmin: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-4 py-4">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
                       <Link
                         to={`/admin/preparatorios/${preparatorioId}/rodadas/${rodada.id}/missoes`}
-                        className="p-2 text-gray-500 hover:text-brand-yellow hover:bg-brand-yellow/10 rounded transition-colors"
-                        title="Ver Missoes"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-brand-yellow hover:bg-brand-yellow/10 rounded transition-colors"
+                        title="Ver Missões"
                       >
-                        <List className="w-4 h-4" />
+                        <Eye className="w-4 h-4" />
+                        <span className="hidden sm:inline">Missões</span>
                       </Link>
-                      <div className="relative">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleMenu(rodada.id);
-                          }}
-                          className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded transition-colors"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-
-                        {openMenuId === rodada.id && (
-                          <div className="absolute right-0 top-full mt-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl z-10 min-w-[120px]">
-                            <button
-                              onClick={() => {
-                                setEditingRodada(rodada);
-                                setShowModal(true);
-                                setOpenMenuId(null);
-                              }}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-                            >
-                              <Edit className="w-4 h-4" />
-                              Editar
-                            </button>
-                            <hr className="border-white/10" />
-                            <button
-                              onClick={() => {
-                                handleDelete(rodada.id);
-                                setOpenMenuId(null);
-                              }}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Excluir
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      <button
+                        onClick={() => {
+                          setEditingRodada(rodada);
+                          setShowModal(true);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
+                        title="Editar"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span className="hidden sm:inline">Editar</span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(rodada.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="hidden sm:inline">Excluir</span>
+                      </button>
                     </div>
                   </td>
                 </tr>

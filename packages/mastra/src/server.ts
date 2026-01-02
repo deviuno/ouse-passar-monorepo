@@ -32,7 +32,7 @@ import {
     finalizarMontagem,
     getMissoesPorRodada,
 } from './services/missionBuilderService.js';
-import { otimizarFiltrosPreparatorio } from './mastra/agents/filtrosAdapterAgent.js';
+import { otimizarFiltrosPreparatorio, sugerirFiltrosMissao } from './mastra/agents/filtrosAdapterAgent.js';
 import * as storeService from './services/storeService.js';
 import { buscarOuGerarLogo } from './services/logoService.js';
 import { generateSimuladoPDF } from './services/pdfService.js';
@@ -458,20 +458,48 @@ async function gerarImagemCapa(info: {
 
         // IMPORTANTE: Atualizar o preparatório com a imagem E gerar textos de vendas
         if (imageUrl) {
-            // Gerar textos de vendas persuasivos
-            const descricaoCurta = `Preparação completa para ${info.cargo || 'concurso'}${info.orgao ? ` - ${info.orgao}` : ''}. Método aprovado por milhares de concurseiros.`;
+            // Gerar textos de vendas persuasivos e ricos para página de vendas
+            const cargoFormatado = info.cargo || 'concurso público';
+            const orgaoFormatado = info.orgao || '';
+            const bancaFormatada = info.banca || '';
 
-            const descricaoVendas = `🎯 **Sua aprovação começa aqui!**
+            const descricaoCurta = `O caminho mais inteligente para sua aprovação como ${cargoFormatado}${orgaoFormatado ? ` no ${orgaoFormatado}` : ''}. Metodologia exclusiva que já aprovou milhares de concurseiros.`;
 
-Preparatório completo para ${info.cargo || 'o concurso'}${info.orgao ? ` do ${info.orgao}` : ''}${info.banca ? `, banca ${info.banca}` : ''}.
+            const descricaoVendas = `## Por que este preparatório vai transformar seus estudos?
 
-✅ **Plano de estudos personalizado** - Trilha otimizada para seu nível
-✅ **Questões comentadas** - Resolva questões reais da banca
-✅ **Revisões estratégicas** - Revisão espaçada para fixar o conteúdo
-✅ **Simulados realistas** - Treine no formato da prova real
-✅ **Acompanhamento de progresso** - Veja sua evolução dia a dia
+Você já sentiu que estuda muito, mas não evolui? Que falta direção e um método claro? **Este preparatório foi criado exatamente para resolver isso.**
 
-🚀 Junte-se a milhares de concurseiros aprovados. Comece agora sua jornada rumo à aprovação!`;
+Desenvolvemos uma metodologia baseada em **ciência da aprendizagem** e na análise de milhares de provas${bancaFormatada ? ` da banca ${bancaFormatada}` : ''}, para você estudar de forma **estratégica e eficiente**.
+
+### O que você vai encontrar:
+
+**Trilha de Estudos Personalizada**
+Esqueça o estudo desorganizado. Você receberá um plano estruturado em rodadas, com cada missão pensada para maximizar sua retenção e performance.
+
+**Questões Direcionadas**
+Não é sobre resolver milhares de questões aleatórias. É sobre resolver as questões certas, no momento certo, dos assuntos que mais caem na prova.
+
+**Sistema de Revisão Inteligente**
+A revisão espaçada é comprovadamente a técnica mais eficaz para memorização de longo prazo. Nosso sistema programa suas revisões automaticamente.
+
+**Simulados no Padrão da Prova**
+Treine nas mesmas condições do dia da prova. Tempo controlado, questões no formato correto, e análise detalhada do seu desempenho.
+
+**Acompanhamento em Tempo Real**
+Visualize seu progresso, identifique pontos fracos, e saiba exatamente onde precisa melhorar.
+
+### Para quem é este preparatório?
+
+- Concurseiros que querem **parar de perder tempo** com métodos ineficientes
+- Quem busca uma **preparação direcionada** para ${cargoFormatado}${orgaoFormatado ? ` - ${orgaoFormatado}` : ''}
+- Candidatos que valorizam **qualidade sobre quantidade**
+- Pessoas determinadas a conquistar a **estabilidade e os benefícios** de um cargo público
+
+### A decisão é sua
+
+Você pode continuar estudando sem direção, torcendo para dar certo. Ou pode seguir um método comprovado que já levou milhares de pessoas à aprovação.
+
+**Sua vaga está esperando. A questão é: você vai conquistá-la?**`;
 
             const { error: updateError } = await supabase
                 .from('preparatorios')
@@ -4233,6 +4261,243 @@ app.post('/api/preparatorio/:id/otimizar-filtros', async (req, res) => {
         return res.status(500).json({
             success: false,
             error: error.message || 'Erro ao otimizar filtros',
+        });
+    }
+});
+
+/**
+ * Sugerir filtros de questões para uma missão usando IA
+ * Endpoint chamado durante a criação/edição de missão
+ */
+app.post('/api/missao/sugerir-filtros', async (req, res) => {
+    const { materiaEdital, assuntoEdital, banca, cargo, escolaridade, modalidade } = req.body;
+
+    if (!materiaEdital) {
+        return res.status(400).json({
+            success: false,
+            error: 'materiaEdital é obrigatório',
+        });
+    }
+
+    console.log(`[SugerirFiltros] Sugerindo filtros para: ${materiaEdital} - ${assuntoEdital || 'sem assunto'}`);
+
+    try {
+        const result = await sugerirFiltrosMissao({
+            materiaEdital,
+            assuntoEdital,
+            banca,
+            cargo,
+            escolaridade,
+            modalidade,
+        });
+
+        if (result.success) {
+            console.log(`[SugerirFiltros] Filtros sugeridos: ${JSON.stringify(result.filtrosSugeridos)}`);
+        }
+
+        return res.json(result);
+    } catch (error: any) {
+        console.error('[SugerirFiltros] Erro:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao sugerir filtros',
+        });
+    }
+});
+
+// ==================== EMAIL ENDPOINTS ====================
+
+/**
+ * Testar conexão com Resend
+ */
+app.post('/api/email/test', async (req, res) => {
+    try {
+        // Buscar API key do banco
+        const { data: settings, error } = await supabase
+            .from('email_settings')
+            .select('valor')
+            .eq('chave', 'resend_api_key')
+            .single();
+
+        if (error || !settings?.valor) {
+            return res.json({
+                success: false,
+                error: 'API Key do Resend não configurada',
+            });
+        }
+
+        // Testar fazendo uma requisição simples ao Resend
+        const response = await fetch('https://api.resend.com/domains', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${settings.valor}`,
+            },
+        });
+
+        if (response.ok) {
+            return res.json({ success: true });
+        } else {
+            const errorData = await response.json();
+            return res.json({
+                success: false,
+                error: errorData.message || 'Erro ao conectar com Resend',
+            });
+        }
+    } catch (error: any) {
+        console.error('[Email] Erro ao testar conexão:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao testar conexão',
+        });
+    }
+});
+
+/**
+ * Enviar e-mail de boas-vindas
+ */
+app.post('/api/email/send-welcome', async (req, res) => {
+    const { produto, destinatarioEmail, destinatarioNome } = req.body;
+
+    if (!produto || !destinatarioEmail) {
+        return res.status(400).json({
+            success: false,
+            error: 'produto e destinatarioEmail são obrigatórios',
+        });
+    }
+
+    console.log(`[Email] Enviando e-mail de boas-vindas para ${destinatarioEmail} (${produto})`);
+
+    try {
+        // Buscar configurações
+        const { data: settingsData, error: settingsError } = await supabase
+            .from('email_settings')
+            .select('chave, valor');
+
+        if (settingsError) {
+            throw new Error('Erro ao buscar configurações de e-mail');
+        }
+
+        const settings: Record<string, string> = {};
+        for (const row of settingsData || []) {
+            settings[row.chave] = row.valor;
+        }
+
+        if (!settings.resend_api_key) {
+            return res.json({
+                success: false,
+                error: 'API Key do Resend não configurada',
+            });
+        }
+
+        if (settings.emails_ativos === 'false') {
+            return res.json({
+                success: false,
+                error: 'E-mails estão desativados',
+            });
+        }
+
+        // Buscar template
+        const { data: template, error: templateError } = await supabase
+            .from('email_templates')
+            .select('*')
+            .eq('produto', produto)
+            .eq('ativo', true)
+            .single();
+
+        if (templateError || !template) {
+            return res.json({
+                success: false,
+                error: `Template não encontrado para o produto: ${produto}`,
+            });
+        }
+
+        // Substituir variáveis
+        const variaveis: Record<string, string> = {
+            nome: destinatarioNome || 'Aluno',
+            email: destinatarioEmail,
+            produto: template.nome_produto,
+        };
+
+        let corpoHtml = template.corpo_html;
+        let corpoTexto = template.corpo_texto;
+        let assunto = template.assunto;
+
+        for (const [key, value] of Object.entries(variaveis)) {
+            const regex = new RegExp(`{{${key}}}`, 'g');
+            corpoHtml = corpoHtml.replace(regex, value);
+            corpoTexto = corpoTexto.replace(regex, value);
+            assunto = assunto.replace(regex, value);
+        }
+
+        // Criar log
+        const { data: logData, error: logError } = await supabase
+            .from('email_logs')
+            .insert({
+                template_id: template.id,
+                destinatario_email: destinatarioEmail,
+                destinatario_nome: destinatarioNome,
+                assunto,
+                status: 'pending',
+            })
+            .select()
+            .single();
+
+        const logId = logData?.id;
+
+        // Enviar via Resend
+        const remetenteEmail = settings.remetente_email || 'noreply@ousepassar.com.br';
+        const remetenteNome = settings.remetente_nome || 'Ouse Passar';
+
+        const sendResponse = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${settings.resend_api_key}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                from: `${remetenteNome} <${remetenteEmail}>`,
+                to: [destinatarioEmail],
+                subject: assunto,
+                html: corpoHtml,
+                text: corpoTexto,
+            }),
+        });
+
+        const sendResult = await sendResponse.json();
+
+        // Atualizar log
+        if (sendResponse.ok && sendResult.id) {
+            await supabase
+                .from('email_logs')
+                .update({
+                    status: 'sent',
+                    resend_id: sendResult.id,
+                    enviado_em: new Date().toISOString(),
+                })
+                .eq('id', logId);
+
+            console.log(`[Email] E-mail enviado com sucesso: ${sendResult.id}`);
+            return res.json({ success: true, resendId: sendResult.id });
+        } else {
+            await supabase
+                .from('email_logs')
+                .update({
+                    status: 'failed',
+                    erro: sendResult.message || 'Erro desconhecido',
+                })
+                .eq('id', logId);
+
+            console.error('[Email] Erro ao enviar:', sendResult);
+            return res.json({
+                success: false,
+                error: sendResult.message || 'Erro ao enviar e-mail',
+            });
+        }
+    } catch (error: any) {
+        console.error('[Email] Erro:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao enviar e-mail',
         });
     }
 });

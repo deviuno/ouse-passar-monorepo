@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, MoreVertical, Copy, BookOpen, RotateCcw, Zap, GripVertical, FileText, X, Filter, ArrowRight, ArrowLeft, Check } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, Copy, BookOpen, RotateCcw, Zap, GripVertical, FileText, X, Filter, ArrowRight, ArrowLeft, Check, Sparkles, Loader2 } from 'lucide-react';
 import { preparatoriosService, rodadasService, missoesService, QuestaoFiltrosData, MissaoQuestaoFiltros } from '../../services/preparatoriosService';
 import { editalService, EditalItem } from '../../services/editalService';
 import { Preparatorio, Rodada, Missao, MissaoTipo } from '../../lib/database.types';
@@ -17,7 +17,6 @@ export const MissoesAdmin: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingMissao, setEditingMissao] = useState<Missao | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [filterTipo, setFilterTipo] = useState<MissaoTipo | 'todos'>('todos');
 
   const loadData = async () => {
@@ -74,18 +73,6 @@ export const MissoesAdmin: React.FC = () => {
       alert('Erro ao duplicar missao');
     }
   };
-
-  const toggleMenu = (id: string) => {
-    setOpenMenuId(openMenuId === id ? null : id);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = () => setOpenMenuId(null);
-    if (openMenuId) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [openMenuId]);
 
   const filteredMissoes = filterTipo === 'todos'
     ? missoes
@@ -303,53 +290,31 @@ export const MissoesAdmin: React.FC = () => {
                   )}
                 </div>
 
-                <div className="relative flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleMenu(missao.id);
+                    onClick={() => {
+                      setEditingMissao(missao);
+                      setShowModal(true);
                     }}
-                    className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded transition-colors"
+                    className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
+                    title="Editar"
                   >
-                    <MoreVertical className="w-4 h-4" />
+                    <Edit className="w-4 h-4" />
                   </button>
-
-                  {openMenuId === missao.id && (
-                    <div className="absolute right-0 bottom-full mb-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl z-50 min-w-[140px]">
-                      <button
-                        onClick={() => {
-                          setEditingMissao(missao);
-                          setShowModal(true);
-                          setOpenMenuId(null);
-                        }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleDuplicate(missao.id);
-                          setOpenMenuId(null);
-                        }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-                      >
-                        <Copy className="w-4 h-4" />
-                        Duplicar
-                      </button>
-                      <hr className="border-white/10" />
-                      <button
-                        onClick={() => {
-                          handleDelete(missao.id);
-                          setOpenMenuId(null);
-                        }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Excluir
-                      </button>
-                    </div>
-                  )}
+                  <button
+                    onClick={() => handleDuplicate(missao.id)}
+                    className="p-2 text-gray-500 hover:text-purple-400 hover:bg-purple-500/10 rounded transition-colors"
+                    title="Duplicar"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(missao.id)}
+                    className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                    title="Excluir"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -358,10 +323,11 @@ export const MissoesAdmin: React.FC = () => {
       )}
 
       {/* Modal */}
-      {showModal && rodadaId && preparatorioId && (
+      {showModal && rodadaId && preparatorioId && preparatorio && (
         <MissaoModal
           preparatorioId={preparatorioId}
           rodadaId={rodadaId}
+          preparatorio={preparatorio}
           missao={editingMissao}
           nextNumero={missoes.length > 0 ? String(Math.max(...missoes.map(m => parseInt(m.numero) || 0)) + 1) : '1'}
           onClose={() => {
@@ -383,13 +349,24 @@ export const MissoesAdmin: React.FC = () => {
 interface MissaoModalProps {
   preparatorioId: string;
   rodadaId: string;
+  preparatorio: Preparatorio;
   missao: Missao | null;
   nextNumero: string;
   onClose: () => void;
   onSave: () => void;
 }
 
-const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, missao, nextNumero, onClose, onSave }) => {
+interface FiltrosSugeridos {
+  materias: string[];
+  assuntos: string[];
+  bancas: string[];
+  escolaridade?: string[];
+  modalidade?: string[];
+}
+
+const MASTRA_SERVER_URL = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000';
+
+const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, preparatorio, missao, nextNumero, onClose, onSave }) => {
   // Etapa do wizard (1 = dados da missao, 2 = filtros de questoes)
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -423,6 +400,12 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
   // Estado para filtros de questoes
   const [existingFiltros, setExistingFiltros] = useState<MissaoQuestaoFiltros | null>(null);
   const [questoesCount, setQuestoesCount] = useState<number>(0);
+
+  // Estado para sugestao de filtros por IA
+  const [loadingSugestao, setLoadingSugestao] = useState(false);
+  const [filtrosSugeridos, setFiltrosSugeridos] = useState<FiltrosSugeridos | null>(null);
+  const [observacoesSugestao, setObservacoesSugestao] = useState<string[]>([]);
+  const [questoesDisponiveisSugestao, setQuestoesDisponiveisSugestao] = useState<number>(0);
 
   // Carregar topicos ja vinculados a esta missao e topicos ja usados
   useEffect(() => {
@@ -531,8 +514,37 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
         await missoesService.setEditalItems(missaoId, selectedEditalItemIds);
       }
 
-      // Se for tipo estudo, avancar para etapa 2 (filtros de questoes)
+      // Se for tipo estudo, buscar sugestao de filtros com IA e avancar para etapa 2
       if (isTipoEstudo) {
+        // Chamar endpoint de sugestao de filtros
+        setLoadingSugestao(true);
+        try {
+          const response = await fetch(`${MASTRA_SERVER_URL}/api/missao/sugerir-filtros`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              materiaEdital: formData.materia,
+              assuntoEdital: formData.assunto || undefined,
+              banca: (preparatorio as any).banca || undefined,
+              cargo: (preparatorio as any).cargo || undefined,
+              escolaridade: (preparatorio as any).escolaridade || undefined,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            setFiltrosSugeridos(result.filtrosSugeridos);
+            setObservacoesSugestao(result.observacoes || []);
+            setQuestoesDisponiveisSugestao(result.questoesDisponiveis || 0);
+          }
+        } catch (err) {
+          console.error('Erro ao buscar sugestao de filtros:', err);
+          // Continua mesmo se falhar - usuario pode configurar manualmente
+        } finally {
+          setLoadingSugestao(false);
+        }
+
         setStep(2);
       } else {
         // Se nao for tipo estudo, finalizar
@@ -878,11 +890,63 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, mis
               </button>
             </div>
 
-            <QuestionFilterSelector
-              initialFilters={existingFiltros?.filtros as QuestionFilters}
-              onSave={handleSaveFilters}
-              onCancel={handleSkipFilters}
-            />
+            {/* Loading da sugestao */}
+            {loadingSugestao && (
+              <div className="p-6 flex flex-col items-center gap-4">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-purple-400 animate-pulse" />
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-medium">Analisando filtros com IA...</p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    Buscando correspondência entre "{formData.materia}" e o banco de questões
+                  </p>
+                </div>
+                <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+              </div>
+            )}
+
+            {/* Observações da IA */}
+            {!loadingSugestao && observacoesSugestao.length > 0 && (
+              <div className="mx-6 mt-4 bg-purple-500/10 border border-purple-500/30 rounded-sm p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  <span className="text-purple-400 text-sm font-bold uppercase">Adaptações da IA</span>
+                </div>
+                <ul className="space-y-1">
+                  {observacoesSugestao.map((obs, idx) => (
+                    <li key={idx} className="text-purple-300/80 text-sm flex items-start gap-2">
+                      <span className="text-purple-400">•</span>
+                      {obs}
+                    </li>
+                  ))}
+                </ul>
+                {questoesDisponiveisSugestao > 0 && (
+                  <p className="text-purple-400 text-sm mt-3 font-medium">
+                    {questoesDisponiveisSugestao.toLocaleString()} questões encontradas com os filtros sugeridos
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Seletor de filtros */}
+            {!loadingSugestao && (
+              <QuestionFilterSelector
+                initialFilters={
+                  // Prioridade: filtros existentes > filtros sugeridos pela IA
+                  existingFiltros?.filtros as QuestionFilters ||
+                  (filtrosSugeridos ? {
+                    materias: filtrosSugeridos.materias,
+                    assuntos: filtrosSugeridos.assuntos,
+                    bancas: filtrosSugeridos.bancas,
+                    escolaridade: filtrosSugeridos.escolaridade,
+                    modalidade: filtrosSugeridos.modalidade,
+                  } as QuestionFilters : undefined)
+                }
+                onSave={handleSaveFilters}
+                onCancel={handleSkipFilters}
+              />
+            )}
           </div>
         )}
       </div>
