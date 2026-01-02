@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, EyeOff, List, MoreVertical, Book, ChevronRight, MessageSquare, LayoutGrid, LayoutList, FileText, Sparkles, Target } from 'lucide-react';
+import { Plus, Edit, Trash2, List, Book, ChevronRight, MessageSquare, LayoutGrid, LayoutList, FileText, Sparkles, Target } from 'lucide-react';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { Preparatorio } from '../../lib/database.types';
 import { QuickCreatePreparatorioModal } from '../../components/admin/QuickCreatePreparatorioModal';
@@ -21,12 +21,12 @@ export const PreparatoriosPlanos: React.FC = () => {
   const navigate = useNavigate();
   const [preparatorios, setPreparatorios] = useState<PreparatorioWithStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PreparatorioWithStats | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const loadPreparatorios = async () => {
     try {
@@ -54,18 +54,20 @@ export const PreparatoriosPlanos: React.FC = () => {
   }, []);
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
+    setTogglingId(id);
     try {
       await preparatoriosService.toggleActive(id, !currentActive);
       await loadPreparatorios();
     } catch (error) {
       console.error('Erro ao alterar status:', error);
+    } finally {
+      setTogglingId(null);
     }
   };
 
   const handleDelete = (prep: PreparatorioWithStats) => {
     setDeleteTarget(prep);
     setDeleteModalOpen(true);
-    setOpenMenuId(null);
   };
 
   const confirmDelete = async () => {
@@ -83,19 +85,6 @@ export const PreparatoriosPlanos: React.FC = () => {
       setIsDeleting(false);
     }
   };
-
-  const toggleMenu = (id: string) => {
-    setOpenMenuId(openMenuId === id ? null : id);
-  };
-
-  // Fechar menu ao clicar fora
-  useEffect(() => {
-    const handleClickOutside = () => setOpenMenuId(null);
-    if (openMenuId) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [openMenuId]);
 
   // Separar e ordenar: ativos primeiro, depois inativos
   const sortedPreparatorios = [...preparatorios].sort((a, b) => {
@@ -191,9 +180,7 @@ export const PreparatoriosPlanos: React.FC = () => {
                 <PreparatorioCard
                   key={prep.id}
                   prep={prep}
-                  openMenuId={openMenuId}
-                  toggleMenu={toggleMenu}
-                  setOpenMenuId={setOpenMenuId}
+                  togglingId={togglingId}
                   handleToggleActive={handleToggleActive}
                   handleDelete={handleDelete}
                 />
@@ -214,9 +201,7 @@ export const PreparatoriosPlanos: React.FC = () => {
                   <PreparatorioCard
                     key={prep.id}
                     prep={prep}
-                    openMenuId={openMenuId}
-                    toggleMenu={toggleMenu}
-                    setOpenMenuId={setOpenMenuId}
+                    togglingId={togglingId}
                     handleToggleActive={handleToggleActive}
                     handleDelete={handleDelete}
                   />
@@ -248,9 +233,7 @@ export const PreparatoriosPlanos: React.FC = () => {
                     <PreparatorioListRow
                       key={prep.id}
                       prep={prep}
-                      openMenuId={openMenuId}
-                      toggleMenu={toggleMenu}
-                      setOpenMenuId={setOpenMenuId}
+                      togglingId={togglingId}
                       handleToggleActive={handleToggleActive}
                       handleDelete={handleDelete}
                     />
@@ -286,9 +269,7 @@ export const PreparatoriosPlanos: React.FC = () => {
                       <PreparatorioListRow
                         key={prep.id}
                         prep={prep}
-                        openMenuId={openMenuId}
-                        toggleMenu={toggleMenu}
-                        setOpenMenuId={setOpenMenuId}
+                        togglingId={togglingId}
                         handleToggleActive={handleToggleActive}
                         handleDelete={handleDelete}
                       />
@@ -333,18 +314,14 @@ export const PreparatoriosPlanos: React.FC = () => {
 // Componente Card para visualização em grid
 interface PreparatorioCardProps {
   prep: PreparatorioWithStats;
-  openMenuId: string | null;
-  toggleMenu: (id: string) => void;
-  setOpenMenuId: (id: string | null) => void;
+  togglingId: string | null;
   handleToggleActive: (id: string, isActive: boolean) => void;
   handleDelete: (prep: PreparatorioWithStats) => void;
 }
 
 const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
   prep,
-  openMenuId,
-  toggleMenu,
-  setOpenMenuId,
+  togglingId,
   handleToggleActive,
   handleDelete
 }) => (
@@ -370,59 +347,36 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
           <p className="text-gray-500 text-xs">/{prep.slug}</p>
         </div>
       </div>
-      <div className="relative">
+      <div className="flex items-center gap-1">
+        {/* Toggle Ativo/Inativo */}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleMenu(prep.id);
-          }}
-          className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded transition-colors"
+          onClick={() => handleToggleActive(prep.id, prep.is_active)}
+          disabled={togglingId === prep.id}
+          className={`relative w-10 h-5 rounded-full transition-colors ${
+            prep.is_active ? 'bg-green-500' : 'bg-gray-600'
+          } ${togglingId === prep.id ? 'opacity-50' : ''}`}
+          title={prep.is_active ? 'Clique para despublicar' : 'Clique para publicar'}
         >
-          <MoreVertical className="w-4 h-4" />
+          <div
+            className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+              prep.is_active ? 'translate-x-5' : 'translate-x-0.5'
+            }`}
+          />
         </button>
-
-        {openMenuId === prep.id && (
-          <div className="absolute right-0 top-full mt-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl z-50 min-w-[160px]">
-            <Link
-              to={`/admin/preparatorios/edit/${prep.id}`}
-              onClick={() => setOpenMenuId(null)}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-            >
-              <Edit className="w-4 h-4" />
-              Editar
-            </Link>
-            <button
-              onClick={() => {
-                handleToggleActive(prep.id, prep.is_active);
-                setOpenMenuId(null);
-              }}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-            >
-              {prep.is_active ? (
-                <>
-                  <EyeOff className="w-4 h-4" />
-                  Desativar
-                </>
-              ) : (
-                <>
-                  <Eye className="w-4 h-4" />
-                  Ativar
-                </>
-              )}
-            </button>
-            <hr className="border-white/10 my-1" />
-            <button
-              onClick={() => {
-                handleDelete(prep);
-                setOpenMenuId(null);
-              }}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
-            >
-              <Trash2 className="w-4 h-4" />
-              Excluir
-            </button>
-          </div>
-        )}
+        <Link
+          to={`/admin/preparatorios/edit/${prep.id}`}
+          className="p-2 text-gray-500 hover:text-blue-400 hover:bg-white/5 rounded transition-colors"
+          title="Editar"
+        >
+          <Edit className="w-4 h-4" />
+        </Link>
+        <button
+          onClick={() => handleDelete(prep)}
+          className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+          title="Excluir"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     </div>
 
@@ -489,21 +443,11 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
       {/* Actions */}
       <div className="space-y-2">
         <Link
-          to={`/admin/preparatorios/${prep.id}/montar-missoes`}
-          className="flex items-center justify-between w-full p-3 bg-purple-500/10 border border-purple-500/30 text-sm text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 transition-colors"
+          to={`/admin/preparatorios/${prep.id}/rodadas`}
+          className="flex items-center justify-between w-full p-3 bg-brand-yellow/10 border border-brand-yellow/30 text-sm text-brand-yellow hover:bg-brand-yellow/20 transition-colors"
         >
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4" />
-            <span>Montar Missões</span>
-          </div>
-          <ChevronRight className="w-4 h-4" />
-        </Link>
-        <Link
-          to={`/admin/preparatorios/${prep.id}/rodadas`}
-          className="flex items-center justify-between w-full p-3 bg-brand-dark/50 border border-white/10 text-sm text-gray-300 hover:border-brand-yellow/30 hover:text-white transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <List className="w-4 h-4" />
             <span>Gerenciar Rodadas</span>
           </div>
           <ChevronRight className="w-4 h-4" />
@@ -536,18 +480,14 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
 // Componente Row para visualização em lista
 interface PreparatorioListRowProps {
   prep: PreparatorioWithStats;
-  openMenuId: string | null;
-  toggleMenu: (id: string) => void;
-  setOpenMenuId: (id: string | null) => void;
+  togglingId: string | null;
   handleToggleActive: (id: string, isActive: boolean) => void;
   handleDelete: (prep: PreparatorioWithStats) => void;
 }
 
 const PreparatorioListRow: React.FC<PreparatorioListRowProps> = ({
   prep,
-  openMenuId,
-  toggleMenu,
-  setOpenMenuId,
+  togglingId,
   handleToggleActive,
   handleDelete
 }) => (
@@ -609,88 +549,42 @@ const PreparatorioListRow: React.FC<PreparatorioListRowProps> = ({
     </td>
     <td className="px-4 py-4">
       <div className="flex items-center justify-end gap-1">
-        <Link
-          to={`/admin/preparatorios/${prep.id}/montar-missoes`}
-          className="p-2 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded transition-colors"
-          title="Montar Missões"
+        {/* Toggle Ativo/Inativo */}
+        <button
+          onClick={() => handleToggleActive(prep.id, prep.is_active)}
+          disabled={togglingId === prep.id}
+          className={`relative w-10 h-5 rounded-full transition-colors ${
+            prep.is_active ? 'bg-green-500' : 'bg-gray-600'
+          } ${togglingId === prep.id ? 'opacity-50' : ''}`}
+          title={prep.is_active ? 'Clique para despublicar' : 'Clique para publicar'}
         >
-          <Target className="w-4 h-4" />
-        </Link>
+          <div
+            className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+              prep.is_active ? 'translate-x-5' : 'translate-x-0.5'
+            }`}
+          />
+        </button>
         <Link
           to={`/admin/preparatorios/${prep.id}/rodadas`}
           className="p-2 text-gray-500 hover:text-brand-yellow hover:bg-brand-yellow/10 rounded transition-colors"
           title="Gerenciar Rodadas"
         >
-          <List className="w-4 h-4" />
+          <Target className="w-4 h-4" />
         </Link>
         <Link
-          to={`/admin/preparatorios/${prep.id}/mensagens`}
-          className="p-2 text-gray-500 hover:text-brand-yellow hover:bg-brand-yellow/10 rounded transition-colors"
-          title="Mensagens de Incentivo"
+          to={`/admin/preparatorios/edit/${prep.id}`}
+          className="p-2 text-gray-500 hover:text-blue-400 hover:bg-white/5 rounded transition-colors"
+          title="Editar"
         >
-          <MessageSquare className="w-4 h-4" />
+          <Edit className="w-4 h-4" />
         </Link>
-        <Link
-          to={`/admin/preparatorios/${prep.id}/edital`}
-          className="p-2 text-gray-500 hover:text-brand-yellow hover:bg-brand-yellow/10 rounded transition-colors"
-          title="Edital Verticalizado"
+        <button
+          onClick={() => handleDelete(prep)}
+          className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+          title="Excluir"
         >
-          <FileText className="w-4 h-4" />
-        </Link>
-        <div className="relative">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleMenu(prep.id);
-            }}
-            className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded transition-colors"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-
-          {openMenuId === prep.id && (
-            <div className="absolute right-0 top-full mt-1 bg-brand-dark border border-white/10 rounded-sm shadow-xl z-10 min-w-[140px]">
-              <Link
-                to={`/admin/preparatorios/edit/${prep.id}`}
-                onClick={() => setOpenMenuId(null)}
-                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-              >
-                <Edit className="w-4 h-4" />
-                Editar
-              </Link>
-              <button
-                onClick={() => {
-                  handleToggleActive(prep.id, prep.is_active);
-                  setOpenMenuId(null);
-                }}
-                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-              >
-                {prep.is_active ? (
-                  <>
-                    <EyeOff className="w-4 h-4" />
-                    Desativar
-                  </>
-                ) : (
-                  <>
-                    <Eye className="w-4 h-4" />
-                    Ativar
-                  </>
-                )}
-              </button>
-              <hr className="border-white/10" />
-              <button
-                onClick={() => {
-                  handleDelete(prep);
-                  setOpenMenuId(null);
-                }}
-                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
-              >
-                <Trash2 className="w-4 h-4" />
-                Excluir
-              </button>
-            </div>
-          )}
-        </div>
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     </td>
   </tr>
