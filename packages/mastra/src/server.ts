@@ -5018,6 +5018,270 @@ Tente fazer o match das matérias identificadas na prova com as matérias do edi
 
 // Start the Express server
 
+// ============================================================================
+// ENDPOINT: Gerar conteúdo da missão (com suporte a regeneração e instruções extras)
+// ============================================================================
+app.post('/api/missao/gerar-conteudo', async (req, res) => {
+    try {
+        const { missaoId, materia, assunto, instrucoes, instrucoesAdicionais } = req.body;
+
+        if (!missaoId) {
+            return res.status(400).json({ success: false, error: 'missaoId é obrigatório' });
+        }
+
+        console.log(`[GerarConteudo] Iniciando geração para missão ${missaoId}...`);
+        if (instrucoesAdicionais) {
+            console.log(`[GerarConteudo] Instruções adicionais: ${instrucoesAdicionais.substring(0, 100)}...`);
+        }
+
+        // 1. Deletar conteúdo existente (forçar regeneração)
+        const { error: deleteError } = await supabase
+            .from('missao_conteudos')
+            .delete()
+            .eq('missao_id', missaoId);
+
+        if (deleteError) {
+            console.warn(`[GerarConteudo] Erro ao deletar conteúdo existente:`, deleteError);
+        }
+
+        // 2. Criar registro como "generating"
+        const { data: contentRecord, error: insertError } = await supabase
+            .from('missao_conteudos')
+            .insert({
+                missao_id: missaoId,
+                texto_content: '',
+                status: 'generating',
+                modelo_texto: 'gemini-3-pro-preview',
+            })
+            .select('id')
+            .single();
+
+        if (insertError) {
+            throw new Error(`Erro ao criar registro: ${insertError.message}`);
+        }
+
+        const contentId = contentRecord.id;
+
+        // 3. Buscar informações da missão
+        const missaoInfo = await getMissaoInfo(missaoId);
+        if (!missaoInfo) {
+            throw new Error('Missão não encontrada');
+        }
+
+        // 4. Buscar tópicos do edital
+        const editalItemIds = await getMissaoEditalItems(missaoId);
+        const topicos = editalItemIds.length > 0
+            ? await getEditalItemsTitulos(editalItemIds)
+            : [assunto || missaoInfo.assunto || 'Tema geral'];
+
+        // 5. Buscar filtros e questões
+        const filtros = await getMissaoFiltros(missaoId);
+        const questoes = await buscarQuestoesScrapping(filtros, topicos, 20);
+
+        console.log(`[GerarConteudo] ${questoes.length} questões encontradas para missão ${missaoId}`);
+
+        // 6. Montar prompt
+        let prompt: string;
+
+        if (questoes.length === 0) {
+            prompt = `
+## Contexto da Missão
+
+**Matéria:** ${materia || missaoInfo.materia || 'Matéria não especificada'}
+
+**Tópicos do Edital para Estudo:**
+${topicos.map((t: string) => `- ${t}`).join('\n')}
+
+${instrucoesAdicionais ? `**Instruções Específicas do Professor:**\n${instrucoesAdicionais}\n` : ''}
+
+---
+
+**ATENÇÃO:** Não foram encontradas questões específicas para esta missão.
+Crie uma aula teórica completa sobre "${topicos[0] || materia || missaoInfo.materia || 'o tema'}" baseada nos tópicos do edital acima.
+A aula deve cobrir os conceitos fundamentais, exemplos práticos, e preparar o aluno para questões que cobrem esses tópicos.
+`;
+        } else {
+            prompt = `
+## Contexto da Missão
+
+**Matéria:** ${materia || missaoInfo.materia || 'Matéria não especificada'}
+
+**Tópicos do Edital:**
+${topicos.map((t: string) => `- ${t}`).join('\n')}
+
+${instrucoesAdicionais ? `**Instruções Específicas do Professor:**\n${instrucoesAdicionais}\n` : ''}
+
+**Questões para Análise (${questoes.length} questões):**
+
+${questoes.map((q: QuestaoFormatada) => `
+### Questão ${q.numero} (${q.banca} ${q.ano})
+
+**Enunciado:** ${q.enunciado}
+
+**Alternativas:**
+${q.alternativas.map((a: { letter: string; text: string }) => `${a.letter}) ${a.text}`).join('\n')}
+
+**Gabarito:** ${q.gabarito}
+
+**Comentário da banca/professor:** ${q.comentario}
+`).join('\n---\n')}
+
+---
+
+Com base nas questões acima, crie uma aula completa sobre "${topicos[0] || materia || missaoInfo.materia || 'o tema'}".
+A aula deve preparar o aluno para responder questões similares às apresentadas.
+`;
+        }
+
+        // 7. Gerar conteúdo com IA
+        const contentAgent = mastra.getAgent("contentGeneratorAgent");
+        if (!contentAgent) throw new Error('contentGeneratorAgent não encontrado');
+
+        console.log(`[GerarConteudo] Gerando texto para missão ${missaoId}...`);
+        const contentResult = await contentAgent.generate([{ role: 'user', content: prompt }]);
+        const textoContent = contentResult.text || '';
+
+        console.log(`[GerarConteudo] Texto gerado (${textoContent.length} chars) para missão ${missaoId}`);
+
+        // 8. Gerar roteiro para áudio
+        const audioAgent = mastra.getAgent("audioScriptAgent");
+        let roteiro = '';
+        if (audioAgent && textoContent) {
+            console.log(`[GerarConteudo] Gerando roteiro de áudio para missão ${missaoId}...`);
+            const audioResult = await audioAgent.generate([{
+                role: 'user',
+                content: `Adapte o seguinte texto em Markdown para narração em áudio:\n\n${textoContent}`
+            }]);
+            roteiro = audioResult.text || '';
+            console.log(`[GerarConteudo] Roteiro gerado (${roteiro.length} chars)`);
+        }
+
+        // 9. Gerar TTS (em background - responder primeiro)
+        let audioUrl: string | null = null;
+        let audioProcessing = false;
+
+        if (roteiro && roteiro.length > 100) {
+            audioProcessing = true;
+
+            // Gerar áudio em background
+            (async () => {
+                try {
+                    console.log(`[GerarConteudo] Gerando TTS para missão ${missaoId} (${roteiro.length} chars)...`);
+
+                    const client = getGeminiClient();
+                    if (client) {
+                        const audioResponse = await client.models.generateContent({
+                            model: 'gemini-2.5-flash-preview-tts',
+                            contents: [{
+                                parts: [{
+                                    text: roteiro
+                                }]
+                            }],
+                            config: {
+                                responseModalities: ['AUDIO'],
+                                speechConfig: {
+                                    voiceConfig: {
+                                        prebuiltVoiceConfig: {
+                                            voiceName: 'Kore'
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
+                        const audioData = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+                        if (audioData) {
+                            // Convert PCM to WAV
+                            const pcmBuffer = Buffer.from(audioData, 'base64');
+                            const sampleRate = 24000;
+                            const numChannels = 1;
+                            const bitsPerSample = 16;
+                            const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+                            const blockAlign = numChannels * (bitsPerSample / 8);
+
+                            const wavHeader = Buffer.alloc(44);
+                            wavHeader.write('RIFF', 0);
+                            wavHeader.writeUInt32LE(36 + pcmBuffer.length, 4);
+                            wavHeader.write('WAVE', 8);
+                            wavHeader.write('fmt ', 12);
+                            wavHeader.writeUInt32LE(16, 16);
+                            wavHeader.writeUInt16LE(1, 20);
+                            wavHeader.writeUInt16LE(numChannels, 22);
+                            wavHeader.writeUInt32LE(sampleRate, 24);
+                            wavHeader.writeUInt32LE(byteRate, 28);
+                            wavHeader.writeUInt16LE(blockAlign, 32);
+                            wavHeader.writeUInt16LE(bitsPerSample, 34);
+                            wavHeader.write('data', 36);
+                            wavHeader.writeUInt32LE(pcmBuffer.length, 40);
+
+                            const audioBuffer = Buffer.concat([wavHeader, pcmBuffer]);
+                            const fileName = `missao-${missaoId}-${Date.now()}.wav`;
+
+                            const { error: uploadError } = await supabase.storage
+                                .from('missao-audios')
+                                .upload(fileName, audioBuffer, {
+                                    contentType: 'audio/wav',
+                                    upsert: true,
+                                });
+
+                            if (!uploadError) {
+                                const { data: publicUrlData } = supabase.storage
+                                    .from('missao-audios')
+                                    .getPublicUrl(fileName);
+
+                                const generatedAudioUrl = publicUrlData?.publicUrl || null;
+
+                                // Atualizar registro com URL do áudio
+                                await supabase
+                                    .from('missao_conteudos')
+                                    .update({ audio_url: generatedAudioUrl, modelo_audio: 'google-tts' })
+                                    .eq('id', contentId);
+
+                                console.log(`[GerarConteudo] Áudio uploaded: ${generatedAudioUrl}`);
+                            }
+                        }
+                    }
+                } catch (ttsError) {
+                    console.warn(`[GerarConteudo] TTS falhou para missão ${missaoId}:`, ttsError);
+                }
+            })();
+        }
+
+        // 10. Atualizar registro com conteúdo (status completed, áudio pode vir depois)
+        const { error: updateError } = await supabase
+            .from('missao_conteudos')
+            .update({
+                texto_content: textoContent,
+                topicos_analisados: topicos,
+                questoes_analisadas: questoes.map(q => q.numero),
+                status: 'completed',
+            })
+            .eq('id', contentId);
+
+        if (updateError) {
+            throw updateError;
+        }
+
+        console.log(`[GerarConteudo] ✅ Conteúdo gerado com sucesso para missão ${missaoId}`);
+
+        res.json({
+            success: true,
+            texto: textoContent,
+            audioUrl: audioUrl,
+            audioProcessing: audioProcessing,
+            questoesAnalisadas: questoes.length,
+        });
+
+    } catch (error: any) {
+        console.error('[GerarConteudo] Erro:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao gerar conteúdo'
+        });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Mastra Agent Server running on http://localhost:${PORT}`);
 });

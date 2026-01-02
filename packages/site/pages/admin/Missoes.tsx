@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, Copy, BookOpen, RotateCcw, Zap, GripVertical, FileText, X, Filter, ArrowRight, ArrowLeft, Check, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, Copy, BookOpen, RotateCcw, Zap, GripVertical, FileText, X, Filter, ArrowRight, ArrowLeft, Check, Sparkles, Loader2, Volume2, ListChecks, Play, Pause, ChevronDown } from 'lucide-react';
 import { preparatoriosService, rodadasService, missoesService, QuestaoFiltrosData, MissaoQuestaoFiltros } from '../../services/preparatoriosService';
 import { editalService, EditalItem } from '../../services/editalService';
 import { Preparatorio, Rodada, Missao, MissaoTipo } from '../../lib/database.types';
 import { EditalTopicSelector } from '../../components/admin/EditalTopicSelector';
 import { QuestionFilterSelector } from '../../components/admin/QuestionFilterSelector';
-import { QuestionFilters } from '../../services/externalQuestionsService';
+import { QuestionFilters, getQuestionsForFilters, ExternalQuestion } from '../../services/externalQuestionsService';
+import { supabase } from '../../lib/supabase';
+import ReactMarkdown from 'react-markdown';
 
 export const MissoesAdmin: React.FC = () => {
   const { preparatorioId, rodadaId } = useParams<{ preparatorioId: string; rodadaId: string }>();
@@ -18,6 +20,9 @@ export const MissoesAdmin: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingMissao, setEditingMissao] = useState<Missao | null>(null);
   const [filterTipo, setFilterTipo] = useState<MissaoTipo | 'todos'>('todos');
+  const [contentPreviewMissao, setContentPreviewMissao] = useState<Missao | null>(null);
+  const [questionsPreviewMissao, setQuestionsPreviewMissao] = useState<Missao | null>(null);
+  const [missoesComConteudo, setMissoesComConteudo] = useState<Set<string>>(new Set());
 
   const loadData = async () => {
     if (!preparatorioId || !rodadaId) return;
@@ -39,6 +44,23 @@ export const MissoesAdmin: React.FC = () => {
 
       const missoesData = await missoesService.getByRodada(rodadaId);
       setMissoes(missoesData);
+
+      // Carregar status de conteúdo para todas as missões de estudo
+      const missaoIds = missoesData
+        .filter(m => m.tipo === 'padrao' || m.tipo === 'estudo')
+        .map(m => m.id);
+
+      if (missaoIds.length > 0) {
+        const { data: conteudos } = await supabase
+          .from('missao_conteudos')
+          .select('missao_id')
+          .in('missao_id', missaoIds)
+          .eq('status', 'completed');
+
+        if (conteudos) {
+          setMissoesComConteudo(new Set(conteudos.map(c => c.missao_id)));
+        }
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -277,7 +299,7 @@ export const MissoesAdmin: React.FC = () => {
 
                   {missao.extra && missao.extra.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {missao.extra.map((item, i) => (
+                      {missao.extra.map((item: string, i: number) => (
                         <span key={i} className="px-2 py-1 bg-brand-dark/50 text-gray-400 text-xs rounded">
                           + {item}
                         </span>
@@ -291,6 +313,30 @@ export const MissoesAdmin: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-1 flex-shrink-0">
+                  {/* Botão Conteúdo - apenas para missões de estudo */}
+                  {(missao.tipo === 'padrao' || missao.tipo === 'estudo') && (
+                    <button
+                      onClick={() => setContentPreviewMissao(missao)}
+                      className={`p-2 rounded transition-colors ${
+                        missoesComConteudo.has(missao.id)
+                          ? 'text-green-400 bg-green-500/10 hover:bg-green-500/20'
+                          : 'text-gray-500 hover:text-green-400 hover:bg-green-500/10'
+                      }`}
+                      title={missoesComConteudo.has(missao.id) ? "Ver Conteúdo" : "Gerar Conteúdo"}
+                    >
+                      <FileText className="w-4 h-4" />
+                    </button>
+                  )}
+                  {/* Botão Questões - apenas para missões de estudo */}
+                  {(missao.tipo === 'padrao' || missao.tipo === 'estudo') && (
+                    <button
+                      onClick={() => setQuestionsPreviewMissao(missao)}
+                      className="p-2 text-gray-500 hover:text-brand-yellow hover:bg-brand-yellow/10 rounded transition-colors"
+                      title="Ver Questões"
+                    >
+                      <ListChecks className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setEditingMissao(missao);
@@ -341,6 +387,727 @@ export const MissoesAdmin: React.FC = () => {
           }}
         />
       )}
+
+      {/* Modal de Preview de Conteúdo */}
+      {contentPreviewMissao && (
+        <ContentPreviewModal
+          missao={contentPreviewMissao}
+          hasContent={missoesComConteudo.has(contentPreviewMissao.id)}
+          onClose={() => setContentPreviewMissao(null)}
+          onContentGenerated={() => {
+            setMissoesComConteudo(prev => new Set([...prev, contentPreviewMissao.id]));
+          }}
+        />
+      )}
+
+      {/* Modal de Preview de Questões */}
+      {questionsPreviewMissao && (
+        <QuestionsPreviewModal
+          missao={questionsPreviewMissao}
+          onClose={() => setQuestionsPreviewMissao(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
+// MODAL DE PREVIEW DE CONTEÚDO
+// ============================================================================
+
+const MASTRA_URL = import.meta.env.VITE_MASTRA_URL
+  ? import.meta.env.VITE_MASTRA_URL
+  : 'http://localhost:4000';
+
+interface ContentPreviewModalProps {
+  missao: Missao;
+  hasContent: boolean;
+  onClose: () => void;
+  onContentGenerated: () => void;
+}
+
+const ContentPreviewModal: React.FC<ContentPreviewModalProps> = ({ missao, hasContent, onClose, onContentGenerated }) => {
+  const [loading, setLoading] = useState(true);
+  const [content, setContent] = useState<{ texto: string; audioUrl: string | null } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+
+  // Estados para geração
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [generationStatus, setGenerationStatus] = useState('');
+  const [showRegenerateInput, setShowRegenerateInput] = useState(false);
+  const [regenerateInstructions, setRegenerateInstructions] = useState('');
+
+  // Estados para questões preview
+  const [questions, setQuestions] = useState<ExternalQuestion[]>([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [questionsCount, setQuestionsCount] = useState(0);
+
+  // Carregar conteúdo existente
+  useEffect(() => {
+    const loadContent = async () => {
+      if (!hasContent) {
+        // Se não tem conteúdo, carregar as questões para mostrar na tela de geração
+        setLoading(false);
+        loadQuestionsPreview();
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const { data, error: err } = await supabase
+          .from('missao_conteudos')
+          .select('texto_content, audio_url, status')
+          .eq('missao_id', missao.id)
+          .single();
+
+        if (err) {
+          if (err.code === 'PGRST116') {
+            setLoading(false);
+            loadQuestionsPreview();
+            return;
+          }
+          throw err;
+        }
+
+        if (data.status !== 'completed') {
+          setError(`Conteúdo em processamento (status: ${data.status})`);
+          return;
+        }
+
+        setContent({
+          texto: data.texto_content || '',
+          audioUrl: data.audio_url
+        });
+      } catch (err: any) {
+        setError(err.message || 'Erro ao carregar conteúdo');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadContent();
+  }, [missao.id, hasContent]);
+
+  // Carregar preview das questões
+  const loadQuestionsPreview = async () => {
+    try {
+      setLoadingQuestions(true);
+      const filtros = await missoesService.getQuestaoFiltros(missao.id);
+
+      if (!filtros || !filtros.filtros) {
+        return;
+      }
+
+      const filters: QuestionFilters = {
+        materias: filtros.filtros.materias || [],
+        assuntos: filtros.filtros.assuntos || [],
+        bancas: filtros.filtros.bancas || [],
+        orgaos: filtros.filtros.orgaos || [],
+        anos: filtros.filtros.anos || [],
+        escolaridade: filtros.filtros.escolaridade || [],
+        modalidade: filtros.filtros.modalidade || [],
+      };
+
+      setQuestionsCount(filtros.questoes_count || 0);
+
+      // Carregar apenas 5 questões para preview
+      const { questions: qs } = await getQuestionsForFilters(filters, {
+        limit: 5,
+        offset: 0,
+      });
+
+      setQuestions(qs);
+    } catch (err) {
+      console.error('Erro ao carregar questões:', err);
+    } finally {
+      setLoadingQuestions(false);
+    }
+  };
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  // Gerar conteúdo
+  const handleGenerateContent = async (instructions?: string) => {
+    try {
+      setIsGenerating(true);
+      setGenerationProgress(0);
+      setGenerationStatus('Iniciando geração...');
+      setShowRegenerateInput(false);
+
+      // Simular progresso inicial
+      const progressInterval = setInterval(() => {
+        setGenerationProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + Math.random() * 10;
+        });
+      }, 1000);
+
+      // Buscar filtros da missão para obter as questões
+      setGenerationStatus('Buscando questões da missão...');
+      setGenerationProgress(20);
+
+      const response = await fetch(`${MASTRA_URL}/api/missao/gerar-conteudo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          missaoId: missao.id,
+          materia: missao.materia,
+          assunto: missao.assunto,
+          instrucoes: missao.instrucoes,
+          instrucoesAdicionais: instructions,
+        }),
+      });
+
+      setGenerationStatus('Gerando conteúdo com IA...');
+      setGenerationProgress(50);
+
+      const result = await response.json();
+
+      clearInterval(progressInterval);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Erro ao gerar conteúdo');
+      }
+
+      setGenerationStatus('Salvando conteúdo...');
+      setGenerationProgress(80);
+
+      // Se tem áudio, aguardar geração
+      if (result.audioProcessing) {
+        setGenerationStatus('Gerando áudio (pode levar alguns minutos)...');
+      }
+
+      setGenerationProgress(100);
+      setGenerationStatus('Conteúdo gerado com sucesso!');
+
+      // Atualizar o conteúdo localmente
+      setContent({
+        texto: result.texto || '',
+        audioUrl: result.audioUrl || null
+      });
+
+      // Notificar que o conteúdo foi gerado
+      onContentGenerated();
+
+      // Pequeno delay para mostrar mensagem de sucesso
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setIsGenerating(false);
+
+    } catch (err: any) {
+      console.error('Erro ao gerar conteúdo:', err);
+      setError(err.message || 'Erro ao gerar conteúdo');
+      setIsGenerating(false);
+    }
+  };
+
+  // Se está gerando conteúdo
+  if (isGenerating) {
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="bg-brand-card border border-white/10 w-full max-w-lg rounded-sm p-8">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-brand-yellow/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Sparkles className="w-8 h-8 text-brand-yellow animate-pulse" />
+            </div>
+            <h3 className="text-xl font-bold text-white uppercase mb-2">Gerando Conteúdo</h3>
+            <p className="text-gray-400 mb-6">{generationStatus}</p>
+
+            {/* Progress bar */}
+            <div className="w-full bg-brand-dark rounded-full h-3 mb-4 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-brand-yellow to-green-500 transition-all duration-500 ease-out"
+                style={{ width: `${generationProgress}%` }}
+              />
+            </div>
+            <p className="text-brand-yellow font-bold">{Math.round(generationProgress)}%</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Se não tem conteúdo - mostrar tela de geração
+  if (!content && !loading) {
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="bg-brand-card border border-white/10 w-full max-w-2xl rounded-sm my-8 max-h-[90vh] flex flex-col">
+          {/* Header */}
+          <div className="flex justify-between items-center p-6 border-b border-white/10 flex-shrink-0">
+            <div>
+              <h3 className="text-xl font-bold text-white uppercase">Gerar Conteúdo</h3>
+              <p className="text-gray-500 text-sm mt-1">
+                {missao.materia} {missao.assunto && `- ${missao.assunto}`}
+              </p>
+            </div>
+            <button onClick={onClose} className="text-gray-500 hover:text-white">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="p-6 overflow-y-auto flex-1">
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-sm mb-6">
+                <p className="text-red-400">{error}</p>
+              </div>
+            )}
+
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-gray-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-10 h-10 text-gray-500" />
+              </div>
+              <p className="text-gray-300 mb-2">
+                Esta missão ainda não possui conteúdo gerado.
+              </p>
+              <p className="text-gray-500 text-sm">
+                Deseja gerar o conteúdo de estudo com base nas questões filtradas?
+              </p>
+            </div>
+
+            {/* Preview das questões */}
+            {loadingQuestions ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-6 h-6 text-brand-yellow animate-spin" />
+              </div>
+            ) : questions.length > 0 ? (
+              <div className="bg-brand-dark border border-white/10 rounded-sm p-4 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-white font-bold text-sm uppercase">Questões que serão usadas como base</h4>
+                  <span className="text-brand-yellow text-sm font-bold">{questionsCount} questões</span>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {questions.map((q, i) => (
+                    <div key={q.id} className="flex items-start gap-2 p-2 bg-white/5 rounded">
+                      <span className="flex-shrink-0 w-5 h-5 bg-brand-yellow/20 text-brand-yellow rounded flex items-center justify-center text-xs font-bold">
+                        {i + 1}
+                      </span>
+                      <p className="text-gray-400 text-xs line-clamp-2">{q.enunciado}</p>
+                    </div>
+                  ))}
+                  {questionsCount > 5 && (
+                    <p className="text-gray-500 text-xs text-center pt-2">
+                      + {questionsCount - 5} outras questões
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-orange-500/10 border border-orange-500/30 p-4 rounded-sm mb-6">
+                <p className="text-orange-400 text-sm">
+                  Nenhum filtro de questões configurado para esta missão.
+                  O conteúdo será gerado apenas com base na matéria e assunto.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-3 p-4 border-t border-white/10 flex-shrink-0">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 text-gray-400 font-bold uppercase text-sm hover:text-white transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => handleGenerateContent()}
+              className="flex items-center gap-2 bg-brand-yellow text-brand-darker px-6 py-2 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              Gerar Conteúdo
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar conteúdo existente com opção de regenerar
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-brand-card border border-white/10 w-full max-w-3xl rounded-sm my-8 max-h-[90vh] flex flex-col relative">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-white/10 flex-shrink-0">
+          <div>
+            <h3 className="text-xl font-bold text-white uppercase">Conteúdo da Missão</h3>
+            <p className="text-gray-500 text-sm mt-1">
+              {missao.materia} {missao.assunto && `- ${missao.assunto}`}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1 pb-24">
+          {loading && (
+            <div className="flex flex-col items-center gap-4 py-12">
+              <Loader2 className="w-8 h-8 text-brand-yellow animate-spin" />
+              <p className="text-gray-400">Carregando conteúdo...</p>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-sm text-center">
+              <p className="text-red-400">{error}</p>
+            </div>
+          )}
+
+          {content && !loading && (
+            <div className="space-y-6">
+              {/* Audio Player */}
+              {content.audioUrl && (
+                <div className="bg-brand-dark border border-white/10 rounded-sm p-4">
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={togglePlay}
+                      className="w-12 h-12 bg-green-500 hover:bg-green-400 rounded-full flex items-center justify-center transition-colors"
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-5 h-5 text-white" />
+                      ) : (
+                        <Play className="w-5 h-5 text-white ml-0.5" />
+                      )}
+                    </button>
+                    <div className="flex-1">
+                      <p className="text-white font-medium">Áudio da Aula</p>
+                      <p className="text-gray-500 text-sm">Clique para ouvir o conteúdo narrado</p>
+                    </div>
+                    <Volume2 className="w-5 h-5 text-gray-500" />
+                  </div>
+                  <audio
+                    ref={audioRef}
+                    src={content.audioUrl}
+                    onEnded={() => setIsPlaying(false)}
+                    onPause={() => setIsPlaying(false)}
+                    onPlay={() => setIsPlaying(true)}
+                  />
+                </div>
+              )}
+
+              {/* Texto Content */}
+              <div className="prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown>{content.texto}</ReactMarkdown>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal de instruções para regenerar */}
+        {showRegenerateInput && (
+          <div className="absolute inset-x-0 bottom-0 bg-brand-dark border-t border-white/10 p-6 shadow-xl">
+            <div className="mb-4">
+              <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
+                Instruções para regeneração (opcional)
+              </label>
+              <textarea
+                value={regenerateInstructions}
+                onChange={(e) => setRegenerateInstructions(e.target.value)}
+                className="w-full bg-brand-card border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors resize-none"
+                rows={3}
+                placeholder="Ex: Adicione mais exemplos práticos, foque mais em jurisprudência, etc."
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowRegenerateInput(false)}
+                className="px-4 py-2 text-gray-400 font-bold uppercase text-sm hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleGenerateContent(regenerateInstructions)}
+                className="flex items-center gap-2 bg-brand-yellow text-brand-darker px-6 py-2 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
+              >
+                <Sparkles className="w-4 h-4" />
+                Regenerar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Botão flutuante para regenerar */}
+        {content && !showRegenerateInput && (
+          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2">
+            <button
+              onClick={() => setShowRegenerateInput(true)}
+              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 font-bold uppercase text-sm rounded-full shadow-lg transition-all hover:scale-105"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Gerar Novo Conteúdo
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// MODAL DE PREVIEW DE QUESTÕES
+// ============================================================================
+
+interface QuestionsPreviewModalProps {
+  missao: Missao;
+  onClose: () => void;
+}
+
+const QuestionsPreviewModal: React.FC<QuestionsPreviewModalProps> = ({ missao, onClose }) => {
+  const [loading, setLoading] = useState(true);
+  const [questions, setQuestions] = useState<ExternalQuestion[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const ITEMS_PER_PAGE = 20;
+
+  useEffect(() => {
+    const loadQuestions = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Buscar filtros da missão
+        const filtros = await missoesService.getQuestaoFiltros(missao.id);
+
+        if (!filtros || !filtros.filtros) {
+          setError('Nenhum filtro de questões configurado para esta missão.');
+          return;
+        }
+
+        const filters: QuestionFilters = {
+          materias: filtros.filtros.materias || [],
+          assuntos: filtros.filtros.assuntos || [],
+          bancas: filtros.filtros.bancas || [],
+          orgaos: filtros.filtros.orgaos || [],
+          anos: filtros.filtros.anos || [],
+          escolaridade: filtros.filtros.escolaridade || [],
+          modalidade: filtros.filtros.modalidade || [],
+        };
+
+        // Buscar questões com paginação
+        const { questions: qs, error: fetchError } = await getQuestionsForFilters(filters, {
+          limit: ITEMS_PER_PAGE,
+          offset: (page - 1) * ITEMS_PER_PAGE,
+        });
+
+        if (fetchError) {
+          setError(fetchError);
+          return;
+        }
+
+        setQuestions(qs);
+        setTotalCount(filtros.questoes_count || 0);
+      } catch (err: any) {
+        setError(err.message || 'Erro ao carregar questões');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadQuestions();
+  }, [missao.id, page]);
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
+  const truncateText = (text: string, maxLines: number = 3) => {
+    const lines = text.split('\n');
+    if (lines.length <= maxLines) {
+      const words = text.split(' ');
+      if (words.length > 50) {
+        return words.slice(0, 50).join(' ') + '...';
+      }
+      return text;
+    }
+    return lines.slice(0, maxLines).join('\n') + '...';
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-brand-card border border-white/10 w-full max-w-4xl rounded-sm my-8 max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-white/10 flex-shrink-0">
+          <div>
+            <h3 className="text-xl font-bold text-white uppercase">Questões da Missão</h3>
+            <p className="text-gray-500 text-sm mt-1">
+              {missao.materia} {missao.assunto && `- ${missao.assunto}`}
+              {totalCount > 0 && (
+                <span className="text-brand-yellow ml-2">({totalCount} questões)</span>
+              )}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1">
+          {loading && (
+            <div className="flex flex-col items-center gap-4 py-12">
+              <Loader2 className="w-8 h-8 text-brand-yellow animate-spin" />
+              <p className="text-gray-400">Carregando questões...</p>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-sm text-center">
+              <p className="text-red-400">{error}</p>
+            </div>
+          )}
+
+          {!loading && !error && questions.length === 0 && (
+            <div className="text-center py-12">
+              <ListChecks className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400">Nenhuma questão encontrada com os filtros configurados.</p>
+            </div>
+          )}
+
+          {!loading && !error && questions.length > 0 && (
+            <div className="space-y-3">
+              {questions.map((q, index) => {
+                const isExpanded = expandedId === q.id;
+                const questionNumber = (page - 1) * ITEMS_PER_PAGE + index + 1;
+
+                return (
+                  <div
+                    key={q.id}
+                    className="bg-brand-dark border border-white/10 rounded-sm overflow-hidden"
+                  >
+                    {/* Accordion Header */}
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : q.id)}
+                      className="w-full flex items-start gap-3 p-4 text-left hover:bg-white/5 transition-colors"
+                    >
+                      <span className="flex-shrink-0 w-8 h-8 bg-brand-yellow/20 text-brand-yellow rounded flex items-center justify-center font-bold text-sm">
+                        {questionNumber}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          {q.banca && (
+                            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs font-bold uppercase rounded">
+                              {q.banca}
+                            </span>
+                          )}
+                          {q.ano && (
+                            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs font-bold rounded">
+                              {q.ano}
+                            </span>
+                          )}
+                          {q.materia && (
+                            <span className="text-gray-500 text-xs truncate">{q.materia}</span>
+                          )}
+                        </div>
+                        <p className={`text-gray-300 text-sm ${isExpanded ? '' : 'line-clamp-3'}`}>
+                          {isExpanded ? q.enunciado : truncateText(q.enunciado)}
+                        </p>
+                      </div>
+                      <ChevronDown
+                        className={`w-5 h-5 text-gray-500 flex-shrink-0 transition-transform ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {/* Accordion Content */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 pt-2 border-t border-white/5">
+                        {/* Full enunciado */}
+                        <p className="text-gray-300 text-sm mb-4 whitespace-pre-wrap">
+                          {q.enunciado}
+                        </p>
+
+                        {/* Alternativas */}
+                        <div className="space-y-2">
+                          {Object.entries(q.alternativas || {}).map(([letra, texto]) => {
+                            if (!texto) return null;
+                            const isCorrect = q.gabarito?.toLowerCase() === letra.toLowerCase();
+                            return (
+                              <div
+                                key={letra}
+                                className={`flex items-start gap-2 p-2 rounded ${
+                                  isCorrect
+                                    ? 'bg-green-500/10 border border-green-500/30'
+                                    : 'bg-white/5'
+                                }`}
+                              >
+                                <span
+                                  className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                    isCorrect
+                                      ? 'bg-green-500 text-white'
+                                      : 'bg-gray-700 text-gray-300'
+                                  }`}
+                                >
+                                  {letra.toUpperCase()}
+                                </span>
+                                <span className={`text-sm ${isCorrect ? 'text-green-300' : 'text-gray-400'}`}>
+                                  {texto}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Comentário */}
+                        {q.comentario && (
+                          <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded">
+                            <p className="text-blue-400 text-xs font-bold uppercase mb-1">Comentário:</p>
+                            <p className="text-blue-300/80 text-sm">{q.comentario}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer with Pagination */}
+        <div className="flex items-center justify-between p-4 border-t border-white/10 flex-shrink-0">
+          <div className="text-gray-500 text-sm">
+            Página {page} de {totalPages || 1}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1.5 bg-brand-dark border border-white/10 text-gray-400 font-bold text-sm hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-3 py-1.5 bg-brand-dark border border-white/10 text-gray-400 font-bold text-sm hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Próxima
+            </button>
+            <button
+              onClick={onClose}
+              className="px-6 py-1.5 bg-brand-yellow text-brand-darker font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors ml-2"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
