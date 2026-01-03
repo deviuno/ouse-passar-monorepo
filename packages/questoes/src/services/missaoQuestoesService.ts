@@ -178,11 +178,13 @@ function sanitizeKeywordForQuery(keyword: string): string {
 
 /**
  * Aplica filtros obrigatórios de qualidade a uma query
+ * - Garante que a questão esteja ativa (ativo = true)
  * - Garante que a questão tenha gabarito válido
  * - Garante que tenha enunciado
  */
 function applyQualityFilters(query: any): any {
   return query
+    .eq('ativo', true) // Apenas questões ativas
     .not('gabarito', 'is', null)
     .neq('gabarito', '')
     .not('enunciado', 'is', null)
@@ -669,7 +671,8 @@ export async function getQuestoesByIds(ids: (number | string)[]): Promise<Parsed
       const { data, error, status, statusText } = await questionsDb
         .from('questoes_concurso')
         .select('*')
-        .in('id', batch);
+        .in('id', batch)
+        .eq('ativo', true); // Apenas questões ativas
 
       console.log('[MissaoQuestoesService] Resposta do batch:', {
         status,

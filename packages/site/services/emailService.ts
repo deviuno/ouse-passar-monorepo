@@ -238,8 +238,9 @@ export function replaceTemplateVariables(
 
 export const PRODUTOS_EMAIL = [
   { id: 'planejador', label: 'Planejador de Estudos' },
-  { id: 'ouse_questoes', label: 'Ouse Questões' },
+  { id: 'turma_elite', label: 'Turma de Elite' },
   { id: 'simulados', label: 'Simulados' },
   { id: 'reta_final', label: 'Reta Final' },
   { id: 'plataforma_completa', label: 'Plataforma Completa' },
+  { id: 'assinatura_ouse_questoes', label: 'Assinatura Ouse Questões' },
 ];

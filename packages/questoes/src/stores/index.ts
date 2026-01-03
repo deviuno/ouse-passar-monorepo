@@ -7,3 +7,4 @@ export { useOnboardingStore } from './useOnboardingStore';
 export { useUIStore, useToast } from './useUIStore';
 export { useNotificationStore } from './useNotificationStore';
 export { useBatteryStore } from './useBatteryStore';
+export { useModuleSettingsStore, type ModuleName, type ModuleConfig, type BlockBehavior } from './useModuleSettingsStore';

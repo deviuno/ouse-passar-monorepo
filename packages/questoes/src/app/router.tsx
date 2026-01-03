@@ -29,6 +29,7 @@ import AuthPage from '../pages/AuthPage';
 // Guards
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { OnboardingGuard } from '../components/auth/OnboardingGuard';
+import { ModuleGuard } from '../components/auth/ModuleGuard';
 
 export const router = createBrowserRouter([
   // Auth routes (public)
@@ -71,7 +72,9 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <OnboardingGuard>
-          <SimuladoExecPage />
+          <ModuleGuard module="simulados">
+            <SimuladoExecPage />
+          </ModuleGuard>
         </OnboardingGuard>
       </ProtectedRoute>
     ),
@@ -88,50 +91,57 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
+      // Trilha (Home) - protected by ModuleGuard
       {
         index: true,
-        element: <HomePage />,
+        element: <ModuleGuard module="trilha"><HomePage /></ModuleGuard>,
       },
       {
         path: 'trilha',
-        element: <HomePage />,
+        element: <ModuleGuard module="trilha"><HomePage /></ModuleGuard>,
       },
       {
         path: 'missao/:missionId',
-        element: <MissionPage />,
+        element: <ModuleGuard module="trilha"><MissionPage /></ModuleGuard>,
       },
       {
         path: ':prepSlug/r/:roundNum/m/:missionNum',
-        element: <MissionPage />,
+        element: <ModuleGuard module="trilha"><MissionPage /></ModuleGuard>,
       },
+      // Praticar - protected by ModuleGuard
       {
         path: 'praticar',
-        element: <PracticePage />,
+        element: <ModuleGuard module="praticar"><PracticePage /></ModuleGuard>,
       },
+      // Simulados - protected by ModuleGuard
       {
         path: 'simulados',
-        element: <SimuladosPage />,
+        element: <ModuleGuard module="simulados"><SimuladosPage /></ModuleGuard>,
       },
       {
         path: 'simulados/:id',
-        element: <SimuladoDetailPage />,
+        element: <ModuleGuard module="simulados"><SimuladoDetailPage /></ModuleGuard>,
       },
+      // Estatísticas - protected by ModuleGuard
       {
         path: 'estatisticas',
-        element: <StatsPage />,
+        element: <ModuleGuard module="estatisticas"><StatsPage /></ModuleGuard>,
       },
+      // Loja - protected by ModuleGuard
       {
         path: 'loja',
-        element: <StorePage />,
+        element: <ModuleGuard module="loja"><StorePage /></ModuleGuard>,
       },
       {
         path: 'loja/preparatorios',
-        element: <PreparatoriosStorePage />,
+        element: <ModuleGuard module="loja"><PreparatoriosStorePage /></ModuleGuard>,
       },
+      // Inventário - not protected (user's own inventory)
       {
         path: 'inventario',
         element: <InventoryPage />,
       },
+      // Settings/Profile pages - not protected
       {
         path: 'perfil',
         element: <ProfilePage />,

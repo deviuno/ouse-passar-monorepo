@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Map, Target, FileText, BarChart2, ShoppingBag } from 'lucide-react';
+import { Map, Target, FileText, BarChart2, ShoppingBag, Lock } from 'lucide-react';
+import { ModuleBlockedModal } from '../ui/ModuleBlockedModal';
+import { useModuleAccess, getModuleFromPath } from '../../hooks/useModuleAccess';
+import { ModuleName } from '../../stores/useModuleSettingsStore';
 
 const navItems = [
   { path: '/', icon: Map, label: 'Trilha', tourId: 'nav-trilha' },
@@ -11,45 +14,127 @@ const navItems = [
   { path: '/loja', icon: ShoppingBag, label: 'Loja', tourId: 'nav-loja' },
 ];
 
+// Module name labels for the blocked modal
+const MODULE_LABELS: Record<ModuleName, string> = {
+  trilha: 'Minhas Trilhas',
+  praticar: 'Praticar Questões',
+  simulados: 'Meus Simulados',
+  estatisticas: 'Estatísticas',
+  loja: 'Loja',
+};
+
 export function MobileNav() {
   const location = useLocation();
+  const moduleAccess = useModuleAccess();
+  const [blockedModalOpen, setBlockedModalOpen] = useState(false);
+  const [blockedModuleName, setBlockedModuleName] = useState<string>('');
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#252525] border-t border-[#3A3A3A] z-50">
-      <div className="flex items-center justify-around h-16 px-2">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path ||
-            (item.path === '/' && location.pathname === '/trilha');
-          const Icon = item.icon;
+    <>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#252525] border-t border-[#3A3A3A] z-50">
+        <div className="flex items-center justify-around h-16 px-2">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path ||
+              (item.path === '/' && location.pathname === '/trilha');
+            const Icon = item.icon;
 
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              data-tour={item.tourId}
-              className="relative flex flex-col items-center justify-center w-16 h-full"
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute -top-1 w-12 h-1 bg-[#FFB800] rounded-full"
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                />
-              )}
-              <motion.div
-                whileTap={{ scale: 0.9 }}
-                className={`flex flex-col items-center gap-1 ${
-                  isActive ? 'text-[#FFB800]' : 'text-[#6E6E6E]'
-                }`}
+            // Get module access config for this nav item
+            const moduleName = getModuleFromPath(item.path);
+            const moduleConfig = moduleName ? moduleAccess[moduleName] : null;
+            const isBlocked = moduleConfig && !moduleConfig.enabled && !moduleAccess.hasFullAccess;
+            const blockBehavior = moduleConfig?.blockBehavior || 'disabled';
+
+            // If hidden and blocked, don't render
+            if (isBlocked && blockBehavior === 'hidden') {
+              return null;
+            }
+
+            // Handle blocked item click
+            const handleBlockedClick = (e: React.MouseEvent) => {
+              e.preventDefault();
+              if (blockBehavior === 'modal' && moduleName) {
+                setBlockedModuleName(MODULE_LABELS[moduleName]);
+                setBlockedModalOpen(true);
+              }
+              // For 'disabled', do nothing (item is not clickable)
+            };
+
+            // Render disabled item
+            if (isBlocked && blockBehavior === 'disabled') {
+              return (
+                <div
+                  key={item.path}
+                  data-tour={item.tourId}
+                  className="relative flex flex-col items-center justify-center w-16 h-full cursor-not-allowed opacity-50"
+                >
+                  <div className="flex flex-col items-center gap-1 text-[#6E6E6E]">
+                    <div className="relative">
+                      <Icon size={22} />
+                      <Lock size={8} className="absolute -bottom-0.5 -right-0.5 text-[#6E6E6E]" />
+                    </div>
+                    <span className="text-[10px] font-medium">{item.label}</span>
+                  </div>
+                </div>
+              );
+            }
+
+            // Render item with modal behavior when blocked
+            if (isBlocked && blockBehavior === 'modal') {
+              return (
+                <button
+                  key={item.path}
+                  onClick={handleBlockedClick}
+                  data-tour={item.tourId}
+                  className="relative flex flex-col items-center justify-center w-16 h-full"
+                >
+                  <motion.div
+                    whileTap={{ scale: 0.9 }}
+                    className="flex flex-col items-center gap-1 text-[#6E6E6E]"
+                  >
+                    <Icon size={22} />
+                    <span className="text-[10px] font-medium">{item.label}</span>
+                  </motion.div>
+                </button>
+              );
+            }
+
+            // Normal nav item (not blocked)
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                data-tour={item.tourId}
+                className="relative flex flex-col items-center justify-center w-16 h-full"
               >
-                <Icon size={22} />
-                <span className="text-[10px] font-medium">{item.label}</span>
-              </motion.div>
-            </NavLink>
-          );
-        })}
-      </div>
-    </nav>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute -top-1 w-12 h-1 bg-[#FFB800] rounded-full"
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  />
+                )}
+                <motion.div
+                  whileTap={{ scale: 0.9 }}
+                  className={`flex flex-col items-center gap-1 ${
+                    isActive ? 'text-[#FFB800]' : 'text-[#6E6E6E]'
+                  }`}
+                >
+                  <Icon size={22} />
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </motion.div>
+              </NavLink>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Module Blocked Modal */}
+      <ModuleBlockedModal
+        isOpen={blockedModalOpen}
+        onClose={() => setBlockedModalOpen(false)}
+        moduleName={blockedModuleName}
+      />
+    </>
   );
 }
 

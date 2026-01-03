@@ -112,7 +112,8 @@ async function buscarValoresUnicosDoBanco(
 
         const { count: totalCount, error: countError } = await supabase
             .from('questoes_concurso')
-            .select('*', { count: 'exact', head: true });
+            .select('*', { count: 'exact', head: true })
+            .eq('ativo', true); // Apenas questões ativas
 
         const total = totalCount || 0;
         if (countError) {
@@ -132,6 +133,7 @@ async function buscarValoresUnicosDoBanco(
             const { data, error } = await supabase
                 .from('questoes_concurso')
                 .select(coluna)
+                .eq('ativo', true) // Apenas questões ativas
                 .not(coluna, 'is', null)
                 .neq(coluna, '')
                 .range(offset, offset + SAMPLE_SIZE - 1);
@@ -189,6 +191,7 @@ async function contarQuestoesComFiltros(filtros: FiltrosMissao): Promise<number>
         let query = supabase
             .from('questoes_concurso')
             .select('*', { count: 'exact', head: true })
+            .eq('ativo', true) // Apenas questões ativas
             .not('gabarito', 'is', null)
             .neq('gabarito', '');
 

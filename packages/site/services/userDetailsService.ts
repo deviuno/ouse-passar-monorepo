@@ -20,9 +20,9 @@ export interface UserPreparatorio {
   logo_url?: string;
   purchased_at: string;
   status: string;
-  product_type: string; // 'Planejador', 'Simulado', 'Reta Final', 'Ouse Questões', etc.
+  product_type: string; // 'Planejador', 'Simulado', 'Reta Final', 'Turma de Elite', etc.
   user_trail_id?: string;
-  // Battery info (only for Ouse Questões)
+  // Battery info (only for Turma de Elite)
   battery_current?: number;
   has_unlimited_battery?: boolean;
   bonus_battery?: number;
@@ -126,7 +126,7 @@ export async function getUserDetails(userId: string): Promise<{
       }
     }
 
-    // 2. Courses (Simulados, Reta Final, Ouse Questões)
+    // 2. Courses (Simulados, Reta Final, Turma de Elite)
     const { data: userCourses } = await supabase
       .from('user_courses' as any)
       .select('id, course_id, purchased_at')
@@ -191,7 +191,7 @@ export async function getUserDetails(userId: string): Promise<{
       }
     }
 
-    // 4. Ouse Questões (user_trails - matrículas no app de questões)
+    // 4. Turma de Elite (user_trails - matrículas no app de questões)
     const { data: userTrails } = await supabase
       .from('user_trails' as any)
       .select('id, preparatorio_id, created_at, is_reta_final, battery_current, has_unlimited_battery, bonus_battery')
@@ -216,7 +216,7 @@ export async function getUserDetails(userId: string): Promise<{
               logo_url: prep.logo_url,
               purchased_at: (trail as any)?.created_at || new Date().toISOString(),
               status: 'active',
-              product_type: (trail as any)?.is_reta_final ? 'Reta Final' : 'Ouse Questões',
+              product_type: (trail as any)?.is_reta_final ? 'Reta Final' : 'Turma de Elite',
               user_trail_id: (trail as any)?.id,
               // Battery info
               battery_current: (trail as any)?.battery_current,
@@ -362,7 +362,7 @@ export async function updateUserSettings(
 }
 
 /**
- * Recharge battery for a user trail (Ouse Questões enrollment)
+ * Recharge battery for a user trail (Turma de Elite enrollment)
  * Sets battery_current to 100 (default max)
  */
 export async function rechargeBattery(

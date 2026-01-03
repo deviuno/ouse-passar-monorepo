@@ -43,6 +43,10 @@ import {
   TestTube,
   CheckCircle2,
   XCircle,
+  LayoutGrid,
+  Lock,
+  BarChart2,
+  CreditCard,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/Toast';
@@ -199,6 +203,16 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; 
     icon: FileText,
     description: 'Termos de Uso e Politica de Privacidade',
   },
+  modules: {
+    label: 'Módulos',
+    icon: LayoutGrid,
+    description: 'Habilitar/desabilitar módulos do app',
+  },
+  assinatura: {
+    label: 'Assinatura',
+    icon: CreditCard,
+    description: 'Configurações da assinatura anual Ouse Questões',
+  },
   general: {
     label: 'Geral',
     icon: Globe,
@@ -286,6 +300,25 @@ const SETTING_LABELS: Record<string, string> = {
   commission_rate: 'Taxa de Comissão (%)',
   min_withdrawal: 'Valor Mínimo para Saque (R$)',
   battery_reward_per_referral: 'Baterias por Indicação',
+
+  // Módulos
+  trilha_enabled: 'Minhas Trilhas',
+  trilha_block_behavior: 'Comportamento quando bloqueado',
+  praticar_enabled: 'Praticar Questões',
+  praticar_block_behavior: 'Comportamento quando bloqueado',
+  simulados_enabled: 'Meus Simulados',
+  simulados_block_behavior: 'Comportamento quando bloqueado',
+  estatisticas_enabled: 'Estatísticas',
+  estatisticas_block_behavior: 'Comportamento quando bloqueado',
+  loja_enabled: 'Loja',
+  loja_block_behavior: 'Comportamento quando bloqueado',
+
+  // Assinatura Ouse Questões
+  assinatura_preco: 'Preço (R$)',
+  assinatura_preco_desconto: 'Preço com Desconto (R$)',
+  assinatura_duracao_meses: 'Duração (meses)',
+  assinatura_checkout_url: 'URL de Checkout',
+  assinatura_guru_product_id: 'ID do Produto (Guru)',
 };
 
 // Tooltips de ajuda para todos os campos de configuração
@@ -357,13 +390,32 @@ const SETTING_TOOLTIPS: Record<string, string> = {
   notebooks_enabled_free: 'Se desativado, usuários gratuitos não poderão criar cadernos de questões.',
   notebooks_max_free: 'Número máximo de cadernos que um usuário gratuito pode criar.',
   practice_enabled_free: 'Se desativado, usuários gratuitos não terão acesso ao modo prática.',
-  unlimited_duration_months: 'Tempo de validade da bateria ilimitada após a compra do Ouse Questões. Padrão: 12 meses.',
+  unlimited_duration_months: 'Tempo de validade da bateria ilimitada após a compra da Turma de Elite. Padrão: 12 meses.',
 
   // ===== AFILIAÇÃO =====
   points_per_referral: 'Quantidade de pontos que o usuário ganha quando alguém se cadastra usando seu link de indicação.',
   commission_rate: 'Porcentagem do valor da venda que o afiliado recebe como comissão quando um indicado faz uma compra.',
   min_withdrawal: 'Valor mínimo em reais que o afiliado precisa acumular para poder solicitar o saque das comissões.',
   battery_reward_per_referral: 'Quantidade de baterias extras que o usuário ganha por cada indicação confirmada.',
+
+  // ===== MÓDULOS =====
+  trilha_enabled: 'Habilita ou desabilita o módulo "Minhas Trilhas" para usuários comuns. Admins e usuários com "Ver Respostas" sempre têm acesso.',
+  trilha_block_behavior: 'Como o módulo aparece quando bloqueado: "hidden" (oculto), "disabled" (desabilitado com cadeado), "modal" (mostra modal ao clicar).',
+  praticar_enabled: 'Habilita ou desabilita o módulo "Praticar Questões". Este é o módulo principal, recomendado mantê-lo sempre ativo.',
+  praticar_block_behavior: 'Como o módulo aparece quando bloqueado: "hidden" (oculto), "disabled" (desabilitado com cadeado), "modal" (mostra modal ao clicar).',
+  simulados_enabled: 'Habilita ou desabilita o módulo "Meus Simulados" para usuários comuns.',
+  simulados_block_behavior: 'Como o módulo aparece quando bloqueado: "hidden" (oculto), "disabled" (desabilitado com cadeado), "modal" (mostra modal ao clicar).',
+  estatisticas_enabled: 'Habilita ou desabilita o módulo "Estatísticas" (Raio-X) para usuários comuns.',
+  estatisticas_block_behavior: 'Como o módulo aparece quando bloqueado: "hidden" (oculto), "disabled" (desabilitado com cadeado), "modal" (mostra modal ao clicar).',
+  loja_enabled: 'Habilita ou desabilita o módulo "Loja" para usuários comuns.',
+  loja_block_behavior: 'Como o módulo aparece quando bloqueado: "hidden" (oculto), "disabled" (desabilitado com cadeado), "modal" (mostra modal ao clicar).',
+
+  // ===== ASSINATURA OUSE QUESTÕES =====
+  assinatura_preco: 'Preço da assinatura anual Ouse Questões em reais. Esta assinatura dá acesso ao módulo "Praticar Questões" sem vinculação a preparatório.',
+  assinatura_preco_desconto: 'Preço promocional com desconto. Deixe 0 se não houver desconto.',
+  assinatura_duracao_meses: 'Duração da assinatura em meses. Padrão: 12 meses (anual).',
+  assinatura_checkout_url: 'URL de checkout do Guru para a assinatura Ouse Questões.',
+  assinatura_guru_product_id: 'ID do produto no Guru Manager para integração de pagamentos.',
 };
 
 // Gamification sub-tabs
@@ -1434,6 +1486,350 @@ function EmailsSection() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================================
+// LEGAL TEXTS SECTION
+// ============================================================================
+// MODULES SECTION
+// ============================================================================
+
+const MODULE_CONFIG = [
+  { key: 'trilha', label: 'Minhas Trilhas', icon: MapIcon, description: 'Mapa de estudos com missões e rodadas' },
+  { key: 'praticar', label: 'Praticar Questões', icon: Target, description: 'Prática livre de questões (módulo principal)' },
+  { key: 'simulados', label: 'Meus Simulados', icon: FileText, description: 'Simulados e provas completas' },
+  { key: 'estatisticas', label: 'Estatísticas', icon: BarChart2, description: 'Raio-X de desempenho do aluno' },
+  { key: 'loja', label: 'Loja', icon: ShoppingBag, description: 'Loja de itens e preparatórios' },
+];
+
+const BLOCK_BEHAVIOR_OPTIONS = [
+  { value: 'hidden', label: 'Ocultar', description: 'Esconde o módulo da navegação' },
+  { value: 'disabled', label: 'Desabilitado', description: 'Mostra com cadeado, sem permitir clique' },
+  { value: 'modal', label: 'Modal', description: 'Aparece normal, mostra modal ao clicar' },
+];
+
+function ModulesSection({
+  settings,
+  onValueChange,
+  modifiedSettings,
+}: {
+  settings: SystemSetting[];
+  onValueChange: (setting: SystemSetting, value: any) => void;
+  modifiedSettings: Map<string, any>;
+}) {
+  const moduleSettings = settings.filter((s) => s.category === 'modules');
+
+  const getSettingValue = (key: string): any => {
+    const modKey = `modules:${key}`;
+    if (modifiedSettings.has(modKey)) {
+      return modifiedSettings.get(modKey);
+    }
+    const setting = moduleSettings.find((s) => s.key === key);
+    if (!setting) return null;
+    const val = setting.value;
+    if (typeof val === 'string') {
+      if (val === 'true') return true;
+      if (val === 'false') return false;
+      // Remove quotes from JSON strings
+      return val.replace(/^"|"$/g, '');
+    }
+    return val;
+  };
+
+  const getSetting = (key: string): SystemSetting | undefined => {
+    return moduleSettings.find((s) => s.key === key);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-brand-card border border-white/10 rounded-sm">
+        <div className="p-6 border-b border-white/10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-sm bg-brand-yellow/10 flex items-center justify-center">
+              <LayoutGrid className="w-6 h-6 text-brand-yellow" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Módulos</h2>
+              <p className="text-gray-400 text-sm">Habilitar/desabilitar módulos do app</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Modules List */}
+        <div className="divide-y divide-white/5">
+          {MODULE_CONFIG.map((module) => {
+            const Icon = module.icon;
+            const enabledKey = `${module.key}_enabled`;
+            const behaviorKey = `${module.key}_block_behavior`;
+            const isEnabled = getSettingValue(enabledKey) === true || getSettingValue(enabledKey) === 'true';
+            const blockBehavior = getSettingValue(behaviorKey) || 'disabled';
+            const enabledSetting = getSetting(enabledKey);
+            const behaviorSetting = getSetting(behaviorKey);
+            const isEnabledModified = modifiedSettings.has(`modules:${enabledKey}`);
+            const isBehaviorModified = modifiedSettings.has(`modules:${behaviorKey}`);
+
+            return (
+              <div key={module.key} className={`p-4 ${isEnabledModified || isBehaviorModified ? 'bg-brand-yellow/5' : ''}`}>
+                <div className="flex items-start gap-4">
+                  {/* Module Icon */}
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isEnabled ? 'bg-brand-yellow/20' : 'bg-gray-700'}`}>
+                    <Icon className={`w-5 h-5 ${isEnabled ? 'text-brand-yellow' : 'text-gray-500'}`} />
+                  </div>
+
+                  {/* Module Info & Controls */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-white font-medium">{module.label}</h3>
+                        {(isEnabledModified || isBehaviorModified) && (
+                          <CheckCircle className="w-4 h-4 text-brand-yellow" />
+                        )}
+                      </div>
+
+                      {/* Toggle */}
+                      {enabledSetting && (
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={(e) => onValueChange(enabledSetting, e.target.checked.toString())}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-yellow"></div>
+                          <span className="ml-3 text-sm text-gray-400">
+                            {isEnabled ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </label>
+                      )}
+                    </div>
+
+                    <p className="text-gray-500 text-sm mb-3">{module.description}</p>
+
+                    {/* Block Behavior Selector (only show when module is disabled) */}
+                    {!isEnabled && behaviorSetting && (
+                      <div className="flex items-center gap-3 mt-2 p-3 bg-black/20 rounded-lg">
+                        <Lock className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        <span className="text-gray-400 text-sm">Quando bloqueado:</span>
+                        <select
+                          value={blockBehavior}
+                          onChange={(e) => onValueChange(behaviorSetting, `"${e.target.value}"`)}
+                          className="bg-brand-dark border border-white/10 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-brand-yellow"
+                        >
+                          {BLOCK_BEHAVIOR_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Info Box */}
+      <div className="bg-purple-500/10 border border-purple-500/30 rounded-sm p-4">
+        <h3 className="text-purple-400 font-bold mb-2 flex items-center gap-2">
+          <Lock className="w-4 h-4" />
+          Sobre os Módulos
+        </h3>
+        <ul className="text-purple-300 text-sm space-y-1">
+          <li>• <strong>Acesso Completo:</strong> Administradores e usuários com "Ver Respostas" ativado sempre têm acesso a todos os módulos</li>
+          <li>• <strong>Ocultar:</strong> O módulo é completamente removido da navegação</li>
+          <li>• <strong>Desabilitado:</strong> O módulo aparece com opacidade reduzida e ícone de cadeado</li>
+          <li>• <strong>Modal:</strong> O módulo aparece normal, mas ao clicar exibe um aviso de indisponibilidade</li>
+          <li>• <strong>Praticar Questões:</strong> Recomendado manter sempre ativo (é o fallback)</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// ASSINATURA SECTION
+// ============================================================================
+
+function AssinaturaSection({
+  settings,
+  onValueChange,
+  modifiedSettings,
+}: {
+  settings: SystemSetting[];
+  onValueChange: (setting: SystemSetting, value: any) => void;
+  modifiedSettings: Map<string, any>;
+}) {
+  const assinaturaSettings = settings.filter((s) => s.category === 'assinatura');
+
+  const getSettingValue = (key: string): string => {
+    const modKey = `assinatura:${key}`;
+    if (modifiedSettings.has(modKey)) {
+      const val = modifiedSettings.get(modKey);
+      if (typeof val === 'string') {
+        return val.replace(/^"|"$/g, '');
+      }
+      return String(val);
+    }
+    const setting = assinaturaSettings.find((s) => s.key === key);
+    if (!setting) return '';
+    const val = setting.value;
+    if (typeof val === 'string') {
+      return val.replace(/^"|"$/g, '');
+    }
+    return String(val ?? '');
+  };
+
+  const getSetting = (key: string): SystemSetting | undefined => {
+    return assinaturaSettings.find((s) => s.key === key);
+  };
+
+  const handleChange = (key: string, value: string) => {
+    const setting = getSetting(key);
+    if (setting) {
+      // For text/number fields, wrap in quotes for JSON
+      onValueChange(setting, `"${value}"`);
+    }
+  };
+
+  const handleNumberChange = (key: string, value: string) => {
+    const setting = getSetting(key);
+    if (setting) {
+      // For numbers, don't wrap in quotes
+      onValueChange(setting, value || '0');
+    }
+  };
+
+  const isModified = (key: string) => modifiedSettings.has(`assinatura:${key}`);
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-brand-card border border-white/10 rounded-sm">
+        <div className="p-6 border-b border-white/10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-sm bg-brand-yellow/10 flex items-center justify-center">
+              <CreditCard className="w-6 h-6 text-brand-yellow" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Assinatura Ouse Questões</h2>
+              <p className="text-gray-400 text-sm">Assinatura anual da plataforma (acesso ao "Praticar Questões")</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Settings */}
+        <div className="p-6 space-y-6">
+          {/* Pricing Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Price */}
+            <div className={`p-4 rounded-lg border ${isModified('assinatura_preco') ? 'border-brand-yellow bg-brand-yellow/5' : 'border-white/10 bg-black/20'}`}>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+                Preço (R$)
+                {isModified('assinatura_preco') && <CheckCircle className="w-4 h-4 text-brand-yellow" />}
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                <input
+                  type="text"
+                  value={getSettingValue('assinatura_preco')}
+                  onChange={(e) => handleChange('assinatura_preco', e.target.value)}
+                  placeholder="97.00"
+                  className="w-full bg-brand-dark border border-white/10 rounded px-3 py-2 pl-10 text-white focus:outline-none focus:border-brand-yellow"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Valor cheio da assinatura anual</p>
+            </div>
+
+            {/* Discount Price */}
+            <div className={`p-4 rounded-lg border ${isModified('assinatura_preco_desconto') ? 'border-brand-yellow bg-brand-yellow/5' : 'border-white/10 bg-black/20'}`}>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+                Preço com Desconto (R$)
+                {isModified('assinatura_preco_desconto') && <CheckCircle className="w-4 h-4 text-brand-yellow" />}
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                <input
+                  type="text"
+                  value={getSettingValue('assinatura_preco_desconto')}
+                  onChange={(e) => handleChange('assinatura_preco_desconto', e.target.value)}
+                  placeholder="0"
+                  className="w-full bg-brand-dark border border-white/10 rounded px-3 py-2 pl-10 text-white focus:outline-none focus:border-brand-yellow"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Deixe 0 se não houver desconto</p>
+            </div>
+          </div>
+
+          {/* Duration */}
+          <div className={`p-4 rounded-lg border ${isModified('assinatura_duracao_meses') ? 'border-brand-yellow bg-brand-yellow/5' : 'border-white/10 bg-black/20'}`}>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+              Duração (meses)
+              {isModified('assinatura_duracao_meses') && <CheckCircle className="w-4 h-4 text-brand-yellow" />}
+            </label>
+            <input
+              type="number"
+              value={getSettingValue('assinatura_duracao_meses')}
+              onChange={(e) => handleNumberChange('assinatura_duracao_meses', e.target.value)}
+              min="1"
+              max="24"
+              className="w-full md:w-32 bg-brand-dark border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-brand-yellow"
+            />
+            <p className="text-xs text-gray-500 mt-1">Padrão: 12 meses (assinatura anual)</p>
+          </div>
+
+          {/* Checkout URL */}
+          <div className={`p-4 rounded-lg border ${isModified('assinatura_checkout_url') ? 'border-brand-yellow bg-brand-yellow/5' : 'border-white/10 bg-black/20'}`}>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+              URL de Checkout
+              {isModified('assinatura_checkout_url') && <CheckCircle className="w-4 h-4 text-brand-yellow" />}
+            </label>
+            <input
+              type="url"
+              value={getSettingValue('assinatura_checkout_url')}
+              onChange={(e) => handleChange('assinatura_checkout_url', e.target.value)}
+              placeholder="https://pay.digitalmanager.guru/..."
+              className="w-full bg-brand-dark border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-brand-yellow"
+            />
+            <p className="text-xs text-gray-500 mt-1">Link de pagamento do Guru para a assinatura</p>
+          </div>
+
+          {/* Guru Product ID */}
+          <div className={`p-4 rounded-lg border ${isModified('assinatura_guru_product_id') ? 'border-brand-yellow bg-brand-yellow/5' : 'border-white/10 bg-black/20'}`}>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+              ID do Produto (Guru)
+              {isModified('assinatura_guru_product_id') && <CheckCircle className="w-4 h-4 text-brand-yellow" />}
+            </label>
+            <input
+              type="text"
+              value={getSettingValue('assinatura_guru_product_id')}
+              onChange={(e) => handleChange('assinatura_guru_product_id', e.target.value)}
+              placeholder="prod_xxxx"
+              className="w-full bg-brand-dark border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-brand-yellow"
+            />
+            <p className="text-xs text-gray-500 mt-1">ID do produto no Guru Manager para integração</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Info Box */}
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-sm p-4">
+        <h3 className="text-blue-400 font-bold mb-2 flex items-center gap-2">
+          <CreditCard className="w-4 h-4" />
+          Sobre a Assinatura Ouse Questões
+        </h3>
+        <ul className="text-blue-300 text-sm space-y-1">
+          <li>• <strong>Acesso:</strong> Dá acesso ao módulo "Praticar Questões" sem vinculação a preparatório</li>
+          <li>• <strong>Duração:</strong> Assinatura anual (12 meses por padrão)</li>
+          <li>• <strong>Diferença da Turma de Elite:</strong> A Turma de Elite é vinculada a um preparatório específico e inclui trilhas. A Assinatura Ouse Questões é acesso à plataforma de questões.</li>
+          <li>• <strong>Pagamento:</strong> Configurado via Guru Manager (checkout + integração de webhook)</li>
+        </ul>
+      </div>
     </div>
   );
 }
@@ -2598,7 +2994,7 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const categories = ['simulado', 'gamification', 'store', 'trail', 'rodadas', 'reta_final', 'battery', 'affiliates', 'emails', 'legal_texts', 'general', 'blog'];
+  const categories = ['simulado', 'gamification', 'store', 'trail', 'rodadas', 'reta_final', 'battery', 'affiliates', 'assinatura', 'emails', 'legal_texts', 'modules', 'general', 'blog'];
   const filteredSettings = settings.filter((s) => s.category === activeCategory);
   const hasChanges = modifiedSettings.size > 0;
 
@@ -2715,6 +3111,18 @@ export const Settings: React.FC = () => {
             <EmailsSection />
           ) : activeCategory === 'legal_texts' ? (
             <LegalTextsSection />
+          ) : activeCategory === 'modules' ? (
+            <ModulesSection
+              settings={settings}
+              onValueChange={handleValueChange}
+              modifiedSettings={modifiedSettings}
+            />
+          ) : activeCategory === 'assinatura' ? (
+            <AssinaturaSection
+              settings={settings}
+              onValueChange={handleValueChange}
+              modifiedSettings={modifiedSettings}
+            />
           ) : (
             <>
               <div className="bg-brand-card border border-white/10 rounded-sm">
@@ -2834,6 +3242,23 @@ export const Settings: React.FC = () => {
                     <li>• O conteúdo teórico também é resumido no modo Reta Final</li>
                     <li>• O usuário pode alternar entre os modos se tiver acesso a ambos</li>
                     <li>• Visual com tema de urgência (amarelo/laranja) para indicar a reta final</li>
+                  </ul>
+                </div>
+              )}
+
+              {activeCategory === 'modules' && filteredSettings.length > 0 && (
+                <div className="mt-6 bg-purple-500/10 border border-purple-500/30 rounded-sm p-4">
+                  <h3 className="text-purple-400 font-bold mb-2 flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Sobre os Módulos
+                  </h3>
+                  <ul className="text-purple-300 text-sm space-y-1">
+                    <li>• <strong>Acesso Completo:</strong> Administradores e usuários com "Ver Respostas" ativado sempre têm acesso a todos os módulos</li>
+                    <li>• <strong>Comportamento "hidden":</strong> O módulo é completamente oculto da navegação</li>
+                    <li>• <strong>Comportamento "disabled":</strong> O módulo aparece com opacidade reduzida e ícone de cadeado, sem permitir clique</li>
+                    <li>• <strong>Comportamento "modal":</strong> O módulo aparece normal, mas ao clicar exibe um modal informando que está indisponível</li>
+                    <li>• <strong>Praticar Questões:</strong> É recomendado manter este módulo sempre ativo, pois é o fallback quando outros módulos estão bloqueados</li>
+                    <li>• Usuários que tentarem acessar um módulo bloqueado via URL serão redirecionados para "Praticar Questões"</li>
                   </ul>
                 </div>
               )}

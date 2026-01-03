@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Bell,
+  Lock,
 } from 'lucide-react';
 import { useAuthStore, useUserStore, useUIStore, useNotificationStore, useTrailStore, useBatteryStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
@@ -22,6 +23,9 @@ import { NotificationPopover } from './NotificationPopover';
 import { BatteryIndicator } from '../battery/BatteryIndicator';
 import { BatteryEmptyModal } from '../battery/BatteryEmptyModal';
 import { BatteryInfoModal } from '../battery/BatteryInfoModal';
+import { ModuleBlockedModal } from '../ui/ModuleBlockedModal';
+import { useModuleAccess, getModuleFromPath } from '../../hooks/useModuleAccess';
+import { ModuleName } from '../../stores/useModuleSettingsStore';
 
 const mainNavItems = [
   { path: '/', icon: Map, label: 'Minhas Trilhas', tourId: 'sidebar-trilha' },
@@ -40,6 +44,15 @@ interface SidebarProps {
   isCollapsed?: boolean;
 }
 
+// Module name labels for the blocked modal
+const MODULE_LABELS: Record<ModuleName, string> = {
+  trilha: 'Minhas Trilhas',
+  praticar: 'Praticar Questões',
+  simulados: 'Meus Simulados',
+  estatisticas: 'Estatísticas',
+  loja: 'Loja',
+};
+
 export function Sidebar({ isCollapsed = false }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -55,9 +68,12 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
     fetchBatteryStatus,
     closeEmptyModal,
   } = useBatteryStore();
+  const moduleAccess = useModuleAccess();
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
   const [isBatteryInfoOpen, setIsBatteryInfoOpen] = React.useState(false);
   const [triggerRect, setTriggerRect] = React.useState<DOMRect | null>(null);
+  const [blockedModalOpen, setBlockedModalOpen] = useState(false);
+  const [blockedModuleName, setBlockedModuleName] = useState<string>('');
   const notificationButtonRef = React.useRef<HTMLButtonElement>(null);
   const xpProgress = calculateXPProgress(stats.xp);
 
@@ -230,6 +246,74 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
               (item.path === '/' && location.pathname === '/trilha');
             const Icon = item.icon;
 
+            // Get module access config for this nav item
+            const moduleName = getModuleFromPath(item.path);
+            const moduleConfig = moduleName ? moduleAccess[moduleName] : null;
+            const isBlocked = moduleConfig && !moduleConfig.enabled && !moduleAccess.hasFullAccess;
+            const blockBehavior = moduleConfig?.blockBehavior || 'disabled';
+
+            // If hidden and blocked, don't render
+            if (isBlocked && blockBehavior === 'hidden') {
+              return null;
+            }
+
+            // Handle blocked item click
+            const handleBlockedClick = (e: React.MouseEvent) => {
+              e.preventDefault();
+              if (blockBehavior === 'modal' && moduleName) {
+                setBlockedModuleName(MODULE_LABELS[moduleName]);
+                setBlockedModalOpen(true);
+              }
+              // For 'disabled', do nothing (item is not clickable)
+            };
+
+            // Render disabled item
+            if (isBlocked && blockBehavior === 'disabled') {
+              return (
+                <li key={item.path}>
+                  <div
+                    title={isCollapsed ? `${item.label} (Indisponível)` : 'Módulo indisponível'}
+                    data-tour={item.tourId}
+                    className={`
+                      relative flex items-center rounded-xl
+                      cursor-not-allowed opacity-50
+                      ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
+                      text-[#6E6E6E]
+                    `}
+                  >
+                    <div className="relative">
+                      <Icon size={20} />
+                      <Lock size={10} className="absolute -bottom-1 -right-1 text-[#6E6E6E]" />
+                    </div>
+                    {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                  </div>
+                </li>
+              );
+            }
+
+            // Render item with modal behavior when blocked
+            if (isBlocked && blockBehavior === 'modal') {
+              return (
+                <li key={item.path}>
+                  <button
+                    onClick={handleBlockedClick}
+                    title={isCollapsed ? item.label : undefined}
+                    data-tour={item.tourId}
+                    className={`
+                      relative flex items-center rounded-xl w-full
+                      transition-colors duration-200
+                      ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
+                      text-[#A0A0A0] hover:bg-[#3A3A3A] hover:text-white
+                    `}
+                  >
+                    <Icon size={20} />
+                    {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                  </button>
+                </li>
+              );
+            }
+
+            // Normal nav item (not blocked)
             return (
               <li key={item.path}>
                 <NavLink
@@ -323,6 +407,13 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
         checkoutUrl={selectedPrep?.preparatorio?.checkout_ouse_questoes}
         price={selectedPrep?.preparatorio?.price_questoes}
         preparatorioNome={selectedPrep?.preparatorio?.nome}
+      />
+
+      {/* Module Blocked Modal - Opens when clicking on a blocked module with modal behavior */}
+      <ModuleBlockedModal
+        isOpen={blockedModalOpen}
+        onClose={() => setBlockedModalOpen(false)}
+        moduleName={blockedModuleName}
       />
     </div>
   );

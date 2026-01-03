@@ -220,7 +220,6 @@ export const PreparatoriosPlanos: React.FC = () => {
                 <thead className="bg-brand-dark/50 border-b border-white/10">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Preparatório</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-32">Tipo</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-28">Edital</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-24">Rodadas</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-24">Missões</th>
@@ -256,7 +255,6 @@ export const PreparatoriosPlanos: React.FC = () => {
                   <thead className="bg-brand-dark/50 border-b border-white/10">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Preparatório</th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-32">Tipo</th>
                       <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-28">Edital</th>
                       <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-24">Rodadas</th>
                       <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-24">Missões</th>
@@ -506,25 +504,6 @@ const PreparatorioListRow: React.FC<PreparatorioListRowProps> = ({
         </div>
       </div>
     </td>
-    <td className="px-4 py-4">
-      <div className="flex flex-wrap justify-center gap-1">
-        {prep.content_types?.includes('plano') && (
-          <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded">
-            Plano
-          </span>
-        )}
-        {prep.content_types?.includes('questoes') && (
-          <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-brand-yellow/20 text-brand-yellow border border-brand-yellow/30 rounded">
-            Questões
-          </span>
-        )}
-        {prep.content_types?.includes('preparatorio') && (
-          <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded">
-            Portal
-          </span>
-        )}
-      </div>
-    </td>
     <td className="px-4 py-4 text-center">
       {prep.stats.edital_items > 0 ? (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase bg-green-500/20 text-green-400 border border-green-500/30 rounded">
@@ -570,6 +549,13 @@ const PreparatorioListRow: React.FC<PreparatorioListRowProps> = ({
           title="Gerenciar Rodadas"
         >
           <Target className="w-4 h-4" />
+        </Link>
+        <Link
+          to={`/admin/preparatorios/${prep.id}/edital`}
+          className="p-2 text-gray-500 hover:text-brand-yellow hover:bg-brand-yellow/10 rounded transition-colors"
+          title="Edital Verticalizado"
+        >
+          <FileText className="w-4 h-4" />
         </Link>
         <Link
           to={`/admin/preparatorios/edit/${prep.id}`}

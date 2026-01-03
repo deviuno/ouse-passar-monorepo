@@ -157,7 +157,8 @@ export const fetchQuestions = async (filters?: QuestionFilters): Promise<ParsedQ
     let query = questionsDb
       .from('questoes_concurso')
       .select('*')
-      // Filtro oculto: excluir questões deletadas ou sem enunciado
+      // Filtro oculto: apenas questões ativas e válidas
+      .eq('ativo', true)
       .not('enunciado', 'is', null)
       .neq('enunciado', '')
       .neq('enunciado', 'deleted');
@@ -227,7 +228,8 @@ export const fetchQuestionById = async (id: number): Promise<ParsedQuestion | nu
     .from('questoes_concurso')
     .select('*')
     .eq('id', id)
-    // Filtro oculto: excluir questões deletadas
+    // Filtro oculto: apenas questões ativas e válidas
+    .eq('ativo', true)
     .not('enunciado', 'is', null)
     .neq('enunciado', '')
     .neq('enunciado', 'deleted')
@@ -310,7 +312,8 @@ export const fetchAssuntosByMaterias = async (materias: string[]): Promise<strin
         .select('assunto')
         .eq('materia', materia)
         .not('assunto', 'is', null)
-        // Filtro oculto: excluir questões deletadas
+        // Filtro oculto: apenas questões ativas e válidas
+        .eq('ativo', true)
         .not('enunciado', 'is', null)
         .neq('enunciado', '')
         .neq('enunciado', 'deleted')

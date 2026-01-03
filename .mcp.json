@@ -3,6 +3,20 @@
     "n8n": {
       "type": "sse",
       "url": "http://72.61.217.225:5678/mcp/1c5fd5fb-6d8a-4453-a2a9-7cbb8d498624"
+    },
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=avlttxzppcywybiaxxzd",
+      "headers": {
+        "Authorization": "Bearer sbp_194a2141ca8405a6d3252eedad2a02ea70aecc4e"
+      }
+    },
+    "supabase-questoes": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=swzosaapqtyhmwdiwdje",
+      "headers": {
+        "Authorization": "Bearer sbp_194a2141ca8405a6d3252eedad2a02ea70aecc4e"
+      }
     }
   }
 }

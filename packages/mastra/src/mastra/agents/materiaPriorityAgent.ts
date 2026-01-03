@@ -73,6 +73,7 @@ const buscarEstatisticasBanca = createTool({
             let query = supabase
                 .from('questoes_concurso')
                 .select('materia, ano')
+                .eq('ativo', true) // Apenas questões ativas
                 .not('materia', 'is', null);
 
             // Filtrar por banca (case insensitive)

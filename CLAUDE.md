@@ -73,3 +73,18 @@ const API_URL = `${import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000'}/a
 - Background escuro: `#1A1A1A`, `#121212`
 - Cinza bordas: `#3A3A3A`, `#4A4A4A`
 - Texto: `#E0E0E0`, `#A0A0A0`, `#6E6E6E`
+
+## Deploy para Produção
+
+### Deploy do Mastra (VPS)
+Use o comando `/deploy-mastra` para fazer deploy automático do backend Mastra.
+
+**VPS Details:**
+- Host: `72.61.217.225`
+- User: `root`
+- Service: PM2 process "mastra"
+
+**Comando manual (se necessário):**
+```bash
+ssh root@72.61.217.225 "cd /root/ouse-passar-monorepo && git stash && git pull origin main && cd packages/mastra && npm install && npm run build && pm2 restart mastra && pm2 status"
+```

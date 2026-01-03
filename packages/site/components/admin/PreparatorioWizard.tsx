@@ -54,7 +54,7 @@ export interface PreparatorioWizardData {
   precoPlanejadorDesconto: string;
   checkoutPlanejador: string;
   guruProductIdPlanejador: string;
-  // 8 Questões
+  // Turma de Elite (trilhas individuais)
   preco8Questoes: string;
   preco8QuestoesDesconto: string;
   checkout8Questoes: string;
@@ -964,9 +964,9 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
         />
 
         <ProductPriceCard
-          title="Ouse Questões"
-          icon="❓"
-          description="Questões diárias para praticar"
+          title="Turma de Elite"
+          icon="👑"
+          description="Trilhas individuais do preparatório"
           precoValue={formData.preco8Questoes}
           descontoValue={formData.preco8QuestoesDesconto}
           checkoutValue={formData.checkout8Questoes}

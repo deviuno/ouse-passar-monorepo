@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { questionsDb } from './questionsDbClient';
 import { fetchQuestions, QuestionFilters } from './questionsService';
 import { ParsedQuestion } from '../types';
 
@@ -772,11 +773,12 @@ export async function getProvaQuestions(
 
     if (existing?.question_ids && existing.question_ids.length > 0) {
       console.log('[getProvaQuestions] Using existing variation with', existing.question_ids.length, 'questions');
-      // Fetch the actual questions by their IDs
-      const { data: questionsData } = await supabase
+      // Fetch the actual questions by their IDs (from questions database)
+      const { data: questionsData } = await questionsDb
         .from('questoes_concurso')
         .select('*')
-        .in('id', existing.question_ids);
+        .in('id', existing.question_ids)
+        .eq('ativo', true); // Apenas questões ativas
 
       if (questionsData && questionsData.length > 0) {
         return {

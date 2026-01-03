@@ -130,7 +130,8 @@ async function buscarQuestoesCompletas(ids: number[]): Promise<ParsedQuestion[]>
       const { data, error } = await questionsDb
         .from('questoes_concurso')
         .select('*')
-        .in('id', batch);
+        .in('id', batch)
+        .eq('ativo', true); // Apenas questões ativas
 
       if (error) {
         console.error('[MissaoQuestoesFixas] Erro ao buscar batch:', error);

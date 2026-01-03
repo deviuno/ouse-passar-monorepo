@@ -106,7 +106,8 @@ export async function getQuestionsForFilters(
   try {
     let query = questionsDb
       .from('questoes_concurso')
-      .select('*');
+      .select('*')
+      .eq('ativo', true); // Apenas questões ativas
 
     // Apply filters
     if (filters.materias && filters.materias.length > 0) {
@@ -187,7 +188,8 @@ export async function countQuestionsForFilters(
   try {
     let query = questionsDb
       .from('questoes_concurso')
-      .select('id', { count: 'exact', head: true });
+      .select('id', { count: 'exact', head: true })
+      .eq('ativo', true); // Apenas questões ativas
 
     // Apply filters
     if (filters.materias && filters.materias.length > 0) {
@@ -437,6 +439,7 @@ export async function getAssuntosByMaterias(
       const { data, error } = await questionsDb
         .from('questoes_concurso')
         .select('assunto')
+        .eq('ativo', true) // Apenas questões ativas
         .eq('materia', materia)
         .not('assunto', 'is', null)
         .not('enunciado', 'is', null)
@@ -474,10 +477,11 @@ export async function getQuestionsStats(): Promise<{ stats: QuestionsStats | nul
   }
 
   try {
-    // Get total count
+    // Get total count - apenas questões ativas
     const { count: total } = await questionsDb
       .from('questoes_concurso')
-      .select('id', { count: 'exact', head: true });
+      .select('id', { count: 'exact', head: true })
+      .eq('ativo', true); // Apenas questões ativas
 
     // For detailed stats, we'd need to run aggregation queries
     // This is a simplified version
