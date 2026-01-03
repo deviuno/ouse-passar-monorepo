@@ -64,22 +64,27 @@ Use \`código\` para:
 - Siglas quando aparecem pela primeira vez
 
 ### 7. Imagens (MUITO IMPORTANTE)
-Quando encontrar URLs de imagens no texto, converta para formato markdown:
+**REGRA CRÍTICA: NUNCA INVENTE URLs de imagem. Apenas converta URLs que REALMENTE existem no texto original.**
+
+Quando encontrar URLs de imagens REAIS no texto, converta para formato markdown:
 
 **Padrões a identificar:**
-- URLs diretas: \`https://exemplo.com/imagem.jpg\`
+- URLs diretas terminando em extensão de imagem: \`https://i.pinimg.com/564x/a4/20/49/a42049.jpg\`
 - Referências textuais: "Disponível em: https://..." ou "Fonte: https://..."
 - Tags HTML: \`<img src="...">\`
 
 **Converter para:**
-\`![Imagem](URL_DA_IMAGEM)\`
+\`![Imagem](URL_REAL_DA_IMAGEM)\`
 
-**Exemplos:**
-- Entrada: \`Disponível em: https://i.pinimg.com/imagem.jpg. Acesso em: 10 jan. 2024.\`
-- Saída: \`![Imagem da questão](https://i.pinimg.com/imagem.jpg)\`
+**Exemplos CORRETOS:**
+- Entrada: \`Disponível em: https://i.pinimg.com/564x/a4/20/49/a42049e9.jpg. Acesso em: 10 jan. 2024.\`
+- Saída: \`![Imagem da questão](https://i.pinimg.com/564x/a4/20/49/a42049e9.jpg)\`
 
-- Entrada: \`<img src="https://exemplo.com/foto.png">\`
-- Saída: \`![Imagem](https://exemplo.com/foto.png)\`
+**O QUE NUNCA FAZER:**
+- NUNCA use URLs placeholder como \`https://i.imgur.com/example.png\`
+- NUNCA invente URLs de imagem
+- NUNCA adicione imagens se não houver URL real no texto
+- Se o texto menciona "figura" ou "imagem" mas não tem URL, NÃO adicione imagem
 
 **Formatos de imagem suportados:** .jpg, .jpeg, .png, .gif, .webp, .svg
 

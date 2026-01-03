@@ -350,8 +350,29 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       </div>
 
       {/* Enunciado */}
-      <div className="text-sm md:text-base leading-relaxed mb-4 md:mb-6 font-medium text-gray-100">
-        {formatText(question.enunciado)}
+      <div className="text-sm md:text-base leading-relaxed mb-4 md:mb-6 font-medium text-gray-100 prose prose-invert prose-sm max-w-none">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            p: ({ children }) => <p className="mb-3 leading-relaxed">{children}</p>,
+            strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+            img: ({ src, alt }) => (
+              <img
+                src={src}
+                alt={alt || 'Imagem da questão'}
+                className="max-w-full h-auto rounded-lg my-3 border border-gray-700"
+                loading="lazy"
+              />
+            ),
+            a: ({ href, children }) => (
+              <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#FFB800] underline hover:text-[#FFC933]">
+                {children}
+              </a>
+            ),
+          }}
+        >
+          {question.enunciado || ''}
+        </ReactMarkdown>
       </div>
 
       {/* Alternatives */}
