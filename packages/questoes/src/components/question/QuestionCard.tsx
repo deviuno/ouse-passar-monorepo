@@ -272,7 +272,32 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
 
   const currentStats = buildStatsData();
 
-  // Função para formatar texto com quebras de linha e negrito
+  // Função para converter URLs de imagem em markdown antes de renderizar
+  const preprocessImageUrls = (text: string): string => {
+    if (!text) return '';
+
+    // Padrão 1: "Disponível em: URL. Acesso em: ..."
+    let processed = text.replace(
+      /Disponível em:\s*(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))[^\n]*/gi,
+      '\n\n![Imagem da questão]($1)\n\n'
+    );
+
+    // Padrão 2: URLs diretas de imagem (não já em formato markdown)
+    processed = processed.replace(
+      /(?<!\]\()(?<!\!)\b(https?:\/\/[^\s<>"]+\.(jpg|jpeg|png|gif|webp))\b(?!\))/gi,
+      '\n\n![Imagem]($1)\n\n'
+    );
+
+    // Padrão 3: Tags HTML <img src="...">
+    processed = processed.replace(
+      /<img[^>]+src=["']([^"']+)["'][^>]*>/gi,
+      '\n\n![Imagem]($1)\n\n'
+    );
+
+    return processed;
+  };
+
+  // Função para formatar texto com quebras de linha e negrito (legado)
   const formatText = (text: string) => {
     if (!text) return null;
 
@@ -371,7 +396,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             ),
           }}
         >
-          {question.enunciado || ''}
+          {preprocessImageUrls(question.enunciado || '')}
         </ReactMarkdown>
       </div>
 
@@ -542,7 +567,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                         ),
                       }}
                     >
-                      {explanation || ''}
+                      {preprocessImageUrls(explanation || '')}
                     </ReactMarkdown>
                   </>
                 )}
