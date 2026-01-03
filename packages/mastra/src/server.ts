@@ -1367,6 +1367,7 @@ async function buscarQuestoesScrapping(
         const { data, error } = await questionsDb
             .from('questoes_concurso')
             .select('*')
+            .eq('ativo', true) // Apenas questões ativas
             .ilike('assunto', `%${keyword}%`)
             .limit(limite);
 
@@ -1393,6 +1394,7 @@ async function buscarQuestoesScrapping(
             const { data, error } = await questionsDb
                 .from('questoes_concurso')
                 .select('*')
+                .eq('ativo', true) // Apenas questões ativas
                 .in('banca', filtros.bancas)
                 .or(`assunto.ilike.%${materiaKeyword}%,disciplina.ilike.%${materiaKeyword}%,materia.ilike.%${materiaKeyword}%`)
                 .limit(limite - questoes.length);
@@ -5278,6 +5280,481 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
         res.status(500).json({
             success: false,
             error: error.message || 'Erro ao gerar conteúdo'
+        });
+    }
+});
+
+// ============================================================================
+// ENDPOINT: Extrair Gabarito com IA
+// ============================================================================
+
+app.post('/api/questao/extrair-gabarito', async (req, res) => {
+    try {
+        const { questaoId } = req.body;
+
+        if (!questaoId) {
+            return res.status(400).json({
+                success: false,
+                error: "questaoId é obrigatório"
+            });
+        }
+
+        console.log(`[GabaritoExtractor] Processando questão ${questaoId}...`);
+
+        // Buscar dados da questão
+        const { data: questao, error: fetchError } = await questionsDb
+            .from('questoes_concurso')
+            .select('id, enunciado, alternativas, comentario')
+            .eq('id', questaoId)
+            .single();
+
+        if (fetchError || !questao) {
+            console.error('[GabaritoExtractor] Questão não encontrada:', fetchError);
+            return res.status(404).json({
+                success: false,
+                error: "Questão não encontrada"
+            });
+        }
+
+        if (!questao.comentario) {
+            // Sem comentário, não há como extrair
+            await questionsDb
+                .from('questoes_concurso')
+                .update({ ativo: false })
+                .eq('id', questaoId);
+
+            // Atualiza fila como falha
+            await questionsDb
+                .from('questoes_pendentes_ia')
+                .update({
+                    status: 'falha',
+                    erro: 'Questão sem comentário',
+                    processed_at: new Date().toISOString()
+                })
+                .eq('questao_id', questaoId);
+
+            return res.json({
+                success: true,
+                extracted: false,
+                reason: "Questão sem comentário"
+            });
+        }
+
+        // Chamar agente de IA
+        const agent = mastra.getAgent("gabaritoExtractorAgent");
+        if (!agent) {
+            console.error('[GabaritoExtractor] Agente não encontrado');
+            return res.status(500).json({
+                success: false,
+                error: "Agente não encontrado"
+            });
+        }
+
+        const prompt = `
+## QUESTÃO ID: ${questaoId}
+
+### ENUNCIADO:
+${questao.enunciado || 'N/A'}
+
+### ALTERNATIVAS:
+${JSON.stringify(questao.alternativas, null, 2) || 'N/A'}
+
+### COMENTÁRIO/EXPLICAÇÃO:
+${questao.comentario}
+
+---
+Analise o comentário acima e extraia o gabarito correto.`;
+
+        const result = await agent.generate([
+            { role: "user", content: prompt }
+        ]);
+
+        // Parse da resposta
+        const jsonMatch = result.text?.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            console.log(`[GabaritoExtractor] Não foi possível parsear resposta da IA para questão ${questaoId}`);
+
+            await questionsDb
+                .from('questoes_concurso')
+                .update({ ativo: false })
+                .eq('id', questaoId);
+
+            await questionsDb
+                .from('questoes_pendentes_ia')
+                .update({
+                    status: 'falha',
+                    erro: 'IA não retornou JSON válido',
+                    processed_at: new Date().toISOString()
+                })
+                .eq('questao_id', questaoId);
+
+            return res.json({
+                success: true,
+                extracted: false,
+                reason: "IA não conseguiu extrair gabarito"
+            });
+        }
+
+        let parsed;
+        try {
+            parsed = JSON.parse(jsonMatch[0]);
+        } catch (parseError) {
+            console.error('[GabaritoExtractor] Erro ao parsear JSON:', parseError);
+            return res.json({
+                success: true,
+                extracted: false,
+                reason: "Erro ao parsear resposta da IA"
+            });
+        }
+
+        // Verifica confiança mínima
+        if (!parsed.gabarito || parsed.confianca < 0.7) {
+            console.log(`[GabaritoExtractor] Questão ${questaoId}: Confiança baixa (${parsed.confianca})`);
+
+            await questionsDb
+                .from('questoes_concurso')
+                .update({ ativo: false })
+                .eq('id', questaoId);
+
+            await questionsDb
+                .from('questoes_pendentes_ia')
+                .update({
+                    status: 'falha',
+                    erro: `Confiança insuficiente: ${parsed.confianca}`,
+                    processed_at: new Date().toISOString()
+                })
+                .eq('questao_id', questaoId);
+
+            return res.json({
+                success: true,
+                extracted: false,
+                reason: `Confiança insuficiente: ${parsed.confianca}`,
+                data: parsed
+            });
+        }
+
+        // Valida formato do gabarito
+        const gabaritoNormalizado = parsed.gabarito.toUpperCase().trim();
+        if (!/^[A-E]$|^[CE]$/.test(gabaritoNormalizado)) {
+            console.log(`[GabaritoExtractor] Questão ${questaoId}: Gabarito inválido "${parsed.gabarito}"`);
+
+            await questionsDb
+                .from('questoes_pendentes_ia')
+                .update({
+                    status: 'falha',
+                    erro: `Gabarito inválido: ${parsed.gabarito}`,
+                    processed_at: new Date().toISOString()
+                })
+                .eq('questao_id', questaoId);
+
+            return res.json({
+                success: true,
+                extracted: false,
+                reason: `Gabarito inválido: ${parsed.gabarito}`
+            });
+        }
+
+        // Atualiza questão com gabarito extraído
+        const { error: updateError } = await questionsDb
+            .from('questoes_concurso')
+            .update({
+                gabarito: gabaritoNormalizado,
+                ativo: true,
+                gabarito_auto_extraido: true,
+                gabarito_metodo: 'ia'
+            })
+            .eq('id', questaoId);
+
+        if (updateError) {
+            console.error('[GabaritoExtractor] Erro ao atualizar questão:', updateError);
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao atualizar questão"
+            });
+        }
+
+        // Atualiza fila como concluído
+        await questionsDb
+            .from('questoes_pendentes_ia')
+            .update({
+                status: 'concluido',
+                processed_at: new Date().toISOString()
+            })
+            .eq('questao_id', questaoId);
+
+        console.log(`[GabaritoExtractor] Questão ${questaoId}: Gabarito "${gabaritoNormalizado}" extraído (confiança: ${parsed.confianca})`);
+
+        return res.json({
+            success: true,
+            extracted: true,
+            data: {
+                gabarito: gabaritoNormalizado,
+                confianca: parsed.confianca,
+                motivo: parsed.motivo
+            }
+        });
+
+    } catch (error: any) {
+        console.error("[GabaritoExtractor] Erro:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// ============================================================================
+// ENDPOINT: Processar fila de questões pendentes
+// ============================================================================
+
+app.post('/api/questoes/processar-fila-gabaritos', async (req, res) => {
+    try {
+        const { limite = 50 } = req.body;
+
+        console.log(`[GabaritoExtractor] Iniciando processamento da fila (limite: ${limite})...`);
+
+        // Buscar questões pendentes
+        const { data: pendentes, error: fetchError } = await questionsDb
+            .from('questoes_pendentes_ia')
+            .select('questao_id')
+            .eq('status', 'pendente')
+            .lt('tentativas', 3)
+            .order('created_at', { ascending: true })
+            .limit(limite);
+
+        if (fetchError) {
+            console.error('[GabaritoExtractor] Erro ao buscar fila:', fetchError);
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar fila de pendentes"
+            });
+        }
+
+        if (!pendentes || pendentes.length === 0) {
+            console.log('[GabaritoExtractor] Nenhuma questão pendente na fila');
+            return res.json({
+                success: true,
+                processadas: 0,
+                sucesso: 0,
+                falha: 0,
+                message: "Nenhuma questão pendente"
+            });
+        }
+
+        console.log(`[GabaritoExtractor] ${pendentes.length} questões para processar`);
+
+        let sucesso = 0;
+        let falha = 0;
+
+        for (const item of pendentes) {
+            try {
+                // Marcar como processando e incrementar tentativas
+                await questionsDb
+                    .from('questoes_pendentes_ia')
+                    .update({
+                        status: 'processando',
+                        tentativas: (await questionsDb
+                            .from('questoes_pendentes_ia')
+                            .select('tentativas')
+                            .eq('questao_id', item.questao_id)
+                            .single()
+                        ).data?.tentativas + 1 || 1
+                    })
+                    .eq('questao_id', item.questao_id);
+
+                // Buscar dados da questão
+                const { data: questao, error: questaoError } = await questionsDb
+                    .from('questoes_concurso')
+                    .select('id, enunciado, alternativas, comentario')
+                    .eq('id', item.questao_id)
+                    .single();
+
+                if (questaoError || !questao || !questao.comentario) {
+                    await questionsDb
+                        .from('questoes_pendentes_ia')
+                        .update({
+                            status: 'falha',
+                            erro: 'Questão não encontrada ou sem comentário',
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', item.questao_id);
+                    falha++;
+                    continue;
+                }
+
+                // Chamar agente de IA
+                const agent = mastra.getAgent("gabaritoExtractorAgent");
+                if (!agent) {
+                    falha++;
+                    continue;
+                }
+
+                const prompt = `
+## QUESTÃO ID: ${questao.id}
+
+### ENUNCIADO:
+${questao.enunciado || 'N/A'}
+
+### ALTERNATIVAS:
+${JSON.stringify(questao.alternativas, null, 2) || 'N/A'}
+
+### COMENTÁRIO/EXPLICAÇÃO:
+${questao.comentario}
+
+---
+Analise o comentário acima e extraia o gabarito correto.`;
+
+                const result = await agent.generate([
+                    { role: "user", content: prompt }
+                ]);
+
+                const jsonMatch = result.text?.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    await questionsDb
+                        .from('questoes_pendentes_ia')
+                        .update({
+                            status: 'falha',
+                            erro: 'IA não retornou JSON',
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', item.questao_id);
+                    falha++;
+                    continue;
+                }
+
+                const parsed = JSON.parse(jsonMatch[0]);
+
+                if (!parsed.gabarito || parsed.confianca < 0.7) {
+                    await questionsDb
+                        .from('questoes_concurso')
+                        .update({ ativo: false })
+                        .eq('id', item.questao_id);
+
+                    await questionsDb
+                        .from('questoes_pendentes_ia')
+                        .update({
+                            status: 'falha',
+                            erro: `Confiança baixa: ${parsed.confianca}`,
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', item.questao_id);
+                    falha++;
+                    continue;
+                }
+
+                // Valida e salva gabarito
+                const gabaritoNormalizado = parsed.gabarito.toUpperCase().trim();
+                if (!/^[A-E]$|^[CE]$/.test(gabaritoNormalizado)) {
+                    await questionsDb
+                        .from('questoes_pendentes_ia')
+                        .update({
+                            status: 'falha',
+                            erro: `Gabarito inválido: ${parsed.gabarito}`,
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', item.questao_id);
+                    falha++;
+                    continue;
+                }
+
+                await questionsDb
+                    .from('questoes_concurso')
+                    .update({
+                        gabarito: gabaritoNormalizado,
+                        ativo: true,
+                        gabarito_auto_extraido: true,
+                        gabarito_metodo: 'ia'
+                    })
+                    .eq('id', item.questao_id);
+
+                await questionsDb
+                    .from('questoes_pendentes_ia')
+                    .update({
+                        status: 'concluido',
+                        processed_at: new Date().toISOString()
+                    })
+                    .eq('questao_id', item.questao_id);
+
+                console.log(`[GabaritoExtractor] Questão ${item.questao_id}: OK (${gabaritoNormalizado})`);
+                sucesso++;
+
+            } catch (err: any) {
+                console.error(`[GabaritoExtractor] Erro na questão ${item.questao_id}:`, err.message);
+                falha++;
+
+                await questionsDb
+                    .from('questoes_pendentes_ia')
+                    .update({
+                        status: 'pendente', // Volta para pendente para retry
+                        erro: err.message
+                    })
+                    .eq('questao_id', item.questao_id);
+            }
+
+            // Delay entre processamentos para não sobrecarregar API
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        console.log(`[GabaritoExtractor] Processamento concluído: ${sucesso} sucesso, ${falha} falhas`);
+
+        return res.json({
+            success: true,
+            processadas: pendentes.length,
+            sucesso,
+            falha
+        });
+
+    } catch (error: any) {
+        console.error("[GabaritoExtractor] Erro no processamento da fila:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// ============================================================================
+// ENDPOINT: Status da fila de gabaritos
+// ============================================================================
+
+app.get('/api/questoes/fila-gabaritos/status', async (req, res) => {
+    try {
+        // Contar por status
+        const { data: counts, error } = await questionsDb
+            .from('questoes_pendentes_ia')
+            .select('status');
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar status da fila"
+            });
+        }
+
+        const statusCounts = {
+            pendente: 0,
+            processando: 0,
+            concluido: 0,
+            falha: 0
+        };
+
+        for (const item of counts || []) {
+            if (item.status in statusCounts) {
+                statusCounts[item.status as keyof typeof statusCounts]++;
+            }
+        }
+
+        return res.json({
+            success: true,
+            total: counts?.length || 0,
+            ...statusCounts
+        });
+
+    } catch (error: any) {
+        console.error("[GabaritoExtractor] Erro ao buscar status:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
         });
     }
 });

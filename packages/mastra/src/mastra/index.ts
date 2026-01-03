@@ -8,6 +8,7 @@ import { contentGeneratorAgent, audioScriptAgent } from "./agents/contentGenerat
 import { contentSummaryAgent, audioSummaryAgent } from "./agents/contentSummaryAgent.js";
 import { provaAnalyzerAgent } from "./agents/provaAnalyzerAgent.js";
 import { filtrosAdapterAgent } from "./agents/filtrosAdapterAgent.js";
+import { gabaritoExtractorAgent } from "./agents/gabaritoExtractorAgent.js";
 import { ousePassarMcpServer } from "./mcp/mcpServer.js";
 
 export const mastra = new Mastra({
@@ -22,6 +23,7 @@ export const mastra = new Mastra({
         audioSummaryAgent,
         provaAnalyzerAgent,
         filtrosAdapterAgent,
+        gabaritoExtractorAgent,
     },
     storage: new LibSQLStore({
         url: "file:./data/mastra.db",
