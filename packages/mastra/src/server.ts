@@ -5759,6 +5759,431 @@ app.get('/api/questoes/fila-gabaritos/status', async (req, res) => {
     }
 });
 
+// ============================================================================
+// FORMATAÇÃO DE COMENTÁRIOS - Endpoints para melhorar formatação de comentários
+// ============================================================================
+
+app.post('/api/comentario/formatar', async (req, res) => {
+    try {
+        const { questaoId } = req.body;
+
+        if (!questaoId) {
+            return res.status(400).json({
+                success: false,
+                error: "questaoId é obrigatório"
+            });
+        }
+
+        console.log(`[ComentarioFormatter] Processando questão ${questaoId}...`);
+
+        // Buscar dados da questão
+        const { data: questao, error: fetchError } = await questionsDb
+            .from('questoes_concurso')
+            .select('id, comentario, comentario_formatado')
+            .eq('id', questaoId)
+            .single();
+
+        if (fetchError || !questao) {
+            console.error('[ComentarioFormatter] Questão não encontrada:', fetchError);
+            return res.status(404).json({
+                success: false,
+                error: "Questão não encontrada"
+            });
+        }
+
+        if (!questao.comentario || questao.comentario.trim() === '') {
+            // Sem comentário para formatar
+            await questionsDb
+                .from('comentarios_pendentes_formatacao')
+                .update({
+                    status: 'ignorado',
+                    erro: 'Questão sem comentário',
+                    processed_at: new Date().toISOString()
+                })
+                .eq('questao_id', questaoId);
+
+            return res.json({
+                success: true,
+                formatted: false,
+                reason: "Questão sem comentário"
+            });
+        }
+
+        if (questao.comentario_formatado) {
+            // Já foi formatado
+            await questionsDb
+                .from('comentarios_pendentes_formatacao')
+                .update({
+                    status: 'ignorado',
+                    erro: 'Já formatado anteriormente',
+                    processed_at: new Date().toISOString()
+                })
+                .eq('questao_id', questaoId);
+
+            return res.json({
+                success: true,
+                formatted: false,
+                reason: "Comentário já foi formatado"
+            });
+        }
+
+        // Chamar agente de IA
+        const agent = mastra.getAgent("comentarioFormatterAgent");
+        if (!agent) {
+            console.error('[ComentarioFormatter] Agente não encontrado');
+            return res.status(500).json({
+                success: false,
+                error: "Agente não encontrado"
+            });
+        }
+
+        const prompt = `Formate o seguinte comentário de questão de concurso:\n\n${questao.comentario}`;
+
+        const response = await agent.generate(prompt);
+        const responseText = typeof response.text === 'string' ? response.text : String(response.text);
+
+        // Limpar resposta e fazer parse do JSON
+        let cleanedResponse = responseText
+            .replace(/```json\s*/g, '')
+            .replace(/```\s*/g, '')
+            .trim();
+
+        let result;
+        try {
+            result = JSON.parse(cleanedResponse);
+        } catch (parseError) {
+            console.error('[ComentarioFormatter] Erro ao parsear resposta:', parseError);
+            console.error('[ComentarioFormatter] Resposta raw:', responseText);
+
+            await questionsDb
+                .from('comentarios_pendentes_formatacao')
+                .update({
+                    status: 'falha',
+                    erro: 'Erro ao parsear resposta da IA',
+                    processed_at: new Date().toISOString()
+                })
+                .eq('questao_id', questaoId);
+
+            return res.json({
+                success: true,
+                formatted: false,
+                reason: "Erro ao parsear resposta da IA"
+            });
+        }
+
+        // Verificar se temos um comentário formatado válido
+        if (!result.comentarioFormatado || result.confianca < 0.5) {
+            await questionsDb
+                .from('comentarios_pendentes_formatacao')
+                .update({
+                    status: 'falha',
+                    erro: `Confiança baixa: ${result.confianca}`,
+                    processed_at: new Date().toISOString()
+                })
+                .eq('questao_id', questaoId);
+
+            return res.json({
+                success: true,
+                formatted: false,
+                reason: result.motivo || "Formatação com baixa confiança"
+            });
+        }
+
+        // Atualizar questão com comentário formatado
+        const { error: updateError } = await questionsDb
+            .from('questoes_concurso')
+            .update({
+                comentario: result.comentarioFormatado,
+                comentario_formatado: true,
+                comentario_formatado_at: new Date().toISOString()
+            })
+            .eq('id', questaoId);
+
+        if (updateError) {
+            console.error('[ComentarioFormatter] Erro ao atualizar questão:', updateError);
+
+            await questionsDb
+                .from('comentarios_pendentes_formatacao')
+                .update({
+                    status: 'falha',
+                    erro: 'Erro ao salvar no banco',
+                    processed_at: new Date().toISOString()
+                })
+                .eq('questao_id', questaoId);
+
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao atualizar questão"
+            });
+        }
+
+        // Marcar como concluído na fila
+        await questionsDb
+            .from('comentarios_pendentes_formatacao')
+            .update({
+                status: 'concluido',
+                processed_at: new Date().toISOString()
+            })
+            .eq('questao_id', questaoId);
+
+        console.log(`[ComentarioFormatter] Questão ${questaoId} formatada com sucesso!`);
+
+        return res.json({
+            success: true,
+            formatted: true,
+            alteracoes: result.alteracoes,
+            confianca: result.confianca
+        });
+
+    } catch (error: any) {
+        console.error("[ComentarioFormatter] Erro:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+app.post('/api/comentarios/processar-fila-formatacao', async (req, res) => {
+    try {
+        const { limite = 50 } = req.body;
+
+        console.log(`[ComentarioFormatter] Iniciando processamento da fila (limite: ${limite})...`);
+
+        // Buscar questões pendentes
+        const { data: pendentes, error: fetchError } = await questionsDb
+            .from('comentarios_pendentes_formatacao')
+            .select('questao_id')
+            .eq('status', 'pendente')
+            .lt('tentativas', 3)
+            .order('created_at', { ascending: true })
+            .limit(limite);
+
+        if (fetchError) {
+            console.error('[ComentarioFormatter] Erro ao buscar fila:', fetchError);
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar fila de pendentes"
+            });
+        }
+
+        if (!pendentes || pendentes.length === 0) {
+            console.log('[ComentarioFormatter] Nenhuma questão pendente na fila');
+            return res.json({
+                success: true,
+                processadas: 0,
+                sucesso: 0,
+                falha: 0,
+                message: "Nenhuma questão pendente"
+            });
+        }
+
+        console.log(`[ComentarioFormatter] ${pendentes.length} questões para processar`);
+
+        let sucesso = 0;
+        let falha = 0;
+
+        for (const item of pendentes) {
+            try {
+                // Marcar como processando e incrementar tentativas
+                await questionsDb
+                    .from('comentarios_pendentes_formatacao')
+                    .update({
+                        status: 'processando',
+                        tentativas: (await questionsDb
+                            .from('comentarios_pendentes_formatacao')
+                            .select('tentativas')
+                            .eq('questao_id', item.questao_id)
+                            .single()).data?.tentativas + 1 || 1
+                    })
+                    .eq('questao_id', item.questao_id);
+
+                // Buscar questão
+                const { data: questao } = await questionsDb
+                    .from('questoes_concurso')
+                    .select('id, comentario, comentario_formatado')
+                    .eq('id', item.questao_id)
+                    .single();
+
+                if (!questao || !questao.comentario || questao.comentario.trim() === '') {
+                    await questionsDb
+                        .from('comentarios_pendentes_formatacao')
+                        .update({
+                            status: 'ignorado',
+                            erro: 'Sem comentário',
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', item.questao_id);
+                    falha++;
+                    continue;
+                }
+
+                if (questao.comentario_formatado) {
+                    await questionsDb
+                        .from('comentarios_pendentes_formatacao')
+                        .update({
+                            status: 'ignorado',
+                            erro: 'Já formatado',
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', item.questao_id);
+                    continue;
+                }
+
+                // Chamar agente de IA
+                const agent = mastra.getAgent("comentarioFormatterAgent");
+                if (!agent) {
+                    falha++;
+                    continue;
+                }
+
+                const prompt = `Formate o seguinte comentário de questão de concurso:\n\n${questao.comentario}`;
+                const response = await agent.generate(prompt);
+                const responseText = typeof response.text === 'string' ? response.text : String(response.text);
+
+                let cleanedResponse = responseText
+                    .replace(/```json\s*/g, '')
+                    .replace(/```\s*/g, '')
+                    .trim();
+
+                let result;
+                try {
+                    result = JSON.parse(cleanedResponse);
+                } catch {
+                    await questionsDb
+                        .from('comentarios_pendentes_formatacao')
+                        .update({
+                            status: 'falha',
+                            erro: 'Erro ao parsear resposta',
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', item.questao_id);
+                    falha++;
+                    continue;
+                }
+
+                if (!result.comentarioFormatado || result.confianca < 0.5) {
+                    await questionsDb
+                        .from('comentarios_pendentes_formatacao')
+                        .update({
+                            status: 'falha',
+                            erro: `Confiança baixa: ${result.confianca}`,
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', item.questao_id);
+                    falha++;
+                    continue;
+                }
+
+                // Atualizar questão
+                const { error: updateError } = await questionsDb
+                    .from('questoes_concurso')
+                    .update({
+                        comentario: result.comentarioFormatado,
+                        comentario_formatado: true,
+                        comentario_formatado_at: new Date().toISOString()
+                    })
+                    .eq('id', item.questao_id);
+
+                if (updateError) {
+                    await questionsDb
+                        .from('comentarios_pendentes_formatacao')
+                        .update({
+                            status: 'falha',
+                            erro: 'Erro ao salvar',
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', item.questao_id);
+                    falha++;
+                    continue;
+                }
+
+                // Marcar como concluído
+                await questionsDb
+                    .from('comentarios_pendentes_formatacao')
+                    .update({
+                        status: 'concluido',
+                        processed_at: new Date().toISOString()
+                    })
+                    .eq('questao_id', item.questao_id);
+
+                sucesso++;
+
+            } catch (itemError: any) {
+                console.error(`[ComentarioFormatter] Erro na questão ${item.questao_id}:`, itemError);
+                await questionsDb
+                    .from('comentarios_pendentes_formatacao')
+                    .update({
+                        status: 'falha',
+                        erro: itemError.message || 'Erro desconhecido',
+                        processed_at: new Date().toISOString()
+                    })
+                    .eq('questao_id', item.questao_id);
+                falha++;
+            }
+        }
+
+        console.log(`[ComentarioFormatter] Processamento concluído: ${sucesso} sucesso, ${falha} falha`);
+
+        return res.json({
+            success: true,
+            processadas: pendentes.length,
+            sucesso,
+            falha
+        });
+
+    } catch (error: any) {
+        console.error("[ComentarioFormatter] Erro geral:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+app.get('/api/comentarios/fila-formatacao/status', async (req, res) => {
+    try {
+        // Contar por status
+        const { data: counts, error } = await questionsDb
+            .from('comentarios_pendentes_formatacao')
+            .select('status');
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar status da fila"
+            });
+        }
+
+        const statusCounts = {
+            pendente: 0,
+            processando: 0,
+            concluido: 0,
+            falha: 0,
+            ignorado: 0
+        };
+
+        for (const item of counts || []) {
+            if (item.status in statusCounts) {
+                statusCounts[item.status as keyof typeof statusCounts]++;
+            }
+        }
+
+        return res.json({
+            success: true,
+            total: counts?.length || 0,
+            ...statusCounts
+        });
+
+    } catch (error: any) {
+        console.error("[ComentarioFormatter] Erro ao buscar status:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Mastra Agent Server running on http://localhost:${PORT}`);
 });
