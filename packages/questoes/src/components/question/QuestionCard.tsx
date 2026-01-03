@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ParsedQuestion, CommunityStats, PracticeMode } from '../../types';
 import { COLORS, MOCK_STATS } from '../../constants';
 import { MessageCircle, AlertTriangle, BarChart2, X, Timer, Coffee, Zap, BrainCircuit, Star, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
@@ -487,9 +489,41 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                     <div className="h-4 bg-gray-700 rounded animate-pulse w-5/6"></div>
                   </div>
                 ) : (
-                  studyMode === 'reta_final'
-                    ? <><span className="text-purple-400 font-bold text-xs mb-1 block">RESUMO RETA FINAL:</span>{formatText(explanation || '')}</>
-                    : formatText(explanation || '')
+                  <>
+                    {studyMode === 'reta_final' && (
+                      <span className="text-purple-400 font-bold text-xs mb-1 block">RESUMO RETA FINAL:</span>
+                    )}
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h2: ({ children }) => <h2 className="text-lg font-bold text-[#FFB800] mt-4 mb-2">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-base font-bold text-white mt-3 mb-1">{children}</h3>,
+                        h4: ({ children }) => <h4 className="text-sm font-semibold text-gray-200 mt-2 mb-1">{children}</h4>,
+                        p: ({ children }) => <p className="mb-3 leading-relaxed">{children}</p>,
+                        strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                        ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
+                        li: ({ children }) => <li className="text-gray-300">{children}</li>,
+                        blockquote: ({ children }) => <blockquote className="border-l-4 border-[#FFB800] pl-4 my-3 italic text-gray-400">{children}</blockquote>,
+                        code: ({ children }) => <code className="bg-gray-800 px-1.5 py-0.5 rounded text-[#FFB800] text-sm">{children}</code>,
+                        img: ({ src, alt }) => (
+                          <img
+                            src={src}
+                            alt={alt || 'Imagem da questão'}
+                            className="max-w-full h-auto rounded-lg my-3 border border-gray-700"
+                            loading="lazy"
+                          />
+                        ),
+                        a: ({ href, children }) => (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#FFB800] underline hover:text-[#FFC933]">
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {explanation || ''}
+                    </ReactMarkdown>
+                  </>
                 )}
               </div>
             </div>

@@ -63,6 +63,26 @@ Use \`código\` para:
 - Números de leis (ex: \`Lei 8.666/93\`)
 - Siglas quando aparecem pela primeira vez
 
+### 7. Imagens (MUITO IMPORTANTE)
+Quando encontrar URLs de imagens no texto, converta para formato markdown:
+
+**Padrões a identificar:**
+- URLs diretas: \`https://exemplo.com/imagem.jpg\`
+- Referências textuais: "Disponível em: https://..." ou "Fonte: https://..."
+- Tags HTML: \`<img src="...">\`
+
+**Converter para:**
+\`![Imagem](URL_DA_IMAGEM)\`
+
+**Exemplos:**
+- Entrada: \`Disponível em: https://i.pinimg.com/imagem.jpg. Acesso em: 10 jan. 2024.\`
+- Saída: \`![Imagem da questão](https://i.pinimg.com/imagem.jpg)\`
+
+- Entrada: \`<img src="https://exemplo.com/foto.png">\`
+- Saída: \`![Imagem](https://exemplo.com/foto.png)\`
+
+**Formatos de imagem suportados:** .jpg, .jpeg, .png, .gif, .webp, .svg
+
 ## FORMATO DE RESPOSTA
 
 Retorne APENAS um JSON válido (sem markdown extra, sem explicações):

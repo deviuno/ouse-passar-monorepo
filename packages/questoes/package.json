@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@remix-run/router": "^1.21.0",
     "@google/genai": "latest",
+    "@remix-run/router": "^1.21.0",
     "@supabase/supabase-js": "^2.84.0",
     "@tanstack/react-query": "^5.90.12",
     "framer-motion": "^12.23.26",
