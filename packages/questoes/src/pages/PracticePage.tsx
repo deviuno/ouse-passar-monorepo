@@ -43,12 +43,15 @@ import {
   fetchQuestions,
   fetchFilterOptions,
   fetchAssuntosByMaterias,
+  fetchTaxonomiaByMaterias,
+  TaxonomyNode,
   getQuestionsCount,
   parseRawQuestion,
   OPTIONS_ESCOLARIDADE,
   OPTIONS_MODALIDADE,
   OPTIONS_DIFICULDADE,
 } from '../services/questionsService';
+import { HierarchicalAssuntosDropdown } from '../components/practice/HierarchicalAssuntosDropdown';
 import {
   createNotebook,
   getUserNotebooks,
@@ -207,7 +210,7 @@ function MultiSelectDropdown({
             </div>
 
             {/* Items List */}
-            <div className="max-h-[200px] overflow-y-auto">
+            <div className="max-h-[300px] overflow-y-auto">
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 size={16} className="animate-spin text-[#FFB800]" />
@@ -223,17 +226,17 @@ function MultiSelectDropdown({
                       key={item}
                       onClick={() => onToggle(item)}
                       className={`
-                        w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors
+                        w-full flex items-start gap-2 px-3 py-2 text-left text-sm transition-colors
                         ${isSelected ? 'bg-[#FFB800]/10 text-[#FFB800]' : 'text-white hover:bg-[#252525]'}
                       `}
                     >
                       <div className={`
-                        w-4 h-4 rounded border flex items-center justify-center flex-shrink-0
+                        w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5
                         ${isSelected ? 'bg-[#FFB800] border-[#FFB800]' : 'border-[#4A4A4A]'}
                       `}>
                         {isSelected && <Check size={10} className="text-black" />}
                       </div>
-                      <span className="truncate">{item}</span>
+                      <span className="break-words whitespace-normal leading-tight">{item}</span>
                     </button>
                   );
                 })
@@ -292,6 +295,7 @@ export default function PracticePage() {
   const [filteredCount, setFilteredCount] = useState(0);
   const [availableMaterias, setAvailableMaterias] = useState<string[]>(DEFAULT_MATERIAS);
   const [availableAssuntos, setAvailableAssuntos] = useState<string[]>([]);
+  const [taxonomyByMateria, setTaxonomyByMateria] = useState<Map<string, TaxonomyNode[]>>(new Map());
   const [availableBancas, setAvailableBancas] = useState<string[]>(DEFAULT_BANCAS);
   const [availableOrgaos, setAvailableOrgaos] = useState<string[]>(DEFAULT_ORGAOS);
   const [availableCargos, setAvailableCargos] = useState<string[]>([]);
@@ -644,11 +648,12 @@ export default function PracticePage() {
     };
   }, [loadKey]);
 
-  // Carregar assuntos quando materias sao selecionadas
+  // Carregar assuntos e taxonomia quando materias sao selecionadas
   useEffect(() => {
-    const loadAssuntos = async () => {
+    const loadAssuntosAndTaxonomy = async () => {
       if (filters.materia.length === 0) {
         setAvailableAssuntos([]);
+        setTaxonomyByMateria(new Map());
         if (filters.assunto.length > 0) {
           setFilters((prev) => ({ ...prev, assunto: [] }));
         }
@@ -657,8 +662,14 @@ export default function PracticePage() {
 
       setIsLoadingAssuntos(true);
       try {
-        const assuntos = await fetchAssuntosByMaterias(filters.materia);
+        // Carregar assuntos e taxonomia em paralelo
+        const [assuntos, taxonomy] = await Promise.all([
+          fetchAssuntosByMaterias(filters.materia),
+          fetchTaxonomiaByMaterias(filters.materia)
+        ]);
+
         setAvailableAssuntos(assuntos);
+        setTaxonomyByMateria(taxonomy);
         setFilters((prev) => ({
           ...prev,
           assunto: prev.assunto.filter((a) => assuntos.includes(a)),
@@ -666,12 +677,13 @@ export default function PracticePage() {
       } catch (error) {
         console.error('Erro ao carregar assuntos:', error);
         setAvailableAssuntos([]);
+        setTaxonomyByMateria(new Map());
       } finally {
         setIsLoadingAssuntos(false);
       }
     };
 
-    loadAssuntos();
+    loadAssuntosAndTaxonomy();
   }, [filters.materia]);
 
   // Atualizar contagem de questoes quando filtros mudam
@@ -1251,14 +1263,27 @@ export default function PracticePage() {
                         onClear={() => setFilters(prev => ({ ...prev, banca: [] }))}
                         placeholder="Selecione bancas..."
                       />
-                      <MultiSelectDropdown
+                      <HierarchicalAssuntosDropdown
                         label="Assuntos"
-                        icon={<FileText size={16} />}
-                        items={availableAssuntos}
-                        selected={filters.assunto}
-                        onToggle={(item) => toggleFilter('assunto', item)}
+                        taxonomyByMateria={taxonomyByMateria}
+                        flatAssuntos={availableAssuntos}
+                        selectedAssuntos={filters.assunto}
+                        onToggleAssunto={(item) => toggleFilter('assunto', item)}
+                        onToggleMultiple={(assuntos, select) => {
+                          setFilters(prev => {
+                            const current = new Set(prev.assunto);
+                            assuntos.forEach(a => {
+                              if (select) {
+                                current.add(a);
+                              } else {
+                                current.delete(a);
+                              }
+                            });
+                            return { ...prev, assunto: Array.from(current) };
+                          });
+                        }}
                         onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
-                        placeholder={filters.materia.length === 0 ? 'Selecione matérias primeiro' : 'Selecione assuntos...'}
+                        placeholder={filters.materia.length === 0 ? 'Selecione matérias primeiro' : 'Buscar assuntos...'}
                         isLoading={isLoadingAssuntos}
                         disabled={filters.materia.length === 0}
                       />

@@ -6184,6 +6184,667 @@ app.get('/api/comentarios/fila-formatacao/status', async (req, res) => {
     }
 });
 
+// ============================================================================
+// ASSUNTOS TAXONOMY ENDPOINTS
+// ============================================================================
+
+// Listar todas as matérias disponíveis para taxonomia
+app.get('/api/taxonomia/materias', async (req, res) => {
+    try {
+        const { data, error } = await questionsDb
+            .from('assuntos_mapeamento')
+            .select('materia')
+            .order('materia');
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar matérias"
+            });
+        }
+
+        // Agrupar e contar assuntos por matéria
+        const materiasCounts: Record<string, number> = {};
+        for (const item of data || []) {
+            if (item.materia) {
+                materiasCounts[item.materia] = (materiasCounts[item.materia] || 0) + 1;
+            }
+        }
+
+        const materias = Object.entries(materiasCounts)
+            .map(([materia, count]) => ({ materia, assuntosCount: count }))
+            .sort((a, b) => a.materia.localeCompare(b.materia));
+
+        return res.json({
+            success: true,
+            materias,
+            total: materias.length
+        });
+
+    } catch (error: any) {
+        console.error("[Taxonomia] Erro ao buscar matérias:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Status geral da taxonomia (MUST come before :materia routes)
+app.get('/api/taxonomia/status', async (req, res) => {
+    try {
+        // Total de assuntos
+        const { count: totalAssuntos } = await questionsDb
+            .from('assuntos_mapeamento')
+            .select('*', { count: 'exact', head: true });
+
+        // Assuntos classificados
+        const { count: classificados } = await questionsDb
+            .from('assuntos_mapeamento')
+            .select('*', { count: 'exact', head: true })
+            .not('taxonomia_id', 'is', null);
+
+        // Total de nós de taxonomia
+        const { count: totalNos } = await questionsDb
+            .from('assuntos_taxonomia')
+            .select('*', { count: 'exact', head: true });
+
+        // Matérias únicas
+        const { data: materias } = await questionsDb
+            .from('assuntos_mapeamento')
+            .select('materia');
+
+        const materiasUnicas = new Set(materias?.map(m => m.materia) || []);
+
+        // Matérias com taxonomia
+        const { data: materiasComTaxonomia } = await questionsDb
+            .from('assuntos_taxonomia')
+            .select('materia');
+
+        const materiasProcessadas = new Set(materiasComTaxonomia?.map(m => m.materia) || []);
+
+        return res.json({
+            success: true,
+            totalAssuntos: totalAssuntos || 0,
+            classificados: classificados || 0,
+            naoClassificados: (totalAssuntos || 0) - (classificados || 0),
+            totalNos: totalNos || 0,
+            totalMaterias: materiasUnicas.size,
+            materiasProcessadas: materiasProcessadas.size,
+            percentualClassificado: totalAssuntos
+                ? Math.round(((classificados || 0) / totalAssuntos) * 100)
+                : 0
+        });
+
+    } catch (error: any) {
+        console.error("[Taxonomia] Erro ao buscar status:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Listar assuntos de uma matéria específica
+app.get('/api/taxonomia/:materia/assuntos', async (req, res) => {
+    try {
+        const { materia } = req.params;
+
+        const { data, error } = await questionsDb
+            .from('assuntos_mapeamento')
+            .select('assunto_original, taxonomia_id, questoes_count')
+            .eq('materia', materia)
+            .order('assunto_original');
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar assuntos"
+            });
+        }
+
+        const classificados = data?.filter(a => a.taxonomia_id) || [];
+        const naoClassificados = data?.filter(a => !a.taxonomia_id) || [];
+
+        return res.json({
+            success: true,
+            materia,
+            assuntos: data,
+            total: data?.length || 0,
+            classificados: classificados.length,
+            naoClassificados: naoClassificados.length
+        });
+
+    } catch (error: any) {
+        console.error("[Taxonomia] Erro ao buscar assuntos:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Obter taxonomia existente de uma matéria
+app.get('/api/taxonomia/:materia', async (req, res) => {
+    try {
+        const { materia } = req.params;
+
+        const { data, error } = await questionsDb
+            .from('assuntos_taxonomia')
+            .select('*')
+            .eq('materia', materia)
+            .order('ordem');
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar taxonomia"
+            });
+        }
+
+        // Construir árvore hierárquica
+        const buildTree = (items: any[], parentId: string | null = null): any[] => {
+            return items
+                .filter(item => item.parent_id === parentId)
+                .map(item => ({
+                    ...item,
+                    filhos: buildTree(items, item.id)
+                }));
+        };
+
+        const tree = buildTree(data || []);
+
+        return res.json({
+            success: true,
+            materia,
+            taxonomia: tree,
+            totalNodes: data?.length || 0
+        });
+
+    } catch (error: any) {
+        console.error("[Taxonomia] Erro ao buscar taxonomia:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Processar taxonomia de uma matéria usando IA
+app.post('/api/taxonomia/processar', async (req, res) => {
+    try {
+        const { materia } = req.body;
+
+        if (!materia) {
+            return res.status(400).json({
+                success: false,
+                error: "materia é obrigatório"
+            });
+        }
+
+        console.log(`[Taxonomia] Processando matéria: ${materia}`);
+
+        // Buscar assuntos da matéria (ALL assuntos, we'll filter classified ones after)
+        const { data: assuntos, error: fetchError } = await questionsDb
+            .from('assuntos_mapeamento')
+            .select('assunto_original, questoes_count, taxonomia_id')
+            .eq('materia', materia)
+            .order('questoes_count', { ascending: false });
+
+        console.log(`[Taxonomia] Query result - total: ${assuntos?.length || 0}, error: ${fetchError?.message || 'none'}`);
+
+        if (fetchError) {
+            console.error('[Taxonomia] Fetch error:', fetchError);
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar assuntos: " + fetchError.message
+            });
+        }
+
+        // Filter only unclassified ones
+        const assuntosNaoClassificados = assuntos?.filter(a => a.taxonomia_id === null) || [];
+        console.log(`[Taxonomia] Assuntos não classificados: ${assuntosNaoClassificados.length}`);
+
+        if (assuntosNaoClassificados.length === 0) {
+            return res.json({
+                success: true,
+                message: "Todos os assuntos já estão classificados",
+                processados: 0
+            });
+        }
+
+        // Use filtered list
+        const assuntosParaProcessar = assuntosNaoClassificados;
+
+        console.log(`[Taxonomia] Encontrados ${assuntosParaProcessar.length} assuntos não classificados`);
+
+        // Chamar agente de IA
+        const agent = mastra.getAgent("assuntosTaxonomiaAgent");
+        if (!agent) {
+            console.error('[Taxonomia] Agente não encontrado');
+            return res.status(500).json({
+                success: false,
+                error: "Agente não encontrado"
+            });
+        }
+
+        const assuntosLista = assuntosParaProcessar.map(a => a.assunto_original);
+        const prompt = `Matéria: "${materia}"\nAssuntos: ${JSON.stringify(assuntosLista)}`;
+
+        console.log(`[Taxonomia] Chamando agente com ${assuntosLista.length} assuntos...`);
+        const response = await agent.generate(prompt);
+        const responseText = typeof response.text === 'string' ? response.text : String(response.text);
+
+        // Limpar e parsear resposta
+        let cleanedResponse = responseText
+            .replace(/```json\s*/g, '')
+            .replace(/```\s*/g, '')
+            .trim();
+
+        let result;
+        try {
+            result = JSON.parse(cleanedResponse);
+        } catch (parseError) {
+            console.error('[Taxonomia] Erro ao parsear resposta:', parseError);
+            console.error('[Taxonomia] Resposta raw:', responseText.substring(0, 500));
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao parsear resposta da IA"
+            });
+        }
+
+        console.log(`[Taxonomia] Taxonomia gerada com ${result.taxonomia?.length || 0} tópicos principais`);
+
+        // Salvar taxonomia no banco
+        const savedNodes: any[] = [];
+
+        const saveNode = async (node: any, parentId: string | null = null) => {
+            const { data: inserted, error: insertError } = await questionsDb
+                .from('assuntos_taxonomia')
+                .insert({
+                    materia,
+                    codigo: node.codigo,
+                    nome: node.nome,
+                    nivel: node.nivel,
+                    parent_id: parentId,
+                    ordem: node.ordem
+                })
+                .select()
+                .single();
+
+            if (insertError) {
+                console.error('[Taxonomia] Erro ao inserir nó:', insertError);
+                return null;
+            }
+
+            savedNodes.push(inserted);
+
+            // Mapear assuntos originais para este nó
+            if (node.assuntos_originais && node.assuntos_originais.length > 0) {
+                for (const assuntoOriginal of node.assuntos_originais) {
+                    await questionsDb
+                        .from('assuntos_mapeamento')
+                        .update({ taxonomia_id: inserted.id })
+                        .eq('materia', materia)
+                        .eq('assunto_original', assuntoOriginal);
+                }
+            }
+
+            // Processar filhos recursivamente
+            if (node.filhos && node.filhos.length > 0) {
+                for (const filho of node.filhos) {
+                    await saveNode(filho, inserted.id);
+                }
+            }
+
+            return inserted;
+        };
+
+        // Deletar taxonomia existente da matéria
+        await questionsDb
+            .from('assuntos_taxonomia')
+            .delete()
+            .eq('materia', materia);
+
+        // Resetar mapeamentos
+        await questionsDb
+            .from('assuntos_mapeamento')
+            .update({ taxonomia_id: null })
+            .eq('materia', materia);
+
+        // Salvar nova taxonomia
+        for (const topico of result.taxonomia || []) {
+            await saveNode(topico);
+        }
+
+        console.log(`[Taxonomia] Salvos ${savedNodes.length} nós de taxonomia`);
+
+        return res.json({
+            success: true,
+            materia,
+            nodosCreados: savedNodes.length,
+            estatisticas: result.estatisticas,
+            naoClassificados: result.nao_classificados || []
+        });
+
+    } catch (error: any) {
+        console.error("[Taxonomia] Erro ao processar:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Processar todas as matérias em batch
+app.post('/api/taxonomia/processar-batch', async (req, res) => {
+    try {
+        const { limite = 5 } = req.body;
+
+        console.log(`[Taxonomia] Iniciando processamento em batch (limite: ${limite})...`);
+
+        // Buscar matérias que ainda não têm taxonomia
+        const { data: materiasData } = await questionsDb
+            .from('assuntos_mapeamento')
+            .select('materia')
+            .is('taxonomia_id', null);
+
+        const materiasCounts: Record<string, number> = {};
+        for (const item of materiasData || []) {
+            if (item.materia) {
+                materiasCounts[item.materia] = (materiasCounts[item.materia] || 0) + 1;
+            }
+        }
+
+        const materiasParaProcessar = Object.entries(materiasCounts)
+            .sort((a, b) => b[1] - a[1])  // Ordenar por mais assuntos primeiro
+            .slice(0, limite)
+            .map(([materia]) => materia);
+
+        console.log(`[Taxonomia] Matérias para processar: ${materiasParaProcessar.join(', ')}`);
+
+        const resultados: any[] = [];
+
+        for (const materia of materiasParaProcessar) {
+            try {
+                console.log(`[Taxonomia] Processando ${materia}...`);
+
+                // Chamar o endpoint de processamento individual
+                const { data: assuntos } = await questionsDb
+                    .from('assuntos_mapeamento')
+                    .select('assunto_original, questoes_count')
+                    .eq('materia', materia)
+                    .is('taxonomia_id', null)
+                    .order('questoes_count', { ascending: false });
+
+                if (!assuntos || assuntos.length === 0) {
+                    resultados.push({ materia, status: 'skip', reason: 'Sem assuntos pendentes' });
+                    continue;
+                }
+
+                const agent = mastra.getAgent("assuntosTaxonomiaAgent");
+                if (!agent) {
+                    resultados.push({ materia, status: 'error', reason: 'Agente não encontrado' });
+                    continue;
+                }
+
+                const assuntosLista = assuntos.map(a => a.assunto_original);
+                const prompt = `Matéria: "${materia}"\nAssuntos: ${JSON.stringify(assuntosLista)}`;
+
+                const response = await agent.generate(prompt);
+                const responseText = typeof response.text === 'string' ? response.text : String(response.text);
+
+                let cleanedResponse = responseText
+                    .replace(/```json\s*/g, '')
+                    .replace(/```\s*/g, '')
+                    .trim();
+
+                let result;
+                try {
+                    result = JSON.parse(cleanedResponse);
+                } catch {
+                    resultados.push({ materia, status: 'error', reason: 'Parse error' });
+                    continue;
+                }
+
+                // Deletar e recriar taxonomia
+                await questionsDb.from('assuntos_taxonomia').delete().eq('materia', materia);
+                await questionsDb.from('assuntos_mapeamento').update({ taxonomia_id: null }).eq('materia', materia);
+
+                let nodeCount = 0;
+                const saveNode = async (node: any, parentId: string | null = null) => {
+                    const { data: inserted } = await questionsDb
+                        .from('assuntos_taxonomia')
+                        .insert({
+                            materia,
+                            codigo: node.codigo,
+                            nome: node.nome,
+                            nivel: node.nivel,
+                            parent_id: parentId,
+                            ordem: node.ordem
+                        })
+                        .select()
+                        .single();
+
+                    if (inserted) {
+                        nodeCount++;
+                        if (node.assuntos_originais) {
+                            for (const assuntoOriginal of node.assuntos_originais) {
+                                await questionsDb
+                                    .from('assuntos_mapeamento')
+                                    .update({ taxonomia_id: inserted.id })
+                                    .eq('materia', materia)
+                                    .eq('assunto_original', assuntoOriginal);
+                            }
+                        }
+                        if (node.filhos) {
+                            for (const filho of node.filhos) {
+                                await saveNode(filho, inserted.id);
+                            }
+                        }
+                    }
+                };
+
+                for (const topico of result.taxonomia || []) {
+                    await saveNode(topico);
+                }
+
+                resultados.push({
+                    materia,
+                    status: 'success',
+                    assuntosProcessados: assuntos.length,
+                    nodosCreados: nodeCount
+                });
+
+            } catch (itemError: any) {
+                console.error(`[Taxonomia] Erro em ${materia}:`, itemError);
+                resultados.push({ materia, status: 'error', reason: itemError.message });
+            }
+        }
+
+        console.log(`[Taxonomia] Batch concluído: ${resultados.filter(r => r.status === 'success').length} sucesso`);
+
+        return res.json({
+            success: true,
+            processadas: resultados.length,
+            resultados
+        });
+
+    } catch (error: any) {
+        console.error("[Taxonomia] Erro no batch:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Processar matérias grandes em chunks (para matérias com muitos assuntos)
+app.post('/api/taxonomia/processar-grande', async (req, res) => {
+    try {
+        const { materia, chunkSize = 60 } = req.body;
+
+        if (!materia) {
+            return res.status(400).json({
+                success: false,
+                error: "materia é obrigatório"
+            });
+        }
+
+        console.log(`[Taxonomia-Grande] Processando matéria grande: ${materia} (chunks de ${chunkSize})`);
+
+        // Buscar TODOS os assuntos da matéria
+        const { data: todosAssuntos, error: fetchError } = await questionsDb
+            .from('assuntos_mapeamento')
+            .select('assunto_original, questoes_count, taxonomia_id')
+            .eq('materia', materia)
+            .order('questoes_count', { ascending: false });
+
+        if (fetchError) {
+            console.error('[Taxonomia-Grande] Fetch error:', fetchError);
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar assuntos: " + fetchError.message
+            });
+        }
+
+        // Filtrar não classificados
+        const assuntosNaoClassificados = todosAssuntos?.filter(a => a.taxonomia_id === null) || [];
+        console.log(`[Taxonomia-Grande] Total: ${todosAssuntos?.length}, Não classificados: ${assuntosNaoClassificados.length}`);
+
+        if (assuntosNaoClassificados.length === 0) {
+            return res.json({
+                success: true,
+                message: "Todos os assuntos já estão classificados",
+                processados: 0
+            });
+        }
+
+        const agent = mastra.getAgent("assuntosTaxonomiaAgent");
+        if (!agent) {
+            return res.status(500).json({
+                success: false,
+                error: "Agente não encontrado"
+            });
+        }
+
+        // Dividir em chunks
+        const chunks: string[][] = [];
+        const assuntosLista = assuntosNaoClassificados.map(a => a.assunto_original);
+        for (let i = 0; i < assuntosLista.length; i += chunkSize) {
+            chunks.push(assuntosLista.slice(i, i + chunkSize));
+        }
+
+        console.log(`[Taxonomia-Grande] Dividido em ${chunks.length} chunks`);
+
+        // Limpar taxonomia existente
+        await questionsDb.from('assuntos_taxonomia').delete().eq('materia', materia);
+        await questionsDb.from('assuntos_mapeamento').update({ taxonomia_id: null }).eq('materia', materia);
+
+        let totalNodos = 0;
+        let totalClassificados = 0;
+        const erros: string[] = [];
+
+        // Processar cada chunk
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            console.log(`[Taxonomia-Grande] Processando chunk ${i + 1}/${chunks.length} (${chunk.length} assuntos)`);
+
+            try {
+                const prompt = `Matéria: "${materia}"\nAssuntos: ${JSON.stringify(chunk)}\n\nNOTA: Este é o lote ${i + 1} de ${chunks.length}. Organize estes assuntos em uma taxonomia hierárquica.`;
+
+                const response = await agent.generate(prompt);
+                const responseText = typeof response.text === 'string' ? response.text : String(response.text);
+
+                let cleanedResponse = responseText
+                    .replace(/```json\s*/g, '')
+                    .replace(/```\s*/g, '')
+                    .trim();
+
+                let result;
+                try {
+                    result = JSON.parse(cleanedResponse);
+                } catch (parseErr) {
+                    console.error(`[Taxonomia-Grande] Parse error no chunk ${i + 1}:`, parseErr);
+                    erros.push(`Chunk ${i + 1}: Parse error`);
+                    continue;
+                }
+
+                // Salvar taxonomia do chunk
+                // Usamos códigos prefixados com o número do chunk para evitar conflitos
+                const saveNode = async (node: any, parentId: string | null = null) => {
+                    // Prefixar código com número do chunk
+                    const codigoPrefixado = `${i + 1}.${node.codigo}`;
+
+                    const { data: inserted } = await questionsDb
+                        .from('assuntos_taxonomia')
+                        .insert({
+                            materia,
+                            codigo: codigoPrefixado,
+                            nome: node.nome,
+                            nivel: node.nivel,
+                            parent_id: parentId,
+                            ordem: node.ordem + (i * 100) // Offset de ordem por chunk
+                        })
+                        .select()
+                        .single();
+
+                    if (inserted) {
+                        totalNodos++;
+                        if (node.assuntos_originais && node.assuntos_originais.length > 0) {
+                            for (const assuntoOriginal of node.assuntos_originais) {
+                                const { error: updateErr } = await questionsDb
+                                    .from('assuntos_mapeamento')
+                                    .update({ taxonomia_id: inserted.id })
+                                    .eq('materia', materia)
+                                    .eq('assunto_original', assuntoOriginal);
+
+                                if (!updateErr) totalClassificados++;
+                            }
+                        }
+                        if (node.filhos && node.filhos.length > 0) {
+                            for (const filho of node.filhos) {
+                                await saveNode(filho, inserted.id);
+                            }
+                        }
+                    }
+                };
+
+                for (const topico of result.taxonomia || []) {
+                    await saveNode(topico);
+                }
+
+                console.log(`[Taxonomia-Grande] Chunk ${i + 1} concluído: ${result.taxonomia?.length || 0} tópicos`);
+
+            } catch (chunkError: any) {
+                console.error(`[Taxonomia-Grande] Erro no chunk ${i + 1}:`, chunkError);
+                erros.push(`Chunk ${i + 1}: ${chunkError.message}`);
+            }
+
+            // Pequena pausa entre chunks para não sobrecarregar a API
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        console.log(`[Taxonomia-Grande] Concluído: ${totalNodos} nodos, ${totalClassificados} classificados`);
+
+        return res.json({
+            success: true,
+            materia,
+            chunks: chunks.length,
+            nodosCreados: totalNodos,
+            assuntosClassificados: totalClassificados,
+            erros: erros.length > 0 ? erros : undefined
+        });
+
+    } catch (error: any) {
+        console.error("[Taxonomia-Grande] Erro geral:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Mastra Agent Server running on http://localhost:${PORT}`);
 });

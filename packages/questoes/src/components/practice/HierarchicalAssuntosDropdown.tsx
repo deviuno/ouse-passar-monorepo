@@ -1,0 +1,425 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown, ChevronRight, Search, X, FileText, Loader2, Check } from 'lucide-react';
+import { TaxonomyNode } from '../../services/questionsService';
+
+interface HierarchicalAssuntosDropdownProps {
+  label: string;
+  taxonomyByMateria: Map<string, TaxonomyNode[]>;
+  flatAssuntos: string[]; // Assuntos sem taxonomia (fallback)
+  selectedAssuntos: string[];
+  onToggleAssunto: (assunto: string) => void;
+  onToggleMultiple: (assuntos: string[], select: boolean) => void;
+  onClear: () => void;
+  isLoading?: boolean;
+  disabled?: boolean;
+  placeholder?: string;
+}
+
+// Componente para renderizar um nó da árvore
+const TaxonomyNodeItem: React.FC<{
+  node: TaxonomyNode;
+  selectedAssuntos: string[];
+  onToggleAssunto: (assunto: string) => void;
+  onToggleMultiple: (assuntos: string[], select: boolean) => void;
+  expandedNodes: Set<string>;
+  toggleExpanded: (nodeId: string) => void;
+  searchTerm: string;
+  level?: number;
+}> = ({
+  node,
+  selectedAssuntos,
+  onToggleAssunto,
+  onToggleMultiple,
+  expandedNodes,
+  toggleExpanded,
+  searchTerm,
+  level = 0
+}) => {
+  const nodeId = `${node.materia}-${node.id}`;
+  const isExpanded = expandedNodes.has(nodeId);
+  const hasChildren = node.filhos && node.filhos.length > 0;
+  const assuntosOriginais = node.assuntos_originais || [];
+
+  // Calcular quantos assuntos estão selecionados neste nó e seus filhos
+  const getAllAssuntos = (n: TaxonomyNode): string[] => {
+    let assuntos = [...(n.assuntos_originais || [])];
+    if (n.filhos) {
+      for (const filho of n.filhos) {
+        assuntos = [...assuntos, ...getAllAssuntos(filho)];
+      }
+    }
+    return assuntos;
+  };
+
+  const allNodeAssuntos = getAllAssuntos(node);
+  const selectedCount = allNodeAssuntos.filter(a => selectedAssuntos.includes(a)).length;
+  const isPartiallySelected = selectedCount > 0 && selectedCount < allNodeAssuntos.length;
+  const isFullySelected = selectedCount === allNodeAssuntos.length && allNodeAssuntos.length > 0;
+
+  // Verificar se o nó ou seus filhos correspondem à busca
+  const matchesSearch = (n: TaxonomyNode): boolean => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    if (n.nome.toLowerCase().includes(term)) return true;
+    if (n.assuntos_originais?.some(a => a.toLowerCase().includes(term))) return true;
+    if (n.filhos?.some(f => matchesSearch(f))) return true;
+    return false;
+  };
+
+  if (!matchesSearch(node)) return null;
+
+  const handleToggleNode = () => {
+    if (allNodeAssuntos.length > 0) {
+      onToggleMultiple(allNodeAssuntos, !isFullySelected);
+    }
+  };
+
+  const paddingLeft = 12 + level * 16;
+
+  return (
+    <div>
+      <div
+        className={`flex items-center gap-2 py-2 px-3 cursor-pointer transition-colors hover:bg-[#252525] ${
+          isFullySelected ? 'bg-[#FFB800]/10' : ''
+        }`}
+        style={{ paddingLeft }}
+      >
+        {/* Botão de expandir */}
+        {hasChildren ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleExpanded(nodeId);
+            }}
+            className="p-0.5 hover:bg-[#3A3A3A] rounded"
+          >
+            {isExpanded ? (
+              <ChevronDown size={14} className="text-[#A0A0A0]" />
+            ) : (
+              <ChevronRight size={14} className="text-[#A0A0A0]" />
+            )}
+          </button>
+        ) : (
+          <span className="w-5" />
+        )}
+
+        {/* Checkbox */}
+        <button
+          onClick={handleToggleNode}
+          className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+            isFullySelected
+              ? 'bg-[#FFB800] border-[#FFB800]'
+              : isPartiallySelected
+              ? 'bg-[#FFB800]/50 border-[#FFB800]'
+              : 'border-[#4A4A4A] hover:border-[#6A6A6A]'
+          }`}
+        >
+          {(isFullySelected || isPartiallySelected) && (
+            <Check size={10} className="text-black" />
+          )}
+        </button>
+
+        {/* Nome do nó */}
+        <span
+          onClick={handleToggleNode}
+          className={`flex-1 text-sm ${
+            isFullySelected ? 'text-[#FFB800]' : 'text-white'
+          }`}
+        >
+          {node.nome}
+        </span>
+
+        {/* Badge com contagem */}
+        {allNodeAssuntos.length > 0 && (
+          <span className="text-xs text-[#6E6E6E] bg-[#2A2A2A] px-1.5 py-0.5 rounded">
+            {selectedCount > 0 ? `${selectedCount}/` : ''}{allNodeAssuntos.length}
+          </span>
+        )}
+      </div>
+
+      {/* Filhos */}
+      <AnimatePresence>
+        {isExpanded && hasChildren && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            {node.filhos.map((filho) => (
+              <TaxonomyNodeItem
+                key={`${filho.materia}-${filho.id}`}
+                node={filho}
+                selectedAssuntos={selectedAssuntos}
+                onToggleAssunto={onToggleAssunto}
+                onToggleMultiple={onToggleMultiple}
+                expandedNodes={expandedNodes}
+                toggleExpanded={toggleExpanded}
+                searchTerm={searchTerm}
+                level={level + 1}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdownProps> = ({
+  label,
+  taxonomyByMateria,
+  flatAssuntos,
+  selectedAssuntos,
+  onToggleAssunto,
+  onToggleMultiple,
+  onClear,
+  isLoading = false,
+  disabled = false,
+  placeholder = 'Selecione assuntos...'
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fechar ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleExpanded = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  };
+
+  // Verificar se há taxonomia disponível
+  const hasTaxonomy = taxonomyByMateria.size > 0 &&
+    Array.from(taxonomyByMateria.values()).some(nodes => nodes.length > 0);
+
+  // Filtrar assuntos flat que não estão na taxonomia
+  const assuntosSemTaxonomia = flatAssuntos.filter(assunto => {
+    // Verificar se o assunto está em alguma taxonomia
+    for (const nodes of taxonomyByMateria.values()) {
+      const isInTaxonomy = (nodeList: TaxonomyNode[]): boolean => {
+        for (const node of nodeList) {
+          if (node.assuntos_originais?.includes(assunto)) return true;
+          if (node.filhos && isInTaxonomy(node.filhos)) return true;
+        }
+        return false;
+      };
+      if (isInTaxonomy(nodes)) return false;
+    }
+    return true;
+  });
+
+  // Filtrar assuntos sem taxonomia pela busca
+  const filteredFlatAssuntos = assuntosSemTaxonomia.filter(
+    assunto => !searchTerm || assunto.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Contar total de assuntos disponíveis
+  const totalAvailable = flatAssuntos.length;
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      {/* Botão principal */}
+      <button
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl border transition-all ${
+          disabled
+            ? 'bg-[#1A1A1A] border-[#2A2A2A] text-[#4A4A4A] cursor-not-allowed'
+            : isOpen
+            ? 'bg-[#1E1E1E] border-[#FFB800] text-white'
+            : 'bg-[#1E1E1E] border-[#3A3A3A] text-white hover:border-[#4A4A4A]'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <FileText size={16} className={disabled ? 'text-[#4A4A4A]' : 'text-[#FFB800]'} />
+          <span className="text-sm font-medium">{label}</span>
+          {selectedAssuntos.length > 0 && (
+            <span className="bg-[#FFB800] text-black text-xs font-bold px-2 py-0.5 rounded-full">
+              {selectedAssuntos.length}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {isLoading ? (
+            <Loader2 size={16} className="animate-spin text-[#A0A0A0]" />
+          ) : (
+            <>
+              {totalAvailable > 0 && (
+                <span className="text-xs text-[#6E6E6E]">{totalAvailable}</span>
+              )}
+              <ChevronDown
+                size={16}
+                className={`transition-transform ${isOpen ? 'rotate-180' : ''} ${
+                  disabled ? 'text-[#4A4A4A]' : 'text-[#A0A0A0]'
+                }`}
+              />
+            </>
+          )}
+        </div>
+      </button>
+
+      {/* Dropdown */}
+      <AnimatePresence>
+        {isOpen && !disabled && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 w-full mt-2 bg-[#1E1E1E] border border-[#3A3A3A] rounded-xl shadow-xl overflow-hidden"
+          >
+            {/* Busca */}
+            <div className="p-3 border-b border-[#3A3A3A]">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={placeholder}
+                  className="w-full pl-9 pr-8 py-2 bg-[#252525] border border-[#3A3A3A] rounded-lg text-sm text-white placeholder-[#6E6E6E] focus:outline-none focus:border-[#FFB800]"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6E6E6E] hover:text-white"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Lista */}
+            <div className="max-h-[350px] overflow-y-auto">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 size={24} className="animate-spin text-[#FFB800]" />
+                </div>
+              ) : totalAvailable === 0 ? (
+                <div className="py-8 text-center text-[#6E6E6E] text-sm">
+                  Nenhum assunto disponível
+                </div>
+              ) : (
+                <>
+                  {/* Matérias com taxonomia */}
+                  {Array.from(taxonomyByMateria.entries()).map(([materia, nodes]) => {
+                    if (nodes.length === 0) return null;
+
+                    // Filtrar nós que correspondem à busca
+                    const matchesSearch = (n: TaxonomyNode): boolean => {
+                      if (!searchTerm) return true;
+                      const term = searchTerm.toLowerCase();
+                      if (n.nome.toLowerCase().includes(term)) return true;
+                      if (n.assuntos_originais?.some(a => a.toLowerCase().includes(term))) return true;
+                      if (n.filhos?.some(f => matchesSearch(f))) return true;
+                      return false;
+                    };
+
+                    const filteredNodes = nodes.filter(matchesSearch);
+                    if (filteredNodes.length === 0) return null;
+
+                    return (
+                      <div key={materia}>
+                        {/* Header da matéria */}
+                        <div className="px-3 py-2 bg-[#252525] border-y border-[#3A3A3A] sticky top-0">
+                          <span className="text-xs font-bold text-[#FFB800] uppercase tracking-wide">
+                            {materia}
+                          </span>
+                        </div>
+
+                        {/* Árvore de taxonomia */}
+                        {filteredNodes.map((node) => (
+                          <TaxonomyNodeItem
+                            key={`${node.materia}-${node.id}`}
+                            node={node}
+                            selectedAssuntos={selectedAssuntos}
+                            onToggleAssunto={onToggleAssunto}
+                            onToggleMultiple={onToggleMultiple}
+                            expandedNodes={expandedNodes}
+                            toggleExpanded={toggleExpanded}
+                            searchTerm={searchTerm}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+
+                  {/* Assuntos sem taxonomia */}
+                  {filteredFlatAssuntos.length > 0 && (
+                    <div>
+                      {hasTaxonomy && (
+                        <div className="px-3 py-2 bg-[#252525] border-y border-[#3A3A3A] sticky top-0">
+                          <span className="text-xs font-bold text-[#A0A0A0] uppercase tracking-wide">
+                            Outros Assuntos
+                          </span>
+                        </div>
+                      )}
+                      {filteredFlatAssuntos.map((assunto) => {
+                        const isSelected = selectedAssuntos.includes(assunto);
+                        return (
+                          <button
+                            key={assunto}
+                            onClick={() => onToggleAssunto(assunto)}
+                            className={`w-full flex items-start gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                              isSelected ? 'bg-[#FFB800]/10 text-[#FFB800]' : 'text-white hover:bg-[#252525]'
+                            }`}
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                              isSelected ? 'bg-[#FFB800] border-[#FFB800]' : 'border-[#4A4A4A]'
+                            }`}>
+                              {isSelected && <Check size={10} className="text-black" />}
+                            </div>
+                            <span className="break-words whitespace-normal leading-tight">{assunto}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            {selectedAssuntos.length > 0 && (
+              <div className="p-3 border-t border-[#3A3A3A] flex justify-between items-center">
+                <span className="text-xs text-[#A0A0A0]">
+                  {selectedAssuntos.length} selecionado{selectedAssuntos.length !== 1 ? 's' : ''}
+                </span>
+                <button
+                  onClick={onClear}
+                  className="text-xs text-[#FFB800] hover:underline"
+                >
+                  Limpar
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default HierarchicalAssuntosDropdown;

@@ -336,6 +336,89 @@ export const fetchAssuntosByMaterias = async (materias: string[]): Promise<strin
   }
 };
 
+// Tipo para nó da taxonomia hierárquica
+export interface TaxonomyNode {
+  id: number;
+  codigo: string;
+  nome: string;
+  nivel: number;
+  ordem: number;
+  materia: string;
+  parent_id: number | null;
+  filhos: TaxonomyNode[];
+  assuntos_originais?: string[];
+}
+
+// Busca taxonomia hierárquica para uma matéria
+export const fetchTaxonomiaByMateria = async (materia: string): Promise<TaxonomyNode[]> => {
+  if (!materia) return [];
+
+  try {
+    const API_URL = import.meta.env.VITE_MASTRA_URL
+      ? `${import.meta.env.VITE_MASTRA_URL}/api/taxonomia/${encodeURIComponent(materia)}`
+      : `http://localhost:4000/api/taxonomia/${encodeURIComponent(materia)}`;
+
+    const response = await fetch(API_URL);
+    if (!response.ok) {
+      console.error('[fetchTaxonomiaByMateria] Erro na resposta:', response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      console.error('[fetchTaxonomiaByMateria] API retornou erro:', data.error);
+      return [];
+    }
+
+    console.log('[fetchTaxonomiaByMateria] Taxonomia carregada para', materia, ':', data.totalNodes, 'nós');
+    return data.taxonomia || [];
+  } catch (error) {
+    console.error('[fetchTaxonomiaByMateria] Erro:', error);
+    return [];
+  }
+};
+
+// Busca taxonomia para múltiplas matérias
+export const fetchTaxonomiaByMaterias = async (materias: string[]): Promise<Map<string, TaxonomyNode[]>> => {
+  const result = new Map<string, TaxonomyNode[]>();
+
+  if (!materias || materias.length === 0) return result;
+
+  // Buscar em paralelo para todas as matérias
+  const promises = materias.map(async (materia) => {
+    const taxonomia = await fetchTaxonomiaByMateria(materia);
+    return { materia, taxonomia };
+  });
+
+  const results = await Promise.all(promises);
+
+  for (const { materia, taxonomia } of results) {
+    result.set(materia, taxonomia);
+  }
+
+  console.log('[fetchTaxonomiaByMaterias] Carregadas taxonomias para', result.size, 'matérias');
+  return result;
+};
+
+// Extrai todos os assuntos originais de uma árvore de taxonomia
+export const extractAssuntosFromTaxonomy = (nodes: TaxonomyNode[]): string[] => {
+  const assuntos: string[] = [];
+
+  const extractRecursive = (nodeList: TaxonomyNode[]) => {
+    for (const node of nodeList) {
+      if (node.assuntos_originais && node.assuntos_originais.length > 0) {
+        assuntos.push(...node.assuntos_originais);
+      }
+      if (node.filhos && node.filhos.length > 0) {
+        extractRecursive(node.filhos);
+      }
+    }
+  };
+
+  extractRecursive(nodes);
+  return [...new Set(assuntos)]; // Remove duplicatas
+};
+
 // Conta total de questões (com filtros opcionais)
 // Usa função RPC otimizada para evitar timeout
 // Com retry automático
@@ -402,6 +485,9 @@ export const questionsService = {
   fetchQuestionById,
   fetchFilterOptions,
   fetchAssuntosByMaterias,
+  fetchTaxonomiaByMateria,
+  fetchTaxonomiaByMaterias,
+  extractAssuntosFromTaxonomy,
   getQuestionsCount,
   parseRawQuestion,
   OPTIONS_ESCOLARIDADE,
