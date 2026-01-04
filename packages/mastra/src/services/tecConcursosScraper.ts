@@ -1638,6 +1638,10 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
 
       // Tab final para sair do último campo
       await page.keyboard.press('Tab');
+      await delay(1000);
+
+      // Clicar em algum lugar neutro para forçar Angular a atualizar
+      await page.mouse.click(100, 100);
       await delay(500);
 
       // Verificar se o Total foi zerado
@@ -1693,23 +1697,48 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
             await page.mouse.click(inputInfo.x, inputInfo.y, { clickCount: 3 });
             await delay(100);
 
-            // 3. Usar CDP Input.insertText que é mais baixo nível
-            const client = await page.createCDPSession();
+            // 3. Usar PASTE via clipboard que pode triggerar AngularJS corretamente
             const valueToType = String(materia.quantidade);
-            await client.send('Input.insertText', { text: valueToType });
-            await client.detach();
+
+            // Copiar valor para clipboard e colar
+            await page.evaluate((val) => {
+              // Criar elemento temporário para copiar
+              const textarea = document.createElement('textarea');
+              textarea.value = val;
+              document.body.appendChild(textarea);
+              textarea.select();
+              document.execCommand('copy');
+              document.body.removeChild(textarea);
+            }, valueToType);
+
+            // Colar no input (Ctrl+V)
+            await page.keyboard.down('Control');
+            await page.keyboard.press('KeyV');
+            await page.keyboard.up('Control');
             await delay(200);
 
-            // 4. Disparar eventos manualmente via evaluate para garantir
-            await page.evaluate((idx) => {
-              const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-              const input = allInputs[idx] as HTMLInputElement;
-              if (input) {
-                // Disparar eventos na ordem correta para AngularJS
-                input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-                input.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-              }
-            }, materia.indice);
+            // Também tentar Input.dispatchKeyEvent para simular paste
+            try {
+              const client = await page.createCDPSession();
+              // Disparar evento de paste
+              await client.send('Input.dispatchKeyEvent', {
+                type: 'keyDown',
+                key: 'v',
+                code: 'KeyV',
+                modifiers: 2, // Ctrl
+              });
+              await client.send('Input.dispatchKeyEvent', {
+                type: 'keyUp',
+                key: 'v',
+                code: 'KeyV',
+                modifiers: 2,
+              });
+              await client.detach();
+            } catch {
+              // Ignorar erros de CDP
+            }
+
+            await delay(200);
 
             // 5. Tab para blur
             await page.keyboard.press('Tab');
