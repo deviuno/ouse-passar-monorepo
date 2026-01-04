@@ -2368,19 +2368,64 @@ async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
         await delay(1500); // Esperar carregamento da próxima questão
 
         // Verificar se realmente mudou de questão
+        // Tentar múltiplos métodos para detectar a questão atual
+        let novoId = '';
+
+        // Método 1: Procurar link com href /questoes/ID
         const novoTexto = await page.$eval('.questao', (el: Element) => {
           const link = el.querySelector('a[href*="/questoes/"]');
           return link?.getAttribute('href') || '';
         }).catch(() => '');
+        novoId = novoTexto.match(/\/questoes\/(\d+)/)?.[1] || '';
 
-        const novoId = novoTexto.match(/\/questoes\/(\d+)/)?.[1] || '';
+        // Método 2: Procurar #ID no texto (ex: #1635243)
+        if (!novoId) {
+          const bodyText = await page.evaluate(() => document.body.innerText);
+          const idMatch = bodyText.match(/#(\d{5,})/);
+          if (idMatch) {
+            novoId = idMatch[1];
+          }
+        }
+
+        // Método 3: Procurar no atributo data-id
+        if (!novoId) {
+          novoId = await page.$eval('.questao, [data-questao-id], [data-id]', (el: Element) => {
+            return el.getAttribute('data-questao-id') || el.getAttribute('data-id') || '';
+          }).catch(() => '');
+        }
+
+        // Método 4: Verificar número da questão no texto "Questão X de Y"
+        if (!novoId) {
+          const questaoNum = await page.evaluate(() => {
+            const text = document.body.innerText;
+            const match = text.match(/Quest[aã]o\s+(\d+)\s+de\s+\d+/i);
+            return match ? match[1] : '';
+          });
+          if (questaoNum && parseInt(questaoNum) > paginaAtual) {
+            // Questão mudou, mas não conseguimos o ID real
+            paginaAtual = parseInt(questaoNum);
+            log(`Detectada mudança para questão número ${questaoNum} (ID desconhecido)`);
+            continue;
+          }
+        }
 
         if (novoId && novoId !== questaoAtualId) {
           paginaAtual++;
           log(`Navegou para questão ${novoId} (${paginaAtual}/${totalQuestoes || '?'})`);
         } else {
-          log('Parece que não há mais questões ou navegação falhou.');
-          temMaisQuestoes = false;
+          log(`Navegação parece ter falhado. novoId=${novoId}, questaoAtualId=${questaoAtualId}`);
+          // Tentar mais uma vez antes de desistir
+          await delay(1000);
+          const retryText = await page.evaluate(() => document.body.innerText);
+          const retryMatch = retryText.match(/#(\d{5,})/);
+          if (retryMatch && retryMatch[1] !== questaoAtualId) {
+            novoId = retryMatch[1];
+            paginaAtual++;
+            log(`Retry bem-sucedido: questão ${novoId}`);
+          } else {
+            log('Parece que não há mais questões ou navegação falhou definitivamente.');
+            temMaisQuestoes = false;
+          }
         }
 
         // Limite de segurança para não ficar em loop infinito
