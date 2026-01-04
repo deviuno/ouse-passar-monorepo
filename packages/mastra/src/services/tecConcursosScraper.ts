@@ -1657,54 +1657,57 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
           break;
         }
 
-        // Preencher quantidade desta matéria usando método compatível com AngularJS
-        const preenchido = await page.evaluate((indice, qtd) => {
-          const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-          if (indice < inputs.length) {
-            const input = inputs[indice] as HTMLInputElement;
+        // Preencher quantidade desta matéria usando page.type() para simular digitação real
+        // Isso é mais compatível com AngularJS do que manipular valores diretamente
+        let preenchido = false;
 
-            // Método 1: Usar o setter nativo do HTMLInputElement para garantir que o valor seja setado
-            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-            if (nativeInputValueSetter) {
-              nativeInputValueSetter.call(input, String(qtd));
-            } else {
-              input.value = String(qtd);
-            }
+        try {
+          // Obter o ElementHandle do input específico
+          const inputHandle = await page.evaluateHandle((indice) => {
+            const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+            return inputs[indice] || null;
+          }, materia.indice);
 
-            // Método 2: Disparar eventos que o AngularJS reconhece
-            // AngularJS usa 'input' event para ng-model
-            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
-            input.dispatchEvent(inputEvent);
+          const inputElement = inputHandle.asElement();
+          if (inputElement) {
+            // Scroll até o input para garantir que está visível
+            await inputElement.scrollIntoViewIfNeeded();
+            await delay(30);
 
-            // Também disparar 'change' para garantir
-            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
-            input.dispatchEvent(changeEvent);
+            // Focar no input
+            await inputElement.focus();
+            await delay(30);
 
-            // Método 3: Tentar usar angular.element se disponível (para AngularJS)
-            const win = window as unknown as { angular?: { element: (el: Element) => { triggerHandler: (event: string) => void; controller: (name: string) => { $setViewValue: (val: string) => void; $render: () => void } | undefined } } };
-            if (win.angular && win.angular.element) {
-              try {
-                const angularEl = win.angular.element(input);
-                const ngModelCtrl = angularEl.controller('ngModel');
-                if (ngModelCtrl) {
-                  ngModelCtrl.$setViewValue(String(qtd));
-                  ngModelCtrl.$render();
-                }
-                angularEl.triggerHandler('input');
-                angularEl.triggerHandler('change');
-              } catch {
-                // Ignorar erros do Angular
+            // Triplo clique para selecionar todo o conteúdo existente
+            await inputElement.click({ clickCount: 3 });
+            await delay(30);
+
+            // Digitar o valor (isso substitui o conteúdo selecionado)
+            await page.keyboard.type(String(materia.quantidade), { delay: 5 });
+            await delay(30);
+
+            // Tab para sair do input e triggerar blur/change do AngularJS
+            await page.keyboard.press('Tab');
+            await delay(30);
+
+            preenchido = true;
+
+            // Verificar se o valor foi setado corretamente
+            const valorSetado = await page.evaluate((indice) => {
+              const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+              if (indice < inputs.length) {
+                return (inputs[indice] as HTMLInputElement).value;
               }
+              return '';
+            }, materia.indice);
+
+            if (valorSetado !== String(materia.quantidade)) {
+              log(`  [!] Valor esperado: ${materia.quantidade}, valor setado: ${valorSetado}`, 'warn');
             }
-
-            // Forçar blur e focus para garantir que o valor seja registrado
-            input.focus();
-            input.blur();
-
-            return true;
           }
-          return false;
-        }, materia.indice, materia.quantidade);
+        } catch (err) {
+          log(`  Erro ao preencher input ${materia.indice}: ${err instanceof Error ? err.message : String(err)}`, 'error');
+        }
 
         if (preenchido) {
           totalCaderno += materia.quantidade;
@@ -1798,6 +1801,117 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
         // Voltar uma matéria e tentar novamente
         indiceMateriaAtual = indiceInicio + Math.max(1, Math.floor(materiasNoCaderno.length / 2));
         continue;
+      }
+
+      // Verificar se houve erro no servidor
+      const temErroServidor = await page.evaluate(() => {
+        const bodyText = document.body.innerText || '';
+        if (bodyText.includes('Ocorreu um erro no servidor') ||
+            bodyText.includes('erro no servidor') ||
+            bodyText.includes('Erro interno')) {
+          return true;
+        }
+        return false;
+      });
+
+      if (temErroServidor) {
+        log('Erro no servidor do TecConcursos detectado - tentando novamente...', 'error');
+        await page.screenshot({ path: `/tmp/tec-caderno-${cadernoNumero}-erro-servidor.png`, fullPage: true });
+        await delay(3000);
+
+        // Tentar novamente com menos matérias
+        if (materiasNoCaderno.length > 1) {
+          indiceMateriaAtual = indiceInicio + Math.max(1, Math.floor(materiasNoCaderno.length / 2));
+          log(`Reduzindo para ${indiceMateriaAtual - indiceInicio} matérias e tentando novamente...`);
+
+          // Voltar para página de criar caderno
+          await page.goto(`${CONFIG.baseUrl}/questoes/cadernos/novo/`, { waitUntil: 'networkidle2' });
+          await delay(CONFIG.delays.afterPageLoad);
+          await selecionarArea(areaNome);
+          await page.evaluate(() => {
+            const links = document.querySelectorAll('a');
+            for (const link of links) {
+              const text = link.textContent?.trim() || '';
+              if (text.includes('Remover desatualizadas') || text.includes('Remover anuladas')) {
+                (link as HTMLElement).click();
+              }
+            }
+          });
+          await delay(CONFIG.delays.afterPageLoad);
+          continue;
+        } else {
+          log('Não foi possível criar caderno mesmo com 1 matéria, pulando...', 'error');
+          indiceMateriaAtual++;
+          continue;
+        }
+      }
+
+      // Verificar se modal "sem questões" apareceu
+      const temModalSemQuestoes = await page.evaluate(() => {
+        const bodyText = document.body.innerText || '';
+        if (bodyText.includes('Não é possível gerar caderno sem questões') ||
+            bodyText.includes('sem questões')) {
+          // Fechar modal se houver botão
+          const buttons = document.querySelectorAll('button');
+          for (const btn of buttons) {
+            const text = btn.textContent?.trim().toUpperCase() || '';
+            if (text === 'OK' || text === 'FECHAR') {
+              btn.click();
+              break;
+            }
+          }
+          return true;
+        }
+        return false;
+      });
+
+      if (temModalSemQuestoes) {
+        log('Modal "sem questões" apareceu - valores não foram registrados pelo AngularJS', 'error');
+        await page.screenshot({ path: `/tmp/tec-caderno-${cadernoNumero}-sem-questoes.png`, fullPage: true });
+
+        // Diagnóstico: verificar valores dos inputs
+        const diagnostico = await page.evaluate(() => {
+          const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+          const valores: { index: number; value: string; ngModel: string | null }[] = [];
+          inputs.forEach((input, idx) => {
+            const inp = input as HTMLInputElement;
+            const ngModel = inp.getAttribute('ng-model');
+            if (inp.value && inp.value !== '0') {
+              valores.push({ index: idx, value: inp.value, ngModel });
+            }
+          });
+          return { totalInputs: inputs.length, inputsComValor: valores };
+        });
+        log(`Diagnóstico: ${diagnostico.totalInputs} inputs, ${diagnostico.inputsComValor.length} com valor`);
+
+        // Tentar abordagem diferente - usar form submit direto
+        log('Tentando abordagem alternativa...');
+        indiceMateriaAtual = indiceInicio + 1; // Tentar só com a primeira matéria
+        await page.goto(`${CONFIG.baseUrl}/questoes/cadernos/novo/`, { waitUntil: 'networkidle2' });
+        await delay(CONFIG.delays.afterPageLoad);
+        await selecionarArea(areaNome);
+        continue;
+      }
+
+      // Verificar se URL mudou para caderno criado (indica sucesso real)
+      const urlAposCriacao = page.url();
+      const cadernoRealmenteCriado = urlAposCriacao.includes('/questoes/cadernos/') &&
+                                      !urlAposCriacao.includes('/novo');
+
+      if (!cadernoRealmenteCriado) {
+        log(`URL não indica sucesso: ${urlAposCriacao}`, 'warn');
+        // Verificar se há algum elemento indicando sucesso
+        const temIndicadorSucesso = await page.evaluate(() => {
+          const body = document.body.innerText || '';
+          return body.includes('Caderno criado') ||
+                 body.includes('sucesso') ||
+                 document.querySelector('.caderno-questoes') !== null;
+        });
+
+        if (!temIndicadorSucesso) {
+          log('Nenhum indicador de sucesso encontrado, verificando página...', 'warn');
+          await page.screenshot({ path: `/tmp/tec-caderno-${cadernoNumero}-verificacao.png`, fullPage: true });
+        }
       }
 
       // Caderno criado com sucesso
