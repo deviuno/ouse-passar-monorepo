@@ -11,8 +11,13 @@
  * 5. Salvar no banco de dados
  */
 
-import puppeteer, { Browser, Page } from 'puppeteer';
+import puppeteer, { Browser, Page, Cookie } from 'puppeteer';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Caminho para salvar cookies
+const COOKIES_PATH = process.env.TEC_COOKIES_PATH || '/tmp/tec-cookies.json';
 
 // ==================== CONFIGURAÇÕES ====================
 
@@ -139,6 +144,127 @@ function log(message: string, level: 'info' | 'warn' | 'error' = 'info'): void {
   }
 }
 
+// ==================== COOKIE MANAGEMENT ====================
+
+async function saveCookies(page: Page): Promise<void> {
+  try {
+    const cookies = await page.cookies();
+    fs.writeFileSync(COOKIES_PATH, JSON.stringify(cookies, null, 2));
+    log(`Cookies salvos em ${COOKIES_PATH} (${cookies.length} cookies)`);
+  } catch (error) {
+    log(`Erro ao salvar cookies: ${error instanceof Error ? error.message : String(error)}`, 'error');
+  }
+}
+
+async function loadCookies(page: Page): Promise<boolean> {
+  try {
+    if (!fs.existsSync(COOKIES_PATH)) {
+      log('Arquivo de cookies não encontrado');
+      return false;
+    }
+
+    const cookiesJson = fs.readFileSync(COOKIES_PATH, 'utf-8');
+    const cookies: Cookie[] = JSON.parse(cookiesJson);
+
+    if (!cookies || cookies.length === 0) {
+      log('Arquivo de cookies vazio');
+      return false;
+    }
+
+    await page.setCookie(...cookies);
+    log(`Cookies carregados (${cookies.length} cookies)`);
+    return true;
+  } catch (error) {
+    log(`Erro ao carregar cookies: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    return false;
+  }
+}
+
+async function checkIfLoggedIn(page: Page): Promise<boolean> {
+  try {
+    // Navegar para uma página que requer login
+    await page.goto(CONFIG.pastasUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+    await delay(2000);
+
+    const currentUrl = page.url();
+
+    // Se foi redirecionado para login, não está logado
+    if (currentUrl.includes('/login')) {
+      log('Não está logado (redirecionado para login)');
+      return false;
+    }
+
+    // Verificar se está na página de pastas
+    if (currentUrl.includes('/questoes/pastas') || currentUrl.includes('/questoes')) {
+      log('Está logado (acessou página de questões)');
+      return true;
+    }
+
+    // Verificar se há elemento de usuário logado
+    const userElement = await page.$('.user-menu, .user-info, .logged-user, [data-user], .avatar');
+    if (userElement) {
+      log('Está logado (encontrou elemento de usuário)');
+      return true;
+    }
+
+    log(`Estado de login incerto. URL: ${currentUrl}`);
+    return false;
+  } catch (error) {
+    log(`Erro ao verificar login: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    return false;
+  }
+}
+
+// Função para salvar cookies manualmente (chamada pela API após login manual)
+async function exportCookiesFromCurrentSession(): Promise<{ success: boolean; message: string; cookiesCount?: number }> {
+  try {
+    const page = await getPage();
+    const cookies = await page.cookies();
+
+    if (cookies.length === 0) {
+      return { success: false, message: 'Nenhum cookie encontrado na sessão atual' };
+    }
+
+    fs.writeFileSync(COOKIES_PATH, JSON.stringify(cookies, null, 2));
+    return {
+      success: true,
+      message: `Cookies exportados com sucesso para ${COOKIES_PATH}`,
+      cookiesCount: cookies.length
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Erro ao exportar cookies: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+
+// Função para importar cookies de uma string JSON
+async function importCookiesFromJson(cookiesJson: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const cookies: Cookie[] = JSON.parse(cookiesJson);
+
+    if (!cookies || cookies.length === 0) {
+      return { success: false, message: 'JSON de cookies vazio ou inválido' };
+    }
+
+    fs.writeFileSync(COOKIES_PATH, JSON.stringify(cookies, null, 2));
+    log(`Cookies importados (${cookies.length} cookies)`);
+
+    // Recarregar cookies na página atual se houver
+    if (_page && !_page.isClosed()) {
+      await _page.setCookie(...cookies);
+    }
+
+    return { success: true, message: `${cookies.length} cookies importados com sucesso` };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Erro ao importar cookies: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+
 // ==================== BROWSER MANAGEMENT ====================
 
 async function initBrowser(): Promise<Browser> {
@@ -212,6 +338,20 @@ async function login(): Promise<boolean> {
   }
 
   const page = await getPage();
+
+  // Tentar usar cookies salvos primeiro
+  log('Tentando login com cookies salvos...');
+  const cookiesLoaded = await loadCookies(page);
+
+  if (cookiesLoaded) {
+    const isLoggedIn = await checkIfLoggedIn(page);
+    if (isLoggedIn) {
+      _isLoggedIn = true;
+      log('Login via cookies bem-sucedido!');
+      return true;
+    }
+    log('Cookies não são mais válidos, tentando login normal...');
+  }
 
   try {
     log('Navegando para página de login...');
@@ -373,6 +513,10 @@ async function login(): Promise<boolean> {
 
     _isLoggedIn = true;
     log('Login realizado com sucesso!');
+
+    // Salvar cookies para uso futuro
+    await saveCookies(page);
+
     return true;
 
   } catch (error) {
@@ -979,6 +1123,17 @@ export function stopScrapingCron(): void {
 
 // ==================== EXPORTAÇÕES ====================
 
+// Wrapper para checkLogin que não precisa de page
+async function checkLoginWrapper(): Promise<boolean> {
+  try {
+    const page = await getPage();
+    return await checkIfLoggedIn(page);
+  } catch (error) {
+    log(`Erro ao verificar login: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    return false;
+  }
+}
+
 export const TecConcursosScraper = {
   login,
   iniciarScrapingArea,
@@ -988,6 +1143,10 @@ export const TecConcursosScraper = {
   startScrapingCron,
   stopScrapingCron,
   closeBrowser,
+  // Cookie management
+  exportCookies: exportCookiesFromCurrentSession,
+  importCookies: importCookiesFromJson,
+  checkLogin: checkLoginWrapper,
 };
 
 export default TecConcursosScraper;

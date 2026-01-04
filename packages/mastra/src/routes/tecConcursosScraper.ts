@@ -160,6 +160,82 @@ export function createTecConcursosScraperRoutes(): Router {
     });
   });
 
+  /**
+   * POST /api/tec-scraper/cookies/import
+   * Importa cookies de uma sessão logada manualmente
+   * Body: { cookies: string } - JSON string dos cookies
+   *
+   * COMO OBTER OS COOKIES:
+   * 1. Abra o TecConcursos no Chrome e faça login manualmente (resolvendo o CAPTCHA)
+   * 2. Abra DevTools (F12) > Application > Cookies
+   * 3. Ou use a extensão "EditThisCookie" para exportar todos os cookies como JSON
+   * 4. Envie o JSON para este endpoint
+   */
+  router.post('/cookies/import', async (req: Request, res: Response) => {
+    const { cookies } = req.body;
+
+    if (!cookies) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cookies não fornecidos. Envie um JSON com a chave "cookies" contendo o array de cookies.',
+      });
+    }
+
+    try {
+      const cookiesString = typeof cookies === 'string' ? cookies : JSON.stringify(cookies);
+      const result = await TecConcursosScraper.importCookies(cookiesString);
+
+      return res.json(result);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido ao importar cookies',
+      });
+    }
+  });
+
+  /**
+   * POST /api/tec-scraper/cookies/export
+   * Exporta cookies da sessão atual do scraper
+   */
+  router.post('/cookies/export', async (req: Request, res: Response) => {
+    try {
+      const result = await TecConcursosScraper.exportCookies();
+      return res.json(result);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido ao exportar cookies',
+      });
+    }
+  });
+
+  /**
+   * GET /api/tec-scraper/cookies/check
+   * Verifica se os cookies salvos ainda são válidos
+   */
+  router.get('/cookies/check', async (req: Request, res: Response) => {
+    try {
+      // Isso vai tentar o login que usa cookies automaticamente
+      const isLoggedIn = await TecConcursosScraper.login();
+
+      if (isLoggedIn) {
+        await TecConcursosScraper.closeBrowser();
+      }
+
+      return res.json({
+        success: true,
+        isLoggedIn,
+        message: isLoggedIn ? 'Cookies válidos - login bem-sucedido' : 'Cookies inválidos ou inexistentes',
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao verificar cookies',
+      });
+    }
+  });
+
   return router;
 }
 
