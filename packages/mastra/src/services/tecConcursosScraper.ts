@@ -1596,52 +1596,57 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
     while (indiceMateriaAtual < materiasOriginais.length) {
       log(`\n=== Criando caderno ${cadernoNumero} ===`);
 
-      // 4.4.1 Zerar todas as quantidades usando método compatível com AngularJS
-      log('Zerando todas as quantidades...');
-      await page.evaluate(() => {
-        const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-        const win = window as unknown as { angular?: { element: (el: Element) => { triggerHandler: (event: string) => void; controller: (name: string) => { $setViewValue: (val: string) => void; $render: () => void } | undefined } } };
+      // 4.4.1 Zerar todas as quantidades usando TECLADO PURO para garantir que Angular reconheça
+      // JavaScript DOM manipulation não funciona com o AngularJS deste site
+      log('Zerando todas as quantidades via teclado...');
 
-        inputs.forEach((input) => {
-          const inputEl = input as HTMLInputElement;
-          const currentVal = parseInt(inputEl.value) || 0;
-
-          if (currentVal > 0) {
-            // Setar valor usando setter nativo
-            if (nativeInputValueSetter) {
-              nativeInputValueSetter.call(inputEl, '0');
-            } else {
-              inputEl.value = '0';
-            }
-
-            // Disparar eventos
-            inputEl.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-            inputEl.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-
-            // Tentar usar Angular
-            if (win.angular && win.angular.element) {
-              try {
-                const angularEl = win.angular.element(inputEl);
-                const ngModelCtrl = angularEl.controller('ngModel');
-                if (ngModelCtrl) {
-                  ngModelCtrl.$setViewValue('0');
-                  ngModelCtrl.$render();
-                }
-                angularEl.triggerHandler('input');
-                angularEl.triggerHandler('change');
-              } catch {
-                // Ignorar erros
-              }
-            }
-
-            // Forçar blur
-            inputEl.focus();
-            inputEl.blur();
-          }
+      // Obter índices dos inputs que precisam ser zerados
+      const inputsParaZerar = await page.evaluate(() => {
+        const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+        const indices: number[] = [];
+        allInputs.forEach((input, idx) => {
+          const val = parseInt((input as HTMLInputElement).value) || 0;
+          if (val > 0) indices.push(idx);
         });
+        return indices;
       });
-      await delay(1000);
+
+      log(`Inputs para zerar: ${inputsParaZerar.length}`);
+
+      // Zerar cada input via teclado
+      for (const idx of inputsParaZerar) {
+        const inputCoords = await page.evaluate((i) => {
+          const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+          const input = allInputs[i] as HTMLInputElement;
+          if (!input) return null;
+          input.scrollIntoView({ block: 'center' });
+          const rect = input.getBoundingClientRect();
+          return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+        }, idx);
+
+        if (inputCoords) {
+          await page.mouse.click(inputCoords.x, inputCoords.y);
+          await delay(30);
+          await page.keyboard.down('Control');
+          await page.keyboard.press('KeyA');
+          await page.keyboard.up('Control');
+          await delay(20);
+          await page.keyboard.type('0', { delay: 30 });
+          await delay(20);
+        }
+      }
+
+      // Tab final para sair do último campo
+      await page.keyboard.press('Tab');
+      await delay(500);
+
+      // Verificar se o Total foi zerado
+      const totalAposZerar = await page.evaluate(() => {
+        const text = document.body.innerText || '';
+        const match = text.match(/Total no caderno[:\s]+(\d[\d.,]*)/i);
+        return match ? parseInt(match[1].replace(/[.,]/g, ''), 10) : -1;
+      });
+      log(`Total após zerar: ${totalAposZerar}`);
 
       // 4.4.2 Preencher matérias até atingir ~30k
       let totalCaderno = 0;
