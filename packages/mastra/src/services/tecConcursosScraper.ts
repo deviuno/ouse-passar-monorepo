@@ -2097,6 +2097,360 @@ export function isScrapingRunning(): boolean {
   return _isRunning;
 }
 
+// ==================== EXTRAÇÃO DE CADERNO POR URL ====================
+
+/**
+ * Extrai questões de um caderno existente por URL
+ * Usado para cadernos criados manualmente
+ */
+async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
+  success: boolean;
+  questoes: QuestaoColetada[];
+  salvos: number;
+  erros: number;
+  message: string;
+}> {
+  log(`Iniciando extração de questões do caderno: ${cadernoUrl}`);
+
+  if (!cadernoUrl.includes('tecconcursos.com.br')) {
+    return {
+      success: false,
+      questoes: [],
+      salvos: 0,
+      erros: 0,
+      message: 'URL inválida. Use uma URL do TecConcursos.',
+    };
+  }
+
+  try {
+    // Fazer login primeiro
+    const loggedIn = await login();
+    if (!loggedIn) {
+      return {
+        success: false,
+        questoes: [],
+        salvos: 0,
+        erros: 0,
+        message: 'Não foi possível fazer login. Importe os cookies novamente.',
+      };
+    }
+
+    const page = await getPage();
+    const questoes: QuestaoColetada[] = [];
+
+    log(`Navegando para o caderno: ${cadernoUrl}`);
+    await page.goto(cadernoUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    await delay(CONFIG.delays.afterPageLoad);
+
+    // Screenshot para debug
+    await page.screenshot({ path: '/tmp/caderno-page.png', fullPage: false });
+
+    // Verificar se estamos na página correta
+    const pageTitle = await page.title();
+    log(`Título da página: ${pageTitle}`);
+
+    // Inicializar progresso
+    _progress = {
+      area: 'manual',
+      caderno: cadernoUrl,
+      questoesColetadas: 0,
+      questoesTotal: 0,
+      status: 'running',
+      startedAt: new Date(),
+      updatedAt: new Date(),
+    };
+    _isRunning = true;
+
+    // Tentar obter o total de questões do caderno
+    let totalQuestoes = 0;
+    try {
+      const totalText = await page.$eval('.total-questoes, .questoes-count, [data-total]', (el: Element) => el.textContent || '');
+      totalQuestoes = parseInt(totalText.replace(/\D/g, '')) || 0;
+      log(`Total de questões detectado: ${totalQuestoes}`);
+    } catch (e) {
+      log('Não foi possível detectar o total de questões', 'warn');
+    }
+
+    _progress.questoesTotal = totalQuestoes;
+
+    let paginaAtual = 1;
+    let temMaisQuestoes = true;
+    let questoesSemDadosConsecutivas = 0;
+    const MAX_SEM_DADOS = 10;
+
+    while (temMaisQuestoes && _isRunning) {
+      log(`Processando página ${paginaAtual}...`);
+
+      // Tentar diferentes seletores para as questões
+      const seletores = [
+        '.questao-caderno',
+        '.questao',
+        '.question-item',
+        '[data-questao-id]',
+        '.caderno-questao',
+        'article.question',
+      ];
+
+      let questoesElements: any[] = [];
+      for (const seletor of seletores) {
+        questoesElements = await page.$$(seletor);
+        if (questoesElements.length > 0) {
+          log(`Encontradas ${questoesElements.length} questões com seletor: ${seletor}`);
+          break;
+        }
+      }
+
+      if (questoesElements.length === 0) {
+        // Tentar pegar o HTML para debug
+        const html = await page.content();
+        fs.writeFileSync('/tmp/caderno-debug.html', html);
+        log('Nenhuma questão encontrada na página. HTML salvo em /tmp/caderno-debug.html', 'warn');
+
+        // Verificar se há erro de permissão
+        const errorText = await page.$eval('body', (el: Element) => el.textContent || '').catch(() => '');
+        if (errorText.includes('acesso') || errorText.includes('login') || errorText.includes('permission')) {
+          return {
+            success: false,
+            questoes,
+            salvos: 0,
+            erros: 0,
+            message: 'Acesso negado ao caderno. Verifique se você tem permissão e se está logado.',
+          };
+        }
+        break;
+      }
+
+      for (const questaoEl of questoesElements) {
+        try {
+          const questao = await extrairDadosQuestaoTec(questaoEl, page);
+          if (questao) {
+            questoes.push(questao);
+            questoesSemDadosConsecutivas = 0;
+
+            // Atualizar progresso
+            if (_progress) {
+              _progress.questoesColetadas = questoes.length;
+              _progress.updatedAt = new Date();
+            }
+
+            log(`Questão ${questao.id} extraída (${questoes.length} total)`);
+          } else {
+            questoesSemDadosConsecutivas++;
+          }
+        } catch (err) {
+          questoesSemDadosConsecutivas++;
+          log(`Erro ao extrair questão: ${err instanceof Error ? err.message : String(err)}`, 'warn');
+        }
+
+        await delay(100); // Pequeno delay entre questões
+      }
+
+      // Se muitas questões consecutivas sem dados, pode haver problema
+      if (questoesSemDadosConsecutivas >= MAX_SEM_DADOS) {
+        log(`${MAX_SEM_DADOS} questões consecutivas sem dados. Verificando seletores...`, 'warn');
+      }
+
+      // Verificar se há próxima página
+      const nextPageSelectors = [
+        '.pagination .next:not(.disabled) a',
+        'a[rel="next"]',
+        '.btn-next-page',
+        '.paginacao a.proxima',
+        '.pagination li:last-child:not(.disabled) a',
+        'a[title="Próxima"]',
+      ];
+
+      let nextPageBtn = null;
+      for (const selector of nextPageSelectors) {
+        nextPageBtn = await page.$(selector);
+        if (nextPageBtn) {
+          log(`Próxima página encontrada com seletor: ${selector}`);
+          break;
+        }
+      }
+
+      if (nextPageBtn) {
+        await nextPageBtn.click();
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
+        await delay(CONFIG.delays.afterPageLoad);
+        paginaAtual++;
+
+        // Limite de segurança
+        if (paginaAtual > 1000) {
+          log('Limite de páginas atingido (1000)', 'warn');
+          break;
+        }
+      } else {
+        log('Não há mais páginas.');
+        temMaisQuestoes = false;
+      }
+    }
+
+    log(`Extração concluída. ${questoes.length} questões coletadas.`);
+
+    // Salvar no banco
+    let salvos = 0;
+    let erros = 0;
+
+    if (questoes.length > 0) {
+      log('Salvando questões no banco de dados...');
+      const resultado = await salvarLoteQuestoes(questoes);
+      salvos = resultado.salvos;
+      erros = resultado.erros;
+      log(`Salvamento concluído: ${salvos} salvos, ${erros} erros`);
+    }
+
+    // Atualizar progresso final
+    if (_progress) {
+      _progress.status = 'completed';
+      _progress.updatedAt = new Date();
+    }
+    _isRunning = false;
+
+    return {
+      success: true,
+      questoes,
+      salvos,
+      erros,
+      message: `Extração concluída: ${questoes.length} questões coletadas, ${salvos} salvas no banco`,
+    };
+
+  } catch (error) {
+    log(`Erro na extração: ${error instanceof Error ? error.message : String(error)}`, 'error');
+
+    if (_progress) {
+      _progress.status = 'error';
+      _progress.lastError = error instanceof Error ? error.message : String(error);
+      _progress.updatedAt = new Date();
+    }
+    _isRunning = false;
+
+    return {
+      success: false,
+      questoes: [],
+      salvos: 0,
+      erros: 0,
+      message: `Erro: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+/**
+ * Extrai dados de uma questão específica do TecConcursos
+ * Adaptado para a estrutura HTML real do site
+ */
+async function extrairDadosQuestaoTec(questaoEl: any, page: Page): Promise<QuestaoColetada | null> {
+  try {
+    // Extrair ID da questão - TecConcursos usa data-id ou id no elemento
+    const id = await questaoEl.evaluate((el: Element) => {
+      // Tentar diferentes formas de obter o ID
+      const dataId = el.getAttribute('data-id') ||
+                     el.getAttribute('data-questao-id') ||
+                     el.getAttribute('id');
+      if (dataId) return dataId.replace(/\D/g, '');
+
+      // Procurar em links dentro da questão
+      const link = el.querySelector('a[href*="/questoes/"]');
+      if (link) {
+        const match = link.getAttribute('href')?.match(/\/questoes\/(\d+)/);
+        if (match) return match[1];
+      }
+
+      // Procurar no texto do número da questão
+      const numEl = el.querySelector('.questao-numero, .numero, .question-number');
+      if (numEl) {
+        const num = numEl.textContent?.replace(/\D/g, '');
+        if (num) return num;
+      }
+
+      return '';
+    });
+
+    if (!id) {
+      log('Questão sem ID encontrada', 'warn');
+      return null;
+    }
+
+    // Extrair matéria e assunto
+    const materia = await questaoEl.$eval('.materia, .questao-materia, .subject, .disciplina', (el: Element) => el.textContent?.trim() || '').catch(() => '');
+    const assunto = await questaoEl.$eval('.assunto, .questao-assunto, .topic, .topico', (el: Element) => el.textContent?.trim() || '').catch(() => null);
+
+    // Extrair enunciado - preservar HTML para imagens e formatação
+    const enunciado = await questaoEl.$eval('.enunciado, .questao-enunciado, .question-text, .questao-texto, .texto', (el: Element) => {
+      return el.innerHTML?.trim() || '';
+    }).catch(() => '');
+
+    // Extrair alternativas
+    const alternativasRaw = await questaoEl.$$eval('.alternativa, .alternativas li, .option, .choice, .opcao', (elements: Element[]) => {
+      return elements.map((el, index) => {
+        const letterEl = el.querySelector('.letra, .letter, .alternativa-letra');
+        const letter = letterEl ? letterEl.textContent?.trim() : String.fromCharCode(65 + index);
+        const textEl = el.querySelector('.texto, .alternativa-texto, .option-text') || el;
+        const text = textEl.textContent?.replace(/^[A-E]\)?\s*/, '').trim() || '';
+        return { letter: letter || String.fromCharCode(65 + index), text };
+      });
+    }).catch(() => []);
+
+    const alternativas = alternativasRaw.filter((a: any) => a.text.length > 0);
+
+    // Extrair gabarito
+    const gabarito = await questaoEl.$eval('.gabarito, .resposta, .answer, [data-gabarito], .resposta-correta', (el: Element) => {
+      const dataGab = el.getAttribute('data-gabarito');
+      if (dataGab) return dataGab;
+      const text = el.textContent?.trim() || '';
+      const match = text.match(/[A-E]/);
+      return match ? match[0] : text;
+    }).catch(() => null);
+
+    // Extrair comentário/resolução
+    const comentario = await questaoEl.$eval('.comentario, .resolucao, .explanation, .questao-comentario', (el: Element) => el.innerHTML?.trim() || '').catch(() => null);
+
+    // Extrair metadados
+    const ano = await questaoEl.$eval('.ano, [data-ano], .questao-ano, .year', (el: Element) => {
+      const anoText = el.getAttribute('data-ano') || el.textContent || '';
+      return parseInt(anoText.replace(/\D/g, '')) || null;
+    }).catch(() => null);
+
+    const orgao = await questaoEl.$eval('.orgao, .organization, .questao-orgao', (el: Element) => el.textContent?.trim() || '').catch(() => null);
+    const cargo = await questaoEl.$eval('.cargo, .position, .questao-cargo', (el: Element) => el.textContent?.trim() || '').catch(() => null);
+    const prova = await questaoEl.$eval('.prova, .exam, .questao-prova', (el: Element) => el.textContent?.trim() || '').catch(() => null);
+    const banca = await questaoEl.$eval('.banca, .board, .questao-banca', (el: Element) => el.textContent?.trim() || '').catch(() => null);
+    const concurso = await questaoEl.$eval('.concurso, .contest, .questao-concurso', (el: Element) => el.textContent?.trim() || '').catch(() => null);
+
+    // Extrair imagens do enunciado
+    const imagensEnunciado: string[] = await questaoEl.$$eval('.enunciado img, .questao-enunciado img, .question-text img', (imgs: HTMLImageElement[]) => {
+      return imgs.map(img => img.src).filter(src => src && !src.includes('data:'));
+    }).catch(() => []);
+
+    // Extrair imagens do comentário
+    const imagensComentario: string[] = await questaoEl.$$eval('.comentario img, .resolucao img, .explanation img', (imgs: HTMLImageElement[]) => {
+      return imgs.map(img => img.src).filter(src => src && !src.includes('data:'));
+    }).catch(() => []);
+
+    return {
+      id,
+      materia,
+      assunto,
+      enunciado,
+      alternativas,
+      gabarito,
+      comentario,
+      ano,
+      orgao,
+      cargo,
+      prova,
+      banca,
+      concurso,
+      imagensEnunciado,
+      imagensComentario,
+    };
+
+  } catch (error) {
+    log(`Erro ao extrair dados da questão: ${error instanceof Error ? error.message : String(error)}`, 'warn');
+    return null;
+  }
+}
+
 // ==================== CRON JOB ====================
 
 let _cronInterval: NodeJS.Timeout | null = null;
@@ -2152,6 +2506,8 @@ export const TecConcursosScraper = {
   exportCookies: exportCookiesFromCurrentSession,
   importCookies: importCookiesFromJson,
   checkLogin: checkLoginWrapper,
+  // Extração de caderno por URL
+  extrairQuestoesDeCadernoUrl,
 };
 
 export default TecConcursosScraper;

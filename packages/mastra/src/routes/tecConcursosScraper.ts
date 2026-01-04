@@ -236,6 +236,91 @@ export function createTecConcursosScraperRoutes(): Router {
     }
   });
 
+  /**
+   * POST /api/tec-scraper/extract-caderno
+   * Extrai questões de um caderno existente por URL
+   * Body: { url: string }
+   *
+   * Uso: Para cadernos criados manualmente no TecConcursos
+   * Exemplo: { "url": "https://www.tecconcursos.com.br/s/Q5jOgS" }
+   */
+  router.post('/extract-caderno', async (req: Request, res: Response) => {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL do caderno não fornecida. Envie um JSON com a chave "url".',
+      });
+    }
+
+    if (TecConcursosScraper.isScrapingRunning()) {
+      return res.status(409).json({
+        success: false,
+        error: 'Uma extração já está em execução. Aguarde ou pare o processo atual.',
+        progress: TecConcursosScraper.getScrapingProgress(),
+      });
+    }
+
+    // Iniciar extração em background (não bloqueia a resposta)
+    TecConcursosScraper.extrairQuestoesDeCadernoUrl(url).then(result => {
+      console.log('[TecScraper Route] Extração concluída:', result.message);
+    }).catch(err => {
+      console.error('[TecScraper Route] Erro na extração:', err);
+    });
+
+    return res.json({
+      success: true,
+      message: `Extração do caderno iniciada em background: ${url}`,
+      progress: TecConcursosScraper.getScrapingProgress(),
+    });
+  });
+
+  /**
+   * POST /api/tec-scraper/extract-caderno/sync
+   * Extrai questões de um caderno existente por URL (síncrono - aguarda conclusão)
+   * Body: { url: string }
+   *
+   * ATENÇÃO: Esta rota pode demorar vários minutos dependendo do número de questões
+   */
+  router.post('/extract-caderno/sync', async (req: Request, res: Response) => {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL do caderno não fornecida. Envie um JSON com a chave "url".',
+      });
+    }
+
+    if (TecConcursosScraper.isScrapingRunning()) {
+      return res.status(409).json({
+        success: false,
+        error: 'Uma extração já está em execução. Aguarde ou pare o processo atual.',
+        progress: TecConcursosScraper.getScrapingProgress(),
+      });
+    }
+
+    try {
+      const result = await TecConcursosScraper.extrairQuestoesDeCadernoUrl(url);
+
+      return res.json({
+        success: result.success,
+        message: result.message,
+        questoesColetadas: result.questoes.length,
+        salvos: result.salvos,
+        erros: result.erros,
+        // Não retornar as questões completas para não sobrecarregar a resposta
+        // questoes: result.questoes,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido na extração',
+      });
+    }
+  });
+
   return router;
 }
 
