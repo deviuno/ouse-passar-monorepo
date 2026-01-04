@@ -217,17 +217,58 @@ async function login(): Promise<boolean> {
     log('Navegando para página de login...');
     await page.goto(CONFIG.loginUrl, { waitUntil: 'networkidle2' });
 
-    // Aguardar formulário de login
-    await page.waitForSelector('input[type="email"], input[name="email"], #email', { timeout: 10000 });
+    // Aguardar formulário de login - tentar múltiplos seletores
+    log('Aguardando formulário de login...');
+    await page.waitForSelector('form', { timeout: 15000 });
+    await delay(2000); // Aguardar carregamento completo
+
+    // Salvar screenshot para debug
+    await page.screenshot({ path: '/tmp/tec-login-before.png', fullPage: true });
+    log('Screenshot salvo em /tmp/tec-login-before.png');
+
+    // Listar todos os inputs da página para debug
+    const inputs = await page.$$eval('input', elements =>
+      elements.map(el => ({
+        type: el.type,
+        name: el.name,
+        id: el.id,
+        placeholder: el.placeholder,
+        className: el.className
+      }))
+    );
+    log(`Inputs encontrados: ${JSON.stringify(inputs, null, 2)}`);
 
     log('Preenchendo credenciais...');
 
-    // Tentar diferentes seletores para o campo de email
-    const emailSelectors = ['input[type="email"]', 'input[name="email"]', '#email', 'input[placeholder*="mail"]'];
+    // Tentar diferentes seletores para o campo de email/usuário
+    const emailSelectors = [
+      'input[type="email"]',
+      'input[name="email"]',
+      'input[name="login"]',
+      'input[name="username"]',
+      'input[name="usuario"]',
+      '#email',
+      '#login',
+      'input[placeholder*="mail"]',
+      'input[placeholder*="usuário"]',
+      'input[placeholder*="E-mail"]',
+      'input.form-control:first-of-type'
+    ];
     let emailInput = null;
     for (const selector of emailSelectors) {
       emailInput = await page.$(selector);
-      if (emailInput) break;
+      if (emailInput) {
+        log(`Campo de email encontrado com seletor: ${selector}`);
+        break;
+      }
+    }
+
+    if (!emailInput) {
+      // Tentar pegar o primeiro input de texto
+      emailInput = await page.$('input[type="text"]');
+      if (emailInput) {
+        log('Campo de email encontrado como input[type="text"]');
+      }
     }
 
     if (!emailInput) {
@@ -235,14 +276,18 @@ async function login(): Promise<boolean> {
     }
 
     await emailInput.click({ clickCount: 3 });
-    await emailInput.type(CONFIG.credentials.email, { delay: 50 });
+    await page.keyboard.press('Backspace');
+    await emailInput.type(CONFIG.credentials.email, { delay: 100 });
 
     // Tentar diferentes seletores para o campo de senha
-    const passwordSelectors = ['input[type="password"]', 'input[name="password"]', '#password'];
+    const passwordSelectors = ['input[type="password"]', 'input[name="password"]', 'input[name="senha"]', '#password', '#senha'];
     let passwordInput = null;
     for (const selector of passwordSelectors) {
       passwordInput = await page.$(selector);
-      if (passwordInput) break;
+      if (passwordInput) {
+        log(`Campo de senha encontrado com seletor: ${selector}`);
+        break;
+      }
     }
 
     if (!passwordInput) {
@@ -250,34 +295,79 @@ async function login(): Promise<boolean> {
     }
 
     await passwordInput.click({ clickCount: 3 });
-    await passwordInput.type(CONFIG.credentials.password, { delay: 50 });
+    await page.keyboard.press('Backspace');
+    await passwordInput.type(CONFIG.credentials.password, { delay: 100 });
+
+    // Salvar screenshot após preencher
+    await page.screenshot({ path: '/tmp/tec-login-filled.png', fullPage: true });
+    log('Screenshot salvo em /tmp/tec-login-filled.png');
 
     // Clicar no botão de login
     log('Enviando formulário de login...');
-    const submitSelectors = ['button[type="submit"]', 'input[type="submit"]', 'button:contains("Entrar")', '.btn-login'];
+    const submitSelectors = [
+      'button[type="submit"]',
+      'input[type="submit"]',
+      'button.btn-primary',
+      'button.btn-login',
+      '.btn-login',
+      'button:has-text("Entrar")',
+      'button:has-text("Login")',
+      'form button'
+    ];
 
+    let submitted = false;
     for (const selector of submitSelectors) {
-      const submitBtn = await page.$(selector);
-      if (submitBtn) {
-        await submitBtn.click();
-        break;
+      try {
+        const submitBtn = await page.$(selector);
+        if (submitBtn) {
+          log(`Botão de submit encontrado com seletor: ${selector}`);
+          await submitBtn.click();
+          submitted = true;
+          break;
+        }
+      } catch {
+        // Continuar tentando outros seletores
       }
     }
 
+    // Se não encontrou botão, tentar submeter o formulário diretamente
+    if (!submitted) {
+      log('Submetendo formulário via Enter...');
+      await page.keyboard.press('Enter');
+    }
+
     // Aguardar navegação pós-login
-    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
+    log('Aguardando navegação pós-login...');
+    try {
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 });
+    } catch {
+      log('Timeout na navegação, verificando estado atual...');
+    }
     await delay(CONFIG.delays.afterLogin);
+
+    // Salvar screenshot após login
+    await page.screenshot({ path: '/tmp/tec-login-after.png', fullPage: true });
+    log('Screenshot salvo em /tmp/tec-login-after.png');
 
     // Verificar se o login foi bem-sucedido
     const currentUrl = page.url();
+    log(`URL atual após login: ${currentUrl}`);
     const isLoginPage = currentUrl.includes('/login');
 
     if (isLoginPage) {
       // Verificar se há mensagem de erro
-      const errorMessage = await page.$eval('.alert-danger, .error-message, .login-error', el => el.textContent).catch(() => null);
+      const errorMessage = await page.$eval('.alert-danger, .error-message, .login-error, .alert', el => el.textContent?.trim()).catch(() => null);
       if (errorMessage) {
+        log(`Mensagem de erro encontrada: ${errorMessage}`, 'error');
         throw new Error(`Falha no login: ${errorMessage}`);
       }
+
+      // Verificar conteúdo da página
+      const pageContent = await page.content();
+      if (pageContent.includes('incorreta') || pageContent.includes('inválido') || pageContent.includes('incorrect')) {
+        throw new Error('Login falhou - credenciais inválidas');
+      }
+
       throw new Error('Login falhou - ainda na página de login');
     }
 
@@ -286,6 +376,12 @@ async function login(): Promise<boolean> {
     return true;
 
   } catch (error) {
+    // Salvar screenshot do erro
+    try {
+      await page.screenshot({ path: '/tmp/tec-login-error.png', fullPage: true });
+      log('Screenshot de erro salvo em /tmp/tec-login-error.png');
+    } catch {}
+
     log(`Erro no login: ${error instanceof Error ? error.message : String(error)}`, 'error');
     _isLoggedIn = false;
     return false;
