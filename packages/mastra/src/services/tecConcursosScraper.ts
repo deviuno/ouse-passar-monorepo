@@ -704,32 +704,48 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
       // PASSO 3: Após expandir a área, clicar em "Todo o conteúdo de..." para selecionar tudo
       log(`Procurando "Todo o conteúdo de" para selecionar toda a área...`);
 
-      const todoConteudoClicked = await page.evaluate((areaNome) => {
-        const allElements = document.querySelectorAll('a, span, label, div');
-        for (const el of allElements) {
-          const text = el.textContent?.trim() || '';
-          // Procurar por "Todo o conteúdo de 'X'" ou similar
-          if (text.includes('Todo o conteúdo') && text.toLowerCase().includes(areaNome.toLowerCase())) {
-            (el as HTMLElement).click();
-            return { found: true, text };
-          }
-        }
-        // Tentar alternativa - apenas "Todo o conteúdo"
-        for (const el of allElements) {
-          const text = el.textContent?.trim() || '';
-          if (text.startsWith('Todo o conteúdo')) {
-            (el as HTMLElement).click();
-            return { found: true, text };
-          }
-        }
-        return { found: false, text: '' };
-      }, areaNome);
+      // Usar Puppeteer findElementByText para clicar
+      let todoConteudoEl = await findElementByText(page, 'span, a, div, label', `Todo o conteúdo de`);
+      if (!todoConteudoEl) {
+        todoConteudoEl = await findElementByText(page, 'span, a, div, label', 'Todo o conteúdo');
+      }
 
-      if (todoConteudoClicked.found) {
-        log(`Clicado em: "${todoConteudoClicked.text}"`);
-        await delay(CONFIG.delays.afterPageLoad);
+      if (todoConteudoEl) {
+        try {
+          // Tentar scroll até o elemento
+          await todoConteudoEl.evaluate((el: HTMLElement) => el.scrollIntoView({ behavior: 'instant', block: 'center' }));
+          await delay(300);
+
+          // Obter bounding box para clicar no centro
+          const box = await todoConteudoEl.boundingBox();
+          if (box) {
+            await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+            log(`Clicado em "Todo o conteúdo de" via coordenadas`);
+          } else {
+            await todoConteudoEl.click();
+            log(`Clicado em "Todo o conteúdo de" via .click()`);
+          }
+          await delay(CONFIG.delays.afterPageLoad);
+        } catch (clickErr) {
+          log(`Erro ao clicar em "Todo o conteúdo": ${clickErr}`, 'warn');
+        }
       } else {
-        log('Não encontrou "Todo o conteúdo", a área já pode estar selecionada', 'warn');
+        log('Não encontrou "Todo o conteúdo", tentando via página direta...', 'warn');
+
+        // Tentar via XPath ou texto parcial
+        const allSpans = await page.$$('span');
+        for (const span of allSpans) {
+          const text = await span.evaluate(el => el.textContent || '');
+          if (text.includes('Todo o conteúdo')) {
+            log(`Encontrado span com "${text}", clicando...`);
+            const box = await span.boundingBox();
+            if (box) {
+              await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+            }
+            await delay(CONFIG.delays.afterPageLoad);
+            break;
+          }
+        }
       }
 
       await page.screenshot({ path: '/tmp/tec-area-selecionada.png', fullPage: true });
