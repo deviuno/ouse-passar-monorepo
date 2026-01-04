@@ -704,90 +704,178 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
       // PASSO 3: Após expandir a área, clicar em "Todo o conteúdo de..." para selecionar tudo
       log(`Procurando "Todo o conteúdo de" para selecionar toda a área...`);
 
-      // IMPORTANTE: Selecionar o filtro via JavaScript para garantir que o evento correto seja disparado
-      log(`Tentando selecionar filtro "Todo o conteúdo de '${areaNome}'" via JavaScript...`);
-
-      // Usar page.evaluate para encontrar e clicar corretamente
-      const filterSelected = await page.evaluate((areaNome) => {
-        // Estratégia 1: Procurar por checkbox/input com texto relacionado
-        const inputs = document.querySelectorAll('input[type="checkbox"], input[type="radio"]');
-        for (const input of inputs) {
-          const parent = input.closest('label, li, div');
-          if (parent) {
-            const text = parent.textContent || '';
-            if (text.includes('Todo o conteúdo') && text.toLowerCase().includes(areaNome.toLowerCase())) {
-              (input as HTMLInputElement).click();
-              return { success: true, method: 'checkbox', text };
+      // Primeiro, analisar a estrutura HTML do elemento "Todo o conteúdo"
+      const htmlDebug = await page.evaluate((areaNome) => {
+        const allElements = document.querySelectorAll('*');
+        for (const el of allElements) {
+          const text = el.textContent?.trim() || '';
+          // Procurar elemento que contém exatamente "Todo o conteúdo de 'Policial'"
+          if (text.includes(`Todo o conteúdo de "${areaNome}"`) || text.includes(`Todo o conteúdo de '${areaNome}'`)) {
+            // Encontrar o elemento mais específico (menor)
+            if (text.length < 50) {
+              return {
+                tag: el.tagName,
+                classes: el.className,
+                id: el.id,
+                parentTag: el.parentElement?.tagName || '',
+                parentClasses: el.parentElement?.className || '',
+                grandparentTag: el.parentElement?.parentElement?.tagName || '',
+                grandparentClasses: el.parentElement?.parentElement?.className || '',
+                outerHTML: el.outerHTML.substring(0, 300),
+                parentOuterHTML: el.parentElement?.outerHTML?.substring(0, 500) || '',
+              };
             }
           }
         }
+        return null;
+      }, areaNome);
+      log(`HTML debug para "Todo o conteúdo": ${JSON.stringify(htmlDebug)}`);
 
-        // Estratégia 2: Procurar por label com texto e clicar
-        const labels = document.querySelectorAll('label');
-        for (const label of labels) {
-          const text = label.textContent?.trim() || '';
-          if (text.includes('Todo o conteúdo') && text.toLowerCase().includes(areaNome.toLowerCase())) {
-            label.click();
-            return { success: true, method: 'label', text };
+      // ESTRATÉGIA NOVA: Encontrar o elemento correto e clicar via coordenadas
+      const filterResult = await page.evaluate((areaNome) => {
+        // Procurar todos os elementos na área de filtros
+        const filterArea = document.querySelector('.areas-list, .filter-list, [class*="area"]');
+        const searchArea = filterArea || document;
+
+        // Procurar especificamente pelo texto "Todo o conteúdo de 'X'"
+        const textToFind = `Todo o conteúdo de "${areaNome}"`;
+        const altText = `Todo o conteúdo de '${areaNome}'`;
+
+        const allElements = searchArea.querySelectorAll('*');
+        for (const el of allElements) {
+          const text = el.textContent?.trim() || '';
+          if ((text === textToFind || text === altText) && el.tagName !== 'SCRIPT') {
+            // Este é o elemento de texto exato
+            // Agora procurar o ícone de checkbox ao lado dele
+            const parent = el.parentElement;
+            if (parent) {
+              // Procurar ícone dentro do pai (pode ser i, svg, span com classe de ícone)
+              const icon = parent.querySelector('i, svg, [class*="icon"], [class*="check"], [class*="fa-"]');
+              if (icon) {
+                const rect = (icon as HTMLElement).getBoundingClientRect();
+                return {
+                  found: true,
+                  element: 'icon',
+                  x: rect.x + rect.width / 2,
+                  y: rect.y + rect.height / 2,
+                  text,
+                };
+              }
+              // Se não achou ícone, clicar no pai inteiro (linha)
+              const parentRect = parent.getBoundingClientRect();
+              return {
+                found: true,
+                element: 'parent',
+                x: parentRect.x + 20, // Clicar mais à esquerda onde estaria o checkbox
+                y: parentRect.y + parentRect.height / 2,
+                text,
+              };
+            }
+            // Se não tem pai, clicar no próprio elemento
+            const rect = (el as HTMLElement).getBoundingClientRect();
+            return {
+              found: true,
+              element: 'self',
+              x: rect.x + rect.width / 2,
+              y: rect.y + rect.height / 2,
+              text,
+            };
           }
         }
 
-        // Estratégia 3: Procurar por elemento com classe de seleção
-        const selectables = document.querySelectorAll('[data-selectable], .selectable, .filter-item, .checkbox-item');
-        for (const sel of selectables) {
-          const text = sel.textContent || '';
+        // Estratégia alternativa: procurar por elementos li que contenham o texto
+        const listItems = searchArea.querySelectorAll('li, div[class*="item"], a[class*="item"]');
+        for (const li of listItems) {
+          const text = li.textContent?.trim() || '';
           if (text.includes('Todo o conteúdo') && text.toLowerCase().includes(areaNome.toLowerCase())) {
-            (sel as HTMLElement).click();
-            return { success: true, method: 'selectable', text };
+            // Procurar checkbox ou ícone dentro deste li
+            const checkbox = li.querySelector('input[type="checkbox"], [class*="check"], i');
+            if (checkbox) {
+              const rect = (checkbox as HTMLElement).getBoundingClientRect();
+              return {
+                found: true,
+                element: 'li-checkbox',
+                x: rect.x + rect.width / 2,
+                y: rect.y + rect.height / 2,
+                text,
+              };
+            }
+            // Clicar no início do li (onde estaria o checkbox)
+            const rect = (li as HTMLElement).getBoundingClientRect();
+            return {
+              found: true,
+              element: 'li-left',
+              x: rect.x + 15, // 15px do início
+              y: rect.y + rect.height / 2,
+              text,
+            };
           }
         }
 
-        // Estratégia 4: Procurar pelo span/elemento exato e usar dispatchEvent
-        const spans = document.querySelectorAll('span, a, div');
-        for (const span of spans) {
-          const text = span.textContent?.trim() || '';
-          if (text.includes('Todo o conteúdo') && text.toLowerCase().includes(areaNome.toLowerCase())) {
-            // Disparar evento de clique
-            span.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-            return { success: true, method: 'dispatchEvent', text };
-          }
-        }
-
-        return { success: false, method: '', text: '' };
+        return { found: false, element: '', x: 0, y: 0, text: '' };
       }, areaNome);
 
-      if (filterSelected.success) {
-        log(`Filtro selecionado via ${filterSelected.method}: "${filterSelected.text}"`);
-        await delay(CONFIG.delays.afterPageLoad + 1000);
-      } else {
-        log(`Não conseguiu selecionar filtro via JavaScript, tentando clique direto...`, 'warn');
+      if (filterResult.found) {
+        log(`Encontrado elemento "${filterResult.element}" em (${filterResult.x}, ${filterResult.y}), clicando...`);
+        await page.mouse.click(filterResult.x, filterResult.y);
+        await delay(500);
 
-        // Fallback: procurar elemento e clicar diretamente
-        const todoItems = await page.$$('span, label, div');
-        for (const item of todoItems) {
-          const text = await item.evaluate(el => el.textContent?.trim() || '');
-          if (text.includes(`Todo o conteúdo de "${areaNome}"`) || text.includes(`Todo o conteúdo de '${areaNome}'`)) {
-            log(`Encontrado: "${text}", clicando...`);
-            await item.click();
-            await delay(CONFIG.delays.afterPageLoad);
-            break;
-          }
+        // Verificar filtros ativos imediatamente
+        let filtrosAtivos = await page.evaluate(() => {
+          const body = document.body.innerText;
+          const match = body.match(/Filtros ativos:\s*(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        });
+        log(`Filtros ativos após primeiro clique: ${filtrosAtivos}`);
+
+        // Se ainda não funcionou, tentar clicar mais vezes em posições diferentes
+        if (filtrosAtivos === 0) {
+          log('Filtro não aplicado, tentando clicar em posições alternativas...');
+
+          // Tentar clicar 20px mais à esquerda
+          await page.mouse.click(filterResult.x - 20, filterResult.y);
+          await delay(500);
+
+          filtrosAtivos = await page.evaluate(() => {
+            const body = document.body.innerText;
+            const match = body.match(/Filtros ativos:\s*(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+          });
+          log(`Filtros ativos após segundo clique: ${filtrosAtivos}`);
         }
+
+        // Tentar double-click se ainda não funcionou
+        if (filtrosAtivos === 0) {
+          log('Tentando double-click...');
+          await page.mouse.click(filterResult.x, filterResult.y, { clickCount: 2 });
+          await delay(500);
+
+          filtrosAtivos = await page.evaluate(() => {
+            const body = document.body.innerText;
+            const match = body.match(/Filtros ativos:\s*(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+          });
+          log(`Filtros ativos após double-click: ${filtrosAtivos}`);
+        }
+      } else {
+        log('Elemento "Todo o conteúdo" não encontrado para clique via coordenadas', 'warn');
       }
 
-      // Verificar se o filtro foi aplicado
-      const filtrosAtivos = await page.evaluate(() => {
+      await delay(CONFIG.delays.afterPageLoad);
+
+      // Verificar se o filtro foi aplicado (verificação final)
+      const finalFiltrosAtivos = await page.evaluate(() => {
         const body = document.body.innerText;
         const match = body.match(/Filtros ativos:\s*(\d+)/);
-        return match ? match[1] : '0';
+        return match ? parseInt(match[1]) : 0;
       });
-      log(`Filtros ativos: ${filtrosAtivos}`);
+      log(`Filtros ativos (final): ${finalFiltrosAtivos}`);
 
       await page.screenshot({ path: '/tmp/tec-area-selecionada.png', fullPage: true });
 
       // Se nenhum filtro foi aplicado, tentar ir direto para GERAR CADERNO
       // O TecConcursos pode gerar um caderno mesmo sem filtros específicos
-      if (filtrosAtivos === '0') {
+      if (finalFiltrosAtivos === 0) {
         log('Nenhum filtro aplicado, tentando gerar caderno diretamente...');
 
         // Clicar em "GERAR CADERNO"
