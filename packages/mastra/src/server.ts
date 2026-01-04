@@ -287,14 +287,15 @@ app.post('/api/edital/parse', async (req, res) => {
     }
 });
 
-// Supabase client for main database
+// Supabase client for main database (includes questions after unification)
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Supabase client for questions/scrapping database
-const questionsDbUrl = process.env.VITE_QUESTIONS_DB_URL || '';
-const questionsDbKey = process.env.VITE_QUESTIONS_DB_ANON_KEY || '';
+// Questions database now uses the same connection as main database (unified)
+// Legacy env vars kept for backwards compatibility
+const questionsDbUrl = process.env.VITE_QUESTIONS_DB_URL || supabaseUrl;
+const questionsDbKey = process.env.VITE_QUESTIONS_DB_ANON_KEY || supabaseKey;
 const questionsDb = createClient(questionsDbUrl, questionsDbKey);
 
 // In-memory Set para deduplicação de geração de conteúdo em background
