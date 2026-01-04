@@ -704,22 +704,25 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
       // PASSO 3: Após expandir a área, clicar em "Todo o conteúdo de..." para selecionar tudo
       log(`Procurando "Todo o conteúdo de" para selecionar toda a área...`);
 
-      // IMPORTANTE: Procurar especificamente "Todo o conteúdo de 'AREA'" para não clicar na área errada
-      log(`Procurando "Todo o conteúdo de '${areaNome}'"`);
+      // IMPORTANTE: Clicar no ÍCONE à esquerda de "Todo o conteúdo de 'AREA'" para SELECIONAR o filtro
+      // (clicar no texto apenas expande, não seleciona)
+      log(`Procurando ícone/checkbox de "Todo o conteúdo de '${areaNome}'"`);
 
-      // Usar page.evaluate para encontrar o elemento correto com texto específico
+      // Usar page.evaluate para encontrar o elemento e clicar no ícone à esquerda
       const todoConteudoFound = await page.evaluate((areaNome) => {
-        const elements = document.querySelectorAll('span, a, div');
+        const elements = document.querySelectorAll('span, a, div, li');
         for (const el of elements) {
           const text = el.textContent?.trim() || '';
           // Procurar por "Todo o conteúdo de 'Policial'" especificamente
           if (text.includes('Todo o conteúdo') && text.toLowerCase().includes(areaNome.toLowerCase())) {
-            // Retornar informações para clicar depois
             const rect = el.getBoundingClientRect();
+            // Clicar mais à ESQUERDA (no ícone/checkbox, não no texto)
+            // O ícone geralmente está uns 20-30px antes do início do texto
             return {
               found: true,
               text,
-              x: rect.x + rect.width / 2,
+              // Clicar no início do elemento (onde está o ícone)
+              x: rect.x + 15,
               y: rect.y + rect.height / 2,
             };
           }
@@ -728,21 +731,28 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
       }, areaNome);
 
       if (todoConteudoFound.found) {
-        log(`Encontrado: "${todoConteudoFound.text}", clicando em (${todoConteudoFound.x}, ${todoConteudoFound.y})`);
+        log(`Encontrado: "${todoConteudoFound.text}", clicando no ícone em (${todoConteudoFound.x}, ${todoConteudoFound.y})`);
         await page.mouse.click(todoConteudoFound.x, todoConteudoFound.y);
         await delay(CONFIG.delays.afterPageLoad);
-      } else {
-        log(`Não encontrou "Todo o conteúdo de '${areaNome}'", tentando alternativa...`, 'warn');
 
-        // Tentar clicar diretamente no label/checkbox
-        const allSpans = await page.$$('span');
-        for (const span of allSpans) {
-          const text = await span.evaluate(el => el.textContent || '');
-          if (text.includes('Todo o conteúdo') && text.includes(areaNome)) {
-            log(`Encontrado span alternativo: "${text}", clicando...`);
-            const box = await span.boundingBox();
+        // Verificar se o contador de questões mudou (indica que o filtro foi aplicado)
+        const questoesText = await page.evaluate(() => {
+          const el = document.querySelector('.questoes-count, [class*="questoes"]');
+          return el?.textContent || '';
+        });
+        log(`Contador de questões: ${questoesText}`);
+      } else {
+        log(`Não encontrou "Todo o conteúdo de '${areaNome}'", tentando clicar diretamente no item...`, 'warn');
+
+        // Tentar clicar no ícone do item expandido
+        const items = await page.$$('li, div.item, span');
+        for (const item of items) {
+          const text = await item.evaluate(el => el.textContent || '');
+          if (text.includes('Todo o conteúdo') && text.toLowerCase().includes(areaNome.toLowerCase())) {
+            const box = await item.boundingBox();
             if (box) {
-              await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+              // Clicar no início (ícone)
+              await page.mouse.click(box.x + 15, box.y + box.height / 2);
               await delay(CONFIG.delays.afterPageLoad);
             }
             break;
