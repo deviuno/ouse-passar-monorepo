@@ -1393,291 +1393,334 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
       throw new Error(`Área "${areaNome}" não encontrada`);
     }
 
-    // 4. Gerar caderno diretamente (simplificado)
-    // O TecConcursos permite gerar caderno com até 30k questões por vez
-    // Então vamos gerar o caderno e depois navegar pelas questões
+    // 4. FLUXO CORRETO: Usar "Editar quantidades" para controlar cadernos de até 30k
+    // O TecConcursos tem limite de 30k questões por caderno
+    // Estratégia: clicar em "Editar quantidades", coletar matérias com quantidades originais,
+    // zerar tudo, preencher até ~30k, gerar caderno, repetir para próximos lotes
 
     const page = await getPage();
 
-    // Verificar quantas questões estão disponíveis
-    const questoesDisponiveis = await page.evaluate(() => {
-      const text = document.body.innerText;
-      const match = text.match(/(\d+)\s*questões encontradas/);
-      return match ? parseInt(match[1].replace(/\D/g, '')) : 0;
-    });
+    // Seletor do link "Editar quantidades" (fornecido pelo usuário)
+    const SELETOR_EDITAR_QUANTIDADES = '#caderno-novo > div > div > div.gerador-caderno-novo > div > div.gerador-conteudo.ng-scope.ng-isolate-scope.sem-borda-inferior > div > div.ng-scope.ng-isolate-scope > div.somente-desktop > div > div > div > div.gerador-filtrador.somente-desktop > div.gerador-filtrador-rodape > div.gerador-filtrador-conteudo-rodape-informacoes > div.gerador-filtrador-conteudo-rodape-configurar > span > a';
 
-    log(`Questões disponíveis para área ${areaNome}: ${questoesDisponiveis}`);
-
-    if (questoesDisponiveis === 0) {
-      throw new Error('Nenhuma questão encontrada para esta área');
-    }
-
-    // Clicar em "Remover desatualizadas" e "Remover anuladas" se disponível
-    const opcoesClicadas = await page.evaluate(() => {
-      const results: string[] = [];
+    // 4.1 Clicar em "Remover desatualizadas" e "Remover anuladas" PRIMEIRO
+    log('Clicando em "Remover desatualizadas" e "Remover anuladas"...');
+    await page.evaluate(() => {
       const links = document.querySelectorAll('a');
       for (const link of links) {
         const text = link.textContent?.trim() || '';
         if (text.includes('Remover desatualizadas') || text.includes('Remover anuladas')) {
           (link as HTMLElement).click();
-          results.push(text);
         }
       }
-      return results;
     });
-    if (opcoesClicadas.length > 0) {
-      log(`Opções clicadas: ${opcoesClicadas.join(', ')}`);
-      await delay(CONFIG.delays.afterPageLoad);
+    await delay(CONFIG.delays.afterPageLoad);
+    await page.screenshot({ path: '/tmp/tec-apos-remover-opcoes.png', fullPage: true });
+
+    // 4.2 Clicar em "Editar quantidades"
+    log('Clicando em "Editar quantidades"...');
+    let editarQtdClicked = false;
+
+    // Tentar pelo seletor específico primeiro
+    try {
+      const editarLink = await page.$(SELETOR_EDITAR_QUANTIDADES);
+      if (editarLink) {
+        await editarLink.click();
+        editarQtdClicked = true;
+        log('Clicado via seletor específico');
+      }
+    } catch {
+      log('Seletor específico falhou, tentando alternativas...');
     }
 
-    // Se tiver mais de 30k questões, precisamos filtrar por subcategorias
-    if (questoesDisponiveis > CONFIG.maxQuestoesPorCaderno) {
-      log(`Muitas questões (${questoesDisponiveis}), selecionando subcategorias...`);
+    // Se não funcionou, tentar por texto
+    if (!editarQtdClicked) {
+      const clicked = await page.evaluate(() => {
+        const links = document.querySelectorAll('a, span, button');
+        for (const link of links) {
+          const text = link.textContent?.trim() || '';
+          if (text === 'Editar quantidades' || text.includes('Editar quantidades')) {
+            (link as HTMLElement).click();
+            return true;
+          }
+        }
+        return false;
+      });
+      editarQtdClicked = clicked;
+    }
 
-      // Voltar e selecionar subcategorias específicas em vez de "Todo o conteúdo"
-      // Primeiro, listar as subcategorias disponíveis
-      const subcategorias = await page.evaluate((areaNome) => {
-        const results: { nome: string; quantidade: number; x: number; y: number }[] = [];
-        const items = document.querySelectorAll('li.arvore-item');
+    if (!editarQtdClicked) {
+      throw new Error('Link "Editar quantidades" não encontrado');
+    }
 
-        for (const item of items) {
-          const text = item.textContent?.trim() || '';
-          // Pular "Todo o conteúdo" e encontrar subcategorias específicas
-          if (!text.includes('Todo o conteúdo') && !text.includes(areaNome)) {
-            // Procurar quantidade no texto ou em span separado
-            const qtdMatch = text.match(/\((\d+(?:\.\d+)*)\)/);
-            if (qtdMatch) {
-              const nome = text.replace(/\(\d+(?:\.\d+)*\)/, '').trim();
-              const quantidade = parseInt(qtdMatch[1].replace(/\./g, ''));
-              const rect = (item as HTMLElement).getBoundingClientRect();
-              if (rect.width > 0 && rect.height > 0 && quantidade < 30000) {
-                results.push({
-                  nome,
-                  quantidade,
-                  x: rect.x + 15,
-                  y: rect.y + rect.height / 2,
-                });
+    await delay(CONFIG.delays.afterPageLoad + 2000);
+    await page.screenshot({ path: '/tmp/tec-editar-quantidades.png', fullPage: true });
+
+    // 4.3 Coletar todas as matérias com suas quantidades ORIGINAIS
+    log('Coletando matérias e quantidades originais...');
+    const materiasOriginais = await page.evaluate(() => {
+      const materias: { nome: string; quantidade: number; indice: number }[] = [];
+
+      // Procurar inputs de quantidade
+      const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+
+      inputs.forEach((input, index) => {
+        const inputEl = input as HTMLInputElement;
+        const quantidade = parseInt(inputEl.value) || 0;
+
+        if (quantidade > 0) {
+          // Tentar encontrar nome da matéria próximo ao input
+          let nome = '';
+
+          // Verificar elemento anterior (label, td, span)
+          const parent = inputEl.parentElement;
+          if (parent) {
+            const prevSibling = parent.previousElementSibling;
+            if (prevSibling) {
+              nome = prevSibling.textContent?.trim() || '';
+            }
+            // Tentar dentro do parent
+            if (!nome) {
+              const label = parent.querySelector('label, span, td:first-child');
+              if (label) {
+                nome = label.textContent?.trim() || '';
               }
             }
           }
+
+          // Se ainda não achou, usar texto da row inteira
+          if (!nome) {
+            const row = inputEl.closest('tr, .row, div[class*="materia"]');
+            if (row) {
+              const firstCol = row.querySelector('td:first-child, .nome, label');
+              if (firstCol) {
+                nome = firstCol.textContent?.trim() || '';
+              }
+            }
+          }
+
+          if (!nome) {
+            nome = `Matéria ${index + 1}`;
+          }
+
+          materias.push({
+            nome: nome.substring(0, 100),
+            quantidade,
+            indice: index,
+          });
+        }
+      });
+
+      return materias;
+    });
+
+    log(`Matérias encontradas: ${materiasOriginais.length}`);
+    const totalQuestoes = materiasOriginais.reduce((sum, m) => sum + m.quantidade, 0);
+    log(`Total de questões: ${totalQuestoes}`);
+
+    if (materiasOriginais.length === 0) {
+      throw new Error('Nenhuma matéria encontrada na tela de editar quantidades');
+    }
+
+    // 4.4 Loop para criar cadernos de até 30k questões cada
+    const LIMITE_POR_CADERNO = 29000; // Margem de segurança
+    const cadernosCriados: { nome: string; materias: string[]; totalQuestoes: number }[] = [];
+    let indiceMateriaAtual = 0;
+    let cadernoNumero = 1;
+
+    while (indiceMateriaAtual < materiasOriginais.length) {
+      log(`\n=== Criando caderno ${cadernoNumero} ===`);
+
+      // 4.4.1 Zerar todas as quantidades
+      log('Zerando todas as quantidades...');
+      await page.evaluate(() => {
+        const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+        inputs.forEach((input) => {
+          const inputEl = input as HTMLInputElement;
+          if (parseInt(inputEl.value) > 0 || inputEl.value !== '0') {
+            inputEl.value = '0';
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+      });
+      await delay(1000);
+
+      // 4.4.2 Preencher matérias até atingir ~30k
+      let totalCaderno = 0;
+      const materiasNoCaderno: string[] = [];
+      const indiceInicio = indiceMateriaAtual;
+
+      while (indiceMateriaAtual < materiasOriginais.length && totalCaderno < LIMITE_POR_CADERNO) {
+        const materia = materiasOriginais[indiceMateriaAtual];
+
+        // Verificar se adicionar esta matéria excederia o limite
+        if (totalCaderno + materia.quantidade > LIMITE_POR_CADERNO && materiasNoCaderno.length > 0) {
+          // Não cabe mais, parar aqui
+          break;
         }
 
-        return results;
-      }, areaNome);
+        // Preencher quantidade desta matéria
+        const preenchido = await page.evaluate((indice, qtd) => {
+          const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+          if (indice < inputs.length) {
+            const input = inputs[indice] as HTMLInputElement;
+            input.value = String(qtd);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+          }
+          return false;
+        }, materia.indice, materia.quantidade);
 
-      log(`Subcategorias encontradas: ${subcategorias.length}`);
+        if (preenchido) {
+          totalCaderno += materia.quantidade;
+          materiasNoCaderno.push(materia.nome);
+          log(`  + ${materia.nome}: ${materia.quantidade} (total: ${totalCaderno})`);
+        }
 
-      if (subcategorias.length > 0) {
-        // Selecionar a primeira subcategoria com menos de 30k questões
-        const subcat = subcategorias[0];
-        log(`Selecionando subcategoria: ${subcat.nome} (${subcat.quantidade} questões)`);
-        await page.mouse.click(subcat.x, subcat.y);
-        await delay(CONFIG.delays.afterPageLoad);
-      } else {
-        // Se não encontrou subcategorias, usar filtro de matéria
-        log('Nenhuma subcategoria adequada, usando filtro de matéria...');
+        indiceMateriaAtual++;
+      }
 
-        // Clicar em "Matéria e assunto" na barra lateral
-        const materiaClicked = await page.evaluate(() => {
-          const items = document.querySelectorAll('li, a');
-          for (const item of items) {
-            const text = item.textContent?.trim() || '';
-            if (text === 'Matéria e assunto') {
-              (item as HTMLElement).click();
+      if (materiasNoCaderno.length === 0) {
+        log('Nenhuma matéria adicionada ao caderno, encerrando');
+        break;
+      }
+
+      // 4.4.3 Preencher nome do caderno
+      const nomeCaderno = `${areaNome} ${cadernoNumero}`;
+      log(`Definindo nome do caderno: ${nomeCaderno}`);
+
+      await page.evaluate((nome) => {
+        // Procurar campo de nome do caderno
+        const inputs = document.querySelectorAll('input[type="text"]');
+        for (const input of inputs) {
+          const inputEl = input as HTMLInputElement;
+          const placeholder = inputEl.placeholder?.toLowerCase() || '';
+          const name = inputEl.name?.toLowerCase() || '';
+          // Campo de nome geralmente tem placeholder ou name relacionado
+          if (placeholder.includes('nome') || name.includes('nome') ||
+              placeholder.includes('caderno') || name.includes('caderno')) {
+            inputEl.value = nome;
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+          }
+        }
+        // Tentar o primeiro input que não seja de quantidade
+        for (const input of inputs) {
+          const inputEl = input as HTMLInputElement;
+          if (inputEl.type === 'text' && !inputEl.closest('tr, .quantidade-row')) {
+            inputEl.value = nome;
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            break;
+          }
+        }
+      }, nomeCaderno);
+
+      await delay(500);
+      await page.screenshot({ path: `/tmp/tec-caderno-${cadernoNumero}-antes.png`, fullPage: true });
+
+      // 4.4.4 Clicar em GERAR CADERNO
+      log('Clicando em GERAR CADERNO...');
+      const gerarClicked = await page.evaluate(() => {
+        const buttons = document.querySelectorAll('button, input[type="submit"]');
+        for (const btn of buttons) {
+          const text = btn.textContent?.trim().toUpperCase() || '';
+          if (text.includes('GERAR CADERNO') || text === 'GERAR') {
+            (btn as HTMLElement).click();
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (!gerarClicked) {
+        log('Botão GERAR CADERNO não encontrado', 'warn');
+        break;
+      }
+
+      // Aguardar geração
+      await delay(5000);
+      await page.screenshot({ path: `/tmp/tec-caderno-${cadernoNumero}-apos.png`, fullPage: true });
+
+      // Verificar se apareceu modal de limite
+      const temModalLimite = await page.evaluate(() => {
+        if (document.body.innerText.includes('Limite de Questões Excedido')) {
+          const okBtns = document.querySelectorAll('button');
+          for (const btn of okBtns) {
+            if (btn.textContent?.trim().toUpperCase() === 'OK') {
+              btn.click();
               return true;
             }
           }
-          return false;
-        });
+          return true;
+        }
+        return false;
+      });
 
-        if (materiaClicked) {
-          await delay(CONFIG.delays.afterPageLoad);
+      if (temModalLimite) {
+        log('Modal de limite apareceu - reduzindo matérias', 'error');
+        await delay(1000);
+        // Voltar uma matéria e tentar novamente
+        indiceMateriaAtual = indiceInicio + Math.max(1, Math.floor(materiasNoCaderno.length / 2));
+        continue;
+      }
 
-          // Selecionar primeira matéria disponível
-          const primeiraMateria = await page.evaluate(() => {
-            const materias = document.querySelectorAll('li.arvore-item');
-            for (const m of materias) {
-              const text = m.textContent?.trim() || '';
-              // Pular cabeçalhos e itens vazios
-              if (text.length > 0 && !text.includes('Todo o conteúdo')) {
-                const rect = (m as HTMLElement).getBoundingClientRect();
-                if (rect.width > 0) {
-                  return { nome: text.substring(0, 50), x: rect.x + 15, y: rect.y + rect.height / 2 };
-                }
-              }
+      // Caderno criado com sucesso
+      cadernosCriados.push({
+        nome: nomeCaderno,
+        materias: materiasNoCaderno,
+        totalQuestoes: totalCaderno,
+      });
+
+      log(`✓ Caderno "${nomeCaderno}" criado: ${totalCaderno} questões (${materiasNoCaderno.length} matérias)`);
+
+      // Se ainda há matérias, voltar para criar próximo caderno
+      if (indiceMateriaAtual < materiasOriginais.length) {
+        log('Voltando para criar próximo caderno...');
+        await page.goto(`${CONFIG.baseUrl}/questoes/cadernos/novo/`, { waitUntil: 'networkidle2' });
+        await delay(CONFIG.delays.afterPageLoad);
+
+        // Selecionar a área novamente
+        await selecionarArea(areaNome);
+
+        // Clicar em remover desatualizadas/anuladas novamente
+        await page.evaluate(() => {
+          const links = document.querySelectorAll('a');
+          for (const link of links) {
+            const text = link.textContent?.trim() || '';
+            if (text.includes('Remover desatualizadas') || text.includes('Remover anuladas')) {
+              (link as HTMLElement).click();
             }
-            return null;
-          });
-
-          if (primeiraMateria) {
-            log(`Selecionando matéria: ${primeiraMateria.nome}`);
-            await page.mouse.click(primeiraMateria.x, primeiraMateria.y);
-            await delay(CONFIG.delays.afterPageLoad);
           }
-        }
-      }
-
-      // Verificar nova quantidade de questões
-      const novaQuantidade = await page.evaluate(() => {
-        const text = document.body.innerText;
-        const match = text.match(/(\d+)\s*questões encontradas/);
-        return match ? parseInt(match[1].replace(/\D/g, '')) : 0;
-      });
-      log(`Nova quantidade de questões: ${novaQuantidade}`);
-    }
-
-    // Clicar em "GERAR CADERNO"
-    log('Clicando em GERAR CADERNO...');
-    const gerarClicked = await page.evaluate(() => {
-      const buttons = document.querySelectorAll('button, a, input[type="submit"]');
-      for (const btn of buttons) {
-        const text = btn.textContent?.trim().toUpperCase() || '';
-        if (text.includes('GERAR CADERNO') || text === 'GERAR') {
-          const rect = (btn as HTMLElement).getBoundingClientRect();
-          return { found: true, x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, text };
-        }
-      }
-      return { found: false, x: 0, y: 0, text: '' };
-    });
-
-    if (!gerarClicked.found) {
-      throw new Error('Botão GERAR CADERNO não encontrado');
-    }
-
-    await page.mouse.click(gerarClicked.x, gerarClicked.y);
-    log(`Clicado em "${gerarClicked.text}"`);
-
-    // Aguardar navegação ou modal
-    await delay(3000);
-
-    // Verificar se apareceu modal de limite excedido
-    const temModalLimite = await page.evaluate(() => {
-      const modals = document.querySelectorAll('.modal, [role="dialog"], .popup');
-      for (const modal of modals) {
-        const text = modal.textContent || '';
-        if (text.includes('Limite') || text.includes('30 mil')) {
-          // Procurar botão OK para fechar
-          const okBtn = modal.querySelector('button');
-          if (okBtn) {
-            okBtn.click();
-            return { found: true, closed: true };
-          }
-          return { found: true, closed: false };
-        }
-      }
-      // Também verificar por texto visível na página
-      if (document.body.innerText.includes('Limite de Questões Excedido')) {
-        const okBtns = document.querySelectorAll('button');
-        for (const btn of okBtns) {
-          if (btn.textContent?.trim().toUpperCase() === 'OK') {
-            btn.click();
-            return { found: true, closed: true };
-          }
-        }
-        return { found: true, closed: false };
-      }
-      return { found: false, closed: false };
-    });
-
-    if (temModalLimite.found) {
-      log(`Modal de limite encontrado, ${temModalLimite.closed ? 'fechado' : 'não foi possível fechar'}`);
-      await delay(1000);
-      throw new Error('Limite de 30k questões excedido - filtros precisam ser mais específicos');
-    }
-
-    await delay(2000);
-    await page.screenshot({ path: '/tmp/tec-apos-gerar.png', fullPage: true });
-
-    // Verificar URL para ver se foi redirecionado para um caderno
-    const currentUrl = page.url();
-    log(`URL após gerar: ${currentUrl}`);
-
-    // Extrair ID do caderno da URL se houver
-    let cadernoId = '';
-    const cadernoMatch = currentUrl.match(/cadernos?\/(\d+)/);
-    if (cadernoMatch) {
-      cadernoId = cadernoMatch[1];
-      log(`Caderno criado com ID: ${cadernoId}`);
-    }
-
-    // Se não foi redirecionado, pode ser que precise aguardar mais ou há um modal
-    if (!cadernoId) {
-      // Tentar encontrar link para o caderno criado
-      const cadernoLink = await page.evaluate(() => {
-        const links = document.querySelectorAll('a[href*="caderno"]');
-        for (const link of links) {
-          const href = link.getAttribute('href') || '';
-          const match = href.match(/cadernos?\/(\d+)/);
-          if (match) {
-            return { href, id: match[1] };
-          }
-        }
-        return null;
-      });
-
-      if (cadernoLink) {
-        cadernoId = cadernoLink.id;
-        log(`Caderno encontrado via link: ${cadernoId}`);
-        await page.goto(`${CONFIG.baseUrl}${cadernoLink.href}`, { waitUntil: 'networkidle2' });
+        });
         await delay(CONFIG.delays.afterPageLoad);
-      }
-    }
 
-    if (!cadernoId) {
-      // Tentar navegar para a página de cadernos e pegar o mais recente
-      log('Navegando para lista de cadernos...');
-      await page.goto(`${CONFIG.baseUrl}/questoes/cadernos`, { waitUntil: 'networkidle2' });
-      await delay(CONFIG.delays.afterPageLoad);
-      await page.screenshot({ path: '/tmp/tec-lista-cadernos.png', fullPage: true });
-
-      // Pegar o primeiro caderno da lista (mais recente)
-      const primeiroCaderno = await page.evaluate(() => {
-        const links = document.querySelectorAll('a[href*="caderno"]');
-        for (const link of links) {
-          const href = link.getAttribute('href') || '';
-          const match = href.match(/cadernos?\/(\d+)/);
-          if (match) {
-            return { href, id: match[1], text: link.textContent?.trim() || '' };
+        // Clicar em "Editar quantidades" novamente
+        await page.evaluate(() => {
+          const links = document.querySelectorAll('a, span');
+          for (const link of links) {
+            if (link.textContent?.includes('Editar quantidades')) {
+              (link as HTMLElement).click();
+              return;
+            }
           }
-        }
-        return null;
-      });
-
-      if (primeiroCaderno) {
-        cadernoId = primeiroCaderno.id;
-        log(`Usando caderno mais recente: ${primeiroCaderno.text} (ID: ${cadernoId})`);
-        await page.goto(`${CONFIG.baseUrl}${primeiroCaderno.href}`, { waitUntil: 'networkidle2' });
-        await delay(CONFIG.delays.afterPageLoad);
+        });
+        await delay(CONFIG.delays.afterPageLoad + 2000);
       }
+
+      cadernoNumero++;
+      await delay(CONFIG.delays.betweenCadernos);
     }
 
-    if (!cadernoId) {
-      throw new Error('Não foi possível encontrar ou criar o caderno');
+    // Resumo
+    log('\n=== RESUMO DOS CADERNOS CRIADOS ===');
+    for (const caderno of cadernosCriados) {
+      log(`${caderno.nome}: ${caderno.totalQuestoes} questões (${caderno.materias.length} matérias)`);
     }
-
-    // Agora estamos na página do caderno, vamos coletar as questões
-    const nomeCaderno = `${areaNome} - Auto`;
-    _progress.caderno = nomeCaderno;
-    _progress.questoesTotal = Math.min(questoesDisponiveis, CONFIG.maxQuestoesPorCaderno);
-
-    const caderno: CadernoInfo = {
-      id: cadernoId,
-      nome: nomeCaderno,
-      area: areaNome,
-      totalQuestoes: _progress.questoesTotal,
-      url: page.url(),
-    };
-
-    // Coletar questões
-    const questoes = await coletarQuestoesDoCaderno(caderno);
-
-    if (questoes.length > 0) {
-      // Salvar questões no banco
-      await salvarLoteQuestoes(questoes);
-      log(`Salvadas ${questoes.length} questões no banco`);
-    } else {
-      log('Nenhuma questão foi coletada', 'warn');
-    }
+    log(`Total de cadernos: ${cadernosCriados.length}`);
+    log(`Total de questões: ${cadernosCriados.reduce((sum, c) => sum + c.totalQuestoes, 0)}`);
 
     _progress.status = 'completed';
     log(`Scraping da área "${areaNome}" concluído!`);
