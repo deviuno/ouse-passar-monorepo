@@ -13,8 +13,10 @@ interface HierarchicalAssuntosDropdownProps {
   onToggleMultiple: (assuntos: string[], select: boolean) => void;
   onClear: () => void;
   isLoading?: boolean;
+  isLoadingTaxonomy?: boolean; // Loading da taxonomia (separado)
   disabled?: boolean;
   placeholder?: string;
+  totalCount?: number; // Contagem total fornecida externamente
 }
 
 // Componente para renderizar um nó da árvore
@@ -179,8 +181,10 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
   onToggleMultiple,
   onClear,
   isLoading = false,
+  isLoadingTaxonomy = false,
   disabled = false,
-  placeholder = 'Selecionar...'
+  placeholder = 'Selecionar...',
+  totalCount
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -260,7 +264,29 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
   );
 
   // Contar total de assuntos disponíveis
-  const totalAvailable = flatAssuntos.length;
+  // Usar totalCount se fornecido, senão calcular a partir da taxonomia, senão usar flatAssuntos
+  const countFromTaxonomy = (() => {
+    if (taxonomyByMateria.size === 0) return 0;
+    let count = 0;
+    const countNode = (node: TaxonomyNode): number => {
+      let nodeCount = node.assuntos_originais?.length || 0;
+      if (node.filhos) {
+        for (const filho of node.filhos) {
+          nodeCount += countNode(filho);
+        }
+      }
+      return nodeCount;
+    };
+    for (const nodes of taxonomyByMateria.values()) {
+      for (const node of nodes) {
+        count += countNode(node);
+      }
+    }
+    return count;
+  })();
+
+  // Usar totalCount se fornecido, senão priorizar count da taxonomia, senão flatAssuntos
+  const totalAvailable = totalCount ?? (countFromTaxonomy > 0 ? countFromTaxonomy : flatAssuntos.length);
 
   return (
     <div ref={dropdownRef} className="relative">

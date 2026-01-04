@@ -673,11 +673,39 @@ export default function PracticePage() {
     };
   }, [loadKey]);
 
-  // Carregar assuntos e taxonomia
-  // Quando nenhuma matéria selecionada: usa taxonomia global
-  // Quando matéria(s) selecionada(s): filtra pela taxonomia das matérias selecionadas
+  // Atualizar taxonomia IMEDIATAMENTE quando globalTaxonomy ou filtros mudam
+  // Sem esperar pelos assuntos (que podem demorar)
   useEffect(() => {
-    const loadAssuntosAndTaxonomy = async () => {
+    console.log('[PracticePage] Atualizando taxonomia - globalTaxonomy.size:', globalTaxonomy.size, 'matérias selecionadas:', filters.materia.length);
+
+    // Se globalTaxonomy ainda não carregou, não fazer nada
+    if (globalTaxonomy.size === 0) {
+      console.log('[PracticePage] globalTaxonomy vazio, aguardando carregamento...');
+      return;
+    }
+
+    let taxonomy: Map<string, TaxonomyNode[]>;
+    if (filters.materia.length > 0) {
+      // Filtrar taxonomia global pelas matérias selecionadas
+      taxonomy = new Map();
+      for (const materia of filters.materia) {
+        const nodes = globalTaxonomy.get(materia);
+        if (nodes && nodes.length > 0) {
+          taxonomy.set(materia, nodes);
+        }
+      }
+    } else {
+      // Usar taxonomia global completa
+      taxonomy = globalTaxonomy;
+    }
+
+    console.log('[PracticePage] Definindo taxonomyByMateria:', taxonomy.size, 'matérias');
+    setTaxonomyByMateria(taxonomy);
+  }, [filters.materia, globalTaxonomy]);
+
+  // Carregar assuntos separadamente (pode demorar)
+  useEffect(() => {
+    const loadAssuntos = async () => {
       setIsLoadingAssuntos(true);
       try {
         // Determinar quais matérias usar para buscar assuntos
@@ -688,28 +716,7 @@ export default function PracticePage() {
         // Carregar assuntos
         const assuntos = await fetchAssuntosByMaterias(materiasParaBuscar);
 
-        // Para taxonomia: usar global filtrada ou buscar específica
-        let taxonomy: Map<string, TaxonomyNode[]>;
-        if (filters.materia.length > 0) {
-          // Filtrar taxonomia global pelas matérias selecionadas
-          taxonomy = new Map();
-          for (const materia of filters.materia) {
-            const nodes = globalTaxonomy.get(materia);
-            if (nodes && nodes.length > 0) {
-              taxonomy.set(materia, nodes);
-            }
-          }
-          // Se não encontrou na global, buscar do servidor
-          if (taxonomy.size === 0) {
-            taxonomy = await fetchTaxonomiaByMaterias(filters.materia);
-          }
-        } else {
-          // Usar taxonomia global completa
-          taxonomy = globalTaxonomy;
-        }
-
         setAvailableAssuntos(assuntos);
-        setTaxonomyByMateria(taxonomy);
 
         // Filtrar assuntos selecionados que não existem mais na lista atual
         if (filters.materia.length > 0) {
@@ -721,7 +728,6 @@ export default function PracticePage() {
       } catch (error) {
         console.error('Erro ao carregar assuntos:', error);
         setAvailableAssuntos([]);
-        setTaxonomyByMateria(new Map());
       } finally {
         setIsLoadingAssuntos(false);
       }
@@ -729,9 +735,9 @@ export default function PracticePage() {
 
     // Só carregar se temos matérias disponíveis (após o carregamento inicial)
     if (availableMaterias.length > 0) {
-      loadAssuntosAndTaxonomy();
+      loadAssuntos();
     }
-  }, [filters.materia, availableMaterias, globalTaxonomy]);
+  }, [filters.materia, availableMaterias]);
 
   // Atualizar contagem de questoes quando filtros mudam
   useEffect(() => {
@@ -1332,7 +1338,8 @@ export default function PracticePage() {
                         }}
                         onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
                         placeholder="Selecionar assuntos..."
-                        isLoading={isLoadingAssuntos || isLoadingTaxonomy}
+                        isLoading={isLoadingAssuntos}
+                        isLoadingTaxonomy={isLoadingTaxonomy}
                       />
                       <MultiSelectDropdown
                         label="Órgãos"
