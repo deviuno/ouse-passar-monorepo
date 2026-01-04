@@ -372,18 +372,33 @@ export interface TaxonomyNode {
   assuntos_originais?: string[];
 }
 
+// URL base do Mastra API (com fallback para produção)
+const getMastraApiUrl = (path: string): string => {
+  // Se VITE_MASTRA_URL está definido, usar
+  if (import.meta.env.VITE_MASTRA_URL) {
+    return `${import.meta.env.VITE_MASTRA_URL}${path}`;
+  }
+
+  // Em produção (hostname não é localhost), usar VPS
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    return `http://72.61.217.225:4000${path}`;
+  }
+
+  // Desenvolvimento local
+  return `http://localhost:4000${path}`;
+};
+
 // Busca taxonomia hierárquica para uma matéria
 export const fetchTaxonomiaByMateria = async (materia: string): Promise<TaxonomyNode[]> => {
   if (!materia) return [];
 
   try {
-    const API_URL = import.meta.env.VITE_MASTRA_URL
-      ? `${import.meta.env.VITE_MASTRA_URL}/api/taxonomia/${encodeURIComponent(materia)}`
-      : `http://localhost:4000/api/taxonomia/${encodeURIComponent(materia)}`;
+    const API_URL = getMastraApiUrl(`/api/taxonomia/${encodeURIComponent(materia)}`);
+    console.log('[fetchTaxonomiaByMateria] Fetching from:', API_URL);
 
     const response = await fetch(API_URL);
     if (!response.ok) {
-      console.error('[fetchTaxonomiaByMateria] Erro na resposta:', response.status);
+      console.error('[fetchTaxonomiaByMateria] Erro na resposta:', response.status, API_URL);
       return [];
     }
 
