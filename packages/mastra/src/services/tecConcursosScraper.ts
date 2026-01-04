@@ -1421,6 +1421,26 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
     log('Clicando em "Editar quantidades"...');
     let editarQtdClicked = false;
 
+    // Primeiro, vamos encontrar e logar todos os links disponíveis para debug
+    const linksDisponiveis = await page.evaluate(() => {
+      const results: { text: string; tag: string; x: number; y: number }[] = [];
+      const elements = document.querySelectorAll('a, span, button');
+      for (const el of elements) {
+        const text = el.textContent?.trim() || '';
+        if (text.toLowerCase().includes('editar') || text.toLowerCase().includes('quantidad')) {
+          const rect = (el as HTMLElement).getBoundingClientRect();
+          results.push({
+            text: text.substring(0, 50),
+            tag: el.tagName,
+            x: rect.x + rect.width / 2,
+            y: rect.y + rect.height / 2,
+          });
+        }
+      }
+      return results;
+    });
+    log(`Links relacionados a "editar/quantidades" encontrados: ${JSON.stringify(linksDisponiveis)}`);
+
     // Tentar pelo seletor específico primeiro
     try {
       const editarLink = await page.$(SELETOR_EDITAR_QUANTIDADES);
@@ -1435,25 +1455,63 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
 
     // Se não funcionou, tentar por texto
     if (!editarQtdClicked) {
-      const clicked = await page.evaluate(() => {
+      const clickResult = await page.evaluate(() => {
         const links = document.querySelectorAll('a, span, button');
         for (const link of links) {
           const text = link.textContent?.trim() || '';
           if (text === 'Editar quantidades' || text.includes('Editar quantidades')) {
+            const rect = (link as HTMLElement).getBoundingClientRect();
             (link as HTMLElement).click();
-            return true;
+            return { clicked: true, text, x: rect.x, y: rect.y };
           }
         }
-        return false;
+        return { clicked: false, text: '', x: 0, y: 0 };
       });
-      editarQtdClicked = clicked;
+      if (clickResult.clicked) {
+        editarQtdClicked = true;
+        log(`Clicado via texto: "${clickResult.text}" em (${clickResult.x}, ${clickResult.y})`);
+      }
+    }
+
+    // Se ainda não funcionou, tentar clicar via coordenadas nos elementos encontrados
+    if (!editarQtdClicked && linksDisponiveis.length > 0) {
+      const link = linksDisponiveis[0];
+      log(`Tentando clicar via coordenadas em: ${link.text} (${link.x}, ${link.y})`);
+      await page.mouse.click(link.x, link.y);
+      editarQtdClicked = true;
     }
 
     if (!editarQtdClicked) {
+      await page.screenshot({ path: '/tmp/tec-editar-quantidades-nao-encontrado.png', fullPage: true });
       throw new Error('Link "Editar quantidades" não encontrado');
     }
 
-    await delay(CONFIG.delays.afterPageLoad + 2000);
+    // Aguardar mais tempo para o AngularJS processar e carregar os dados
+    await delay(3000);
+    await page.screenshot({ path: '/tmp/tec-editar-quantidades-apos-click.png', fullPage: true });
+
+    // Verificar se há um painel/modal aberto com inputs
+    const temPainelAberto = await page.evaluate(() => {
+      // Verificar se há inputs visíveis na página
+      const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+      let inputsVisiveis = 0;
+      inputs.forEach(input => {
+        const rect = (input as HTMLElement).getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          inputsVisiveis++;
+        }
+      });
+      return { inputsVisiveis, totalInputs: inputs.length };
+    });
+    log(`Inputs na página: ${temPainelAberto.inputsVisiveis} visíveis de ${temPainelAberto.totalInputs} total`);
+
+    // Se não há inputs suficientes, pode ser que o painel não abriu
+    if (temPainelAberto.inputsVisiveis < 5) {
+      log('Poucos inputs encontrados, aguardando mais tempo...');
+      await delay(3000);
+      await page.screenshot({ path: '/tmp/tec-editar-quantidades-esperando.png', fullPage: true });
+    }
+
     await page.screenshot({ path: '/tmp/tec-editar-quantidades.png', fullPage: true });
 
     // 4.3 Coletar todas as matérias com suas quantidades ORIGINAIS
