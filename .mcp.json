@@ -13,7 +13,7 @@
     },
     "supabase-questoes": {
       "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=swzosaapqtyhmwdiwdje",
+      "url": "https://mcp.supabase.com/mcp?project_ref=avlttxzppcywybiaxxzd",
       "headers": {
         "Authorization": "Bearer sbp_194a2141ca8405a6d3252eedad2a02ea70aecc4e"
       }

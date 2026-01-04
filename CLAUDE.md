@@ -1,17 +1,17 @@
 # Instruções do Projeto - Ouse Passar Monorepo
 
-## Projetos Supabase
+## Projeto Supabase (Banco Unificado)
 
-### Projeto Principal (App Ouse Questões)
 - **Project ID:** `avlttxzppcywybiaxxzd`
 - **URL:** https://avlttxzppcywybiaxxzd.supabase.co
-- **Uso:** Banco de dados principal do app, autenticação, storage, todas as tabelas do sistema (users, battery, audio_cache, preparatorios, etc.)
+- **Uso:** Banco de dados unificado contendo:
+  - Tabelas do sistema (users, battery, audio_cache, preparatorios, etc.)
+  - Banco de questões (questoes_concurso, assuntos_taxonomia, etc.)
+  - Autenticação e storage
 - **SEMPRE usar este projeto para migrations e queries MCP**
 
-### Projeto Secundário (Banco de Questões)
-- **Project ID:** `jvlbnetrpfbolqfgswhe`
-- **Uso:** Apenas armazenamento do banco de questões
-- **NÃO usar para migrations do app**
+> **Nota:** O projeto secundário de questões (swzosaapqtyhmwdiwdje) foi descontinuado.
+> Todos os dados foram migrados para o projeto principal.
 
 ## Estrutura do Monorepo
 

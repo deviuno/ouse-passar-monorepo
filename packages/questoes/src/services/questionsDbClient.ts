@@ -1,25 +1,32 @@
-// Cliente Supabase para o banco de questões externo
+// Cliente Supabase para o banco de questões
+// Após unificação dos bancos, usa o banco principal como fallback
 import { createClient } from '@supabase/supabase-js';
 
-const questionsDbUrl = import.meta.env.VITE_QUESTIONS_DB_URL;
-const questionsDbAnonKey = import.meta.env.VITE_QUESTIONS_DB_ANON_KEY;
+// Usa QUESTIONS_DB se definido, senão fallback para o banco principal
+const questionsDbUrl = import.meta.env.VITE_QUESTIONS_DB_URL || import.meta.env.VITE_SUPABASE_URL;
+const questionsDbAnonKey = import.meta.env.VITE_QUESTIONS_DB_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const isUsingMainDb = !import.meta.env.VITE_QUESTIONS_DB_URL;
 
 console.log('[questionsDbClient] Inicializando cliente do banco de questões...');
+console.log('[questionsDbClient] Modo:', isUsingMainDb ? '🔗 Banco Unificado (principal)' : '📦 Banco Separado');
 console.log('[questionsDbClient] URL:', questionsDbUrl ? questionsDbUrl.substring(0, 40) + '...' : '❌ NÃO DEFINIDA');
 console.log('[questionsDbClient] Key:', questionsDbAnonKey ? '✅ DEFINIDA (' + questionsDbAnonKey.length + ' chars)' : '❌ NÃO DEFINIDA');
 
 if (!questionsDbUrl || !questionsDbAnonKey) {
   console.error('');
-  console.error('❌❌❌ ERRO CRÍTICO: Variáveis do banco de questões não configuradas! ❌❌❌');
+  console.error('❌❌❌ ERRO CRÍTICO: Variáveis do Supabase não configuradas! ❌❌❌');
   console.error('');
-  console.error('As seguintes variáveis precisam ser configuradas:');
-  console.error('  - VITE_QUESTIONS_DB_URL');
-  console.error('  - VITE_QUESTIONS_DB_ANON_KEY');
+  console.error('Configure pelo menos uma das opções:');
+  console.error('  Opção 1 (Recomendado - Banco Unificado):');
+  console.error('    - VITE_SUPABASE_URL');
+  console.error('    - VITE_SUPABASE_ANON_KEY');
   console.error('');
-  console.error('Se você está rodando na Vercel, configure em:');
-  console.error('  Settings → Environment Variables');
+  console.error('  Opção 2 (Banco Separado - Legado):');
+  console.error('    - VITE_QUESTIONS_DB_URL');
+  console.error('    - VITE_QUESTIONS_DB_ANON_KEY');
   console.error('');
-  throw new Error('Questions DB configuration missing. Please set VITE_QUESTIONS_DB_URL and VITE_QUESTIONS_DB_ANON_KEY');
+  throw new Error('Supabase configuration missing');
 }
 
 export const questionsDb = createClient(questionsDbUrl, questionsDbAnonKey, {

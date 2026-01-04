@@ -1,12 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Client para o banco de questões externo (scrapping)
- * Project ID: swzosaapqtyhmwdiwdje
+ * Client para o banco de questões
+ * Após unificação, usa o banco principal como fallback
  */
 
-const questionsDbUrl = import.meta.env.VITE_QUESTIONS_DB_URL;
-const questionsDbKey = import.meta.env.VITE_QUESTIONS_DB_ANON_KEY;
+// Usa QUESTIONS_DB se definido, senão fallback para o banco principal
+const questionsDbUrl = import.meta.env.VITE_QUESTIONS_DB_URL || import.meta.env.VITE_SUPABASE_URL;
+const questionsDbKey = import.meta.env.VITE_QUESTIONS_DB_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Create client only if credentials are available
 export const questionsDb = questionsDbUrl && questionsDbKey

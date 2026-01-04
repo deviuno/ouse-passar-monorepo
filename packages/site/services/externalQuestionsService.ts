@@ -99,7 +99,7 @@ export async function getQuestionsForFilters(
   if (!questionsDb) {
     return {
       questions: [],
-      error: 'Banco de questões não configurado. Verifique VITE_QUESTIONS_DB_URL e VITE_QUESTIONS_DB_ANON_KEY.'
+      error: 'Banco de questões não configurado. Verifique VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.'
     };
   }
 
