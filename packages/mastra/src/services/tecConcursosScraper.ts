@@ -627,24 +627,49 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
     await page.screenshot({ path: '/tmp/tec-novo-caderno.png', fullPage: true });
     log('Screenshot após "Novo Caderno" salvo');
 
-    // Encontrar e clicar no filtro de área
-    // Primeiro tentar por data attribute
+    // PASSO 1: Clicar no filtro "Área (Carreira)" na barra lateral esquerda
+    // A página mostra "Matéria e assunto" por padrão, precisamos trocar para "Área (Carreira)"
+    log('Procurando filtro "Área (Carreira)" na barra lateral...');
+
+    let areaCarreiraFilter = await findElementByText(page, 'a, button, li, div, span', 'Área (Carreira)');
+    if (!areaCarreiraFilter) {
+      areaCarreiraFilter = await findElementByText(page, 'a, button, li, div, span', 'Area (Carreira)');
+    }
+    if (!areaCarreiraFilter) {
+      areaCarreiraFilter = await findElementByText(page, 'a, button, li, div, span', 'Área');
+    }
+
+    if (areaCarreiraFilter) {
+      log('Filtro "Área (Carreira)" encontrado, clicando...');
+      await areaCarreiraFilter.click();
+      await delay(CONFIG.delays.afterPageLoad);
+      await page.screenshot({ path: '/tmp/tec-area-carreira-filter.png', fullPage: true });
+      log('Screenshot após clicar em "Área (Carreira)" salvo');
+    } else {
+      log('Filtro "Área (Carreira)" não encontrado', 'warn');
+      await page.screenshot({ path: '/tmp/tec-no-area-filter.png', fullPage: true });
+    }
+
+    // PASSO 2: Agora procurar pela área específica (ex: "Policial")
+    log(`Procurando área específica: ${areaNome}`);
+
+    // Tentar por data attribute
     let areaFilter = await page.$(`[data-area="${areaNome}"]`);
 
-    // Se não encontrou, tentar buscar por texto
+    // Se não encontrou, tentar buscar por texto na lista de áreas
     if (!areaFilter) {
-      // Tentar em labels
-      areaFilter = await findElementByText(page, 'label, .area-filter, .filter-item', areaNome);
+      // Tentar em labels (checkboxes de filtro)
+      areaFilter = await findElementByText(page, 'label', areaNome);
     }
 
     // Tentar em links/buttons
     if (!areaFilter) {
-      areaFilter = await findElementByText(page, 'a, button, .area-item', areaNome);
+      areaFilter = await findElementByText(page, 'a, button', areaNome);
     }
 
-    // Tentar em itens de lista
+    // Tentar em itens de lista ou spans
     if (!areaFilter) {
-      areaFilter = await findElementByText(page, 'li, div.item, .list-item', areaNome);
+      areaFilter = await findElementByText(page, 'li, span, div.item', areaNome);
     }
 
     if (areaFilter) {
@@ -655,16 +680,16 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
       return true;
     }
 
-    // Tentar abordagem alternativa - clicar no accordion/dropdown de área
-    const allElements = await page.$$('*');
-    for (const item of allElements) {
+    // Tentar abordagem alternativa - busca exata
+    const allLabels = await page.$$('label');
+    for (const label of allLabels) {
       try {
-        const text = await item.evaluate(el => el.textContent?.trim() || '');
-        const tagName = await item.evaluate(el => el.tagName.toLowerCase());
-        if (text === areaNome && ['a', 'button', 'label', 'span', 'div', 'li'].includes(tagName)) {
-          log(`Encontrado elemento ${tagName} com texto exato "${areaNome}"`);
-          await item.click();
+        const text = await label.evaluate(el => el.textContent?.trim() || '');
+        if (text.toLowerCase().includes(areaNome.toLowerCase())) {
+          log(`Encontrado label com texto "${text}"`);
+          await label.click();
           await delay(CONFIG.delays.afterPageLoad);
+          await page.screenshot({ path: '/tmp/tec-area-selecionada.png', fullPage: true });
           return true;
         }
       } catch {
