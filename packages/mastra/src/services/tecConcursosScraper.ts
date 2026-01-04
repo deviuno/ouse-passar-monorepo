@@ -113,8 +113,9 @@ let _supabase: SupabaseClient | null = null;
 
 function getSupabase(): SupabaseClient {
   if (!_supabase) {
-    const url = process.env.VITE_SUPABASE_URL || '';
-    const key = process.env.VITE_SUPABASE_ANON_KEY || '';
+    const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    // Use service role key for admin operations (INSERT/UPDATE)
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
     if (!url || !key) {
       throw new Error('Supabase credentials not configured');
     }
@@ -1297,14 +1298,46 @@ async function extrairDadosQuestao(questaoEl: any): Promise<QuestaoColetada | nu
 
 // ==================== PERSISTÊNCIA ====================
 
-async function salvarQuestaoNoBanco(questao: QuestaoColetada): Promise<boolean> {
+/**
+ * Verifica se uma questão já existe no banco de dados
+ */
+async function questaoJaExiste(id: string): Promise<boolean> {
   try {
     const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('questoes_concurso')
+      .select('id')
+      .eq('id', parseInt(id))
+      .maybeSingle();
 
+    if (error) {
+      log(`Erro ao verificar existência da questão ${id}: ${error.message}`, 'warn');
+      return false; // Em caso de erro, tentamos inserir
+    }
+
+    return data !== null;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function salvarQuestaoNoBanco(questao: QuestaoColetada): Promise<'saved' | 'exists' | 'error'> {
+  try {
+    const supabase = getSupabase();
+    const questaoId = parseInt(questao.id);
+
+    // Primeiro, verificar se a questão já existe
+    const existe = await questaoJaExiste(questao.id);
+    if (existe) {
+      log(`Questão ${questao.id} já existe no banco, pulando...`);
+      return 'exists';
+    }
+
+    // Inserir nova questão
     const { error } = await supabase
       .from('questoes_concurso')
-      .upsert({
-        id: parseInt(questao.id),
+      .insert({
+        id: questaoId,
         materia: questao.materia,
         assunto: questao.assunto,
         enunciado: questao.enunciado,
@@ -1317,42 +1350,48 @@ async function salvarQuestaoNoBanco(questao: QuestaoColetada): Promise<boolean> 
         prova: questao.prova,
         banca: questao.banca,
         concurso: questao.concurso,
-        imagens_enunciado: questao.imagensEnunciado.length > 0 ? `{${questao.imagensEnunciado.join(',')}}` : null,
+        imagens_enunciado: questao.imagensEnunciado.length > 0 ? questao.imagensEnunciado : null,
         imagens_comentario: questao.imagensComentario.length > 0 ? questao.imagensComentario : null,
         ativo: true,
         created_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id',
       });
 
     if (error) {
       log(`Erro ao salvar questão ${questao.id}: ${error.message}`, 'error');
-      return false;
+      return 'error';
     }
 
-    return true;
+    log(`Questão ${questao.id} salva com sucesso!`);
+    return 'saved';
 
   } catch (error) {
     log(`Exceção ao salvar questão: ${error instanceof Error ? error.message : String(error)}`, 'error');
-    return false;
+    return 'error';
   }
 }
 
-async function salvarLoteQuestoes(questoes: QuestaoColetada[]): Promise<{ salvos: number; erros: number }> {
+async function salvarLoteQuestoes(questoes: QuestaoColetada[]): Promise<{ salvos: number; existentes: number; erros: number }> {
   let salvos = 0;
+  let existentes = 0;
   let erros = 0;
 
   for (const questao of questoes) {
-    const sucesso = await salvarQuestaoNoBanco(questao);
-    if (sucesso) {
-      salvos++;
-    } else {
-      erros++;
+    const resultado = await salvarQuestaoNoBanco(questao);
+    switch (resultado) {
+      case 'saved':
+        salvos++;
+        break;
+      case 'exists':
+        existentes++;
+        break;
+      case 'error':
+        erros++;
+        break;
     }
   }
 
-  log(`Lote salvo: ${salvos} sucesso, ${erros} erros`);
-  return { salvos, erros };
+  log(`Lote processado: ${salvos} novas, ${existentes} já existentes, ${erros} erros`);
+  return { salvos, existentes, erros };
 }
 
 // ==================== ORQUESTRAÇÃO PRINCIPAL ====================
@@ -2290,14 +2329,16 @@ async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
 
     // Salvar no banco
     let salvos = 0;
+    let existentes = 0;
     let erros = 0;
 
     if (questoes.length > 0) {
       log('Salvando questões no banco de dados...');
       const resultado = await salvarLoteQuestoes(questoes);
       salvos = resultado.salvos;
+      existentes = resultado.existentes;
       erros = resultado.erros;
-      log(`Salvamento concluído: ${salvos} salvos, ${erros} erros`);
+      log(`Salvamento concluído: ${salvos} novas, ${existentes} já existentes, ${erros} erros`);
     }
 
     // Atualizar progresso final
@@ -2312,7 +2353,7 @@ async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
       questoes,
       salvos,
       erros,
-      message: `Extração concluída: ${questoes.length} questões coletadas, ${salvos} salvas no banco`,
+      message: `Extração concluída: ${questoes.length} questões coletadas, ${salvos} novas salvas, ${existentes} já existiam`,
     };
 
   } catch (error) {
