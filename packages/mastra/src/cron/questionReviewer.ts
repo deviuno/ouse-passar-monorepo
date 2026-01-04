@@ -75,8 +75,9 @@ ${question.comentario ? `Comentário existente: ${question.comentario.substring(
 Por favor, forneça o gabarito correto e um comentário pedagógico completo.`;
 
     // Chamar modelo Gemini com JSON mode
+    // Usando gemini-1.5-flash por ter limite de rate maior que gemini-2.0-flash-exp (10 req/min)
     const response = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-1.5-flash',
       contents: userPrompt,
       config: {
         systemInstruction: SYSTEM_PROMPT,
@@ -211,8 +212,8 @@ export async function reviewQuestions(
           result.failed++;
         }
 
-        // Pequeno delay para não sobrecarregar a API
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Delay de 7s entre questões para respeitar rate limit (10 req/min)
+        await new Promise(resolve => setTimeout(resolve, 7000));
       } catch (error) {
         console.error(`[QuestionReviewer] Erro ao processar questão ${question.id}:`, error);
         result.failed++;
