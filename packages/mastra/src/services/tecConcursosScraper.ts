@@ -1721,7 +1721,15 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
                 if (indice >= allInputs.length) return false;
 
                 const input = allInputs[indice] as HTMLInputElement;
-                const win = window as unknown as { angular?: { element: (el: Element) => { val: (v: string) => unknown; trigger: (e: string) => void; triggerHandler: (e: string) => void } }; jQuery?: (el: Element) => { val: (v: string) => unknown; trigger: (e: string) => void } };
+                interface JQLite {
+                  val: (v?: string) => JQLite;
+                  trigger: (e: string) => JQLite;
+                  triggerHandler: (e: string) => JQLite;
+                }
+                const win = window as unknown as {
+                  angular?: { element: (el: Element) => JQLite };
+                  jQuery?: (el: Element) => JQLite;
+                };
 
                 // Método 1: Usar jQuery se disponível
                 if (win.jQuery) {
