@@ -94,7 +94,17 @@ Por favor, forneça o gabarito correto e um comentário pedagógico completo.`;
       return null;
     }
 
-    const result = JSON.parse(jsonMatch[0]);
+    // Sanitizar JSON - remover caracteres de controle que quebram o parse
+    const sanitizedJson = jsonMatch[0]
+      .replace(/[\x00-\x1F\x7F]/g, (char) => {
+        // Preservar newlines e tabs legítimos dentro de strings
+        if (char === '\n') return '\\n';
+        if (char === '\r') return '\\r';
+        if (char === '\t') return '\\t';
+        return '';
+      });
+
+    const result = JSON.parse(sanitizedJson);
 
     if (!result.gabarito || !result.comentario) {
       console.error(`[QuestionReviewer] Resposta incompleta para questão ${question.id}`);
