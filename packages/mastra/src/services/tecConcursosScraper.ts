@@ -1676,23 +1676,91 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
             }, materia.indice);
             await delay(50);
 
-            // Clicar para focar
-            await inputElement.click();
-            await delay(50);
+            // Tentar modificar diretamente o scope do Angular
+            const angularSuccess = await page.evaluate((idx, qtd) => {
+              const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+              if (idx >= inputs.length) return false;
 
-            // Ctrl+A para selecionar tudo
-            await page.keyboard.down('Control');
-            await page.keyboard.press('a');
-            await page.keyboard.up('Control');
-            await delay(50);
+              const input = inputs[idx] as HTMLInputElement;
+              const win = window as unknown as { angular?: { element: (el: Element) => {
+                scope: () => Record<string, unknown> | undefined;
+                isolateScope: () => Record<string, unknown> | undefined;
+                controller: (name: string) => { $setViewValue: (v: string) => void; $render: () => void } | undefined;
+              } } };
 
-            // Digitar o valor (substitui seleção)
-            await page.keyboard.type(String(materia.quantidade), { delay: 30 });
-            await delay(150);
+              if (win.angular) {
+                try {
+                  const angEl = win.angular.element(input);
 
-            // Tab para triggerar blur/change do AngularJS
-            await page.keyboard.press('Tab');
-            await delay(300);
+                  // Obter o scope
+                  const scope = angEl.scope?.() || angEl.isolateScope?.();
+                  const ngModel = angEl.controller?.('ngModel');
+
+                  if (scope && ngModel) {
+                    // Setar via ngModel controller
+                    ngModel.$setViewValue(String(qtd));
+                    ngModel.$render();
+
+                    // Forçar digest
+                    if (typeof (scope as Record<string, unknown>)['$apply'] === 'function') {
+                      (scope as { $apply: (fn?: () => void) => void }).$apply();
+                    }
+
+                    return true;
+                  }
+
+                  // Tentar encontrar o modelo diretamente no scope
+                  if (scope) {
+                    // Procurar propriedade que parece ser quantidade
+                    const ngModelAttr = input.getAttribute('ng-model');
+                    if (ngModelAttr) {
+                      // Exemplo: "vm.materia.qtd" ou "item.quantidade"
+                      const parts = ngModelAttr.split('.');
+                      let target: unknown = scope;
+                      for (let i = 0; i < parts.length - 1; i++) {
+                        target = (target as Record<string, unknown>)?.[parts[i]];
+                      }
+                      if (target && typeof target === 'object') {
+                        const lastKey = parts[parts.length - 1];
+                        (target as Record<string, unknown>)[lastKey] = parseInt(String(qtd), 10);
+
+                        // Forçar digest
+                        if (typeof (scope as Record<string, unknown>)['$apply'] === 'function') {
+                          (scope as { $apply: (fn?: () => void) => void }).$apply();
+                        }
+                        return true;
+                      }
+                    }
+                  }
+                } catch (e) {
+                  console.log('Angular error:', e);
+                }
+              }
+
+              return false;
+            }, materia.indice, materia.quantidade);
+
+            if (angularSuccess) {
+              await delay(100);
+            } else {
+              // Fallback: usar keyboard
+              await inputElement.click();
+              await delay(50);
+
+              // Ctrl+A para selecionar tudo
+              await page.keyboard.down('Control');
+              await page.keyboard.press('a');
+              await page.keyboard.up('Control');
+              await delay(50);
+
+              // Digitar o valor
+              await page.keyboard.type(String(materia.quantidade), { delay: 30 });
+              await delay(150);
+
+              // Tab para triggerar blur/change
+              await page.keyboard.press('Tab');
+              await delay(300);
+            }
 
             // Verificar se o valor foi setado no DOM
             const valorSetado = await page.evaluate((indice) => {
