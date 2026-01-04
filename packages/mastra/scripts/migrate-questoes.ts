@@ -49,25 +49,58 @@ async function migrateTable(
 
   const total = count || 0;
 
-  // Verificar quantos já existem no destino para continuar de onde parou
+  // Verificar quantos já existem no destino e pegar o maior ID
   const { count: existingCount } = await target
     .from(tableName)
     .select('*', { count: 'exact', head: true });
 
   const existing = existingCount || 0;
-  let offset = existing > 0 ? existing : 0;
+
+  // Buscar o maior ID no destino para continuar de onde parou
+  let lastId = 0;
+  if (existing > 0) {
+    const { data: maxData } = await target
+      .from(tableName)
+      .select(orderBy)
+      .order(orderBy, { ascending: false })
+      .limit(1)
+      .single();
+
+    if (maxData) {
+      lastId = maxData[orderBy] || 0;
+    }
+  }
+
+  const remaining = total - existing;
 
   console.log(`   Total na origem: ${total}`);
   console.log(`   Já migrados: ${existing}`);
-  console.log(`   Faltam: ${total - existing}`);
+  console.log(`   Faltam: ${remaining}`);
+  if (lastId > 0) {
+    console.log(`   Último ID migrado: ${lastId}`);
+  }
+
+  // Se não tem mais nada para migrar, sair
+  if (remaining <= 0) {
+    const duration = (Date.now() - startTime) / 1000;
+    console.log(`   ⏱️  Duração: ${duration.toFixed(1)}s`);
+    return { table: tableName, total, migrated: 0, errors: 0, duration };
+  }
 
   while (hasMore) {
-    // Buscar lote do source
-    const { data, error: fetchError } = await source
+    // Buscar lote do source usando filtro por ID (mais eficiente que offset)
+    let query = source
       .from(tableName)
       .select('*')
       .order(orderBy, { ascending: true })
-      .range(offset, offset + BATCH_SIZE - 1);
+      .limit(BATCH_SIZE);
+
+    // Se já migramos alguns, filtrar por ID > lastId
+    if (lastId > 0) {
+      query = query.gt(orderBy, lastId);
+    }
+
+    const { data, error: fetchError } = await query;
 
     if (fetchError) {
       console.error(`   ❌ Erro ao buscar dados: ${fetchError.message}`);
@@ -86,15 +119,15 @@ async function migrateTable(
       .upsert(data, { onConflict: 'id' });
 
     if (insertError) {
-      console.error(`   ❌ Erro ao inserir lote (offset ${offset}): ${insertError.message}`);
+      console.error(`   ❌ Erro ao inserir lote (lastId ${lastId}): ${insertError.message}`);
       totalErrors++;
     } else {
       totalMigrated += data.length;
-      const progress = ((totalMigrated / total) * 100).toFixed(1);
-      process.stdout.write(`\r   ✅ Progresso: ${totalMigrated}/${total} (${progress}%)`);
+      // Atualizar lastId para o maior ID do lote atual
+      lastId = data[data.length - 1][orderBy];
+      const progress = (((existing + totalMigrated) / total) * 100).toFixed(1);
+      process.stdout.write(`\r   ✅ Progresso: ${existing + totalMigrated}/${total} (${progress}%)`);
     }
-
-    offset += BATCH_SIZE;
 
     // Pequeno delay para não sobrecarregar
     await new Promise(resolve => setTimeout(resolve, 100));
