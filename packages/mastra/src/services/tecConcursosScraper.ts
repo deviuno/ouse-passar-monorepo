@@ -631,23 +631,46 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
     // A página mostra "Matéria e assunto" por padrão, precisamos trocar para "Área (Carreira)"
     log('Procurando filtro "Área (Carreira)" na barra lateral...');
 
-    let areaCarreiraFilter = await findElementByText(page, 'a, button, li, div, span', 'Área (Carreira)');
-    if (!areaCarreiraFilter) {
-      areaCarreiraFilter = await findElementByText(page, 'a, button, li, div, span', 'Area (Carreira)');
-    }
-    if (!areaCarreiraFilter) {
-      areaCarreiraFilter = await findElementByText(page, 'a, button, li, div, span', 'Área');
-    }
+    // Usar page.evaluate para encontrar e clicar no elemento correto da barra lateral
+    const areaCarreiraClicked = await page.evaluate(() => {
+      // Procurar todos os elementos que podem conter o texto "Área (Carreira)"
+      const allElements = document.querySelectorAll('a, li, div, span, button');
+      for (const el of allElements) {
+        const text = el.textContent?.trim() || '';
+        // Verificar se o texto é exatamente "Área (Carreira)" ou similar
+        if (text === 'Área (Carreira)' || text === 'Area (Carreira)') {
+          // Tentar encontrar o elemento pai clicável (li ou a)
+          let clickTarget = el;
+          if (el.tagName.toLowerCase() === 'span') {
+            clickTarget = el.parentElement || el;
+          }
+          (clickTarget as HTMLElement).click();
+          return { found: true, text, tag: (clickTarget as HTMLElement).tagName };
+        }
+      }
+      return { found: false, text: '', tag: '' };
+    });
 
-    if (areaCarreiraFilter) {
-      log('Filtro "Área (Carreira)" encontrado, clicando...');
-      await areaCarreiraFilter.click();
-      await delay(CONFIG.delays.afterPageLoad);
+    if (areaCarreiraClicked.found) {
+      log(`Filtro "Área (Carreira)" clicado (tag: ${areaCarreiraClicked.tag})`);
+      await delay(CONFIG.delays.afterPageLoad + 1000); // Esperar mais para a lista carregar
       await page.screenshot({ path: '/tmp/tec-area-carreira-filter.png', fullPage: true });
       log('Screenshot após clicar em "Área (Carreira)" salvo');
     } else {
-      log('Filtro "Área (Carreira)" não encontrado', 'warn');
-      await page.screenshot({ path: '/tmp/tec-no-area-filter.png', fullPage: true });
+      log('Filtro "Área (Carreira)" não encontrado, tentando abordagem alternativa...', 'warn');
+
+      // Tentar clicar via XPath ou outro método
+      const elements = await page.$$('li');
+      for (const el of elements) {
+        const text = await el.evaluate(node => node.textContent?.trim() || '');
+        if (text.includes('Área') && text.includes('Carreira')) {
+          log(`Encontrado elemento li com texto: "${text}", clicando...`);
+          await el.click();
+          await delay(CONFIG.delays.afterPageLoad + 1000);
+          break;
+        }
+      }
+      await page.screenshot({ path: '/tmp/tec-area-carreira-filter.png', fullPage: true });
     }
 
     // PASSO 2: Agora procurar pela área específica (ex: "Policial")
