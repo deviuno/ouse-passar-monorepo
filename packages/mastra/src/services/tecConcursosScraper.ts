@@ -1393,46 +1393,157 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
       throw new Error(`Área "${areaNome}" não encontrada`);
     }
 
-    // 4. Obter matérias com quantidades
-    const materias = await obterMateriasComQuantidades();
-    if (materias.length === 0) {
-      throw new Error('Nenhuma matéria encontrada');
+    // 4. Gerar caderno diretamente (simplificado)
+    // O TecConcursos permite gerar caderno com até 30k questões por vez
+    // Então vamos gerar o caderno e depois navegar pelas questões
+
+    const page = await getPage();
+
+    // Verificar quantas questões estão disponíveis
+    const questoesDisponiveis = await page.evaluate(() => {
+      const text = document.body.innerText;
+      const match = text.match(/(\d+)\s*questões encontradas/);
+      return match ? parseInt(match[1].replace(/\D/g, '')) : 0;
+    });
+
+    log(`Questões disponíveis para área ${areaNome}: ${questoesDisponiveis}`);
+
+    if (questoesDisponiveis === 0) {
+      throw new Error('Nenhuma questão encontrada para esta área');
     }
 
-    // 5. Criar cadernos respeitando limite de 30k
-    let cadernoNumero = 1;
-    let indiceMateria = 0;
-
-    while (indiceMateria < materias.length) {
-      // Configurar remover desatualizadas/anuladas
-      await removerQuestoesDesatualizadasEAnuladas();
-
-      // Configurar caderno com matérias até 30k
-      const { materiasUsadas, totalQuestoes } = await configurarCaderno(materias, indiceMateria);
-
-      if (materiasUsadas === 0) {
-        break;
+    // Clicar em "Remover desatualizadas" e "Remover anuladas" se disponível
+    const opcoesClicadas = await page.evaluate(() => {
+      const results: string[] = [];
+      const links = document.querySelectorAll('a');
+      for (const link of links) {
+        const text = link.textContent?.trim() || '';
+        if (text.includes('Remover desatualizadas') || text.includes('Remover anuladas')) {
+          (link as HTMLElement).click();
+          results.push(text);
+        }
       }
+      return results;
+    });
+    if (opcoesClicadas.length > 0) {
+      log(`Opções clicadas: ${opcoesClicadas.join(', ')}`);
+      await delay(CONFIG.delays.afterPageLoad);
+    }
 
-      // Salvar caderno
-      const nomeCaderno = `${areaNome} ${cadernoNumero}`;
-      const caderno = await salvarCaderno(nomeCaderno);
-
-      if (caderno) {
-        _progress.caderno = nomeCaderno;
-        _progress.questoesTotal = totalQuestoes;
-
-        // Coletar questões do caderno
-        const questoes = await coletarQuestoesDoCaderno(caderno);
-
-        // Salvar questões no banco
-        await salvarLoteQuestoes(questoes);
-
-        await delay(CONFIG.delays.betweenCadernos);
+    // Clicar em "GERAR CADERNO"
+    log('Clicando em GERAR CADERNO...');
+    const gerarClicked = await page.evaluate(() => {
+      const buttons = document.querySelectorAll('button, a, input[type="submit"]');
+      for (const btn of buttons) {
+        const text = btn.textContent?.trim().toUpperCase() || '';
+        if (text.includes('GERAR CADERNO') || text === 'GERAR') {
+          const rect = (btn as HTMLElement).getBoundingClientRect();
+          return { found: true, x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, text };
+        }
       }
+      return { found: false, x: 0, y: 0, text: '' };
+    });
 
-      indiceMateria += materiasUsadas;
-      cadernoNumero++;
+    if (!gerarClicked.found) {
+      throw new Error('Botão GERAR CADERNO não encontrado');
+    }
+
+    await page.mouse.click(gerarClicked.x, gerarClicked.y);
+    log(`Clicado em "${gerarClicked.text}"`);
+
+    // Aguardar navegação ou modal
+    await delay(5000);
+    await page.screenshot({ path: '/tmp/tec-apos-gerar.png', fullPage: true });
+
+    // Verificar URL para ver se foi redirecionado para um caderno
+    const currentUrl = page.url();
+    log(`URL após gerar: ${currentUrl}`);
+
+    // Extrair ID do caderno da URL se houver
+    let cadernoId = '';
+    const cadernoMatch = currentUrl.match(/cadernos?\/(\d+)/);
+    if (cadernoMatch) {
+      cadernoId = cadernoMatch[1];
+      log(`Caderno criado com ID: ${cadernoId}`);
+    }
+
+    // Se não foi redirecionado, pode ser que precise aguardar mais ou há um modal
+    if (!cadernoId) {
+      // Tentar encontrar link para o caderno criado
+      const cadernoLink = await page.evaluate(() => {
+        const links = document.querySelectorAll('a[href*="caderno"]');
+        for (const link of links) {
+          const href = link.getAttribute('href') || '';
+          const match = href.match(/cadernos?\/(\d+)/);
+          if (match) {
+            return { href, id: match[1] };
+          }
+        }
+        return null;
+      });
+
+      if (cadernoLink) {
+        cadernoId = cadernoLink.id;
+        log(`Caderno encontrado via link: ${cadernoId}`);
+        await page.goto(`${CONFIG.baseUrl}${cadernoLink.href}`, { waitUntil: 'networkidle2' });
+        await delay(CONFIG.delays.afterPageLoad);
+      }
+    }
+
+    if (!cadernoId) {
+      // Tentar navegar para a página de cadernos e pegar o mais recente
+      log('Navegando para lista de cadernos...');
+      await page.goto(`${CONFIG.baseUrl}/questoes/cadernos`, { waitUntil: 'networkidle2' });
+      await delay(CONFIG.delays.afterPageLoad);
+      await page.screenshot({ path: '/tmp/tec-lista-cadernos.png', fullPage: true });
+
+      // Pegar o primeiro caderno da lista (mais recente)
+      const primeiroCaderno = await page.evaluate(() => {
+        const links = document.querySelectorAll('a[href*="caderno"]');
+        for (const link of links) {
+          const href = link.getAttribute('href') || '';
+          const match = href.match(/cadernos?\/(\d+)/);
+          if (match) {
+            return { href, id: match[1], text: link.textContent?.trim() || '' };
+          }
+        }
+        return null;
+      });
+
+      if (primeiroCaderno) {
+        cadernoId = primeiroCaderno.id;
+        log(`Usando caderno mais recente: ${primeiroCaderno.text} (ID: ${cadernoId})`);
+        await page.goto(`${CONFIG.baseUrl}${primeiroCaderno.href}`, { waitUntil: 'networkidle2' });
+        await delay(CONFIG.delays.afterPageLoad);
+      }
+    }
+
+    if (!cadernoId) {
+      throw new Error('Não foi possível encontrar ou criar o caderno');
+    }
+
+    // Agora estamos na página do caderno, vamos coletar as questões
+    const nomeCaderno = `${areaNome} - Auto`;
+    _progress.caderno = nomeCaderno;
+    _progress.questoesTotal = Math.min(questoesDisponiveis, CONFIG.maxQuestoesPorCaderno);
+
+    const caderno: CadernoInfo = {
+      id: cadernoId,
+      nome: nomeCaderno,
+      area: areaNome,
+      totalQuestoes: _progress.questoesTotal,
+      url: page.url(),
+    };
+
+    // Coletar questões
+    const questoes = await coletarQuestoesDoCaderno(caderno);
+
+    if (questoes.length > 0) {
+      // Salvar questões no banco
+      await salvarLoteQuestoes(questoes);
+      log(`Salvadas ${questoes.length} questões no banco`);
+    } else {
+      log('Nenhuma questão foi coletada', 'warn');
     }
 
     _progress.status = 'completed';
