@@ -704,45 +704,47 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
       // PASSO 3: Após expandir a área, clicar em "Todo o conteúdo de..." para selecionar tudo
       log(`Procurando "Todo o conteúdo de" para selecionar toda a área...`);
 
-      // Usar Puppeteer findElementByText para clicar
-      let todoConteudoEl = await findElementByText(page, 'span, a, div, label', `Todo o conteúdo de`);
-      if (!todoConteudoEl) {
-        todoConteudoEl = await findElementByText(page, 'span, a, div, label', 'Todo o conteúdo');
-      }
+      // IMPORTANTE: Procurar especificamente "Todo o conteúdo de 'AREA'" para não clicar na área errada
+      log(`Procurando "Todo o conteúdo de '${areaNome}'"`);
 
-      if (todoConteudoEl) {
-        try {
-          // Tentar scroll até o elemento
-          await todoConteudoEl.evaluate((el: HTMLElement) => el.scrollIntoView({ behavior: 'instant', block: 'center' }));
-          await delay(300);
-
-          // Obter bounding box para clicar no centro
-          const box = await todoConteudoEl.boundingBox();
-          if (box) {
-            await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-            log(`Clicado em "Todo o conteúdo de" via coordenadas`);
-          } else {
-            await todoConteudoEl.click();
-            log(`Clicado em "Todo o conteúdo de" via .click()`);
+      // Usar page.evaluate para encontrar o elemento correto com texto específico
+      const todoConteudoFound = await page.evaluate((areaNome) => {
+        const elements = document.querySelectorAll('span, a, div');
+        for (const el of elements) {
+          const text = el.textContent?.trim() || '';
+          // Procurar por "Todo o conteúdo de 'Policial'" especificamente
+          if (text.includes('Todo o conteúdo') && text.toLowerCase().includes(areaNome.toLowerCase())) {
+            // Retornar informações para clicar depois
+            const rect = el.getBoundingClientRect();
+            return {
+              found: true,
+              text,
+              x: rect.x + rect.width / 2,
+              y: rect.y + rect.height / 2,
+            };
           }
-          await delay(CONFIG.delays.afterPageLoad);
-        } catch (clickErr) {
-          log(`Erro ao clicar em "Todo o conteúdo": ${clickErr}`, 'warn');
         }
-      } else {
-        log('Não encontrou "Todo o conteúdo", tentando via página direta...', 'warn');
+        return { found: false, text: '', x: 0, y: 0 };
+      }, areaNome);
 
-        // Tentar via XPath ou texto parcial
+      if (todoConteudoFound.found) {
+        log(`Encontrado: "${todoConteudoFound.text}", clicando em (${todoConteudoFound.x}, ${todoConteudoFound.y})`);
+        await page.mouse.click(todoConteudoFound.x, todoConteudoFound.y);
+        await delay(CONFIG.delays.afterPageLoad);
+      } else {
+        log(`Não encontrou "Todo o conteúdo de '${areaNome}'", tentando alternativa...`, 'warn');
+
+        // Tentar clicar diretamente no label/checkbox
         const allSpans = await page.$$('span');
         for (const span of allSpans) {
           const text = await span.evaluate(el => el.textContent || '');
-          if (text.includes('Todo o conteúdo')) {
-            log(`Encontrado span com "${text}", clicando...`);
+          if (text.includes('Todo o conteúdo') && text.includes(areaNome)) {
+            log(`Encontrado span alternativo: "${text}", clicando...`);
             const box = await span.boundingBox();
             if (box) {
               await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+              await delay(CONFIG.delays.afterPageLoad);
             }
-            await delay(CONFIG.delays.afterPageLoad);
             break;
           }
         }
@@ -786,15 +788,33 @@ async function obterMateriasComQuantidades(): Promise<MateriaQuantidade[]> {
 
   try {
     log('Obtendo matérias e quantidades...');
+    await page.screenshot({ path: '/tmp/tec-antes-editar-qtd.png', fullPage: true });
 
-    // Clicar em "Editar quantidades"
-    let editarQtdBtn = await page.$('.edit-quantities, [data-action="editar-quantidades"]');
-    if (!editarQtdBtn) {
-      editarQtdBtn = await findElementByText(page, 'a, button', 'Editar quantidades');
-    }
-    if (editarQtdBtn) {
-      await editarQtdBtn.click();
+    // Clicar em "Editar quantidades" usando page.evaluate para maior precisão
+    const editarQtdClicked = await page.evaluate(() => {
+      const elements = document.querySelectorAll('a, button, span, div');
+      for (const el of elements) {
+        const text = el.textContent?.trim() || '';
+        if (text === 'Editar quantidades' || text.includes('Editar quantidades')) {
+          const rect = el.getBoundingClientRect();
+          return {
+            found: true,
+            text,
+            x: rect.x + rect.width / 2,
+            y: rect.y + rect.height / 2,
+          };
+        }
+      }
+      return { found: false, text: '', x: 0, y: 0 };
+    });
+
+    if (editarQtdClicked.found) {
+      log(`Encontrado "Editar quantidades", clicando em (${editarQtdClicked.x}, ${editarQtdClicked.y})`);
+      await page.mouse.click(editarQtdClicked.x, editarQtdClicked.y);
       await delay(CONFIG.delays.afterPageLoad);
+      await page.screenshot({ path: '/tmp/tec-apos-editar-qtd.png', fullPage: true });
+    } else {
+      log('"Editar quantidades" não encontrado', 'warn');
     }
 
     // Coletar todas as matérias com suas quantidades
