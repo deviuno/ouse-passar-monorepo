@@ -1697,47 +1697,9 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
             await page.mouse.click(inputInfo.x, inputInfo.y, { clickCount: 3 });
             await delay(100);
 
-            // 3. Usar PASTE via clipboard que pode triggerar AngularJS corretamente
+            // 3. Usar keyboard.type que funcionava para setar DOM (mesmo que Angular não reconheça)
             const valueToType = String(materia.quantidade);
-
-            // Copiar valor para clipboard e colar
-            await page.evaluate((val) => {
-              // Criar elemento temporário para copiar
-              const textarea = document.createElement('textarea');
-              textarea.value = val;
-              document.body.appendChild(textarea);
-              textarea.select();
-              document.execCommand('copy');
-              document.body.removeChild(textarea);
-            }, valueToType);
-
-            // Colar no input (Ctrl+V)
-            await page.keyboard.down('Control');
-            await page.keyboard.press('KeyV');
-            await page.keyboard.up('Control');
-            await delay(200);
-
-            // Também tentar Input.dispatchKeyEvent para simular paste
-            try {
-              const client = await page.createCDPSession();
-              // Disparar evento de paste
-              await client.send('Input.dispatchKeyEvent', {
-                type: 'keyDown',
-                key: 'v',
-                code: 'KeyV',
-                modifiers: 2, // Ctrl
-              });
-              await client.send('Input.dispatchKeyEvent', {
-                type: 'keyUp',
-                key: 'v',
-                code: 'KeyV',
-                modifiers: 2,
-              });
-              await client.detach();
-            } catch {
-              // Ignorar erros de CDP
-            }
-
+            await page.keyboard.type(valueToType, { delay: 30 });
             await delay(200);
 
             // 5. Tab para blur
