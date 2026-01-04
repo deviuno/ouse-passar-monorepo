@@ -1657,217 +1657,224 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
           break;
         }
 
-        // Preencher quantidade desta matéria
-        // Abordagem: usar Ctrl+A para selecionar tudo e depois digitar
+        // Preencher quantidade desta matéria usando NOVA ABORDAGEM:
+        // 1. Usar page.click() para focar no input específico
+        // 2. Triple-click para selecionar todo o conteúdo
+        // 3. Usar document.execCommand('insertText') que trigera AngularJS corretamente
         let preenchido = false;
 
         try {
-          // Obter todos os inputs e pegar o específico pelo índice
-          const inputs = await page.$$('input[type="number"], input[type="text"]');
-          const inputElement = inputs[materia.indice];
+          // Obter bounding box do input para clicar diretamente nele
+          const inputInfo = await page.evaluate((idx) => {
+            const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+            if (idx >= allInputs.length) return null;
 
-          if (inputElement) {
-            // Scroll até o input para garantir que está visível
-            await page.evaluate((idx) => {
+            const input = allInputs[idx] as HTMLInputElement;
+            input.scrollIntoView({ block: 'center' });
+
+            const rect = input.getBoundingClientRect();
+            return {
+              x: rect.x + rect.width / 2,
+              y: rect.y + rect.height / 2,
+              visible: rect.width > 0 && rect.height > 0
+            };
+          }, materia.indice);
+
+          if (inputInfo && inputInfo.visible) {
+            // Clicar no input para focar (usando coordenadas absolutas)
+            await page.mouse.click(inputInfo.x, inputInfo.y);
+            await delay(100);
+
+            // Triple-click para selecionar todo o texto
+            await page.mouse.click(inputInfo.x, inputInfo.y, { clickCount: 3 });
+            await delay(100);
+
+            // ABORDAGEM 1: document.execCommand('insertText') - melhor para AngularJS
+            const execSuccess = await page.evaluate((idx, qtd) => {
               const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-              if (allInputs[idx]) {
-                allInputs[idx].scrollIntoView({ block: 'center' });
-              }
-            }, materia.indice);
-            await delay(50);
+              if (idx >= allInputs.length) return false;
 
-            // Tentar modificar diretamente o scope do Angular
-            const angularSuccess = await page.evaluate((idx, qtd) => {
-              const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-              if (idx >= inputs.length) return false;
+              const input = allInputs[idx] as HTMLInputElement;
 
-              const input = inputs[idx] as HTMLInputElement;
-              const win = window as unknown as { angular?: { element: (el: Element) => {
-                scope: () => Record<string, unknown> | undefined;
-                isolateScope: () => Record<string, unknown> | undefined;
-                controller: (name: string) => { $setViewValue: (v: string) => void; $render: () => void } | undefined;
-              } } };
+              // Garantir que o input está focado
+              input.focus();
 
-              if (win.angular) {
-                try {
-                  const angEl = win.angular.element(input);
+              // Selecionar todo o conteúdo
+              input.select();
 
-                  // Obter o scope
-                  const scope = angEl.scope?.() || angEl.isolateScope?.();
-                  const ngModel = angEl.controller?.('ngModel');
-
-                  if (scope && ngModel) {
-                    // Setar via ngModel controller
-                    ngModel.$setViewValue(String(qtd));
-                    ngModel.$render();
-
-                    // Forçar digest
-                    if (typeof (scope as Record<string, unknown>)['$apply'] === 'function') {
-                      (scope as { $apply: (fn?: () => void) => void }).$apply();
-                    }
-
-                    return true;
-                  }
-
-                  // Tentar encontrar o modelo diretamente no scope
-                  if (scope) {
-                    // Procurar propriedade que parece ser quantidade
-                    const ngModelAttr = input.getAttribute('ng-model');
-                    if (ngModelAttr) {
-                      // Exemplo: "vm.materia.qtd" ou "item.quantidade"
-                      const parts = ngModelAttr.split('.');
-                      let target: unknown = scope;
-                      for (let i = 0; i < parts.length - 1; i++) {
-                        target = (target as Record<string, unknown>)?.[parts[i]];
-                      }
-                      if (target && typeof target === 'object') {
-                        const lastKey = parts[parts.length - 1];
-                        (target as Record<string, unknown>)[lastKey] = parseInt(String(qtd), 10);
-
-                        // Forçar digest
-                        if (typeof (scope as Record<string, unknown>)['$apply'] === 'function') {
-                          (scope as { $apply: (fn?: () => void) => void }).$apply();
-                        }
-                        return true;
-                      }
-                    }
-                  }
-                } catch (e) {
-                  console.log('Angular error:', e);
-                }
-              }
-
-              return false;
-            }, materia.indice, materia.quantidade);
-
-            if (angularSuccess) {
-              await delay(100);
-            } else {
-              // Fallback: usar keyboard
-              await inputElement.click();
-              await delay(50);
-
-              // Ctrl+A para selecionar tudo
-              await page.keyboard.down('Control');
-              await page.keyboard.press('a');
-              await page.keyboard.up('Control');
-              await delay(50);
-
-              // Digitar o valor
-              await page.keyboard.type(String(materia.quantidade), { delay: 30 });
-              await delay(150);
-
-              // Tab para triggerar blur/change
-              await page.keyboard.press('Tab');
-              await delay(300);
-            }
-
-            // Verificar se o valor foi setado no DOM
-            const valorSetado = await page.evaluate((indice) => {
-              const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-              if (indice < allInputs.length) {
-                return (allInputs[indice] as HTMLInputElement).value;
-              }
-              return '';
-            }, materia.indice);
-
-            // Verificar também o Total no caderno
-            const totalAtual = await page.evaluate(() => {
-              const text = document.body.innerText || '';
-              const match = text.match(/Total no caderno[:\s]+(\d+)/i);
-              return match ? parseInt(match[1], 10) : 0;
-            });
-
-            if (valorSetado === String(materia.quantidade) && totalAtual > 0) {
-              preenchido = true;
-            } else {
-              log(`  [!] DOM value: ${valorSetado}, Total na página: ${totalAtual}`, 'warn');
-
-              // Abordagem alternativa: usar jQuery trigger que AngularJS reconhece
-              const success = await page.evaluate((indice, qtd) => {
-                const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-                if (indice >= allInputs.length) return false;
-
-                const input = allInputs[indice] as HTMLInputElement;
-                interface JQLite {
-                  val: (v?: string) => JQLite;
-                  trigger: (e: string) => JQLite;
-                  triggerHandler: (e: string) => JQLite;
-                }
-                const win = window as unknown as {
-                  angular?: { element: (el: Element) => JQLite };
-                  jQuery?: (el: Element) => JQLite;
-                };
-
-                // Método 1: Usar jQuery se disponível
-                if (win.jQuery) {
-                  try {
-                    win.jQuery(input).val(String(qtd)).trigger('input').trigger('change');
-                    return true;
-                  } catch {
-                    // Continuar
-                  }
-                }
-
-                // Método 2: Usar angular.element
-                if (win.angular) {
-                  try {
-                    const angEl = win.angular.element(input);
-                    angEl.val(String(qtd));
-                    angEl.triggerHandler('input');
-                    angEl.triggerHandler('change');
-                    angEl.trigger('input');
-                    angEl.trigger('change');
-                    return true;
-                  } catch {
-                    // Continuar
-                  }
-                }
-
-                // Método 3: Criar eventos com KeyboardEvent
-                input.focus();
-                input.select();
-
-                // Simular keypress
-                for (const char of String(qtd)) {
-                  const keyEvent = new KeyboardEvent('keypress', {
-                    key: char,
-                    code: `Digit${char}`,
-                    charCode: char.charCodeAt(0),
-                    keyCode: char.charCodeAt(0),
-                    which: char.charCodeAt(0),
-                    bubbles: true
-                  });
-                  input.dispatchEvent(keyEvent);
-                }
-
-                input.value = String(qtd);
-
-                // Disparar eventos na ordem correta
-                ['input', 'change', 'blur'].forEach(eventName => {
-                  const evt = document.createEvent('HTMLEvents');
-                  evt.initEvent(eventName, true, true);
-                  input.dispatchEvent(evt);
-                });
-
-                return true;
-              }, materia.indice, materia.quantidade);
+              // Usar execCommand para inserir texto (funciona melhor com frameworks)
+              const doc = document as Document & { execCommand: (cmd: string, ui: boolean, value?: string) => boolean };
+              const success = doc.execCommand('insertText', false, String(qtd));
 
               if (success) {
-                // Verificar novamente
+                // Disparar input event manualmente para garantir
+                input.dispatchEvent(new InputEvent('input', {
+                  bubbles: true,
+                  cancelable: true,
+                  inputType: 'insertText',
+                  data: String(qtd)
+                }));
+              }
+
+              return success;
+            }, materia.indice, materia.quantidade);
+
+            if (!execSuccess) {
+              // ABORDAGEM 2: Puppeteer keyboard type com clear manual
+              log(`  execCommand falhou, usando keyboard type...`);
+
+              // Limpar com backspace/delete
+              await page.keyboard.press('End');
+              await page.keyboard.down('Shift');
+              await page.keyboard.press('Home');
+              await page.keyboard.up('Shift');
+              await page.keyboard.press('Delete');
+              await delay(50);
+
+              // Digitar caractere por caractere com delay
+              const valueStr = String(materia.quantidade);
+              for (const char of valueStr) {
+                await page.keyboard.press(char as any);
+                await delay(20);
+              }
+            }
+
+            await delay(150);
+
+            // Tab para sair do campo e triggerar blur/change
+            await page.keyboard.press('Tab');
+            await delay(300);
+
+            // Verificar se o valor foi setado E se AngularJS reconheceu
+            const resultado = await page.evaluate((idx, qtdEsperada) => {
+              const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+              const input = allInputs[idx] as HTMLInputElement;
+              const valorDOM = input?.value || '';
+
+              // Verificar Total no caderno
+              const text = document.body.innerText || '';
+              const match = text.match(/Total no caderno[:\s]+(\d[\d.,]*)/i);
+              const totalNaPagina = match ? parseInt(match[1].replace(/[.,]/g, ''), 10) : 0;
+
+              return {
+                valorDOM,
+                totalNaPagina,
+                correto: valorDOM === String(qtdEsperada) && totalNaPagina > 0
+              };
+            }, materia.indice, materia.quantidade);
+
+            if (resultado.correto) {
+              preenchido = true;
+            } else {
+              log(`  [!] DOM: ${resultado.valorDOM}, Total: ${resultado.totalNaPagina}`, 'warn');
+
+              // ABORDAGEM 3: Forçar AngularJS digest manualmente após setar valor
+              if (resultado.valorDOM === String(materia.quantidade)) {
+                // Valor DOM está correto, problema é o Angular não reconhecer
+                // Tentar forçar $apply no scope raiz
+                const angularForced = await page.evaluate(() => {
+                  interface AngularScope {
+                    $apply: (fn?: () => void) => void;
+                    $root: AngularScope;
+                    $digest: () => void;
+                  }
+                  interface AngularJSLib {
+                    element: (el: Element | Document) => {
+                      scope: () => AngularScope | undefined;
+                      injector: () => { get: (name: string) => { $apply: (fn?: () => void) => void } } | undefined;
+                    };
+                  }
+                  const win = window as unknown as { angular?: AngularJSLib };
+
+                  if (win.angular) {
+                    try {
+                      // Pegar $rootScope e forçar $digest
+                      const angEl = win.angular.element(document);
+                      const scope = angEl.scope?.();
+
+                      if (scope && scope.$root) {
+                        scope.$root.$apply();
+                        return 'applied-via-root';
+                      }
+
+                      // Alternativa: usar $injector
+                      const injector = angEl.injector?.();
+                      if (injector) {
+                        const rootScope = injector.get('$rootScope');
+                        if (rootScope) {
+                          rootScope.$apply();
+                          return 'applied-via-injector';
+                        }
+                      }
+                    } catch (e) {
+                      return `error: ${e}`;
+                    }
+                  }
+                  return 'no-angular';
+                });
+
+                log(`  Angular force: ${angularForced}`);
+
+                // Verificar novamente após forçar digest
                 await delay(200);
                 const novoTotal = await page.evaluate(() => {
                   const text = document.body.innerText || '';
-                  const match = text.match(/Total no caderno[:\s]+(\d+)/i);
-                  return match ? parseInt(match[1], 10) : 0;
+                  const match = text.match(/Total no caderno[:\s]+(\d[\d.,]*)/i);
+                  return match ? parseInt(match[1].replace(/[.,]/g, ''), 10) : 0;
                 });
 
                 if (novoTotal > 0) {
                   preenchido = true;
-                  log(`  [✓] Angular reconheceu após fallback: Total=${novoTotal}`);
+                  log(`  [✓] Angular reconheceu após forçar digest: Total=${novoTotal}`);
+                } else {
+                  // ABORDAGEM 4: Simular InputEvent nativo que AngularJS deve reconhecer
+                  await page.evaluate((idx, qtd) => {
+                    const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+                    const input = allInputs[idx] as HTMLInputElement;
+
+                    if (!input) return;
+
+                    // Limpar e setar valor usando propriedade nativa
+                    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+                    if (nativeSetter) {
+                      nativeSetter.call(input, String(qtd));
+                    }
+
+                    // Criar e disparar InputEvent completo
+                    const inputEvent = new InputEvent('input', {
+                      bubbles: true,
+                      cancelable: true,
+                      inputType: 'insertReplacementText',
+                      data: String(qtd),
+                      dataTransfer: null,
+                      isComposing: false,
+                    });
+                    input.dispatchEvent(inputEvent);
+
+                    // Também disparar eventos de teclado simulando digitação
+                    const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                    input.dispatchEvent(changeEvent);
+
+                    // Blur para finalizar
+                    input.blur();
+                  }, materia.indice, materia.quantidade);
+
+                  await delay(200);
+                  const finalTotal = await page.evaluate(() => {
+                    const text = document.body.innerText || '';
+                    const match = text.match(/Total no caderno[:\s]+(\d[\d.,]*)/i);
+                    return match ? parseInt(match[1].replace(/[.,]/g, ''), 10) : 0;
+                  });
+
+                  if (finalTotal > 0) {
+                    preenchido = true;
+                    log(`  [✓] Angular reconheceu após InputEvent nativo: Total=${finalTotal}`);
+                  }
                 }
               }
             }
+          } else {
+            log(`  Input ${materia.indice} não está visível ou não existe`, 'warn');
           }
         } catch (err) {
           log(`  Erro ao preencher input ${materia.indice}: ${err instanceof Error ? err.message : String(err)}`, 'error');
