@@ -1657,8 +1657,8 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
           break;
         }
 
-        // Preencher quantidade desta matéria usando page.type() para simular digitação real
-        // Isso é mais compatível com AngularJS do que manipular valores diretamente
+        // Preencher quantidade desta matéria
+        // Abordagem: usar Ctrl+A para selecionar tudo e depois digitar
         let preenchido = false;
 
         try {
@@ -1674,22 +1674,25 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
                 allInputs[idx].scrollIntoView({ block: 'center' });
               }
             }, materia.indice);
-            await delay(30);
+            await delay(50);
 
-            // Triplo clique para selecionar todo o conteúdo existente e focar
-            await inputElement.click({ clickCount: 3 });
-            await delay(30);
+            // Clicar para focar
+            await inputElement.click();
+            await delay(50);
 
-            // Digitar o valor (isso substitui o conteúdo selecionado)
-            // Usar delay maior para AngularJS processar cada caractere
-            await page.keyboard.type(String(materia.quantidade), { delay: 20 });
-            await delay(100);
+            // Ctrl+A para selecionar tudo
+            await page.keyboard.down('Control');
+            await page.keyboard.press('a');
+            await page.keyboard.up('Control');
+            await delay(50);
 
-            // Tab para sair do input e triggerar blur/change do AngularJS
+            // Digitar o valor (substitui seleção)
+            await page.keyboard.type(String(materia.quantidade), { delay: 30 });
+            await delay(150);
+
+            // Tab para triggerar blur/change do AngularJS
             await page.keyboard.press('Tab');
-            await delay(200);
-
-            preenchido = true;
+            await delay(300);
 
             // Verificar se o valor foi setado corretamente
             const valorSetado = await page.evaluate((indice) => {
@@ -1700,8 +1703,51 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
               return '';
             }, materia.indice);
 
-            if (valorSetado !== String(materia.quantidade)) {
-              log(`  [!] Valor esperado: ${materia.quantidade}, valor setado: ${valorSetado}`, 'warn');
+            if (valorSetado === String(materia.quantidade)) {
+              preenchido = true;
+            } else {
+              log(`  [!] Valor NÃO setado! Esperado: ${materia.quantidade}, atual: ${valorSetado}`, 'warn');
+
+              // Tentar abordagem alternativa: usar Angular diretamente
+              const angularSetado = await page.evaluate((indice, qtd) => {
+                const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+                if (indice < allInputs.length) {
+                  const input = allInputs[indice] as HTMLInputElement;
+
+                  // Tentar definir via Angular
+                  const win = window as unknown as { angular?: { element: (el: Element) => unknown } };
+                  if (win.angular) {
+                    try {
+                      const angEl = win.angular.element(input) as { scope?: () => { $apply: (fn: () => void) => void }; controller?: (name: string) => { $setViewValue: (v: string) => void; $render: () => void } };
+                      const scope = angEl.scope?.();
+                      const ngModel = angEl.controller?.('ngModel');
+
+                      if (ngModel) {
+                        scope?.$apply(() => {
+                          ngModel.$setViewValue(String(qtd));
+                          ngModel.$render();
+                        });
+                        return input.value;
+                      }
+                    } catch {
+                      // Ignorar
+                    }
+                  }
+
+                  // Fallback: setar direto e disparar eventos
+                  input.value = String(qtd);
+                  input.dispatchEvent(new Event('input', { bubbles: true }));
+                  input.dispatchEvent(new Event('change', { bubbles: true }));
+                  input.dispatchEvent(new Event('blur', { bubbles: true }));
+                  return input.value;
+                }
+                return '';
+              }, materia.indice, materia.quantidade);
+
+              if (angularSetado === String(materia.quantidade)) {
+                preenchido = true;
+                log(`  [✓] Valor setado via Angular: ${angularSetado}`);
+              }
             }
           }
         } catch (err) {
@@ -1754,6 +1800,26 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
       }, nomeCaderno);
 
       await delay(500);
+
+      // Verificar "Total no caderno" na página antes de gerar
+      const totalNaPagina = await page.evaluate(() => {
+        const bodyText = document.body.innerText || '';
+        // Procurar "Total no caderno: X" ou similar
+        const match = bodyText.match(/Total no caderno[:\s]+(\d+)/i);
+        if (match) return parseInt(match[1], 10);
+        // Tentar alternativa
+        const match2 = bodyText.match(/(\d+)\s*questões? no caderno/i);
+        if (match2) return parseInt(match2[1], 10);
+        return 0;
+      });
+
+      log(`Total no caderno (página): ${totalNaPagina}`);
+
+      if (totalNaPagina === 0) {
+        log('AVISO: Total no caderno é 0! Os valores não foram registrados pelo AngularJS', 'error');
+        // Continuar mesmo assim para ver o que acontece, mas logar o aviso
+      }
+
       await page.screenshot({ path: `/tmp/tec-caderno-${cadernoNumero}-antes.png`, fullPage: true });
 
       // 4.4.4 Clicar em GERAR CADERNO
