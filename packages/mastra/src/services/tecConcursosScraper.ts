@@ -144,6 +144,28 @@ function log(message: string, level: 'info' | 'warn' | 'error' = 'info'): void {
   }
 }
 
+// Função auxiliar para encontrar elemento por texto (substitui :has-text())
+async function findElementByText(page: Page, selector: string, text: string): Promise<any> {
+  const elements = await page.$$(selector);
+  for (const el of elements) {
+    const elText = await el.evaluate((node: Element) => node.textContent || '');
+    if (elText.toLowerCase().includes(text.toLowerCase())) {
+      return el;
+    }
+  }
+  return null;
+}
+
+// Função auxiliar para clicar em elemento por texto
+async function clickByText(page: Page, selector: string, text: string): Promise<boolean> {
+  const el = await findElementByText(page, selector, text);
+  if (el) {
+    await el.click();
+    return true;
+  }
+  return false;
+}
+
 // ==================== COOKIE MANAGEMENT ====================
 
 async function saveCookies(page: Page): Promise<void> {
@@ -450,12 +472,11 @@ async function login(): Promise<boolean> {
       'button.btn-primary',
       'button.btn-login',
       '.btn-login',
-      'button:has-text("Entrar")',
-      'button:has-text("Login")',
       'form button'
     ];
 
     let submitted = false;
+    // Tentar seletores CSS primeiro
     for (const selector of submitSelectors) {
       try {
         const submitBtn = await page.$(selector);
@@ -467,6 +488,24 @@ async function login(): Promise<boolean> {
         }
       } catch {
         // Continuar tentando outros seletores
+      }
+    }
+
+    // Se não encontrou, tentar por texto
+    if (!submitted) {
+      const entrarBtn = await findElementByText(page, 'button', 'Entrar');
+      if (entrarBtn) {
+        log('Botão "Entrar" encontrado por texto');
+        await entrarBtn.click();
+        submitted = true;
+      }
+    }
+    if (!submitted) {
+      const loginBtn = await findElementByText(page, 'button', 'Login');
+      if (loginBtn) {
+        log('Botão "Login" encontrado por texto');
+        await loginBtn.click();
+        submitted = true;
       }
     }
 
@@ -563,42 +602,83 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
   try {
     log(`Selecionando área: ${areaNome}`);
 
-    // Clicar em "Novo Caderno"
-    const novoCadernoBtn = await page.$('button:has-text("Novo Caderno"), a:has-text("Novo Caderno"), .btn-novo-caderno');
-    if (novoCadernoBtn) {
-      await novoCadernoBtn.click();
-      await delay(CONFIG.delays.afterPageLoad);
+    // Salvar screenshot para debug
+    await page.screenshot({ path: '/tmp/tec-pastas-page.png', fullPage: true });
+    log('Screenshot da página de pastas salvo em /tmp/tec-pastas-page.png');
+
+    // Clicar em "Novo Caderno" - usando findElementByText
+    let novoCadernoBtn = await page.$('.btn-novo-caderno, .novo-caderno, [data-action="novo-caderno"]');
+    if (!novoCadernoBtn) {
+      novoCadernoBtn = await findElementByText(page, 'button, a', 'Novo Caderno');
+    }
+    if (!novoCadernoBtn) {
+      novoCadernoBtn = await findElementByText(page, 'button, a', 'novo caderno');
     }
 
-    // Encontrar e clicar no filtro de área
-    // Isso vai depender da estrutura do site
-    const areaFilterSelector = `[data-area="${areaNome}"], label:has-text("${areaNome}"), .area-filter:has-text("${areaNome}")`;
+    if (novoCadernoBtn) {
+      log('Botão "Novo Caderno" encontrado, clicando...');
+      await novoCadernoBtn.click();
+      await delay(CONFIG.delays.afterPageLoad);
+    } else {
+      log('Botão "Novo Caderno" não encontrado, tentando continuar...');
+    }
 
-    await page.waitForSelector(areaFilterSelector, { timeout: 10000 }).catch(() => null);
-    const areaFilter = await page.$(areaFilterSelector);
+    // Salvar screenshot após clicar
+    await page.screenshot({ path: '/tmp/tec-novo-caderno.png', fullPage: true });
+    log('Screenshot após "Novo Caderno" salvo');
+
+    // Encontrar e clicar no filtro de área
+    // Primeiro tentar por data attribute
+    let areaFilter = await page.$(`[data-area="${areaNome}"]`);
+
+    // Se não encontrou, tentar buscar por texto
+    if (!areaFilter) {
+      // Tentar em labels
+      areaFilter = await findElementByText(page, 'label, .area-filter, .filter-item', areaNome);
+    }
+
+    // Tentar em links/buttons
+    if (!areaFilter) {
+      areaFilter = await findElementByText(page, 'a, button, .area-item', areaNome);
+    }
+
+    // Tentar em itens de lista
+    if (!areaFilter) {
+      areaFilter = await findElementByText(page, 'li, div.item, .list-item', areaNome);
+    }
 
     if (areaFilter) {
+      log(`Área "${areaNome}" encontrada, clicando...`);
       await areaFilter.click();
       await delay(CONFIG.delays.afterPageLoad);
+      await page.screenshot({ path: '/tmp/tec-area-selecionada.png', fullPage: true });
       return true;
     }
 
     // Tentar abordagem alternativa - clicar no accordion/dropdown de área
-    const areaAccordion = await page.$$('.area-item, .filter-area, .accordion-item');
-    for (const item of areaAccordion) {
-      const text = await item.evaluate(el => el.textContent);
-      if (text?.includes(areaNome)) {
-        await item.click();
-        await delay(CONFIG.delays.afterPageLoad);
-        return true;
+    const allElements = await page.$$('*');
+    for (const item of allElements) {
+      try {
+        const text = await item.evaluate(el => el.textContent?.trim() || '');
+        const tagName = await item.evaluate(el => el.tagName.toLowerCase());
+        if (text === areaNome && ['a', 'button', 'label', 'span', 'div', 'li'].includes(tagName)) {
+          log(`Encontrado elemento ${tagName} com texto exato "${areaNome}"`);
+          await item.click();
+          await delay(CONFIG.delays.afterPageLoad);
+          return true;
+        }
+      } catch {
+        continue;
       }
     }
 
     log(`Área "${areaNome}" não encontrada`, 'warn');
+    await page.screenshot({ path: '/tmp/tec-area-nao-encontrada.png', fullPage: true });
     return false;
 
   } catch (error) {
     log(`Erro ao selecionar área: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    await page.screenshot({ path: '/tmp/tec-area-erro.png', fullPage: true }).catch(() => {});
     return false;
   }
 }
@@ -611,7 +691,10 @@ async function obterMateriasComQuantidades(): Promise<MateriaQuantidade[]> {
     log('Obtendo matérias e quantidades...');
 
     // Clicar em "Editar quantidades"
-    const editarQtdBtn = await page.$('a:has-text("Editar quantidades"), button:has-text("Editar quantidades"), .edit-quantities');
+    let editarQtdBtn = await page.$('.edit-quantities, [data-action="editar-quantidades"]');
+    if (!editarQtdBtn) {
+      editarQtdBtn = await findElementByText(page, 'a, button', 'Editar quantidades');
+    }
     if (editarQtdBtn) {
       await editarQtdBtn.click();
       await delay(CONFIG.delays.afterPageLoad);
@@ -670,8 +753,13 @@ async function configurarCaderno(materias: MateriaQuantidade[], indiceInicial: n
         if (materiasUsadas === 0) {
           // Se é a primeira matéria e já ultrapassa, adicionar parcialmente
           const qtdParcial = CONFIG.maxQuestoesPorCaderno - totalQuestoes;
-          // Encontrar o input da matéria e definir quantidade parcial
-          const materiaInput = await page.$(`input[data-materia="${materia.nome}"], tr:has-text("${materia.nome}") input`);
+          // Encontrar o input da matéria
+          let materiaInput = await page.$(`input[data-materia="${materia.nome}"]`);
+          if (!materiaInput) {
+            // Buscar na linha que contém o nome da matéria
+            const row = await findElementByText(page, 'tr', materia.nome);
+            if (row) materiaInput = await row.$('input');
+          }
           if (materiaInput) {
             await materiaInput.click({ clickCount: 3 });
             await materiaInput.type(String(qtdParcial));
@@ -683,7 +771,12 @@ async function configurarCaderno(materias: MateriaQuantidade[], indiceInicial: n
       }
 
       // Encontrar o input da matéria e definir quantidade
-      const materiaInput = await page.$(`input[data-materia="${materia.nome}"], tr:has-text("${materia.nome}") input`);
+      let materiaInput = await page.$(`input[data-materia="${materia.nome}"]`);
+      if (!materiaInput) {
+        // Buscar na linha que contém o nome da matéria
+        const row = await findElementByText(page, 'tr', materia.nome);
+        if (row) materiaInput = await row.$('input');
+      }
       if (materiaInput) {
         await materiaInput.click({ clickCount: 3 });
         await materiaInput.type(String(materia.quantidade));
@@ -708,7 +801,11 @@ async function removerQuestoesDesatualizadasEAnuladas(): Promise<void> {
     log('Removendo questões desatualizadas e anuladas...');
 
     // Procurar checkboxes para remover questões desatualizadas
-    const desatualizadasCheckbox = await page.$('input[name="remover_desatualizadas"], #remover-desatualizadas, label:has-text("desatualizada") input');
+    let desatualizadasCheckbox = await page.$('input[name="remover_desatualizadas"], #remover-desatualizadas');
+    if (!desatualizadasCheckbox) {
+      const label = await findElementByText(page, 'label', 'desatualizada');
+      if (label) desatualizadasCheckbox = await label.$('input');
+    }
     if (desatualizadasCheckbox) {
       const isChecked = await desatualizadasCheckbox.evaluate(el => (el as HTMLInputElement).checked);
       if (!isChecked) {
@@ -717,7 +814,11 @@ async function removerQuestoesDesatualizadasEAnuladas(): Promise<void> {
     }
 
     // Procurar checkbox para remover questões anuladas
-    const anuladasCheckbox = await page.$('input[name="remover_anuladas"], #remover-anuladas, label:has-text("anulada") input');
+    let anuladasCheckbox = await page.$('input[name="remover_anuladas"], #remover-anuladas');
+    if (!anuladasCheckbox) {
+      const label = await findElementByText(page, 'label', 'anulada');
+      if (label) anuladasCheckbox = await label.$('input');
+    }
     if (anuladasCheckbox) {
       const isChecked = await anuladasCheckbox.evaluate(el => (el as HTMLInputElement).checked);
       if (!isChecked) {
@@ -744,7 +845,13 @@ async function salvarCaderno(nome: string): Promise<CadernoInfo | null> {
     }
 
     // Clicar em salvar
-    const salvarBtn = await page.$('button:has-text("Salvar"), button:has-text("Criar"), input[type="submit"]');
+    let salvarBtn = await page.$('input[type="submit"], button[type="submit"]');
+    if (!salvarBtn) {
+      salvarBtn = await findElementByText(page, 'button', 'Salvar');
+    }
+    if (!salvarBtn) {
+      salvarBtn = await findElementByText(page, 'button', 'Criar');
+    }
     if (salvarBtn) {
       await salvarBtn.click();
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
