@@ -37,6 +37,9 @@ import * as storeService from './services/storeService.js';
 import { buscarOuGerarLogo } from './services/logoService.js';
 import { generateSimuladoPDF } from './services/pdfService.js';
 import multer from 'multer';
+import { createScraperRoutes } from './routes/scraper.js';
+import { startImageProcessorCron, getImageProcessorStatus } from './cron/imageProcessor.js';
+import { startQuestionReviewerCron, getQuestionReviewerStatus } from './cron/questionReviewer.js';
 
 // Load environment variables
 import path from 'path';
@@ -6970,8 +6973,60 @@ app.post('/api/taxonomia/processar-grande', async (req, res) => {
     }
 });
 
+// ============================================
+// Scraper Routes - Sistema de Scraping de Questões
+// ============================================
+
+// Registrar rotas do scraper
+const scraperRoutes = createScraperRoutes(questionsDbUrl, questionsDbKey);
+app.use('/api/scraper', scraperRoutes);
+
+// Endpoint para status dos cron jobs
+app.get('/api/scraper/cron-status', (req, res) => {
+    const imageStatus = getImageProcessorStatus();
+    const reviewerStatus = getQuestionReviewerStatus();
+
+    res.json({
+        success: true,
+        imageProcessor: {
+            isProcessing: imageStatus.isProcessing,
+            lastRun: imageStatus.lastRun,
+            totalProcessed: imageStatus.totalProcessed,
+        },
+        questionReviewer: {
+            isProcessing: reviewerStatus.isProcessing,
+            lastRun: reviewerStatus.lastRun,
+            totalReviewed: reviewerStatus.totalReviewed,
+        },
+    });
+});
+
+// ============================================
+// Iniciar Cron Jobs
+// ============================================
+
+// Cron job para processar imagens (a cada 2 minutos)
+const imageProcessorInterval = startImageProcessorCron(
+    questionsDbUrl,
+    questionsDbKey,
+    2 * 60 * 1000 // 2 minutos
+);
+
+// Cron job para revisar questões com IA (a cada 10 minutos)
+const questionReviewerInterval = startQuestionReviewerCron(
+    questionsDbUrl,
+    questionsDbKey,
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY || '',
+    10 * 60 * 1000 // 10 minutos
+);
+
+console.log('[Server] Cron jobs de scraping iniciados');
+
+// ============================================
+
 app.listen(PORT, () => {
     console.log(`Mastra Agent Server running on http://localhost:${PORT}`);
+    console.log(`Scraper API disponível em http://localhost:${PORT}/api/scraper`);
 });
 
 const MCP_PORT = 4111;
