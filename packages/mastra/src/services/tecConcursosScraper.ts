@@ -1453,7 +1453,19 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
       log('Seletor específico falhou, tentando alternativas...');
     }
 
-    // Se não funcionou, tentar por texto
+    // Filtrar apenas elementos visíveis (x > 0 e y > 0)
+    const linksVisiveis = linksDisponiveis.filter(l => l.x > 0 && l.y > 0);
+    log(`Links visíveis: ${JSON.stringify(linksVisiveis)}`);
+
+    // Se temos links visíveis, clicar via coordenadas (mais confiável)
+    if (linksVisiveis.length > 0) {
+      const link = linksVisiveis[0];
+      log(`Clicando via coordenadas em: ${link.text} (${link.x}, ${link.y})`);
+      await page.mouse.click(link.x, link.y);
+      editarQtdClicked = true;
+    }
+
+    // Se não funcionou, tentar por texto (apenas elementos visíveis)
     if (!editarQtdClicked) {
       const clickResult = await page.evaluate(() => {
         const links = document.querySelectorAll('a, span, button');
@@ -1461,8 +1473,11 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
           const text = link.textContent?.trim() || '';
           if (text === 'Editar quantidades' || text.includes('Editar quantidades')) {
             const rect = (link as HTMLElement).getBoundingClientRect();
-            (link as HTMLElement).click();
-            return { clicked: true, text, x: rect.x, y: rect.y };
+            // Verificar se o elemento é visível
+            if (rect.x > 0 && rect.y > 0 && rect.width > 0 && rect.height > 0) {
+              (link as HTMLElement).click();
+              return { clicked: true, text, x: rect.x, y: rect.y };
+            }
           }
         }
         return { clicked: false, text: '', x: 0, y: 0 };
@@ -1471,14 +1486,6 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
         editarQtdClicked = true;
         log(`Clicado via texto: "${clickResult.text}" em (${clickResult.x}, ${clickResult.y})`);
       }
-    }
-
-    // Se ainda não funcionou, tentar clicar via coordenadas nos elementos encontrados
-    if (!editarQtdClicked && linksDisponiveis.length > 0) {
-      const link = linksDisponiveis[0];
-      log(`Tentando clicar via coordenadas em: ${link.text} (${link.x}, ${link.y})`);
-      await page.mouse.click(link.x, link.y);
-      editarQtdClicked = true;
     }
 
     if (!editarQtdClicked) {
