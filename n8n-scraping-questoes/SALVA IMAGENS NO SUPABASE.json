@@ -1,0 +1,330 @@
+{
+  "name": "SALVA IMAGENS NO SUPABASE",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * \nFROM questoes_concurso \nWHERE imagens_enunciado IS NOT NULL \n  AND imagens_enunciado != '{}' \n  AND imagens_enunciado_local IS NULL\nLIMIT 100;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -688,
+        320
+      ],
+      "id": "3e99a623-de39-44de-bd5f-bb396e588714",
+      "name": "Get Questoes",
+      "credentials": {
+        "postgres": {
+          "id": "dwoxMkjxIMRkgBM3",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -480,
+        320
+      ],
+      "id": "c9cff212-7a10-4d1b-8679-7e4069888e41",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega o ID da questão\nconst questaoId = $json.id;\n\n// Pega o array de imagens\nlet imagens = $json.imagens_enunciado;\n\n// Se vier como string, converte para array\nif (typeof imagens === 'string') {\n  try {\n    imagens = JSON.parse(imagens);\n  } catch (e) {\n    // Se não for JSON válido, tenta remover chaves e quebrar por vírgula\n    imagens = imagens.replace(/[{}]/g, '').split(',').map(s => s.trim());\n  }\n}\n\n// Cria um item para cada imagem\nconst items = imagens.map((imageUrl, index) => {\n  return {\n    json: {\n      questaoId: questaoId,\n      imageUrl: imageUrl.replace(/[{}]/g, ''),\n      itemIndex: index,\n      filename: `questao_${questaoId}_${index}.jpg`\n    }\n  };\n});\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        336
+      ],
+      "id": "16614699-7039-4fc7-849d-a53afa61553d",
+      "name": "Split Images with ID"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.imageUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        0,
+        336
+      ],
+      "id": "39aeab01-cc62-49f4-9eed-6843efffb1d3",
+      "name": "Download Image"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://swzosaapqtyhmwdiwdje.supabase.co/storage/v1/object/imagem_enunciado/1{{ $json.filename }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        240,
+        336
+      ],
+      "id": "5dd1668d-52e4-44c1-b4c8-e2f18582459e",
+      "name": "Upload to Supabase",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "EcwNheC5wsj9vTZv",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Pega o nome do arquivo que foi enviado\nconst key = $json.Key;\n\n// Monta a URL pública\nconst urlPublica = `https://swzosaapqtyhmwdiwdje.supabase.co/storage/v1/object/public/${key}`;\n\n// Pega dados do split\nconst questaoId = $('Split Images with ID').item.json.questaoId;\nconst itemIndex = $('Split Images with ID').item.json.itemIndex;\n\nreturn {\n  json: {\n    url: urlPublica,\n    questaoId: questaoId,\n    itemIndex: itemIndex\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        336
+      ],
+      "id": "a243115b-29d8-48c0-9341-e83f7776c8e6",
+      "name": "Build Public URL"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega todos os items\nconst allItems = $input.all();\n\n// Agrupa por questaoId\nconst grouped = {};\n\nallItems.forEach(item => {\n  const questaoId = item.json.questaoId;\n  const url = item.json.url;\n  const itemIndex = item.json.itemIndex;\n  \n  if (!grouped[questaoId]) {\n    grouped[questaoId] = [];\n  }\n  \n  grouped[questaoId].push({ url, itemIndex });\n});\n\n// Cria output com as URLs formatadas para cada questão\nconst result = [];\n\nfor (const questaoId in grouped) {\n  // Ordena por itemIndex para manter a ordem correta\n  const sortedUrls = grouped[questaoId]\n    .sort((a, b) => a.itemIndex - b.itemIndex)\n    .map(item => item.url);\n  \n  // Monta no formato: {url1,url2,url3}\n  const urlsFormatted = `{${sortedUrls.join(',')}}`;\n  \n  result.push({\n    json: {\n      questaoId: parseInt(questaoId),\n      imagens_enunciado_local: urlsFormatted,\n      totalUrls: sortedUrls.length\n    }\n  });\n}\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        336
+      ],
+      "id": "090610cc-c3e8-4055-97f3-4b10c3d14d80",
+      "name": "Aggregate and Format URLs"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE questoes_concurso \nSET imagens_enunciado_local = '{{ $json.imagens_enunciado_local }}' \nWHERE id = {{ $json.questaoId }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        960,
+        336
+      ],
+      "id": "10d32169-64d1-48bb-8963-0a320e4aec64",
+      "name": "Update Questao",
+      "credentials": {
+        "postgres": {
+          "id": "dwoxMkjxIMRkgBM3",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        336
+      ],
+      "id": "1d689cad-2774-4dc5-8ccf-d4b1e5e2feb2",
+      "name": "Back to Loop"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -864,
+        320
+      ],
+      "id": "f0580243-091a-4899-9b06-5fafb8194add",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {
+    "Schedule Trigger": [
+      {
+        "json": {
+          "timestamp": "2025-12-26T20:48:53.002-05:00",
+          "Readable date": "December 26th 2025, 8:48:53 pm",
+          "Readable time": "8:48:53 pm",
+          "Day of week": "Friday",
+          "Year": "2025",
+          "Month": "December",
+          "Day of month": "26",
+          "Hour": "20",
+          "Minute": "48",
+          "Second": "53",
+          "Timezone": "America/New_York (UTC-05:00)"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Get Questoes": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Split Images with ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Images with ID": {
+      "main": [
+        [
+          {
+            "node": "Download Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image": {
+      "main": [
+        [
+          {
+            "node": "Upload to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Build Public URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Public URL": {
+      "main": [
+        [
+          {
+            "node": "Aggregate and Format URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate and Format URLs": {
+      "main": [
+        [
+          {
+            "node": "Update Questao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Questao": {
+      "main": [
+        [
+          {
+            "node": "Back to Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Back to Loop": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Questoes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "809e2886-297b-44b2-bfa8-9db35785b525",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a9b45529cf86eccbf9f8874147b43fca25c1ac8ce9ddc2f796df4ee92fe4b12b"
+  },
+  "id": "6q2MjskIR6LZW6C6",
+  "tags": []
+}

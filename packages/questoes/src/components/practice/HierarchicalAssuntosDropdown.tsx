@@ -187,6 +187,29 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Expandir todos os nós por padrão quando a taxonomia mudar
+  useEffect(() => {
+    const getAllNodeIds = (nodes: TaxonomyNode[], materia: string): string[] => {
+      const ids: string[] = [];
+      for (const node of nodes) {
+        if (node.filhos && node.filhos.length > 0) {
+          ids.push(`${materia}-${node.id}`);
+          ids.push(...getAllNodeIds(node.filhos, materia));
+        }
+      }
+      return ids;
+    };
+
+    const allIds: string[] = [];
+    for (const [materia, nodes] of taxonomyByMateria.entries()) {
+      allIds.push(...getAllNodeIds(nodes, materia));
+    }
+
+    if (allIds.length > 0) {
+      setExpandedNodes(new Set(allIds));
+    }
+  }, [taxonomyByMateria]);
+
   // Fechar ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -214,16 +237,6 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
   // Verificar se há taxonomia disponível
   const hasTaxonomy = taxonomyByMateria.size > 0 &&
     Array.from(taxonomyByMateria.values()).some(nodes => nodes.length > 0);
-
-  // Debug logging
-  if (taxonomyByMateria.size > 0) {
-    console.log('[HierarchicalAssuntosDropdown] TAXONOMY AVAILABLE:', {
-      size: taxonomyByMateria.size,
-      materias: Array.from(taxonomyByMateria.keys()),
-      firstMateriaNodes: taxonomyByMateria.values().next().value?.length || 0,
-      hasTaxonomy
-    });
-  }
 
   // Filtrar assuntos flat que não estão na taxonomia
   const assuntosSemTaxonomia = flatAssuntos.filter(assunto => {
@@ -327,12 +340,6 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
 
             {/* Lista */}
             <div className="max-h-[300px] overflow-y-auto">
-              {/* Debug indicator */}
-              {hasTaxonomy && (
-                <div className="px-3 py-1 bg-[#2ECC71]/20 text-[#2ECC71] text-xs border-b border-[#3A3A3A]">
-                  Exibindo hierarquia ({taxonomyByMateria.size} matéria{taxonomyByMateria.size > 1 ? 's' : ''})
-                </div>
-              )}
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 size={16} className="animate-spin text-[#FFB800]" />

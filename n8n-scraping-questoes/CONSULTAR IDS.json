@@ -1,0 +1,128 @@
+{
+  "name": "CONSULTAR IDS",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "questoes_concurso",
+          "mode": "list",
+          "cachedResultName": "questoes_concurso"
+        },
+        "returnAll": true,
+        "options": {
+          "outputColumns": [
+            "id"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        240,
+        0
+      ],
+      "id": "b122c955-ca49-4e90-b669-abf05dc884cd",
+      "name": "Select rows from a table",
+      "credentials": {
+        "postgres": {
+          "id": "dwoxMkjxIMRkgBM3",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "q",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1d55d4fe-5c5c-4470-bd0f-b6bf81616c76",
+      "name": "Webhook2",
+      "webhookId": "31d055aa-9575-4fd2-a136-19d8baa82c6e"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        480,
+        0
+      ],
+      "id": "440d6255-8939-4a71-a9fd-f9d40e1cdb4d",
+      "name": "Respond to Webhook1"
+    }
+  ],
+  "pinData": {
+    "Webhook2": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n.appcodigodavida.com.br",
+            "x-real-ip": "170.247.111.22",
+            "x-forwarded-for": "170.247.111.22",
+            "x-forwarded-proto": "https",
+            "connection": "upgrade",
+            "user-agent": "python-requests/2.32.5",
+            "accept-encoding": "gzip, deflate",
+            "accept": "*/*"
+          },
+          "params": {},
+          "query": {},
+          "body": {},
+          "webhookUrl": "https://n8n.appcodigodavida.com.br/webhook/q",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Select rows from a table": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook2": {
+      "main": [
+        [
+          {
+            "node": "Select rows from a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "298fb821-dfe2-4828-82bc-e2e99d229d82",
+  "meta": {
+    "instanceId": "a9b45529cf86eccbf9f8874147b43fca25c1ac8ce9ddc2f796df4ee92fe4b12b"
+  },
+  "id": "XBoux4vu2lseXHrq",
+  "tags": []
+}

@@ -1,0 +1,415 @@
+{
+  "name": "REFAZ COMENTARIO",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -432,
+        128
+      ],
+      "id": "aa5e46ae-9cc9-48f6-9760-8b08200c53b1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "questoes_concurso",
+        "limit": 100,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "questao_revisada",
+              "condition": "is",
+              "keyValue": "={{'null'}}"
+            },
+            {
+              "keyName": "gabarito",
+              "condition": "neq",
+              "keyValue": "={{'null'}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        128
+      ],
+      "id": "7b48f87c-3157-4356-afbd-3b27b44179c3",
+      "name": "Get many rows",
+      "credentials": {
+        "supabaseApi": {
+          "id": "KfUgboh105R96vIX",
+          "name": "QUESTOES"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Materia: {{ $json.materia }}\nAssunto: {{ $json.assunto }}\nEnunciado: {{ $json.enunciado }}\nImagem do enunciado :{{ $json.imagens_enunciado }}\nAlternativas:  {{ $json.alternativas.map(alt => `${alt.letter}. ${alt.text}`).join('\\n') }}\n\nComentário do professor: {{ $json.comentario }}\n\nCargo: {{ $json.cargo_area_especialidade_edicao }}\nOrgão: {{ $json.orgao }}\nProva: {{ $json.prova }}",
+        "options": {
+          "systemMessage": "=# System Prompt - Agente Resolvedor de Questões de Concurso\n\nVocê é um especialista em questões de concursos públicos brasileiros com vasto conhecimento em diversas áreas e matérias.\n\nSua função é analisar questões de concurso e identificar a alternativa correta com base no enunciado, alternativas disponíveis e comentário fornecido.\n\n## Informações que você receberá:\n\n```\nMatéria: {{ $json.materia }}\nAssunto: {{ $json.assunto }}\n\nEnunciado: {{ $json.enunciado }}\n\nAlternativas:\n{{ $json.alternativas.map(alt => `${alt.letter}. ${alt.text}`).join('\\n') }}\n\nComentário fornecido do professor : {{ $json.comentario }}\n\nImagem do enunciado: {{ $json.imagens_enunciado }}\n\nCargo/Área/Especialidade: {{ $json.cargo_area_especialidade_edicao }}\nÓrgão: {{ $json.orgao }}\nProva: {{ $json.prova }}\n```\n\n## Tools (Ferramentas) Disponíveis:\n\nVocê tem acesso às seguintes tools para realizar sua tarefa:\n\n1. **think**: Use para raciocinar e planejar suas ações\n   - Use no início para analisar a questão\n   - Use novamente após obter informações da imagem\n   - Use para estruturar seu raciocínio antes de responder\n\n2. **ver_imagem**: Use quando houver URL de imagem no enunciado\n   - Parâmetros obrigatórios: `url_imagem` e `contexto`\n   - Esta tool chama um workflow que analisa a imagem e retorna uma descrição detalhada\n   - SEMPRE forneça contexto rico sobre o que você precisa ver\n\n3. **responder questão**: Use para salvar sua resposta final\n   - Esta tool atualiza o banco de dados Supabase\n   - Você DEVE fornecer: `gabarito` (letra) e `comentario` (explicação completa)\n   - Esta é a tool FINAL - use apenas quando tiver certeza da resposta\n\n## IMPORTANTE: Análise de Imagens\n\n**SEMPRE que o campo \"Imagem do enunciado\" contiver uma URL (não estiver vazio ou null), você DEVE:**\n\n1. **OBRIGATORIAMENTE usar a tool \"ver_imagem\"** antes de responder\n2. A tool requer dois parâmetros:\n   - **url_imagem**: A URL fornecida no campo \"Imagem do enunciado\"\n   - **contexto**: Uma descrição detalhada do que você precisa saber sobre a imagem\n\n3. **Como formular o contexto:**\n   ```\n   Matéria: [nome da matéria]\n   Assunto: [assunto específico]\n   \n   Enunciado: [copie o enunciado completo aqui]\n   \n   Alternativas:\n   [liste as alternativas]\n   \n   O que preciso identificar: Descreva detalhadamente todos os elementos visuais presentes na imagem, incluindo textos, números, gráficos, tabelas, diagramas, símbolos, relações espaciais e qualquer informação relevante para responder à questão.\n   ```\n\n4. **Exemplos de contexto por tipo de questão:**\n   - **Gráficos/Estatística**: \"Descreva o tipo de gráfico, eixos, escalas, valores, tendências, legendas e qualquer anotação presente.\"\n   - **Mapas/Geografia**: \"Descreva a região mostrada, países/estados, símbolos cartográficos, escala, rosa dos ventos e legendas.\"\n   - **Organogramas/Administração**: \"Descreva a estrutura hierárquica, caixas, conexões, nomes de cargos/órgãos e relações.\"\n   - **Textos/Documentos**: \"Transcreva todo o texto visível na imagem, incluindo títulos, parágrafos e formatação.\"\n   - **Diagramas Técnicos**: \"Descreva todos os componentes, conexões, símbolos técnicos, numerações e relações.\"\n\n## Fluxo de trabalho obrigatório:\n\n**PASSO 1:** Use a tool \"think\" para análise inicial\n- Leia matéria, assunto e enunciado\n- **VERIFIQUE se há URL no campo \"Imagem do enunciado\"**\n- Se a URL NÃO for vazia, null ou \"null\", você DEVE usar \"ver_imagem\"\n\n**PASSO 2:** Se houver URL de imagem, use a tool \"ver_imagem\" OBRIGATORIAMENTE\n- **Parâmetro url_imagem**: Cole a URL EXATA do campo \"Imagem do enunciado\"\n- **Parâmetro contexto**: Formule um contexto DETALHADO seguindo o modelo:\n  ```\n  Matéria: [nome da matéria]\n  Assunto: [assunto específico]\n  \n  Enunciado: [copie o enunciado completo]\n  \n  Alternativas:\n  [liste todas as alternativas]\n  \n  O que preciso identificar na imagem: [descreva detalhadamente o que precisa ver - textos, números, gráficos, tabelas, diagramas, símbolos, relações espaciais, etc.]\n  ```\n\n**PASSO 3:** Use a tool \"think\" novamente para integrar informações\n- Combine o enunciado textual com a descrição da imagem (se houver)\n- Analise CADA alternativa considerando TODAS as informações disponíveis\n- Determine qual é a alternativa CORRETA\n- Prepare um comentário COMPLETO E DETALHADO\n\n**PASSO 4:** Use a tool \"responder questão\" para salvar a resposta\nEsta tool irá atualizar o banco de dados com:\n- **gabarito**: APENAS UMA letra maiúscula (A, B, C, D ou E)\n- **comentario**: Explicação COMPLETA seguindo as regras detalhadas abaixo\n- **questao_revisada**: Será marcada automaticamente como \"sim\"\n\n⚠️ **ATENÇÃO CRÍTICA:**\n- Você DEVE usar \"responder questão\" para TODAS as questões\n- Você DEVE fornecer tanto o GABARITO quanto o COMENTÁRIO\n- Se houver URL de imagem, você DEVE usar \"ver_imagem\" ANTES de usar \"responder questão\"\n\n## Regras DETALHADAS para o campo \"comentário\":\n\n### ESTRUTURA OBRIGATÓRIA DO COMENTÁRIO:\n\nO comentário deve ser uma **explicação completa e pedagógica**, estruturada em parágrafos, contendo:\n\n#### 1. CONTEXTUALIZAÇÃO (1-2 parágrafos)\n- **Quando houver imagem:** Inicie descrevendo os elementos visuais relevantes (ex: \"O gráfico apresentado mostra...\", \"A tabela indica...\", \"O mapa demonstra...\", \"O organograma revela...\")\n- Apresente o conceito teórico ou base legal que fundamenta a questão\n- Explique o contexto da matéria/assunto abordado\n- Cite legislação, doutrina ou teoria aplicável quando relevante\n\n#### 2. ANÁLISE DAS ALTERNATIVAS (2-3 parágrafos)\n- **Explique por que a alternativa CORRETA está certa:**\n  - Demonstre o raciocínio lógico completo\n  - Cite fundamentos legais, conceitos técnicos ou dados específicos\n  - Relacione com a imagem quando aplicável\n  - Justifique com argumentos sólidos\n\n- **Explique por que as principais alternativas INCORRETAS estão erradas:**\n  - Identifique os erros conceituais, factuais ou lógicos\n  - Mostre onde há contradição com a teoria/lei/dados\n  - Ajude o candidato a entender os \"pegadinhas\" comuns\n\n#### 3. COMPLEMENTAÇÃO (1 parágrafo)\n- Adicione informações extras relevantes quando pertinente\n- Dicas para memorização ou identificação de padrões similares\n- Referências a artigos de lei, súmulas, ou conceitos relacionados\n- Conexões com outros temas da mesma matéria\n\n### EXTENSÃO E QUALIDADE:\n\n- **Mínimo:** 150-200 palavras (6-8 frases substanciais)\n- **Ideal:** 250-400 palavras para questões complexas\n- **Máximo:** 500 palavras para questões muito técnicas\n\n### ESTILO E LINGUAGEM:\n\n✅ **FAÇA:**\n- Use linguagem técnica apropriada à matéria\n- Seja didático e explicativo como um professor\n- Cite números de artigos, incisos, parágrafos quando relevante\n- Use exemplos práticos quando ajudar na compreensão\n- Conecte teoria e prática\n- Demonstre domínio do assunto\n\n❌ **NÃO FAÇA:**\n- Comentários genéricos tipo \"A alternativa correta é X porque está de acordo com...\"\n- Respostas superficiais sem fundamentação\n- Omitir análise de alternativas incorretas importantes\n- Usar apenas 2-3 frases curtas\n- Ignorar elementos da imagem quando houver\n\n### EXEMPLOS DE COMENTÁRIOS ADEQUADOS:\n\n**EXEMPLO 1 - Direito Constitucional:**\n\"A questão aborda o sistema de controle de constitucionalidade brasileiro, especificamente a distinção entre controle difuso e concentrado. A alternativa correta é a B, pois o controle difuso de constitucionalidade pode ser exercido por qualquer juiz ou tribunal, conforme estabelecido desde a Constituição de 1891, inspirado no modelo norte-americano. Neste sistema, qualquer magistrado pode declarar a inconstitucionalidade de uma lei no caso concreto, produzindo efeitos inter partes.\n\nA alternativa A está incorreta porque afirma que apenas o STF pode exercer controle de constitucionalidade, o que caracterizaria exclusivamente o controle concentrado. A alternativa C erra ao mencionar que o controle difuso produz efeitos erga omnes automaticamente - na verdade, esses efeitos só ocorrem após a Resolução do Senado Federal (art. 52, X, CF/88). A alternativa D confunde os conceitos ao atribuir ao controle concentrado características do controle difuso.\n\nÉ fundamental compreender que o Brasil adota um sistema misto: o controle difuso (concreto, incidental) convive com o controle concentrado (abstrato, principal), sendo este último exercido principalmente através de ADI, ADC e ADPF perante o STF.\"\n\n**EXEMPLO 2 - Com Imagem (Gráfico):**\n\"Conforme demonstrado no gráfico de barras apresentado, observa-se a evolução da taxa de desemprego no Brasil entre 2019 e 2023, com destaque para o pico em 2020 (14,8%) e redução gradual até 2023 (8,5%). A alternativa correta é a C, pois identifica corretamente que houve redução de 6,3 pontos percentuais no período analisado.\n\nAnalisando os dados visuais: a linha de tendência mostra claramente uma recuperação do mercado de trabalho pós-pandemia, com queda consistente a partir do segundo semestre de 2021. A alternativa A está incorreta ao afirmar crescimento contínuo, contradizendo os dados visuais que mostram queda após 2020. A alternativa B erra nos valores absolutos, indicando 16% em 2020 quando o gráfico mostra 14,8%. A alternativa D comete erro de interpretação ao sugerir estabilidade, quando há clara tendência de queda.\n\nEsta questão exige habilidade de leitura e interpretação de gráficos estatísticos, competência fundamental para análise de indicadores econômicos e sociais. A capacidade de extrair tendências, comparar períodos e calcular variações percentuais é essencial para profissionais que lidam com planejamento e políticas públicas.\"\n\n## Regras para o campo \"gabarito\":\n\n- Responda APENAS com UMA letra maiúscula\n- Exemplos corretos: \"A\", \"B\", \"C\", \"D\", \"E\"\n- Exemplos INCORRETOS: \"Alternativa A\", \"a\", \"A)\", \"Letra A\"\n\n## LEMBRETE CRÍTICO:\n\n❗ **SEMPRE forneça o GABARITO e o COMENTÁRIO** usando a tool \"responder questão\". Toda questão precisa ser respondida!\n\n❗ **NÃO ignore imagens!** Se o campo \"Imagem do enunciado\" contiver uma URL válida (não vazia, não null, não \"null\"), você DEVE usar a tool \"ver_imagem\" ANTES de determinar o gabarito. Muitas questões são IMPOSSÍVEIS de responder corretamente sem analisar a imagem.\n\n❗ **Sempre forneça contexto rico** ao usar \"ver_imagem\" - quanto mais detalhado o contexto sobre o que você precisa ver na imagem, melhor será a análise retornada.\n\n❗ **Use \"think\" múltiplas vezes** se necessário para raciocinar em etapas - especialmente antes de ver a imagem e depois de receber a descrição da imagem.\n\n❗ **COMENTÁRIOS COMPLETOS SÃO OBRIGATÓRIOS** - Não envie comentários superficiais com menos de 150 palavras. O objetivo é criar um material de estudo completo para o candidato que explique claramente por que a alternativa está correta E por que as outras estão incorretas.\n\n❗ **ORDEM DAS TOOLS**:\n1. Primeiro: \"think\" (análise inicial)\n2. Se houver imagem: \"ver_imagem\" (análise da imagem)\n3. Depois: \"think\" (integração das informações)\n4. Por último: \"responder questão\" (salvar gabarito e comentário)\n\nSeja preciso, completo e pedagógico em suas respostas.\n\n---\n\n## Observação sobre o Prompt do Usuário\n\n**ATENÇÃO:** Verifique se o campo no prompt está correto:\n\n- Se o campo no banco é `imagens_enunciado`, use: `{{ $json.imagens_enunciado }}`\n\nO nome deve corresponder exatamente ao campo no Supabase.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        144
+      ],
+      "id": "c1d510f4-fb98-4a98-90dc-987480619dbf",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "questoes_concurso",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "gabarito",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues0_Field_Value', `escreva apenas a  letra da alternativa correta  ex: \"E\"`, 'string') }}"
+            },
+            {
+              "fieldId": "comentario",
+              "fieldValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fieldValues1_Field_Value', `Atualize com grande comentário explicativo sobre a questão, e a alternativa correta`, 'string') }}"
+            },
+            {
+              "fieldId": "questao_revisada",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        816,
+        400
+      ],
+      "id": "09035400-b2b3-45d2-a351-ee2c1b084240",
+      "name": "responder questão",
+      "credentials": {
+        "supabaseApi": {
+          "id": "GgU5j7up4YTHa3Ze",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -16,
+        128
+      ],
+      "id": "e7d074bc-4017-40ba-becb-a6f56fc61e5f",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8571b2c3-0f79-4943-93c8-d2bd906643d3",
+              "name": "11",
+              "value": "11",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        368
+      ],
+      "id": "324d371c-3954-469e-bb84-945b54c67695",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        528,
+        400
+      ],
+      "id": "ddb77ecf-8fe2-436b-92ba-64247e767e69",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "description": "essa ferramenta será usada para ver o que tem nos arquivos de imagem, voce deve usar uma vez para cada url de imagem, tambem envie sempre o contexto para o sub agente  saber o que ve",
+        "workflowId": {
+          "__rl": true,
+          "value": "3V5gDhUtcP1NZxhW",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/3V5gDhUtcP1NZxhW",
+          "cachedResultName": "analizar imagem"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "url_imagem": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('url_imagem', ``, 'string') }}",
+            "contexto": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('contexto', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "url_imagem",
+              "displayName": "url_imagem",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        400
+      ],
+      "id": "1b776254-25f7-4621-8f0c-423eb5d06199",
+      "name": "ver_imagem"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Loop Over Items').item.json.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        400,
+        400
+      ],
+      "id": "0be2f346-0075-4d48-85b1-53c8da80d965",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "o3-mini",
+          "mode": "list",
+          "cachedResultName": "o3-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        400
+      ],
+      "id": "268ec50f-d9db-479c-a025-28e4bc85573c",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        64,
+        400
+      ],
+      "id": "a484f403-6142-473b-9466-26d40ff31dfa",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "pk71DIm37tNUiQFJ",
+          "name": "teste3"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Schedule Trigger": [
+      {
+        "json": {
+          "timestamp": "2025-12-19T18:20:13.012-03:00",
+          "Readable date": "December 19th 2025, 6:20:13 pm",
+          "Readable time": "6:20:13 pm",
+          "Day of week": "Friday",
+          "Year": "2025",
+          "Month": "December",
+          "Day of month": "19",
+          "Hour": "18",
+          "Minute": "20",
+          "Second": "13",
+          "Timezone": "America/Sao_Paulo (UTC-03:00)"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "responder questão": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ver_imagem": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e6fedb10-8d57-49da-91de-0904c2c82476",
+  "meta": {
+    "instanceId": "a9b45529cf86eccbf9f8874147b43fca25c1ac8ce9ddc2f796df4ee92fe4b12b"
+  },
+  "id": "igJNFk1dEgSkZQYR",
+  "tags": []
+}

@@ -1,0 +1,472 @@
+{
+  "name": "salva questões",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "testescraping",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "96f8adc5-90cd-4de4-9620-ecadb445787a",
+      "name": "Webhook",
+      "webhookId": "fe6e183b-a234-4f19-8282-d9fd4c1c8adf"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        256,
+        0
+      ],
+      "id": "bec1d072-c783-4a0b-ac9b-79f97310771d",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "questoes_concurso",
+          "mode": "list",
+          "cachedResultName": "questoes_concurso"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Loop Over Items').item.json.id }}",
+            "ano": "={{ $('Loop Over Items').item.json.detalhes.ano }}",
+            "materia": "={{ $('Loop Over Items').item.json.materia }}",
+            "assunto": "={{ $('Loop Over Items').item.json.assunto }}",
+            "concurso": "={{ $('Loop Over Items').item.json.concurso }}",
+            "enunciado": "={{ $('Loop Over Items').item.json.enunciado }}",
+            "alternativas": "={{ $('Loop Over Items').item.json.alternativas }}",
+            "gabarito": "={{ $('Loop Over Items').item.json.gabarito }}",
+            "comentario": "={{ $('Loop Over Items').item.json.comentario }}",
+            "orgao": "={{ $('Loop Over Items').item.json.detalhes['órgão'] }}",
+            "cargo_area_especialidade_edicao": "={{ $('Loop Over Items').item.json.detalhes['cargo_área_especialidade_edição'] }}",
+            "prova": "={{ $('Loop Over Items').item.json.detalhes.prova }}",
+            "banca": "={{ $('Loop Over Items').item.json.detalhes.banca }}",
+            "created_at": "={{ $now }}",
+            "imagens_enunciado": "={{ $('Loop Over Items').item.json.imagens_enunciado }}",
+            "imagens_comentario": "={{ $('Loop Over Items').item.json.imagens_comentario }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "materia",
+              "displayName": "materia",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "assunto",
+              "displayName": "assunto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "concurso",
+              "displayName": "concurso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "enunciado",
+              "displayName": "enunciado",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "alternativas",
+              "displayName": "alternativas",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gabarito",
+              "displayName": "gabarito",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "comentario",
+              "displayName": "comentario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "orgao",
+              "displayName": "orgao",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cargo_area_especialidade_edicao",
+              "displayName": "cargo_area_especialidade_edicao",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "prova",
+              "displayName": "prova",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ano",
+              "displayName": "ano",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "banca",
+              "displayName": "banca",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "imagens_enunciado",
+              "displayName": "imagens_enunciado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "imagens_comentario",
+              "displayName": "imagens_comentario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "questao_revisada",
+              "displayName": "questao_revisada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1232,
+        32
+      ],
+      "id": "b4aad0b3-356e-4174-883f-e8a2fd467a20",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "dwoxMkjxIMRkgBM3",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT EXISTS (\n  SELECT 1 FROM questoes_concurso WHERE id = {{ $json.id }}\n) AS existe;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        752,
+        16
+      ],
+      "id": "e5acb585-45f3-4698-a0ff-61128865e400",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "dwoxMkjxIMRkgBM3",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        512,
+        0
+      ],
+      "id": "e6fa0332-b96e-4863-a975-cc6f64c5ba6e",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b8c79ded-64df-47d2-acf5-8939189ecbcf",
+              "leftValue": "={{ $json.existe }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        16
+      ],
+      "id": "cdfd9bb3-68d1-4882-9f81-f916cd351dda",
+      "name": "If"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n.appcodigodavida.com.br",
+            "x-real-ip": "170.247.111.22",
+            "x-forwarded-for": "170.247.111.22",
+            "x-forwarded-proto": "https",
+            "connection": "upgrade",
+            "content-length": "3293",
+            "user-agent": "TEC-Scraper/2.0",
+            "accept-encoding": "gzip, deflate",
+            "accept": "*/*",
+            "content-type": "application/json"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "timestamp": "2025-12-22T14:57:50.697820",
+            "total_questions": 1,
+            "source": "TEC Scraper - enrico_campos",
+            "account": "enrico_campos",
+            "data": [
+              {
+                "id": "3720257",
+                "materia": "AFO, Direito Financeiro e Contabilidade Pública",
+                "assunto": "Demais temas de Contabilidade Pública",
+                "concurso": "#3720257 ( inédita ) - 2000 - Auditor Fiscal de Receitas Estaduais (SEFAZ RN)/\"Inéditas Literais\"",
+                "imagens_enunciado": [],
+                "enunciado": "Todas estas questões, devidamente ponderadas, levantam dúvidas sobre se o início da atividade geral de formação de atitudes nos obriga à análise das posturas dos órgãos dirigentes com relação às suas atribuições. A certificação de metodologias que nos auxiliam a lidar com a revolução dos costumes representa uma abertura para a melhoria do fluxo de informações. O incentivo ao avanço tecnológico, assim como a mobilidade dos capitais internacionais agrega valor ao estabelecimento dos conhecimentos estratégicos para atingir a excelência.",
+                "alternativas": [
+                  {
+                    "letter": "C",
+                    "text": "Certo"
+                  },
+                  {
+                    "letter": "E",
+                    "text": "Errado"
+                  }
+                ],
+                "gabarito": null,
+                "comentario": "No entanto, não podemos esquecer que o início da atividade geral de formação de atitudes nos obriga à análise das direções preferenciais no sentido do progresso. Evidentemente, a revolução dos costumes representa uma abertura para a melhoria das posturas dos órgãos dirigentes com relação às suas atribuições. Podemos já vislumbrar o modo pelo qual o julgamento imparcial das eventualidades não pode mais se dissociar do impacto na agilidade decisória. Pensando mais a longo prazo, a consulta aos diversos militantes promove a alavancagem das condições inegavelmente apropriadas. Do mesmo modo, a necessidade de renovação processual pode nos levar a considerar a reestruturação do investimento em reciclagem técnica.\nAinda assim, existem dúvidas a respeito de como a estrutura atual da organização estimula a padronização dos paradigmas corporativos. Neste sentido, a adoção de políticas descentralizadoras afeta positivamente a correta previsão dos relacionamentos verticais entre as hierarquias. O empenho em analisar o consenso sobre a necessidade de qualificação agrega valor ao estabelecimento do sistema de formação de quadros que corresponde às necessidades. Percebemos, cada vez mais, que o desenvolvimento contínuo de distintas formas de atuação garante a contribuição de um grupo importante na determinação dos modos de operação convencionais. A certificação de metodologias que nos auxiliam a lidar com a crescente influência da mídia talvez venha a ressaltar a relatividade do levantamento das variáveis envolvidas.\nÉ claro que a percepção das dificuldades apresenta tendências no sentido de aprovar a manutenção das condições financeiras e administrativas exigidas.",
+                "detalhes": {},
+                "extracted_at": "2025-12-22T14:57:50.697820"
+              }
+            ]
+          },
+          "webhookUrl": "https://n8n.appcodigodavida.com.br/webhook/testescraping",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "676ab4dd-0352-49c6-a172-189159ecd05c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a9b45529cf86eccbf9f8874147b43fca25c1ac8ce9ddc2f796df4ee92fe4b12b"
+  },
+  "id": "2lV0M2n1d6UUzbxE",
+  "tags": []
+}

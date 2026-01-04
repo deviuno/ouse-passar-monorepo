@@ -394,7 +394,6 @@ export const fetchTaxonomiaByMateria = async (materia: string): Promise<Taxonomy
 
   try {
     const API_URL = getMastraApiUrl(`/api/taxonomia/${encodeURIComponent(materia)}`);
-    console.log('[fetchTaxonomiaByMateria] Fetching from:', API_URL);
 
     const response = await fetch(API_URL);
     if (!response.ok) {
