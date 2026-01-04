@@ -1,7 +1,110 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, Search, X, FileText, Loader2, Check } from 'lucide-react';
 import { TaxonomyNode } from '../../services/questionsService';
+
+// ============================================
+// Funções de busca flexível
+// ============================================
+
+// Remove acentos e converte para minúsculas
+const normalizeText = (text: string): string => {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
+// Mapa de sinônimos e termos relacionados
+// Cada chave pode corresponder a múltiplos valores
+const SYNONYMS: Record<string, string[]> = {
+  // Língua Portuguesa
+  'portugues': ['lingua portuguesa', 'portugues', 'lp', 'gramatica', 'redacao', 'interpretacao de texto'],
+  'lingua portuguesa': ['portugues', 'lp', 'gramatica', 'redacao'],
+  'gramatica': ['lingua portuguesa', 'portugues'],
+  'redacao': ['lingua portuguesa', 'portugues', 'producao textual'],
+
+  // Direito
+  'constitucional': ['direito constitucional', 'constituicao', 'cf'],
+  'direito constitucional': ['constitucional', 'constituicao', 'cf'],
+  'administrativo': ['direito administrativo', 'admin'],
+  'direito administrativo': ['administrativo', 'admin'],
+  'penal': ['direito penal', 'criminal'],
+  'direito penal': ['penal', 'criminal'],
+  'civil': ['direito civil', 'codigo civil'],
+  'direito civil': ['civil', 'codigo civil'],
+  'tributario': ['direito tributario', 'tributos', 'impostos'],
+  'trabalho': ['direito do trabalho', 'trabalhista', 'clt'],
+  'direito do trabalho': ['trabalho', 'trabalhista', 'clt'],
+
+  // Outras matérias
+  'informatica': ['ti', 'tecnologia da informacao', 'computacao'],
+  'raciocinio logico': ['logica', 'rl', 'raciocinio'],
+  'logica': ['raciocinio logico', 'rl'],
+  'matematica': ['mat', 'calculo', 'aritmetica'],
+  'contabilidade': ['contabil', 'contab'],
+  'administracao': ['adm', 'gestao'],
+  'economia': ['econ', 'macroeconomia', 'microeconomia'],
+  'atualidades': ['conhecimentos gerais', 'cg', 'atualidade'],
+  'conhecimentos gerais': ['atualidades', 'cg'],
+  'afirmativa': ['acao afirmativa', 'acoes afirmativas'],
+  'acao afirmativa': ['afirmativa', 'acoes afirmativas'],
+
+  // Abreviações comuns
+  'cf': ['constituicao federal', 'constituicao', 'direito constitucional'],
+  'clt': ['consolidacao das leis do trabalho', 'direito do trabalho'],
+  'cp': ['codigo penal', 'direito penal'],
+  'cc': ['codigo civil', 'direito civil'],
+  'cpc': ['codigo de processo civil', 'processo civil'],
+  'cpp': ['codigo de processo penal', 'processo penal'],
+};
+
+// Verifica se o termo de busca corresponde ao texto
+// Considera: sem acento, case insensitive, sinônimos
+const fuzzyMatch = (searchTerm: string, text: string): boolean => {
+  if (!searchTerm || !text) return !searchTerm;
+
+  const normalizedSearch = normalizeText(searchTerm);
+  const normalizedText = normalizeText(text);
+
+  // Match direto (sem acento, case insensitive)
+  if (normalizedText.includes(normalizedSearch)) {
+    return true;
+  }
+
+  // Verificar cada palavra do termo de busca
+  const searchWords = normalizedSearch.split(/\s+/).filter(w => w.length > 1);
+  if (searchWords.length > 1) {
+    // Se todas as palavras estão presentes no texto
+    const allWordsMatch = searchWords.every(word => normalizedText.includes(word));
+    if (allWordsMatch) return true;
+  }
+
+  // Verificar sinônimos
+  const synonymsForSearch = SYNONYMS[normalizedSearch] || [];
+  for (const synonym of synonymsForSearch) {
+    if (normalizedText.includes(normalizeText(synonym))) {
+      return true;
+    }
+  }
+
+  // Verificar se o texto contém algum sinônimo que corresponde à busca
+  for (const [key, values] of Object.entries(SYNONYMS)) {
+    if (normalizedText.includes(normalizeText(key))) {
+      // O texto contém esta chave, verificar se a busca é um dos sinônimos
+      for (const value of values) {
+        if (normalizeText(value).includes(normalizedSearch) ||
+            normalizedSearch.includes(normalizeText(value))) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+};
+
+// ============================================
 
 interface HierarchicalAssuntosDropdownProps {
   label: string;
@@ -60,12 +163,13 @@ const TaxonomyNodeItem: React.FC<{
   const isPartiallySelected = selectedCount > 0 && selectedCount < allNodeAssuntos.length;
   const isFullySelected = selectedCount === allNodeAssuntos.length && allNodeAssuntos.length > 0;
 
-  // Verificar se o nó ou seus filhos correspondem à busca
+  // Verificar se o nó ou seus filhos correspondem à busca (fuzzy match)
   const matchesSearch = (n: TaxonomyNode): boolean => {
     if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    if (n.nome.toLowerCase().includes(term)) return true;
-    if (n.assuntos_originais?.some(a => a.toLowerCase().includes(term))) return true;
+    // Usa fuzzyMatch para busca flexível (sem acento, case insensitive, sinônimos)
+    if (fuzzyMatch(searchTerm, n.nome)) return true;
+    if (fuzzyMatch(searchTerm, n.materia)) return true;
+    if (n.assuntos_originais?.some(a => fuzzyMatch(searchTerm, a))) return true;
     if (n.filhos?.some(f => matchesSearch(f))) return true;
     return false;
   };
@@ -258,9 +362,9 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
     return true;
   });
 
-  // Filtrar assuntos sem taxonomia pela busca
+  // Filtrar assuntos sem taxonomia pela busca (fuzzy match)
   const filteredFlatAssuntos = assuntosSemTaxonomia.filter(
-    assunto => !searchTerm || assunto.toLowerCase().includes(searchTerm.toLowerCase())
+    assunto => !searchTerm || fuzzyMatch(searchTerm, assunto)
   );
 
   // Contar total de assuntos disponíveis
@@ -379,12 +483,18 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
                   {Array.from(taxonomyByMateria.entries()).map(([materia, nodes]) => {
                     if (nodes.length === 0) return null;
 
-                    // Filtrar nós que correspondem à busca
+                    // Verificar se o nome da matéria corresponde à busca
+                    const materiaMatches = searchTerm ? fuzzyMatch(searchTerm, materia) : false;
+
+                    // Filtrar nós que correspondem à busca (fuzzy match)
                     const matchesSearch = (n: TaxonomyNode): boolean => {
                       if (!searchTerm) return true;
-                      const term = searchTerm.toLowerCase();
-                      if (n.nome.toLowerCase().includes(term)) return true;
-                      if (n.assuntos_originais?.some(a => a.toLowerCase().includes(term))) return true;
+                      // Se a matéria corresponde, mostrar todos os nós
+                      if (materiaMatches) return true;
+                      // Usa fuzzyMatch para busca flexível
+                      if (fuzzyMatch(searchTerm, n.nome)) return true;
+                      if (fuzzyMatch(searchTerm, n.materia)) return true;
+                      if (n.assuntos_originais?.some(a => fuzzyMatch(searchTerm, a))) return true;
                       if (n.filhos?.some(f => matchesSearch(f))) return true;
                       return false;
                     };
