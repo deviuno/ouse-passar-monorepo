@@ -777,16 +777,43 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
 
       // Verificar se o filtro foi aplicado
       const filtrosAtivos = await page.evaluate(() => {
-        const el = document.querySelector('[class*="filtros"], .filtros-ativos, .active-filters');
-        if (el) return el.textContent || '';
-        // Tentar pegar o texto "Filtros ativos: X"
         const body = document.body.innerText;
         const match = body.match(/Filtros ativos:\s*(\d+)/);
-        return match ? `Filtros ativos: ${match[1]}` : '';
+        return match ? match[1] : '0';
       });
-      log(`${filtrosAtivos}`)
+      log(`Filtros ativos: ${filtrosAtivos}`);
 
       await page.screenshot({ path: '/tmp/tec-area-selecionada.png', fullPage: true });
+
+      // Se nenhum filtro foi aplicado, tentar ir direto para GERAR CADERNO
+      // O TecConcursos pode gerar um caderno mesmo sem filtros específicos
+      if (filtrosAtivos === '0') {
+        log('Nenhum filtro aplicado, tentando gerar caderno diretamente...');
+
+        // Clicar em "GERAR CADERNO"
+        const gerarCadernoClicked = await page.evaluate(() => {
+          const buttons = document.querySelectorAll('button, input[type="submit"], a.btn');
+          for (const btn of buttons) {
+            const text = btn.textContent?.trim().toUpperCase() || '';
+            if (text.includes('GERAR CADERNO') || text.includes('GERAR')) {
+              (btn as HTMLElement).click();
+              return { clicked: true, text };
+            }
+          }
+          return { clicked: false, text: '' };
+        });
+
+        if (gerarCadernoClicked.clicked) {
+          log(`Clicado em "${gerarCadernoClicked.text}"`);
+          await delay(CONFIG.delays.afterPageLoad * 2);
+          await page.screenshot({ path: '/tmp/tec-apos-gerar-caderno.png', fullPage: true });
+
+          // Verificar se foi redirecionado para um caderno
+          const currentUrl = page.url();
+          log(`URL após gerar caderno: ${currentUrl}`);
+        }
+      }
+
       return true;
     }
 
