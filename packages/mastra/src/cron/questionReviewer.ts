@@ -74,7 +74,7 @@ ${question.comentario ? `Comentário existente: ${question.comentario.substring(
 
 Por favor, forneça o gabarito correto e um comentário pedagógico completo.`;
 
-    // Chamar modelo Gemini
+    // Chamar modelo Gemini com JSON mode
     const response = await genAI.models.generateContent({
       model: 'gemini-2.0-flash-exp',
       contents: userPrompt,
@@ -82,29 +82,38 @@ Por favor, forneça o gabarito correto e um comentário pedagógico completo.`;
         systemInstruction: SYSTEM_PROMPT,
         temperature: 0.3,
         maxOutputTokens: 2000,
+        responseMimeType: 'application/json',
       },
     });
 
     const text = response.text || '';
 
+    // Remover blocos markdown se existirem (```json ... ```)
+    let cleanedText = text
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/g, '')
+      .trim();
+
     // Tentar parsear JSON da resposta
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error(`[QuestionReviewer] Resposta não contém JSON válido para questão ${question.id}`);
+      console.error(`[QuestionReviewer] Resposta não contém JSON válido para questão ${question.id}. Resposta: ${text.substring(0, 200)}`);
       return null;
     }
 
-    // Sanitizar JSON - remover caracteres de controle que quebram o parse
+    // Sanitizar JSON - remover/escapar caracteres problemáticos
+    // Primeiro, preservar newlines/tabs legítimos (estrutura JSON usa esses)
+    // Só remover caracteres de controle realmente problemáticos (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F)
     const sanitizedJson = jsonMatch[0]
-      .replace(/[\x00-\x1F\x7F]/g, (char) => {
-        // Preservar newlines e tabs legítimos dentro de strings
-        if (char === '\n') return '\\n';
-        if (char === '\r') return '\\r';
-        if (char === '\t') return '\\t';
-        return '';
-      });
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 
-    const result = JSON.parse(sanitizedJson);
+    let result;
+    try {
+      result = JSON.parse(sanitizedJson);
+    } catch (parseError) {
+      console.error(`[QuestionReviewer] Erro ao parsear JSON para questão ${question.id}. JSON: ${sanitizedJson.substring(0, 300)}`);
+      return null;
+    }
 
     if (!result.gabarito || !result.comentario) {
       console.error(`[QuestionReviewer] Resposta incompleta para questão ${question.id}`);
