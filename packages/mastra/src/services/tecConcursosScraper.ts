@@ -1662,23 +1662,21 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
         let preenchido = false;
 
         try {
-          // Obter o ElementHandle do input específico
-          const inputHandle = await page.evaluateHandle((indice) => {
-            const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-            return inputs[indice] || null;
-          }, materia.indice);
+          // Obter todos os inputs e pegar o específico pelo índice
+          const inputs = await page.$$('input[type="number"], input[type="text"]');
+          const inputElement = inputs[materia.indice];
 
-          const inputElement = inputHandle.asElement();
           if (inputElement) {
             // Scroll até o input para garantir que está visível
-            await inputElement.scrollIntoViewIfNeeded();
+            await page.evaluate((idx) => {
+              const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+              if (allInputs[idx]) {
+                allInputs[idx].scrollIntoView({ block: 'center' });
+              }
+            }, materia.indice);
             await delay(30);
 
-            // Focar no input
-            await inputElement.focus();
-            await delay(30);
-
-            // Triplo clique para selecionar todo o conteúdo existente
+            // Triplo clique para selecionar todo o conteúdo existente e focar
             await inputElement.click({ clickCount: 3 });
             await delay(30);
 
@@ -1694,9 +1692,9 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
 
             // Verificar se o valor foi setado corretamente
             const valorSetado = await page.evaluate((indice) => {
-              const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-              if (indice < inputs.length) {
-                return (inputs[indice] as HTMLInputElement).value;
+              const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+              if (indice < allInputs.length) {
+                return (allInputs[indice] as HTMLInputElement).value;
               }
               return '';
             }, materia.indice);
