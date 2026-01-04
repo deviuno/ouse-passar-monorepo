@@ -6329,36 +6329,65 @@ app.get('/api/taxonomia/:materia', async (req, res) => {
     try {
         const { materia } = req.params;
 
-        const { data, error } = await questionsDb
-            .from('assuntos_taxonomia')
-            .select('*')
-            .eq('materia', materia)
-            .order('ordem');
+        // Buscar taxonomia e mapeamentos em paralelo
+        const [taxonomiaResult, mapeamentoResult] = await Promise.all([
+            questionsDb
+                .from('assuntos_taxonomia')
+                .select('*')
+                .eq('materia', materia)
+                .order('ordem'),
+            questionsDb
+                .from('assuntos_mapeamento')
+                .select('assunto_original, taxonomia_id')
+                .eq('materia', materia)
+                .not('taxonomia_id', 'is', null)
+        ]);
 
-        if (error) {
+        if (taxonomiaResult.error) {
             return res.status(500).json({
                 success: false,
                 error: "Erro ao buscar taxonomia"
             });
         }
 
-        // Construir árvore hierárquica
-        const buildTree = (items: any[], parentId: string | null = null): any[] => {
+        const taxonomiaData = taxonomiaResult.data || [];
+        const mapeamentoData = mapeamentoResult.data || [];
+
+        // Criar mapa de assuntos por taxonomia_id
+        const assuntosPorTaxonomia = new Map<number, string[]>();
+        for (const map of mapeamentoData) {
+            if (!assuntosPorTaxonomia.has(map.taxonomia_id)) {
+                assuntosPorTaxonomia.set(map.taxonomia_id, []);
+            }
+            assuntosPorTaxonomia.get(map.taxonomia_id)!.push(map.assunto_original);
+        }
+
+        // Construir árvore hierárquica com assuntos_originais
+        const buildTree = (items: any[], parentId: number | null = null): any[] => {
             return items
                 .filter(item => item.parent_id === parentId)
+                .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
                 .map(item => ({
-                    ...item,
+                    id: item.id,
+                    codigo: item.codigo,
+                    nome: item.nome,
+                    nivel: item.nivel,
+                    ordem: item.ordem,
+                    materia: item.materia,
+                    parent_id: item.parent_id,
+                    assuntos_originais: assuntosPorTaxonomia.get(item.id) || [],
                     filhos: buildTree(items, item.id)
                 }));
         };
 
-        const tree = buildTree(data || []);
+        const tree = buildTree(taxonomiaData);
 
         return res.json({
             success: true,
             materia,
             taxonomia: tree,
-            totalNodes: data?.length || 0
+            totalNodes: taxonomiaData.length,
+            totalAssuntosMapeados: mapeamentoData.length
         });
 
     } catch (error: any) {
