@@ -1430,6 +1430,102 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
       await delay(CONFIG.delays.afterPageLoad);
     }
 
+    // Se tiver mais de 30k questões, precisamos filtrar por subcategorias
+    if (questoesDisponiveis > CONFIG.maxQuestoesPorCaderno) {
+      log(`Muitas questões (${questoesDisponiveis}), selecionando subcategorias...`);
+
+      // Voltar e selecionar subcategorias específicas em vez de "Todo o conteúdo"
+      // Primeiro, listar as subcategorias disponíveis
+      const subcategorias = await page.evaluate((areaNome) => {
+        const results: { nome: string; quantidade: number; x: number; y: number }[] = [];
+        const items = document.querySelectorAll('li.arvore-item');
+
+        for (const item of items) {
+          const text = item.textContent?.trim() || '';
+          // Pular "Todo o conteúdo" e encontrar subcategorias específicas
+          if (!text.includes('Todo o conteúdo') && !text.includes(areaNome)) {
+            // Procurar quantidade no texto ou em span separado
+            const qtdMatch = text.match(/\((\d+(?:\.\d+)*)\)/);
+            if (qtdMatch) {
+              const nome = text.replace(/\(\d+(?:\.\d+)*\)/, '').trim();
+              const quantidade = parseInt(qtdMatch[1].replace(/\./g, ''));
+              const rect = (item as HTMLElement).getBoundingClientRect();
+              if (rect.width > 0 && rect.height > 0 && quantidade < 30000) {
+                results.push({
+                  nome,
+                  quantidade,
+                  x: rect.x + 15,
+                  y: rect.y + rect.height / 2,
+                });
+              }
+            }
+          }
+        }
+
+        return results;
+      }, areaNome);
+
+      log(`Subcategorias encontradas: ${subcategorias.length}`);
+
+      if (subcategorias.length > 0) {
+        // Selecionar a primeira subcategoria com menos de 30k questões
+        const subcat = subcategorias[0];
+        log(`Selecionando subcategoria: ${subcat.nome} (${subcat.quantidade} questões)`);
+        await page.mouse.click(subcat.x, subcat.y);
+        await delay(CONFIG.delays.afterPageLoad);
+      } else {
+        // Se não encontrou subcategorias, usar filtro de matéria
+        log('Nenhuma subcategoria adequada, usando filtro de matéria...');
+
+        // Clicar em "Matéria e assunto" na barra lateral
+        const materiaClicked = await page.evaluate(() => {
+          const items = document.querySelectorAll('li, a');
+          for (const item of items) {
+            const text = item.textContent?.trim() || '';
+            if (text === 'Matéria e assunto') {
+              (item as HTMLElement).click();
+              return true;
+            }
+          }
+          return false;
+        });
+
+        if (materiaClicked) {
+          await delay(CONFIG.delays.afterPageLoad);
+
+          // Selecionar primeira matéria disponível
+          const primeiraMateria = await page.evaluate(() => {
+            const materias = document.querySelectorAll('li.arvore-item');
+            for (const m of materias) {
+              const text = m.textContent?.trim() || '';
+              // Pular cabeçalhos e itens vazios
+              if (text.length > 0 && !text.includes('Todo o conteúdo')) {
+                const rect = (m as HTMLElement).getBoundingClientRect();
+                if (rect.width > 0) {
+                  return { nome: text.substring(0, 50), x: rect.x + 15, y: rect.y + rect.height / 2 };
+                }
+              }
+            }
+            return null;
+          });
+
+          if (primeiraMateria) {
+            log(`Selecionando matéria: ${primeiraMateria.nome}`);
+            await page.mouse.click(primeiraMateria.x, primeiraMateria.y);
+            await delay(CONFIG.delays.afterPageLoad);
+          }
+        }
+      }
+
+      // Verificar nova quantidade de questões
+      const novaQuantidade = await page.evaluate(() => {
+        const text = document.body.innerText;
+        const match = text.match(/(\d+)\s*questões encontradas/);
+        return match ? parseInt(match[1].replace(/\D/g, '')) : 0;
+      });
+      log(`Nova quantidade de questões: ${novaQuantidade}`);
+    }
+
     // Clicar em "GERAR CADERNO"
     log('Clicando em GERAR CADERNO...');
     const gerarClicked = await page.evaluate(() => {
@@ -1452,7 +1548,44 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
     log(`Clicado em "${gerarClicked.text}"`);
 
     // Aguardar navegação ou modal
-    await delay(5000);
+    await delay(3000);
+
+    // Verificar se apareceu modal de limite excedido
+    const temModalLimite = await page.evaluate(() => {
+      const modals = document.querySelectorAll('.modal, [role="dialog"], .popup');
+      for (const modal of modals) {
+        const text = modal.textContent || '';
+        if (text.includes('Limite') || text.includes('30 mil')) {
+          // Procurar botão OK para fechar
+          const okBtn = modal.querySelector('button');
+          if (okBtn) {
+            okBtn.click();
+            return { found: true, closed: true };
+          }
+          return { found: true, closed: false };
+        }
+      }
+      // Também verificar por texto visível na página
+      if (document.body.innerText.includes('Limite de Questões Excedido')) {
+        const okBtns = document.querySelectorAll('button');
+        for (const btn of okBtns) {
+          if (btn.textContent?.trim().toUpperCase() === 'OK') {
+            btn.click();
+            return { found: true, closed: true };
+          }
+        }
+        return { found: true, closed: false };
+      }
+      return { found: false, closed: false };
+    });
+
+    if (temModalLimite.found) {
+      log(`Modal de limite encontrado, ${temModalLimite.closed ? 'fechado' : 'não foi possível fechar'}`);
+      await delay(1000);
+      throw new Error('Limite de 30k questões excedido - filtros precisam ser mais específicos');
+    }
+
+    await delay(2000);
     await page.screenshot({ path: '/tmp/tec-apos-gerar.png', fullPage: true });
 
     // Verificar URL para ver se foi redirecionado para um caderno
