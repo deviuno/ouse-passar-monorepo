@@ -298,42 +298,65 @@ export const fetchFilterOptions = async (): Promise<{
 };
 
 // Busca assuntos disponíveis para uma ou mais matérias
-// Usa query direta otimizada para evitar timeout
+// Usa RPC para obter assuntos únicos de forma eficiente
 export const fetchAssuntosByMaterias = async (materias: string[]): Promise<string[]> => {
   if (!materias || materias.length === 0) return [];
 
   try {
-    // Buscar em lotes pequenos para cada matéria e coletar assuntos únicos
-    const assuntosSet = new Set<string>();
+    // Usar RPC para obter assuntos únicos de forma otimizada
+    const { data, error } = await questionsDb.rpc('get_unique_assuntos_by_materias', {
+      p_materias: materias
+    });
 
-    for (const materia of materias) {
+    if (error) {
+      console.warn('[fetchAssuntosByMaterias] RPC não disponível, usando fallback:', error.message);
+      // Fallback: buscar diretamente (pode ser mais lento)
+      return await fetchAssuntosByMateriasFallback(materias);
+    }
+
+    const assuntos = (data || []).map((r: { assunto: string }) => r.assunto).sort();
+    console.log('[fetchAssuntosByMaterias] Carregados:', assuntos.length, 'assuntos para', materias.length, 'materias');
+    return assuntos;
+  } catch (error) {
+    console.error('Erro ao buscar assuntos:', error);
+    return await fetchAssuntosByMateriasFallback(materias);
+  }
+};
+
+// Fallback: busca assuntos sem RPC (mais lento mas funciona)
+const fetchAssuntosByMateriasFallback = async (materias: string[]): Promise<string[]> => {
+  const assuntosSet = new Set<string>();
+
+  // Processar em lotes de 5 matérias para não sobrecarregar
+  const batchSize = 5;
+  for (let i = 0; i < materias.length; i += batchSize) {
+    const batch = materias.slice(i, i + batchSize);
+
+    const promises = batch.map(async (materia) => {
       const { data, error } = await questionsDb
         .from('questoes_concurso')
         .select('assunto')
         .eq('materia', materia)
         .not('assunto', 'is', null)
-        // Filtro oculto: apenas questões ativas e válidas
         .eq('ativo', true)
         .not('enunciado', 'is', null)
         .neq('enunciado', '')
-        .neq('enunciado', 'deleted')
-        .limit(1000); // Limitar para evitar timeout
+        .neq('enunciado', 'deleted');
 
       if (error) {
         console.error(`Erro ao buscar assuntos para ${materia}:`, error);
-        continue;
+        return [];
       }
+      return data || [];
+    });
 
-      (data || []).forEach(r => assuntosSet.add(r.assunto));
-    }
-
-    const uniqueAssuntos = Array.from(assuntosSet).sort();
-    console.log('[fetchAssuntosByMaterias] Carregados:', uniqueAssuntos.length, 'assuntos para', materias.length, 'materias');
-    return uniqueAssuntos;
-  } catch (error) {
-    console.error('Erro ao buscar assuntos:', error);
-    return [];
+    const results = await Promise.all(promises);
+    results.flat().forEach(r => assuntosSet.add(r.assunto));
   }
+
+  const uniqueAssuntos = Array.from(assuntosSet).sort();
+  console.log('[fetchAssuntosByMateriasFallback] Carregados:', uniqueAssuntos.length, 'assuntos');
+  return uniqueAssuntos;
 };
 
 // Tipo para nó da taxonomia hierárquica
