@@ -1662,9 +1662,8 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
           break;
         }
 
-        // Preencher quantidade desta matéria usando PUPPETEER PURO:
-        // AngularJS escuta eventos de teclado reais, então usamos page.keyboard.type()
-        // que envia KeyboardEvents reais ao invés de manipular o DOM via JavaScript
+        // Preencher quantidade desta matéria usando CDP Input.insertText:
+        // Este é o método mais baixo nível para inserir texto, deve funcionar com AngularJS
         let preenchido = false;
 
         try {
@@ -1688,22 +1687,33 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
           if (inputInfo && inputInfo.visible) {
             // 1. Clicar no input para focar
             await page.mouse.click(inputInfo.x, inputInfo.y);
-            await delay(150);
-
-            // 2. Selecionar todo o texto com Ctrl+A
-            await page.keyboard.down('Control');
-            await page.keyboard.press('KeyA');
-            await page.keyboard.up('Control');
-            await delay(100);
-
-            // 3. Usar page.keyboard.type() para digitar - isso envia eventos REAIS de teclado
-            const valueToType = String(materia.quantidade);
-            await page.keyboard.type(valueToType, { delay: 50 }); // 50ms delay entre cada tecla
             await delay(200);
 
-            // 4. Tab para blur e acionar validação
+            // 2. Triple-click para selecionar tudo
+            await page.mouse.click(inputInfo.x, inputInfo.y, { clickCount: 3 });
+            await delay(100);
+
+            // 3. Usar CDP Input.insertText que é mais baixo nível
+            const client = await page.createCDPSession();
+            const valueToType = String(materia.quantidade);
+            await client.send('Input.insertText', { text: valueToType });
+            await client.detach();
+            await delay(200);
+
+            // 4. Disparar eventos manualmente via evaluate para garantir
+            await page.evaluate((idx) => {
+              const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+              const input = allInputs[idx] as HTMLInputElement;
+              if (input) {
+                // Disparar eventos na ordem correta para AngularJS
+                input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+              }
+            }, materia.indice);
+
+            // 5. Tab para blur
             await page.keyboard.press('Tab');
-            await delay(400);
+            await delay(300);
 
             // Verificar se o valor foi aceito pelo AngularJS
             const resultado = await page.evaluate((idx, qtdEsperada) => {
@@ -1725,18 +1735,15 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
 
             if (resultado.correto) {
               preenchido = true;
+              log(`  [✓] DOM: ${resultado.valorDOM}, Total: ${resultado.totalNaPagina}`);
             } else if (resultado.valorDOM === String(materia.quantidade)) {
               // Valor está no DOM mas Total ainda é 0
-              // Talvez o AngularJS precise de mais tempo ou o Total não está atualizando em tempo real
               log(`  [?] DOM: ${resultado.valorDOM} (correto), Total: ${resultado.totalNaPagina}`);
-
-              // Considerar como preenchido se o valor DOM está correto
-              // O Total pode atualizar ao final de todas as entradas
               preenchido = true;
             } else {
               log(`  [!] DOM: ${resultado.valorDOM}, Total: ${resultado.totalNaPagina}`, 'warn');
 
-              // Tentar novamente com clique triplo para selecionar tudo
+              // Fallback: usar keyboard type diretamente
               await page.mouse.click(inputInfo.x, inputInfo.y, { clickCount: 3 });
               await delay(100);
               await page.keyboard.type(valueToType, { delay: 30 });
@@ -1744,7 +1751,6 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
               await page.keyboard.press('Tab');
               await delay(300);
 
-              // Verificar novamente
               const retryResult = await page.evaluate((idx) => {
                 const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
                 const input = allInputs[idx] as HTMLInputElement;
