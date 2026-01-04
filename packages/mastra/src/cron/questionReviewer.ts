@@ -75,9 +75,8 @@ ${question.comentario ? `Comentário existente: ${question.comentario.substring(
 Por favor, forneça o gabarito correto e um comentário pedagógico completo.`;
 
     // Chamar modelo Gemini com JSON mode
-    // Usando gemini-1.5-flash por ter limite de rate maior que gemini-2.0-flash-exp (10 req/min)
     const response = await genAI.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: userPrompt,
       config: {
         systemInstruction: SYSTEM_PROMPT,
