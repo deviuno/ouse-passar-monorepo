@@ -44,6 +44,7 @@ import {
   fetchFilterOptions,
   fetchAssuntosByMaterias,
   fetchTaxonomiaByMaterias,
+  fetchAllTaxonomia,
   TaxonomyNode,
   getQuestionsCount,
   parseRawQuestion,
@@ -296,6 +297,8 @@ export default function PracticePage() {
   const [availableMaterias, setAvailableMaterias] = useState<string[]>(DEFAULT_MATERIAS);
   const [availableAssuntos, setAvailableAssuntos] = useState<string[]>([]);
   const [taxonomyByMateria, setTaxonomyByMateria] = useState<Map<string, TaxonomyNode[]>>(new Map());
+  const [globalTaxonomy, setGlobalTaxonomy] = useState<Map<string, TaxonomyNode[]>>(new Map());
+  const [isLoadingTaxonomy, setIsLoadingTaxonomy] = useState(false);
   const [availableBancas, setAvailableBancas] = useState<string[]>(DEFAULT_BANCAS);
   const [availableOrgaos, setAvailableOrgaos] = useState<string[]>(DEFAULT_ORGAOS);
   const [availableCargos, setAvailableCargos] = useState<string[]>([]);
@@ -641,7 +644,29 @@ export default function PracticePage() {
       }
     };
 
+    // Carregar taxonomia global (assíncrono, não bloqueia)
+    const loadGlobalTaxonomy = async () => {
+      setIsLoadingTaxonomy(true);
+      try {
+        const taxonomy = await fetchAllTaxonomia();
+        if (isMounted) {
+          setGlobalTaxonomy(taxonomy);
+          // Se nenhuma matéria selecionada, usar taxonomia global
+          if (filters.materia.length === 0) {
+            setTaxonomyByMateria(taxonomy);
+          }
+        }
+      } catch (error) {
+        console.error('[PracticePage] Erro ao carregar taxonomia global:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoadingTaxonomy(false);
+        }
+      }
+    };
+
     loadFilterOptions();
+    loadGlobalTaxonomy();
 
     return () => {
       isMounted = false;
@@ -649,8 +674,8 @@ export default function PracticePage() {
   }, [loadKey]);
 
   // Carregar assuntos e taxonomia
-  // Quando nenhuma matéria selecionada: carrega todos os assuntos
-  // Quando matéria(s) selecionada(s): filtra pelos assuntos das matérias
+  // Quando nenhuma matéria selecionada: usa taxonomia global
+  // Quando matéria(s) selecionada(s): filtra pela taxonomia das matérias selecionadas
   useEffect(() => {
     const loadAssuntosAndTaxonomy = async () => {
       setIsLoadingAssuntos(true);
@@ -660,13 +685,28 @@ export default function PracticePage() {
           ? filters.materia
           : availableMaterias; // Usar todas as matérias disponíveis
 
-        // Carregar assuntos e taxonomia em paralelo
-        const [assuntos, taxonomy] = await Promise.all([
-          fetchAssuntosByMaterias(materiasParaBuscar),
-          filters.materia.length > 0
-            ? fetchTaxonomiaByMaterias(filters.materia)
-            : Promise.resolve(new Map<string, TaxonomyNode[]>()) // Não carregar taxonomia quando todas as matérias
-        ]);
+        // Carregar assuntos
+        const assuntos = await fetchAssuntosByMaterias(materiasParaBuscar);
+
+        // Para taxonomia: usar global filtrada ou buscar específica
+        let taxonomy: Map<string, TaxonomyNode[]>;
+        if (filters.materia.length > 0) {
+          // Filtrar taxonomia global pelas matérias selecionadas
+          taxonomy = new Map();
+          for (const materia of filters.materia) {
+            const nodes = globalTaxonomy.get(materia);
+            if (nodes && nodes.length > 0) {
+              taxonomy.set(materia, nodes);
+            }
+          }
+          // Se não encontrou na global, buscar do servidor
+          if (taxonomy.size === 0) {
+            taxonomy = await fetchTaxonomiaByMaterias(filters.materia);
+          }
+        } else {
+          // Usar taxonomia global completa
+          taxonomy = globalTaxonomy;
+        }
 
         setAvailableAssuntos(assuntos);
         setTaxonomyByMateria(taxonomy);
@@ -691,7 +731,7 @@ export default function PracticePage() {
     if (availableMaterias.length > 0) {
       loadAssuntosAndTaxonomy();
     }
-  }, [filters.materia, availableMaterias]);
+  }, [filters.materia, availableMaterias, globalTaxonomy]);
 
   // Atualizar contagem de questoes quando filtros mudam
   useEffect(() => {
@@ -1292,7 +1332,7 @@ export default function PracticePage() {
                         }}
                         onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
                         placeholder="Selecionar assuntos..."
-                        isLoading={isLoadingAssuntos}
+                        isLoading={isLoadingAssuntos || isLoadingTaxonomy}
                       />
                       <MultiSelectDropdown
                         label="Órgãos"

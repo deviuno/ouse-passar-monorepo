@@ -388,6 +388,37 @@ const getMastraApiUrl = (path: string): string => {
   return `http://localhost:4000${path}`;
 };
 
+// Busca toda a taxonomia de todas as matérias (para dropdown global)
+export const fetchAllTaxonomia = async (): Promise<Map<string, TaxonomyNode[]>> => {
+  try {
+    const API_URL = getMastraApiUrl('/api/taxonomia/all');
+
+    const response = await fetch(API_URL);
+    if (!response.ok) {
+      console.error('[fetchAllTaxonomia] Erro na resposta:', response.status);
+      return new Map();
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      console.error('[fetchAllTaxonomia] API retornou erro:', data.error);
+      return new Map();
+    }
+
+    // Converter objeto para Map
+    const result = new Map<string, TaxonomyNode[]>();
+    for (const [materia, nodes] of Object.entries(data.taxonomiaByMateria)) {
+      result.set(materia, nodes as TaxonomyNode[]);
+    }
+
+    console.log('[fetchAllTaxonomia] Taxonomia carregada:', result.size, 'matérias,', data.totalNodes, 'nós');
+    return result;
+  } catch (error) {
+    console.error('[fetchAllTaxonomia] Erro:', error);
+    return new Map();
+  }
+};
+
 // Busca taxonomia hierárquica para uma matéria
 export const fetchTaxonomiaByMateria = async (materia: string): Promise<TaxonomyNode[]> => {
   if (!materia) return [];

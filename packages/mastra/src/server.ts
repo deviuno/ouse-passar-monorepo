@@ -6324,6 +6324,102 @@ app.get('/api/taxonomia/:materia/assuntos', async (req, res) => {
     }
 });
 
+// Obter taxonomia de todas as matérias principais (para dropdown de assuntos)
+// IMPORTANTE: Este endpoint deve vir ANTES do /api/taxonomia/:materia
+app.get('/api/taxonomia/all', async (req, res) => {
+    try {
+        // Buscar todas as matérias que têm taxonomia
+        const { data: materias, error: materiasError } = await questionsDb
+            .from('assuntos_taxonomia')
+            .select('materia')
+            .not('materia', 'is', null);
+
+        if (materiasError) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar matérias"
+            });
+        }
+
+        // Obter lista única de matérias
+        const materiasUnicas = [...new Set(materias?.map(m => m.materia) || [])];
+
+        // Buscar taxonomia e mapeamentos de todas as matérias em paralelo
+        const [taxonomiaResult, mapeamentoResult] = await Promise.all([
+            questionsDb
+                .from('assuntos_taxonomia')
+                .select('*')
+                .in('materia', materiasUnicas)
+                .order('materia')
+                .order('ordem'),
+            questionsDb
+                .from('assuntos_mapeamento')
+                .select('assunto_original, taxonomia_id, materia')
+                .in('materia', materiasUnicas)
+                .not('taxonomia_id', 'is', null)
+        ]);
+
+        if (taxonomiaResult.error) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar taxonomia"
+            });
+        }
+
+        const taxonomiaData = taxonomiaResult.data || [];
+        const mapeamentoData = mapeamentoResult.data || [];
+
+        // Criar mapa de assuntos por taxonomia_id
+        const assuntosPorTaxonomia = new Map<number, string[]>();
+        for (const map of mapeamentoData) {
+            if (!assuntosPorTaxonomia.has(map.taxonomia_id)) {
+                assuntosPorTaxonomia.set(map.taxonomia_id, []);
+            }
+            assuntosPorTaxonomia.get(map.taxonomia_id)!.push(map.assunto_original);
+        }
+
+        // Construir árvore hierárquica por matéria
+        const buildTree = (items: any[], parentId: number | null = null): any[] => {
+            return items
+                .filter(item => item.parent_id === parentId)
+                .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+                .map(item => ({
+                    id: item.id,
+                    codigo: item.codigo,
+                    nome: item.nome,
+                    nivel: item.nivel,
+                    ordem: item.ordem,
+                    materia: item.materia,
+                    parent_id: item.parent_id,
+                    assuntos_originais: assuntosPorTaxonomia.get(item.id) || [],
+                    filhos: buildTree(items.filter(i => i.materia === item.materia), item.id)
+                }));
+        };
+
+        // Agrupar por matéria
+        const taxonomiaByMateria: Record<string, any[]> = {};
+        for (const materia of materiasUnicas) {
+            const materiaItems = taxonomiaData.filter(t => t.materia === materia);
+            taxonomiaByMateria[materia] = buildTree(materiaItems);
+        }
+
+        return res.json({
+            success: true,
+            taxonomiaByMateria,
+            totalMaterias: materiasUnicas.length,
+            totalNodes: taxonomiaData.length,
+            totalAssuntosMapeados: mapeamentoData.length
+        });
+
+    } catch (error: any) {
+        console.error("[Taxonomia] Erro ao buscar taxonomia geral:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
 // Obter taxonomia existente de uma matéria
 app.get('/api/taxonomia/:materia', async (req, res) => {
     try {
