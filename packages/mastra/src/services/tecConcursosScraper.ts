@@ -2363,11 +2363,30 @@ async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
         // Obter ID da questão atual antes de navegar
         const questaoAtualId = questoes.length > 0 ? questoes[questoes.length - 1].id : '';
 
-        await (nextBtn as any).click();
-        // TecConcursos usa AJAX, não precisa esperar navegação completa
-        await delay(1500); // Esperar carregamento da próxima questão
+        // Tentar navegação via teclado primeiro (mais confiável)
+        // TecConcursos suporta atalho de teclado para próxima questão
+        await page.keyboard.press('ArrowRight');
+        await delay(2000); // Esperar carregamento AJAX
 
-        // Verificar se realmente mudou de questão
+        // Verificar se mudou via teclado
+        let navegouComSucesso = false;
+        const textoAposTeclado = await page.evaluate(() => document.body.innerText);
+        const idAposTeclado = textoAposTeclado.match(/#(\d{5,})/)?.[1] || '';
+        if (idAposTeclado && idAposTeclado !== questaoAtualId) {
+          navegouComSucesso = true;
+          paginaAtual++;
+          log(`Navegou via teclado (ArrowRight) para questão ${idAposTeclado} (${paginaAtual}/${totalQuestoes || '?'})`);
+          continue; // Pular para a próxima iteração do loop
+        }
+
+        // Se não funcionou via teclado, tentar click no botão
+        if (!navegouComSucesso) {
+          log('Teclado não funcionou, tentando click no botão...');
+          await (nextBtn as any).click();
+          await delay(2500); // Esperar mais tempo para o click
+        }
+
+        // Verificar se realmente mudou de questão após click
         // Tentar múltiplos métodos para detectar a questão atual
         let novoId = '';
 
