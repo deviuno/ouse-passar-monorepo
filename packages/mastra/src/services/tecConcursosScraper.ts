@@ -696,9 +696,42 @@ async function selecionarArea(areaNome: string): Promise<boolean> {
     }
 
     if (areaFilter) {
-      log(`Área "${areaNome}" encontrada, clicando...`);
+      log(`Área "${areaNome}" encontrada, clicando para expandir...`);
       await areaFilter.click();
       await delay(CONFIG.delays.afterPageLoad);
+      await page.screenshot({ path: '/tmp/tec-area-expandida.png', fullPage: true });
+
+      // PASSO 3: Após expandir a área, clicar em "Todo o conteúdo de..." para selecionar tudo
+      log(`Procurando "Todo o conteúdo de" para selecionar toda a área...`);
+
+      const todoConteudoClicked = await page.evaluate((areaNome) => {
+        const allElements = document.querySelectorAll('a, span, label, div');
+        for (const el of allElements) {
+          const text = el.textContent?.trim() || '';
+          // Procurar por "Todo o conteúdo de 'X'" ou similar
+          if (text.includes('Todo o conteúdo') && text.toLowerCase().includes(areaNome.toLowerCase())) {
+            (el as HTMLElement).click();
+            return { found: true, text };
+          }
+        }
+        // Tentar alternativa - apenas "Todo o conteúdo"
+        for (const el of allElements) {
+          const text = el.textContent?.trim() || '';
+          if (text.startsWith('Todo o conteúdo')) {
+            (el as HTMLElement).click();
+            return { found: true, text };
+          }
+        }
+        return { found: false, text: '' };
+      }, areaNome);
+
+      if (todoConteudoClicked.found) {
+        log(`Clicado em: "${todoConteudoClicked.text}"`);
+        await delay(CONFIG.delays.afterPageLoad);
+      } else {
+        log('Não encontrou "Todo o conteúdo", a área já pode estar selecionada', 'warn');
+      }
+
       await page.screenshot({ path: '/tmp/tec-area-selecionada.png', fullPage: true });
       return true;
     }
