@@ -38,6 +38,7 @@ import { buscarOuGerarLogo } from './services/logoService.js';
 import { generateSimuladoPDF } from './services/pdfService.js';
 import multer from 'multer';
 import { createScraperRoutes } from './routes/scraper.js';
+import { createTecConcursosScraperRoutes } from './routes/tecConcursosScraper.js';
 import { startImageProcessorCron, getImageProcessorStatus } from './cron/imageProcessor.js';
 import { startQuestionReviewerCron, getQuestionReviewerStatus } from './cron/questionReviewer.js';
 
@@ -6981,6 +6982,10 @@ app.post('/api/taxonomia/processar-grande', async (req, res) => {
 // Registrar rotas do scraper
 const scraperRoutes = createScraperRoutes(questionsDbUrl, questionsDbKey);
 app.use('/api/scraper', scraperRoutes);
+
+// Registrar rotas do TecConcursos Scraper (autônomo)
+const tecScraperRoutes = createTecConcursosScraperRoutes();
+app.use('/api/tec-scraper', tecScraperRoutes);
 
 // Endpoint para status dos cron jobs
 app.get('/api/scraper/cron-status', (req, res) => {
