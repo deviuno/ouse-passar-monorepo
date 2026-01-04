@@ -1681,12 +1681,13 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
             await delay(30);
 
             // Digitar o valor (isso substitui o conteúdo selecionado)
-            await page.keyboard.type(String(materia.quantidade), { delay: 5 });
-            await delay(30);
+            // Usar delay maior para AngularJS processar cada caractere
+            await page.keyboard.type(String(materia.quantidade), { delay: 20 });
+            await delay(100);
 
             // Tab para sair do input e triggerar blur/change do AngularJS
             await page.keyboard.press('Tab');
-            await delay(30);
+            await delay(200);
 
             preenchido = true;
 
@@ -1836,6 +1837,31 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
             }
           });
           await delay(CONFIG.delays.afterPageLoad);
+
+          // IMPORTANTE: Clicar em "Editar quantidades" novamente para reabrir o painel
+          log('Reabrindo painel "Editar quantidades"...');
+          const linksRetry = await page.evaluate(() => {
+            const allElements = document.querySelectorAll('a, span');
+            const found: { text: string; x: number; y: number }[] = [];
+            allElements.forEach((el) => {
+              const text = el.textContent?.trim() || '';
+              if (text.toLowerCase().includes('editar quant')) {
+                const rect = el.getBoundingClientRect();
+                found.push({ text, x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 });
+              }
+            });
+            return found.filter(l => l.x > 0 && l.y > 0);
+          });
+
+          if (linksRetry.length > 0) {
+            const link = linksRetry[0];
+            log(`Clicando em: ${link.text} (${link.x}, ${link.y})`);
+            await page.mouse.click(link.x, link.y);
+            await delay(CONFIG.delays.afterPageLoad + 2000);
+          } else {
+            log('Link "Editar quantidades" não encontrado no retry', 'warn');
+          }
+
           continue;
         } else {
           log('Não foi possível criar caderno mesmo com 1 matéria, pulando...', 'error');
