@@ -668,6 +668,15 @@ export default function PracticePage() {
             : Promise.resolve(new Map<string, TaxonomyNode[]>()) // Não carregar taxonomia quando todas as matérias
         ]);
 
+        console.log('[PracticePage] Assuntos carregados:', assuntos.length);
+        console.log('[PracticePage] Taxonomy Map size:', taxonomy.size);
+        for (const [materia, nodes] of taxonomy.entries()) {
+          console.log(`[PracticePage] Taxonomy para "${materia}":`, nodes.length, 'nós');
+          if (nodes.length > 0) {
+            console.log('[PracticePage] Primeiro nó:', nodes[0].nome, '- assuntos_originais:', nodes[0].assuntos_originais?.length || 0);
+          }
+        }
+
         setAvailableAssuntos(assuntos);
         setTaxonomyByMateria(taxonomy);
 

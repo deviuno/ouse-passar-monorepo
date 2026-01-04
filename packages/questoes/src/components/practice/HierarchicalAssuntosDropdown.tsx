@@ -215,6 +215,16 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
   const hasTaxonomy = taxonomyByMateria.size > 0 &&
     Array.from(taxonomyByMateria.values()).some(nodes => nodes.length > 0);
 
+  // Debug logging
+  if (taxonomyByMateria.size > 0) {
+    console.log('[HierarchicalAssuntosDropdown] TAXONOMY AVAILABLE:', {
+      size: taxonomyByMateria.size,
+      materias: Array.from(taxonomyByMateria.keys()),
+      firstMateriaNodes: taxonomyByMateria.values().next().value?.length || 0,
+      hasTaxonomy
+    });
+  }
+
   // Filtrar assuntos flat que não estão na taxonomia
   const assuntosSemTaxonomia = flatAssuntos.filter(assunto => {
     // Verificar se o assunto está em alguma taxonomia
