@@ -648,32 +648,36 @@ export default function PracticePage() {
     };
   }, [loadKey]);
 
-  // Carregar assuntos e taxonomia quando materias sao selecionadas
+  // Carregar assuntos e taxonomia
+  // Quando nenhuma matéria selecionada: carrega todos os assuntos
+  // Quando matéria(s) selecionada(s): filtra pelos assuntos das matérias
   useEffect(() => {
     const loadAssuntosAndTaxonomy = async () => {
-      if (filters.materia.length === 0) {
-        setAvailableAssuntos([]);
-        setTaxonomyByMateria(new Map());
-        if (filters.assunto.length > 0) {
-          setFilters((prev) => ({ ...prev, assunto: [] }));
-        }
-        return;
-      }
-
       setIsLoadingAssuntos(true);
       try {
+        // Determinar quais matérias usar para buscar assuntos
+        const materiasParaBuscar = filters.materia.length > 0
+          ? filters.materia
+          : availableMaterias; // Usar todas as matérias disponíveis
+
         // Carregar assuntos e taxonomia em paralelo
         const [assuntos, taxonomy] = await Promise.all([
-          fetchAssuntosByMaterias(filters.materia),
-          fetchTaxonomiaByMaterias(filters.materia)
+          fetchAssuntosByMaterias(materiasParaBuscar),
+          filters.materia.length > 0
+            ? fetchTaxonomiaByMaterias(filters.materia)
+            : Promise.resolve(new Map<string, TaxonomyNode[]>()) // Não carregar taxonomia quando todas as matérias
         ]);
 
         setAvailableAssuntos(assuntos);
         setTaxonomyByMateria(taxonomy);
-        setFilters((prev) => ({
-          ...prev,
-          assunto: prev.assunto.filter((a) => assuntos.includes(a)),
-        }));
+
+        // Filtrar assuntos selecionados que não existem mais na lista atual
+        if (filters.materia.length > 0) {
+          setFilters((prev) => ({
+            ...prev,
+            assunto: prev.assunto.filter((a) => assuntos.includes(a)),
+          }));
+        }
       } catch (error) {
         console.error('Erro ao carregar assuntos:', error);
         setAvailableAssuntos([]);
@@ -683,8 +687,11 @@ export default function PracticePage() {
       }
     };
 
-    loadAssuntosAndTaxonomy();
-  }, [filters.materia]);
+    // Só carregar se temos matérias disponíveis (após o carregamento inicial)
+    if (availableMaterias.length > 0) {
+      loadAssuntosAndTaxonomy();
+    }
+  }, [filters.materia, availableMaterias]);
 
   // Atualizar contagem de questoes quando filtros mudam
   useEffect(() => {
@@ -1283,9 +1290,8 @@ export default function PracticePage() {
                           });
                         }}
                         onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
-                        placeholder={filters.materia.length === 0 ? 'Selecione matérias primeiro' : 'Buscar assuntos...'}
+                        placeholder="Buscar assuntos..."
                         isLoading={isLoadingAssuntos}
-                        disabled={filters.materia.length === 0}
                       />
                       <MultiSelectDropdown
                         label="Órgãos"
