@@ -327,6 +327,12 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
 
             {/* Lista */}
             <div className="max-h-[300px] overflow-y-auto">
+              {/* Debug indicator */}
+              {hasTaxonomy && (
+                <div className="px-3 py-1 bg-[#2ECC71]/20 text-[#2ECC71] text-xs border-b border-[#3A3A3A]">
+                  Exibindo hierarquia ({taxonomyByMateria.size} matéria{taxonomyByMateria.size > 1 ? 's' : ''})
+                </div>
+              )}
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 size={16} className="animate-spin text-[#FFB800]" />
