@@ -38,14 +38,17 @@ function getSupabaseAppClient(): SupabaseClient {
 
 function getSupabaseQuestoesClient(): SupabaseClient {
     if (!_supabaseQuestoes) {
-        const supabaseUrl = process.env.VITE_QUESTIONS_DB_URL || '';
-        const supabaseKey = process.env.VITE_QUESTIONS_DB_ANON_KEY || '';
+        // Usa QUESTIONS_DB se definido, senão fallback para o banco principal (unificado)
+        const supabaseUrl = process.env.VITE_QUESTIONS_DB_URL || process.env.VITE_SUPABASE_URL || '';
+        const supabaseKey = process.env.VITE_QUESTIONS_DB_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+        const isUsingMainDb = !process.env.VITE_QUESTIONS_DB_URL;
 
+        console.log('[FiltrosAdapter] Questions DB Mode:', isUsingMainDb ? 'Banco Unificado' : 'Banco Separado');
         console.log('[FiltrosAdapter] Questions DB URL:', supabaseUrl ? supabaseUrl.substring(0, 40) + '...' : 'NÃO DEFINIDA');
         console.log('[FiltrosAdapter] Questions DB Key:', supabaseKey ? `DEFINIDA (${supabaseKey.length} chars)` : 'NÃO DEFINIDA');
 
         if (!supabaseUrl || !supabaseKey) {
-            throw new Error('Supabase Questions DB URL and Key are required. Check your .env file.');
+            throw new Error('Supabase URL and Key are required. Check your .env file (VITE_SUPABASE_URL or VITE_QUESTIONS_DB_URL).');
         }
 
         _supabaseQuestoes = createClient(supabaseUrl, supabaseKey);
