@@ -38,18 +38,28 @@ async function migrateTable(
   console.log(`\n📦 Migrando tabela: ${tableName}`);
   const startTime = Date.now();
 
-  let offset = 0;
   let totalMigrated = 0;
   let totalErrors = 0;
   let hasMore = true;
 
-  // Contar total de registros
+  // Contar total de registros na origem
   const { count } = await source
     .from(tableName)
     .select('*', { count: 'exact', head: true });
 
   const total = count || 0;
-  console.log(`   Total de registros: ${total}`);
+
+  // Verificar quantos já existem no destino para continuar de onde parou
+  const { count: existingCount } = await target
+    .from(tableName)
+    .select('*', { count: 'exact', head: true });
+
+  const existing = existingCount || 0;
+  let offset = existing > 0 ? existing : 0;
+
+  console.log(`   Total na origem: ${total}`);
+  console.log(`   Já migrados: ${existing}`);
+  console.log(`   Faltam: ${total - existing}`);
 
   while (hasMore) {
     // Buscar lote do source
