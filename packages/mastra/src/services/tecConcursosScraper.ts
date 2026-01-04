@@ -2201,11 +2201,23 @@ async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
     _isRunning = true;
 
     // Tentar obter o total de questões do caderno
+    // TecConcursos mostra "Questão 1 de 121870" no topo
     let totalQuestoes = 0;
     try {
-      const totalText = await page.$eval('.total-questoes, .questoes-count, [data-total]', (el: Element) => el.textContent || '');
-      totalQuestoes = parseInt(totalText.replace(/\D/g, '')) || 0;
-      log(`Total de questões detectado: ${totalQuestoes}`);
+      // Procurar texto que contém "de X" onde X é o total
+      const bodyText = await page.evaluate(() => document.body.innerText);
+      const match = bodyText.match(/Quest[aã]o\s+\d+\s+de\s+([\d.]+)/i);
+      if (match) {
+        totalQuestoes = parseInt(match[1].replace(/\D/g, '')) || 0;
+        log(`Total de questões detectado: ${totalQuestoes}`);
+      } else {
+        // Fallback para seletores específicos
+        const totalText = await page.$eval('.total-questoes, .questoes-count, [data-total]', (el: Element) => el.textContent || '').catch(() => '');
+        totalQuestoes = parseInt(totalText.replace(/\D/g, '')) || 0;
+        if (totalQuestoes > 0) {
+          log(`Total de questões (fallback): ${totalQuestoes}`);
+        }
+      }
     } catch (e) {
       log('Não foi possível detectar o total de questões', 'warn');
     }
@@ -2289,38 +2301,95 @@ async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
         log(`${MAX_SEM_DADOS} questões consecutivas sem dados. Verificando seletores...`, 'warn');
       }
 
-      // Verificar se há próxima página
-      const nextPageSelectors = [
+      // TecConcursos mostra uma questão por vez com navegação por botões
+      // Verificar se há próxima questão usando os botões de navegação
+      // Os seletores incluem o botão ► (play/próximo) na barra inferior
+      const nextQuestionSelectors = [
+        // Botão de próxima questão (play icon) - barra inferior
+        'button[title*="róxim"]',
+        'button[title*="next"]',
+        'a[title*="róxim"]',
+        '.btn-proximo',
+        '.btn-next',
+        // Setas de navegação
+        '.navegacao-questoes button:last-child',
+        '.question-nav .next',
+        // Ícones de seta
+        'button svg[data-icon="play"]',
+        'button svg[data-icon="chevron-right"]',
+        // Fallback: qualquer botão com ícone de play
+        '.questao button[class*="play"]',
+        // Paginação tradicional
         '.pagination .next:not(.disabled) a',
         'a[rel="next"]',
-        '.btn-next-page',
-        '.paginacao a.proxima',
-        '.pagination li:last-child:not(.disabled) a',
-        'a[title="Próxima"]',
       ];
 
-      let nextPageBtn = null;
-      for (const selector of nextPageSelectors) {
-        nextPageBtn = await page.$(selector);
-        if (nextPageBtn) {
-          log(`Próxima página encontrada com seletor: ${selector}`);
+      let nextBtn = null;
+      for (const selector of nextQuestionSelectors) {
+        nextBtn = await page.$(selector);
+        if (nextBtn) {
+          log(`Botão próxima questão encontrado com seletor: ${selector}`);
           break;
         }
       }
 
-      if (nextPageBtn) {
-        await nextPageBtn.click();
-        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
-        await delay(CONFIG.delays.afterPageLoad);
-        paginaAtual++;
+      // Se não encontrou por seletores, tentar por keyboard shortcut
+      // TecConcursos suporta teclas de atalho: → para próxima questão
+      if (!nextBtn) {
+        log('Tentando navegar via teclado (seta direita)...');
+        // Usar keyboard para navegar
+        await page.keyboard.press('ArrowRight');
+        await delay(1500);
 
-        // Limite de segurança
-        if (paginaAtual > 1000) {
-          log('Limite de páginas atingido (1000)', 'warn');
+        // Verificar se mudou de questão
+        const novoTextoCheck = await page.evaluate(() => {
+          const questaoEl = document.querySelector('.questao');
+          const link = questaoEl?.querySelector('a[href*="/questoes/"]');
+          return link?.getAttribute('href') || '';
+        });
+        const novoIdCheck = novoTextoCheck.match(/\/questoes\/(\d+)/)?.[1] || '';
+        const questaoAtualIdCheck = questoes.length > 0 ? questoes[questoes.length - 1].id : '';
+
+        if (novoIdCheck && novoIdCheck !== questaoAtualIdCheck) {
+          paginaAtual++;
+          log(`Navegou via teclado para questão ${novoIdCheck} (${paginaAtual}/${totalQuestoes || '?'})`);
+          continue; // Continuar o loop
+        } else {
+          log('Navegação via teclado não funcionou.');
+        }
+      }
+
+      if (nextBtn) {
+        // Obter ID da questão atual antes de navegar
+        const questaoAtualId = questoes.length > 0 ? questoes[questoes.length - 1].id : '';
+
+        await (nextBtn as any).click();
+        // TecConcursos usa AJAX, não precisa esperar navegação completa
+        await delay(1500); // Esperar carregamento da próxima questão
+
+        // Verificar se realmente mudou de questão
+        const novoTexto = await page.$eval('.questao', (el: Element) => {
+          const link = el.querySelector('a[href*="/questoes/"]');
+          return link?.getAttribute('href') || '';
+        }).catch(() => '');
+
+        const novoId = novoTexto.match(/\/questoes\/(\d+)/)?.[1] || '';
+
+        if (novoId && novoId !== questaoAtualId) {
+          paginaAtual++;
+          log(`Navegou para questão ${novoId} (${paginaAtual}/${totalQuestoes || '?'})`);
+        } else {
+          log('Parece que não há mais questões ou navegação falhou.');
+          temMaisQuestoes = false;
+        }
+
+        // Limite de segurança para não ficar em loop infinito
+        if (paginaAtual > 50000) {
+          log('Limite de questões atingido (50000)', 'warn');
           break;
         }
       } else {
-        log('Não há mais páginas.');
+        log('Não encontrou botão de próxima questão.');
         temMaisQuestoes = false;
       }
     }
