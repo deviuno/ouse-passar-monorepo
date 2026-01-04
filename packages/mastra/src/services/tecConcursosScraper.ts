@@ -1694,7 +1694,7 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
             await page.keyboard.press('Tab');
             await delay(300);
 
-            // Verificar se o valor foi setado corretamente
+            // Verificar se o valor foi setado no DOM
             const valorSetado = await page.evaluate((indice) => {
               const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
               if (indice < allInputs.length) {
@@ -1703,50 +1703,93 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
               return '';
             }, materia.indice);
 
-            if (valorSetado === String(materia.quantidade)) {
+            // Verificar também o Total no caderno
+            const totalAtual = await page.evaluate(() => {
+              const text = document.body.innerText || '';
+              const match = text.match(/Total no caderno[:\s]+(\d+)/i);
+              return match ? parseInt(match[1], 10) : 0;
+            });
+
+            if (valorSetado === String(materia.quantidade) && totalAtual > 0) {
               preenchido = true;
             } else {
-              log(`  [!] Valor NÃO setado! Esperado: ${materia.quantidade}, atual: ${valorSetado}`, 'warn');
+              log(`  [!] DOM value: ${valorSetado}, Total na página: ${totalAtual}`, 'warn');
 
-              // Tentar abordagem alternativa: usar Angular diretamente
-              const angularSetado = await page.evaluate((indice, qtd) => {
+              // Abordagem alternativa: usar jQuery trigger que AngularJS reconhece
+              const success = await page.evaluate((indice, qtd) => {
                 const allInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-                if (indice < allInputs.length) {
-                  const input = allInputs[indice] as HTMLInputElement;
+                if (indice >= allInputs.length) return false;
 
-                  // Tentar definir via Angular
-                  const win = window as unknown as { angular?: { element: (el: Element) => unknown } };
-                  if (win.angular) {
-                    try {
-                      const angEl = win.angular.element(input) as { scope?: () => { $apply: (fn: () => void) => void }; controller?: (name: string) => { $setViewValue: (v: string) => void; $render: () => void } };
-                      const scope = angEl.scope?.();
-                      const ngModel = angEl.controller?.('ngModel');
+                const input = allInputs[indice] as HTMLInputElement;
+                const win = window as unknown as { angular?: { element: (el: Element) => { val: (v: string) => unknown; trigger: (e: string) => void; triggerHandler: (e: string) => void } }; jQuery?: (el: Element) => { val: (v: string) => unknown; trigger: (e: string) => void } };
 
-                      if (ngModel) {
-                        scope?.$apply(() => {
-                          ngModel.$setViewValue(String(qtd));
-                          ngModel.$render();
-                        });
-                        return input.value;
-                      }
-                    } catch {
-                      // Ignorar
-                    }
+                // Método 1: Usar jQuery se disponível
+                if (win.jQuery) {
+                  try {
+                    win.jQuery(input).val(String(qtd)).trigger('input').trigger('change');
+                    return true;
+                  } catch {
+                    // Continuar
                   }
-
-                  // Fallback: setar direto e disparar eventos
-                  input.value = String(qtd);
-                  input.dispatchEvent(new Event('input', { bubbles: true }));
-                  input.dispatchEvent(new Event('change', { bubbles: true }));
-                  input.dispatchEvent(new Event('blur', { bubbles: true }));
-                  return input.value;
                 }
-                return '';
+
+                // Método 2: Usar angular.element
+                if (win.angular) {
+                  try {
+                    const angEl = win.angular.element(input);
+                    angEl.val(String(qtd));
+                    angEl.triggerHandler('input');
+                    angEl.triggerHandler('change');
+                    angEl.trigger('input');
+                    angEl.trigger('change');
+                    return true;
+                  } catch {
+                    // Continuar
+                  }
+                }
+
+                // Método 3: Criar eventos com KeyboardEvent
+                input.focus();
+                input.select();
+
+                // Simular keypress
+                for (const char of String(qtd)) {
+                  const keyEvent = new KeyboardEvent('keypress', {
+                    key: char,
+                    code: `Digit${char}`,
+                    charCode: char.charCodeAt(0),
+                    keyCode: char.charCodeAt(0),
+                    which: char.charCodeAt(0),
+                    bubbles: true
+                  });
+                  input.dispatchEvent(keyEvent);
+                }
+
+                input.value = String(qtd);
+
+                // Disparar eventos na ordem correta
+                ['input', 'change', 'blur'].forEach(eventName => {
+                  const evt = document.createEvent('HTMLEvents');
+                  evt.initEvent(eventName, true, true);
+                  input.dispatchEvent(evt);
+                });
+
+                return true;
               }, materia.indice, materia.quantidade);
 
-              if (angularSetado === String(materia.quantidade)) {
-                preenchido = true;
-                log(`  [✓] Valor setado via Angular: ${angularSetado}`);
+              if (success) {
+                // Verificar novamente
+                await delay(200);
+                const novoTotal = await page.evaluate(() => {
+                  const text = document.body.innerText || '';
+                  const match = text.match(/Total no caderno[:\s]+(\d+)/i);
+                  return match ? parseInt(match[1], 10) : 0;
+                });
+
+                if (novoTotal > 0) {
+                  preenchido = true;
+                  log(`  [✓] Angular reconheceu após fallback: Total=${novoTotal}`);
+                }
               }
             }
           }
