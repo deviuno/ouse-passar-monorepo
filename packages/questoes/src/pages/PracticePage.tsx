@@ -1272,6 +1272,7 @@ export default function PracticePage() {
                       />
                       <HierarchicalAssuntosDropdown
                         label="Assuntos"
+                        icon={<FileText size={16} />}
                         taxonomyByMateria={taxonomyByMateria}
                         flatAssuntos={availableAssuntos}
                         selectedAssuntos={filters.assunto}
@@ -1290,7 +1291,7 @@ export default function PracticePage() {
                           });
                         }}
                         onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
-                        placeholder="Buscar assuntos..."
+                        placeholder="Selecionar assuntos..."
                         isLoading={isLoadingAssuntos}
                       />
                       <MultiSelectDropdown

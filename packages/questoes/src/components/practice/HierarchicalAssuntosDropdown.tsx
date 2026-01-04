@@ -5,6 +5,7 @@ import { TaxonomyNode } from '../../services/questionsService';
 
 interface HierarchicalAssuntosDropdownProps {
   label: string;
+  icon?: React.ReactNode;
   taxonomyByMateria: Map<string, TaxonomyNode[]>;
   flatAssuntos: string[]; // Assuntos sem taxonomia (fallback)
   selectedAssuntos: string[];
@@ -170,6 +171,7 @@ const TaxonomyNodeItem: React.FC<{
 
 export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdownProps> = ({
   label,
+  icon,
   taxonomyByMateria,
   flatAssuntos,
   selectedAssuntos,
@@ -178,7 +180,7 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
   onClear,
   isLoading = false,
   disabled = false,
-  placeholder = 'Selecione assuntos...'
+  placeholder = 'Selecionar...'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -239,44 +241,45 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
 
   return (
     <div ref={dropdownRef} className="relative">
-      {/* Botão principal */}
+      {/* Label */}
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[#FFB800]">{icon || <FileText size={16} />}</span>
+        <span className="text-white text-sm font-medium">{label}</span>
+        {selectedAssuntos.length > 0 && (
+          <span className="px-1.5 py-0.5 bg-[#FFB800] text-black text-xs font-bold rounded">
+            {selectedAssuntos.length}
+          </span>
+        )}
+        <span className="text-[#6E6E6E] text-xs">({totalAvailable})</span>
+      </div>
+
+      {/* Trigger Button */}
       <button
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl border transition-all ${
-          disabled
+        className={`
+          w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-colors
+          ${disabled
             ? 'bg-[#1A1A1A] border-[#2A2A2A] text-[#4A4A4A] cursor-not-allowed'
             : isOpen
-            ? 'bg-[#1E1E1E] border-[#FFB800] text-white'
-            : 'bg-[#1E1E1E] border-[#3A3A3A] text-white hover:border-[#4A4A4A]'
-        }`}
+              ? 'bg-[#252525] border-[#FFB800] text-white'
+              : 'bg-[#1E1E1E] border-[#3A3A3A] text-white hover:border-[#4A4A4A]'
+          }
+        `}
       >
-        <div className="flex items-center gap-2">
-          <FileText size={16} className={disabled ? 'text-[#4A4A4A]' : 'text-[#FFB800]'} />
-          <span className="text-sm font-medium">{label}</span>
-          {selectedAssuntos.length > 0 && (
-            <span className="bg-[#FFB800] text-black text-xs font-bold px-2 py-0.5 rounded-full">
-              {selectedAssuntos.length}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {isLoading ? (
-            <Loader2 size={16} className="animate-spin text-[#A0A0A0]" />
-          ) : (
-            <>
-              {totalAvailable > 0 && (
-                <span className="text-xs text-[#6E6E6E]">{totalAvailable}</span>
-              )}
-              <ChevronDown
-                size={16}
-                className={`transition-transform ${isOpen ? 'rotate-180' : ''} ${
-                  disabled ? 'text-[#4A4A4A]' : 'text-[#A0A0A0]'
-                }`}
-              />
-            </>
-          )}
-        </div>
+        <span className={selectedAssuntos.length === 0 ? 'text-[#6E6E6E]' : 'text-white truncate'}>
+          {selectedAssuntos.length === 0
+            ? placeholder
+            : selectedAssuntos.length === 1
+              ? selectedAssuntos[0]
+              : `${selectedAssuntos.length} selecionados`
+          }
+        </span>
+        {isLoading ? (
+          <Loader2 size={16} className="animate-spin text-[#A0A0A0]" />
+        ) : (
+          <ChevronDown size={16} className={`text-[#6E6E6E] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        )}
       </button>
 
       {/* Dropdown */}
@@ -287,23 +290,24 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-50 w-full mt-2 bg-[#1E1E1E] border border-[#3A3A3A] rounded-xl shadow-xl overflow-hidden"
+            className="absolute z-50 w-full mt-1 bg-[#1E1E1E] border border-[#3A3A3A] rounded-lg shadow-xl overflow-hidden"
           >
             {/* Busca */}
-            <div className="p-3 border-b border-[#3A3A3A]">
+            <div className="p-2 border-b border-[#3A3A3A]">
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder={placeholder}
-                  className="w-full pl-9 pr-8 py-2 bg-[#252525] border border-[#3A3A3A] rounded-lg text-sm text-white placeholder-[#6E6E6E] focus:outline-none focus:border-[#FFB800]"
+                  placeholder="Buscar..."
+                  autoFocus
+                  className="w-full bg-[#252525] border border-[#3A3A3A] rounded pl-8 pr-3 py-1.5 text-white text-sm placeholder-[#6E6E6E] focus:outline-none focus:border-[#FFB800]"
                 />
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6E6E6E] hover:text-white"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6E6E6E] hover:text-white"
                   >
                     <X size={14} />
                   </button>
@@ -312,15 +316,14 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
             </div>
 
             {/* Lista */}
-            <div className="max-h-[350px] overflow-y-auto">
+            <div className="max-h-[300px] overflow-y-auto">
               {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 size={24} className="animate-spin text-[#FFB800]" />
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 size={16} className="animate-spin text-[#FFB800]" />
+                  <span className="ml-2 text-[#6E6E6E] text-xs">Carregando...</span>
                 </div>
               ) : totalAvailable === 0 ? (
-                <div className="py-8 text-center text-[#6E6E6E] text-sm">
-                  Nenhum assunto disponível
-                </div>
+                <p className="text-[#6E6E6E] text-xs text-center py-4">Nenhum resultado</p>
               ) : (
                 <>
                   {/* Matérias com taxonomia */}
@@ -403,13 +406,11 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
 
             {/* Footer */}
             {selectedAssuntos.length > 0 && (
-              <div className="p-3 border-t border-[#3A3A3A] flex justify-between items-center">
-                <span className="text-xs text-[#A0A0A0]">
-                  {selectedAssuntos.length} selecionado{selectedAssuntos.length !== 1 ? 's' : ''}
-                </span>
+              <div className="p-2 border-t border-[#3A3A3A] flex justify-between items-center">
+                <span className="text-[#6E6E6E] text-xs">{selectedAssuntos.length} selecionado(s)</span>
                 <button
-                  onClick={onClear}
-                  className="text-xs text-[#FFB800] hover:underline"
+                  onClick={() => { onClear(); setSearchTerm(''); }}
+                  className="text-[#E74C3C] text-xs hover:underline"
                 >
                   Limpar
                 </button>
