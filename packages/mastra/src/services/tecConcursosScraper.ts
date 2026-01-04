@@ -1596,16 +1596,48 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
     while (indiceMateriaAtual < materiasOriginais.length) {
       log(`\n=== Criando caderno ${cadernoNumero} ===`);
 
-      // 4.4.1 Zerar todas as quantidades
+      // 4.4.1 Zerar todas as quantidades usando método compatível com AngularJS
       log('Zerando todas as quantidades...');
       await page.evaluate(() => {
         const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+        const win = window as unknown as { angular?: { element: (el: Element) => { triggerHandler: (event: string) => void; controller: (name: string) => { $setViewValue: (val: string) => void; $render: () => void } | undefined } } };
+
         inputs.forEach((input) => {
           const inputEl = input as HTMLInputElement;
-          if (parseInt(inputEl.value) > 0 || inputEl.value !== '0') {
-            inputEl.value = '0';
-            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-            inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+          const currentVal = parseInt(inputEl.value) || 0;
+
+          if (currentVal > 0) {
+            // Setar valor usando setter nativo
+            if (nativeInputValueSetter) {
+              nativeInputValueSetter.call(inputEl, '0');
+            } else {
+              inputEl.value = '0';
+            }
+
+            // Disparar eventos
+            inputEl.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+            inputEl.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+
+            // Tentar usar Angular
+            if (win.angular && win.angular.element) {
+              try {
+                const angularEl = win.angular.element(inputEl);
+                const ngModelCtrl = angularEl.controller('ngModel');
+                if (ngModelCtrl) {
+                  ngModelCtrl.$setViewValue('0');
+                  ngModelCtrl.$render();
+                }
+                angularEl.triggerHandler('input');
+                angularEl.triggerHandler('change');
+              } catch {
+                // Ignorar erros
+              }
+            }
+
+            // Forçar blur
+            inputEl.focus();
+            inputEl.blur();
           }
         });
       });
@@ -1625,14 +1657,50 @@ export async function iniciarScrapingArea(areaNome: string): Promise<void> {
           break;
         }
 
-        // Preencher quantidade desta matéria
+        // Preencher quantidade desta matéria usando método compatível com AngularJS
         const preenchido = await page.evaluate((indice, qtd) => {
           const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
           if (indice < inputs.length) {
             const input = inputs[indice] as HTMLInputElement;
-            input.value = String(qtd);
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // Método 1: Usar o setter nativo do HTMLInputElement para garantir que o valor seja setado
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+            if (nativeInputValueSetter) {
+              nativeInputValueSetter.call(input, String(qtd));
+            } else {
+              input.value = String(qtd);
+            }
+
+            // Método 2: Disparar eventos que o AngularJS reconhece
+            // AngularJS usa 'input' event para ng-model
+            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+            input.dispatchEvent(inputEvent);
+
+            // Também disparar 'change' para garantir
+            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+            input.dispatchEvent(changeEvent);
+
+            // Método 3: Tentar usar angular.element se disponível (para AngularJS)
+            const win = window as unknown as { angular?: { element: (el: Element) => { triggerHandler: (event: string) => void; controller: (name: string) => { $setViewValue: (val: string) => void; $render: () => void } | undefined } } };
+            if (win.angular && win.angular.element) {
+              try {
+                const angularEl = win.angular.element(input);
+                const ngModelCtrl = angularEl.controller('ngModel');
+                if (ngModelCtrl) {
+                  ngModelCtrl.$setViewValue(String(qtd));
+                  ngModelCtrl.$render();
+                }
+                angularEl.triggerHandler('input');
+                angularEl.triggerHandler('change');
+              } catch {
+                // Ignorar erros do Angular
+              }
+            }
+
+            // Forçar blur e focus para garantir que o valor seja registrado
+            input.focus();
+            input.blur();
+
             return true;
           }
           return false;
