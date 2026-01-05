@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Filter,
@@ -277,8 +277,9 @@ export default function PracticePage() {
     fetchBatteryStatus,
   } = useBatteryStore();
 
-  // Estado do dashboard
-  const [activeTab, setActiveTab] = useState<'new' | 'notebooks'>('new');
+  // Query params para abrir com filtros pré-definidos
+  const [searchParams] = useSearchParams();
+  const [autoStartPending, setAutoStartPending] = useState(false);
 
   // Estado do modo (agora 'selection', 'practicing' ou 'results')
   const [mode, setMode] = useState<'selection' | 'practicing' | 'results'>('selection');
@@ -380,6 +381,99 @@ export default function PracticePage() {
     loadGamificationSettings();
   }, []);
 
+  // Processar query params para aplicar filtros automaticamente
+  useEffect(() => {
+    // Suporta tanto parâmetros simples quanto arrays JSON
+    const materiaParam = searchParams.get('materia');
+    const materiasParam = searchParams.get('materias'); // JSON array
+    const assuntoParam = searchParams.get('assunto');
+    const assuntosParam = searchParams.get('assuntos'); // JSON array
+    const bancaParam = searchParams.get('banca');
+    const autostart = searchParams.get('autostart');
+
+    // Parsear arrays JSON ou usar valores simples
+    let newMaterias: string[] = [];
+    let newAssuntos: string[] = [];
+
+    if (materiasParam) {
+      try {
+        newMaterias = JSON.parse(materiasParam);
+      } catch (e) {
+        console.error('[PracticePage] Erro ao parsear materias:', e);
+      }
+    } else if (materiaParam) {
+      newMaterias = [materiaParam];
+    }
+
+    if (assuntosParam) {
+      try {
+        newAssuntos = JSON.parse(assuntosParam);
+      } catch (e) {
+        console.error('[PracticePage] Erro ao parsear assuntos:', e);
+      }
+    } else if (assuntoParam) {
+      newAssuntos = [assuntoParam];
+    }
+
+    if (newMaterias.length > 0 || newAssuntos.length > 0 || bancaParam) {
+      console.log('[PracticePage] Query params detectados:', { newMaterias, newAssuntos, bancaParam, autostart });
+
+      // Aplicar filtros dos query params
+      setFilters(prev => ({
+        ...prev,
+        materia: newMaterias.length > 0 ? newMaterias : prev.materia,
+        assunto: newAssuntos.length > 0 ? newAssuntos : prev.assunto,
+        banca: bancaParam ? [bancaParam] : prev.banca,
+      }));
+
+      // Se autostart=true, marcar para iniciar automaticamente após carregar
+      if (autostart === 'true') {
+        setAutoStartPending(true);
+      }
+    }
+  }, [searchParams]);
+
+  // Iniciar prática automaticamente quando filtros estiverem carregados
+  useEffect(() => {
+    const materiaParam = searchParams.get('materia');
+    const materiasParam = searchParams.get('materias');
+    const assuntoParam = searchParams.get('assunto');
+    const assuntosParam = searchParams.get('assuntos');
+    const bancaParam = searchParams.get('banca');
+
+    // Parsear arrays para verificação
+    let expectedMaterias: string[] = [];
+    let expectedAssuntos: string[] = [];
+
+    if (materiasParam) {
+      try { expectedMaterias = JSON.parse(materiasParam); } catch (e) { /* ignore */ }
+    } else if (materiaParam) {
+      expectedMaterias = [materiaParam];
+    }
+
+    if (assuntosParam) {
+      try { expectedAssuntos = JSON.parse(assuntosParam); } catch (e) { /* ignore */ }
+    } else if (assuntoParam) {
+      expectedAssuntos = [assuntoParam];
+    }
+
+    // Verificar se os filtros já foram aplicados corretamente
+    const filtersApplied =
+      (expectedMaterias.length === 0 || expectedMaterias.every(m => filters.materia.includes(m))) &&
+      (expectedAssuntos.length === 0 || expectedAssuntos.every(a => filters.assunto.includes(a))) &&
+      (!bancaParam || filters.banca.includes(bancaParam));
+
+    if (autoStartPending && !isLoadingFilters && !isLoadingCount && filtersApplied) {
+      console.log('[PracticePage] Auto-iniciando prática com filtros dos query params:', {
+        materia: filters.materia,
+        assunto: filters.assunto,
+        banca: filters.banca
+      });
+      setAutoStartPending(false);
+      startPractice();
+    }
+  }, [autoStartPending, isLoadingFilters, isLoadingCount, filters, searchParams]);
+
   const loadNotebooks = async () => {
     if (!user?.id) return;
     try {
@@ -452,9 +546,6 @@ export default function PracticePage() {
 
         // Scroll to top
         window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-
-        // Switch to notebooks tab
-        setActiveTab('notebooks');
       }
     } catch (error) {
       console.error('Erro ao salvar caderno:', error);
@@ -483,7 +574,6 @@ export default function PracticePage() {
 
     // Close modal and switch to edit mode
     setViewingNotebookFilters(null);
-    setActiveTab('new');
 
     // Scroll to top to see the filters
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
@@ -534,11 +624,10 @@ export default function PracticePage() {
         setEditingDescription('');
         await startPractice();
       } else {
-        // Go back to notebooks tab
+        // Reset editing state
         setEditingNotebook(null);
         setEditingTitle('');
         setEditingDescription('');
-        setActiveTab('notebooks');
       }
     } catch (error) {
       console.error('Erro ao atualizar caderno:', error);
@@ -834,32 +923,42 @@ export default function PracticePage() {
 
   // Iniciar pratica
   const startPractice = async () => {
+    console.log('[PracticePage] startPractice iniciado');
     setIsLoading(true);
 
     try {
       // Consumir bateria se usuario nao for premium
       // Usa o preparatorio_id correto (não o user_trail.id)
+      console.log('[PracticePage] Obtendo preparatório selecionado...');
       const selectedPrep = getSelectedPreparatorio();
       const prepIdToUse = selectedPrep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
+      console.log('[PracticePage] prepIdToUse:', prepIdToUse, 'user?.id:', user?.id);
 
       if (user?.id && prepIdToUse) {
+        console.log('[PracticePage] Consumindo bateria...');
         const batteryResult = await consumeBattery(
           user.id,
           prepIdToUse,
           'practice_session',
           { question_count: questionCount }
         );
+        console.log('[PracticePage] Resultado bateria:', batteryResult);
 
         if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
           console.log('[PracticePage] Bateria insuficiente');
           setIsLoading(false);
           return; // Modal sera aberto automaticamente pelo store
         }
+      } else {
+        console.log('[PracticePage] Pulando verificação de bateria (sem user ou prepId)');
       }
 
       let questionsToUse: ParsedQuestion[] = [];
 
+      console.log('[PracticePage] usingMockData:', usingMockData);
+
       if (usingMockData) {
+        console.log('[PracticePage] Usando dados mock');
         let filtered = [...MOCK_QUESTIONS];
         if (filters.materia.length > 0) {
           filtered = filtered.filter((q) => filters.materia.includes(q.materia));
@@ -876,6 +975,12 @@ export default function PracticePage() {
         const shuffled = filtered.sort(() => Math.random() - 0.5);
         questionsToUse = shuffled.slice(0, Math.min(questionCount, shuffled.length)).map(parseRawQuestion);
       } else {
+        console.log('[PracticePage] Buscando questões do banco. Filtros:', {
+          materias: filters.materia,
+          assuntos: filters.assunto,
+          bancas: filters.banca,
+          questionCount
+        });
         const dbQuestions = await fetchQuestions({
           materias: filters.materia.length > 0 ? filters.materia : undefined,
           assuntos: filters.assunto.length > 0 ? filters.assunto : undefined,
@@ -891,6 +996,7 @@ export default function PracticePage() {
           limit: questionCount,
           shuffle: true,
         });
+        console.log('[PracticePage] Questões recebidas:', dbQuestions.length);
 
         if (dbQuestions.length > 0) {
           questionsToUse = dbQuestions;
@@ -901,6 +1007,7 @@ export default function PracticePage() {
         }
       }
 
+      console.log('[PracticePage] Iniciando modo practicing com', questionsToUse.length, 'questões');
       setQuestions(questionsToUse);
       setCurrentIndex(0);
       setAnswers(new Map());
@@ -1218,42 +1325,7 @@ export default function PracticePage() {
       <div className="max-w-7xl mx-auto grid grid-cols-12 gap-6 lg:gap-8">
 
         {/* LEFT COLUMN: Configuration */}
-        <div className={`col-span-12 space-y-6 ${activeTab === 'new' ? 'lg:col-span-8' : ''}`}>
-
-          {/* Tabs Navigation - Hidden when editing */}
-          {!editingNotebook && (
-            <div className="flex items-center gap-6 border-b border-[#3A3A3A] mb-4">
-              <button
-                onClick={() => setActiveTab('new')}
-                className={`pb-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 ${activeTab === 'new'
-                  ? 'text-[#FFB800] border-[#FFB800]'
-                  : 'text-[#6E6E6E] border-transparent hover:text-white'
-                  }`}
-              >
-                Nova Prática
-              </button>
-              <button
-                onClick={() => setActiveTab('notebooks')}
-                className={`pb-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 ${activeTab === 'notebooks'
-                  ? 'text-[#FFB800] border-[#FFB800]'
-                  : 'text-[#6E6E6E] border-transparent hover:text-white'
-                  }`}
-              >
-                Meus Cadernos ({notebooks.length})
-              </button>
-            </div>
-          )}
-
-          <AnimatePresence mode="wait">
-            {activeTab === 'new' ? (
-              <motion.div
-                key="tab-new"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-6"
-              >
+        <div className="col-span-12 lg:col-span-8 space-y-6">
                 {/* Editing: Title and Description */}
                 {editingNotebook && (
                   <section>
@@ -1425,164 +1497,10 @@ export default function PracticePage() {
                     </div>
                   </div>
                 </section>
-
-              </motion.div>
-            ) : (
-              <motion.div
-                key="tab-notebooks"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-              >
-                {/* Notebooks Grid */}
-                {notebooks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-[#3A3A3A] rounded-2xl bg-[#1E1E1E]/50">
-                    <BookOpen size={48} className="text-[#3A3A3A] mb-4" />
-                    <h3 className="text-xl font-bold text-white mb-2">Sem cadernos ainda</h3>
-                    <p className="text-[#A0A0A0] text-center max-w-xs mb-6">
-                      Configure filtros na aba "Nova Prática" e salve para acessar rapidamente aqui.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab('new')}
-                      className="text-[#FFB800] hover:underline font-bold"
-                    >
-                      Criar meu primeiro caderno
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {notebooks.map((notebook) => {
-                      const settings = notebookSettings[notebook.id] || { questionCount: 10, studyMode: 'zen' as PracticeMode };
-
-                      // Calcular total de filtros
-                      const totalFilters =
-                        (notebook.filters?.materia?.length || 0) +
-                        (notebook.filters?.assunto?.length || 0) +
-                        (notebook.filters?.banca?.length || 0) +
-                        (notebook.filters?.orgao?.length || 0) +
-                        (notebook.filters?.cargo?.length || 0) +
-                        (notebook.filters?.ano?.length || 0) +
-                        (notebook.filters?.escolaridade?.length || 0) +
-                        (notebook.filters?.modalidade?.length || 0) +
-                        (notebook.filters?.dificuldade?.length || 0);
-
-                      return (
-                        <div
-                          key={notebook.id}
-                          className="relative bg-[#1E1E1E] border border-[#3A3A3A] rounded-xl p-3 transition-all hover:border-[#FFB800]/30"
-                        >
-                          {/* Header: Icon + Title + Available Questions Count */}
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <BookOpen size={18} className="text-[#FFB800] flex-shrink-0" />
-                              <h4 className="font-bold text-base text-white truncate">{notebook.title}</h4>
-                            </div>
-                            <span className="text-xs font-bold text-[#FFB800] flex-shrink-0">
-                              {(notebook.questions_count || 0).toLocaleString('pt-BR')} questões
-                            </span>
-                          </div>
-
-                          {/* Descrição */}
-                          {notebook.description && (
-                            <p className="text-xs text-[#6E6E6E] mb-3 line-clamp-2">{notebook.description}</p>
-                          )}
-                          {!notebook.description && <div className="mb-2" />}
-
-                          {/* Quantidade de Questões por Sessão - Slider */}
-                          <div className="mb-1">
-                            <input
-                              type="range"
-                              min="5"
-                              max="120"
-                              step="5"
-                              value={settings.questionCount}
-                              onChange={(e) => {
-                                const newCount = Number(e.target.value);
-                                setNotebookSettings(prev => ({
-                                  ...prev,
-                                  [notebook.id]: { ...prev[notebook.id], questionCount: newCount }
-                                }));
-                              }}
-                              className="w-full h-1 bg-[#3A3A3A] rounded-lg appearance-none cursor-pointer accent-[#FFB800]"
-                            />
-                          </div>
-
-                          {/* Quantidade por sessão */}
-                          <div className="flex items-center justify-between mb-3 text-xs">
-                            <span className="text-[#6E6E6E]">Por sessão</span>
-                            <span className="font-bold text-white">{settings.questionCount}</span>
-                          </div>
-
-                          {/* Modo de Estudo */}
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-white text-xs">Modo</span>
-                            <button
-                              onClick={() => {
-                                const newMode = settings.studyMode === 'zen' ? 'hard' : 'zen';
-                                setNotebookSettings(prev => ({
-                                  ...prev,
-                                  [notebook.id]: { ...prev[notebook.id], studyMode: newMode as PracticeMode }
-                                }));
-                              }}
-                              className="relative inline-flex items-center h-7 rounded-full w-36 bg-[#252525] border border-[#3A3A3A] transition-colors"
-                            >
-                              {/* Texto inativo - Simulado (lado direito) */}
-                              <span className={`absolute right-3 text-xs font-medium transition-opacity duration-300 ${
-                                settings.studyMode === 'zen' ? 'text-[#4A4A4A]' : 'opacity-0'
-                              }`}>
-                                Simulado
-                              </span>
-                              {/* Texto inativo - Zen (lado esquerdo) */}
-                              <span className={`absolute left-3 text-xs font-medium transition-opacity duration-300 ${
-                                settings.studyMode === 'hard' ? 'text-[#4A4A4A]' : 'opacity-0'
-                              }`}>
-                                Zen
-                              </span>
-                              {/* Botão ativo */}
-                              <span
-                                className={`absolute inline-flex items-center justify-center h-6 rounded-full text-xs font-bold transition-all duration-300 ${
-                                  settings.studyMode === 'zen'
-                                    ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[#2ECC71] text-black'
-                                    : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[#E74C3C] text-black'
-                                }`}
-                              >
-                                {settings.studyMode === 'zen' ? 'Zen' : 'Simulado'}
-                              </span>
-                            </button>
-                          </div>
-
-                          {/* Botões: Ver Detalhes + Iniciar */}
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setViewingNotebookFilters(notebook)}
-                              className="flex items-center justify-center w-10 h-10 bg-[#252525] border border-[#3A3A3A] rounded-xl text-[#A0A0A0] hover:text-white hover:border-[#4A4A4A] transition-colors flex-shrink-0"
-                              title="Ver detalhes"
-                            >
-                              <Eye size={18} />
-                            </button>
-                            <Button
-                              fullWidth
-                              onClick={(e) => handleStartFromNotebook(notebook, e)}
-                              className="h-10 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-bold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02] rounded-xl"
-                              rightIcon={<Play size={16} fill="currentColor" />}
-                            >
-                              Iniciar
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
-        {/* RIGHT COLUMN: Stats & Action (Sticky) - Only show on "new" tab */}
-        {activeTab === 'new' && (
-          <div className="col-span-12 lg:col-span-4 space-y-6">
+        {/* RIGHT COLUMN: Stats & Action (Sticky) */}
+        <div className="col-span-12 lg:col-span-4 space-y-6">
             <div className="lg:sticky lg:top-8 space-y-6">
 
             {/* Action Card */}
@@ -1674,17 +1592,15 @@ export default function PracticePage() {
                     INICIAR PRÁTICA
                   </Button>
 
-                  {activeTab === 'new' && (
-                    <Button
-                      fullWidth
-                      variant="secondary"
-                      size="lg"
-                      onClick={() => setShowSaveNotebookModal(true)}
-                      leftIcon={<Save size={18} />}
-                    >
-                      Salvar como Caderno
-                    </Button>
-                  )}
+                  <Button
+                    fullWidth
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => setShowSaveNotebookModal(true)}
+                    leftIcon={<Save size={18} />}
+                  >
+                    Salvar como Caderno
+                  </Button>
                 </>
               )}
             </Card>
@@ -1705,8 +1621,7 @@ export default function PracticePage() {
             </div>
 
           </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Modal Salvar Caderno */}

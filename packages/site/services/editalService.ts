@@ -13,6 +13,8 @@ export interface EditalItem {
   parent_id: string | null;
   created_at: string;
   updated_at: string;
+  filtro_materias: string[];
+  filtro_assuntos: string[];
 }
 
 export interface EditalItemWithChildren extends EditalItem {
@@ -273,5 +275,50 @@ export const editalService = {
     }
 
     return copy;
+  },
+
+  // ==================== FILTROS ====================
+
+  // Atualizar filtros de um item
+  async updateFilters(id: string, filtros: { materias: string[]; assuntos: string[] }): Promise<EditalItem> {
+    const { data, error } = await supabase
+      .from('edital_verticalizado_items')
+      .update({
+        filtro_materias: filtros.materias,
+        filtro_assuntos: filtros.assuntos
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Buscar matérias distintas do banco de questões
+  async getDistinctMaterias(): Promise<string[]> {
+    const { data, error } = await supabase.rpc('get_distinct_materias');
+    if (error) throw error;
+    return (data || []).map((d: { materia: string }) => d.materia);
+  },
+
+  // Buscar assuntos distintos (opcionalmente filtrados por matérias)
+  async getDistinctAssuntos(materias?: string[]): Promise<{ assunto: string; materia: string }[]> {
+    const { data, error } = await supabase.rpc('get_distinct_assuntos', {
+      p_materias: materias && materias.length > 0 ? materias : null
+    });
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Contar questões com base nos filtros (para preview)
+  async countQuestoesByFilter(materias?: string[], assuntos?: string[], banca?: string): Promise<number> {
+    const { data, error } = await supabase.rpc('count_questoes_by_filter', {
+      p_materias: materias && materias.length > 0 ? materias : null,
+      p_assuntos: assuntos && assuntos.length > 0 ? assuntos : null,
+      p_banca: banca || null
+    });
+    if (error) throw error;
+    return data || 0;
   }
 };

@@ -164,10 +164,14 @@ export const fetchQuestions = async (filters?: QuestionFilters): Promise<ParsedQ
       .neq('enunciado', 'deleted');
 
     if (filters?.materias && filters.materias.length > 0) {
+      // Usar match exato com .in() - os valores vêm do banco de dados
+      // (via dropdown ou configuração do edital)
       query = query.in('materia', filters.materias);
     }
 
     if (filters?.assuntos && filters.assuntos.length > 0) {
+      // Usar match exato com .in() - os valores vêm do banco de dados
+      // (via dropdown ou configuração do edital)
       query = query.in('assunto', filters.assuntos);
     }
 

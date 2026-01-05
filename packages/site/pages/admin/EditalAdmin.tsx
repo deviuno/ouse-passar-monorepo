@@ -1,14 +1,202 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Edit, Trash2,
-  MoreVertical, Book, FileText, List, GripVertical, Copy, FolderOpen, Folder, Sparkles
+  ChevronLeft, ChevronRight, ChevronDown, Plus, Edit, Trash2,
+  MoreVertical, Book, FileText, List, GripVertical, Copy, FolderOpen, Folder, Sparkles,
+  Search, Check, X, Loader2
 } from 'lucide-react';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { editalService, EditalItem, EditalItemWithChildren, EditalItemTipo } from '../../services/editalService';
 import { Preparatorio } from '../../lib/database.types';
 import { ImportEditalModal } from '../../components/admin/ImportEditalModal';
 import { ParsedEdital, EditalExistsAction } from '../../services/editalAIService';
+
+// Componente de Dropdown Inline com carregamento sob demanda
+interface InlineDropdownProps {
+  value: string[];
+  options?: string[];
+  loadOptions?: () => Promise<string[]>; // Função para carregar opções sob demanda
+  onChange: (values: string[]) => void;
+  placeholder: string;
+  disabled?: boolean;
+  single?: boolean;
+}
+
+const InlineDropdown: React.FC<InlineDropdownProps> = ({
+  value,
+  options: staticOptions,
+  loadOptions,
+  onChange,
+  placeholder,
+  disabled = false,
+  single = false
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [options, setOptions] = useState<string[]>(staticOptions || []);
+  const [isLoading, setIsLoading] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Atualizar options quando staticOptions mudar
+  useEffect(() => {
+    if (staticOptions) {
+      setOptions(staticOptions);
+    }
+  }, [staticOptions]);
+
+  // Carregar opções quando abrir (se tiver loadOptions)
+  useEffect(() => {
+    if (isOpen && loadOptions && options.length === 0) {
+      setIsLoading(true);
+      loadOptions()
+        .then(data => {
+          setOptions(data);
+        })
+        .catch(err => {
+          console.error('Erro ao carregar opções:', err);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [isOpen, loadOptions]);
+
+  // Fechar ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Normalizar texto removendo acentos
+  const normalizeText = (text: string): string => {
+    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  };
+
+  const filteredOptions = useMemo(() => {
+    if (!search.trim()) return options;
+    const searchNorm = normalizeText(search.trim());
+    return options.filter(opt => normalizeText(opt).includes(searchNorm));
+  }, [options, search]);
+
+  const toggleOption = (opt: string) => {
+    if (single) {
+      onChange(value.includes(opt) ? [] : [opt]);
+    } else {
+      onChange(value.includes(opt) ? value.filter(v => v !== opt) : [...value, opt]);
+    }
+  };
+
+  const displayValue = value.length === 0
+    ? placeholder
+    : value.length === 1
+      ? (value[0].length > 25 ? value[0].substring(0, 25) + '...' : value[0])
+      : `${value.length} selecionados`;
+
+  return (
+    <div ref={dropdownRef} className="relative min-w-[200px]">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!disabled) setIsOpen(!isOpen);
+        }}
+        disabled={disabled}
+        className={`
+          w-full flex items-center justify-between gap-2 px-2 py-1 rounded text-xs transition-colors
+          ${disabled
+            ? 'bg-transparent text-gray-600 cursor-not-allowed'
+            : isOpen
+              ? 'bg-brand-dark border border-brand-yellow text-white'
+              : value.length > 0
+                ? 'bg-green-500/10 border border-green-500/30 text-green-400 hover:border-green-500/50'
+                : 'bg-white/5 border border-white/10 text-gray-400 hover:border-white/20'
+          }
+        `}
+      >
+        <span className="truncate">{displayValue}</span>
+        {!disabled && (
+          <ChevronDown size={12} className={`flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        )}
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute right-0 z-50 w-72 mt-1 bg-brand-dark border border-white/10 rounded shadow-xl overflow-hidden"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Search */}
+          <div className="p-2 border-b border-white/10">
+            <div className="relative">
+              <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar..."
+                autoFocus
+                className="w-full bg-white/5 border border-white/10 rounded pl-7 pr-2 py-1.5 text-white text-xs placeholder-gray-500 focus:outline-none focus:border-brand-yellow"
+              />
+            </div>
+          </div>
+
+          {/* Options */}
+          <div className="max-h-[250px] overflow-y-auto">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 size={14} className="animate-spin text-brand-yellow" />
+                <span className="ml-2 text-xs text-gray-400">Carregando...</span>
+              </div>
+            ) : filteredOptions.length === 0 ? (
+              <p className="text-gray-500 text-xs text-center py-4">
+                {options.length === 0 ? 'Nenhuma opção disponível' : 'Nenhum resultado'}
+              </p>
+            ) : (
+              filteredOptions.map(opt => {
+                const isSelected = value.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => toggleOption(opt)}
+                    className={`
+                      w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors
+                      ${isSelected ? 'bg-brand-yellow/10 text-brand-yellow' : 'text-gray-300 hover:bg-white/5'}
+                    `}
+                  >
+                    <div className={`
+                      w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0
+                      ${isSelected ? 'bg-brand-yellow border-brand-yellow' : 'border-gray-600'}
+                    `}>
+                      {isSelected && <Check size={8} className="text-black" />}
+                    </div>
+                    <span className="truncate">{opt}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer */}
+          {value.length > 0 && (
+            <div className="p-2 border-t border-white/10 flex justify-between items-center">
+              <span className="text-gray-500 text-xs">{value.length} selecionado(s)</span>
+              <button
+                onClick={() => onChange([])}
+                className="text-red-400 text-xs hover:underline"
+              >
+                Limpar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const EditalAdmin: React.FC = () => {
   const { preparatorioId } = useParams<{ preparatorioId: string }>();
@@ -30,6 +218,12 @@ export const EditalAdmin: React.FC = () => {
 
   // Import modal state
   const [showImportModal, setShowImportModal] = useState(false);
+
+  // Filter options from database
+  const [availableMaterias, setAvailableMaterias] = useState<string[]>([]);
+
+  // Saving state per item
+  const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
 
   const loadData = async () => {
     if (!preparatorioId) return;
@@ -63,8 +257,34 @@ export const EditalAdmin: React.FC = () => {
     }
   };
 
+  // Carregar apenas matérias (assuntos serão carregados sob demanda)
+  const loadFilterOptions = async () => {
+    try {
+      const materias = await editalService.getDistinctMaterias();
+      console.log('[EditalAdmin] Matérias carregadas:', materias.length);
+      setAvailableMaterias(materias);
+    } catch (error) {
+      console.error('Erro ao carregar matérias:', error);
+    }
+  };
+
+  // Função para carregar assuntos de matérias específicas (sob demanda)
+  const loadAssuntosForMaterias = async (materias: string[]): Promise<string[]> => {
+    if (!materias || materias.length === 0) return [];
+    try {
+      const assuntosData = await editalService.getDistinctAssuntos(materias);
+      const assuntos = assuntosData.map(a => a.assunto);
+      console.log('[EditalAdmin] Assuntos carregados para', materias, ':', assuntos.length);
+      return [...new Set(assuntos)].sort();
+    } catch (error) {
+      console.error('Erro ao carregar assuntos:', error);
+      return [];
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadFilterOptions();
   }, [preparatorioId]);
 
   // Fechar menu ao clicar fora
@@ -124,6 +344,61 @@ export const EditalAdmin: React.FC = () => {
     setModalParentId(item.parent_id);
     setModalTipo(item.tipo);
     setShowModal(true);
+  };
+
+  // Salvar filtro de um item
+  const handleFilterChange = async (itemId: string, field: 'materias' | 'assuntos', values: string[]) => {
+    setSavingItems(prev => new Set(prev).add(itemId));
+
+    try {
+      // Encontrar item atual
+      const findItem = (nodes: EditalItemWithChildren[]): EditalItemWithChildren | null => {
+        for (const node of nodes) {
+          if (node.id === itemId) return node;
+          const found = findItem(node.children);
+          if (found) return found;
+        }
+        return null;
+      };
+
+      const item = findItem(items);
+      if (!item) return;
+
+      const newFilters = {
+        materias: field === 'materias' ? values : (item.filtro_materias || []),
+        assuntos: field === 'assuntos' ? values : (item.filtro_assuntos || [])
+      };
+
+      await editalService.updateFilters(itemId, newFilters);
+
+      // Atualizar estado local
+      const updateItems = (nodes: EditalItemWithChildren[]): EditalItemWithChildren[] => {
+        return nodes.map(node => {
+          if (node.id === itemId) {
+            return {
+              ...node,
+              filtro_materias: newFilters.materias,
+              filtro_assuntos: newFilters.assuntos
+            };
+          }
+          return {
+            ...node,
+            children: updateItems(node.children)
+          };
+        });
+      };
+
+      setItems(updateItems(items));
+    } catch (error) {
+      console.error('Erro ao salvar filtro:', error);
+      alert('Erro ao salvar filtro');
+    } finally {
+      setSavingItems(prev => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
+    }
   };
 
   // Funcao para salvar edital importado via IA
@@ -202,19 +477,11 @@ export const EditalAdmin: React.FC = () => {
     }
   };
 
-  const getTipoLabel = (tipo: EditalItemTipo) => {
-    switch (tipo) {
-      case 'bloco': return 'Bloco';
-      case 'materia': return 'Matéria';
-      case 'topico': return 'Tópico/Assunto';
-    }
-  };
-
   const getTipoColor = (tipo: EditalItemTipo) => {
     switch (tipo) {
-      case 'bloco': return 'text-purple-400 bg-purple-500/20 border-purple-500/30';
-      case 'materia': return 'text-brand-yellow bg-brand-yellow/20 border-brand-yellow/30';
-      case 'topico': return 'text-blue-400 bg-blue-500/20 border-blue-500/30';
+      case 'bloco': return 'text-purple-400';
+      case 'materia': return 'text-brand-yellow';
+      case 'topico': return 'text-blue-400';
     }
   };
 
@@ -234,10 +501,16 @@ export const EditalAdmin: React.FC = () => {
     return { materias, topicos };
   };
 
-  const renderItem = (item: EditalItemWithChildren, level: number = 0) => {
+  const renderItem = (item: EditalItemWithChildren, level: number = 0, parentMaterias: string[] = []) => {
     const isExpanded = expandedItems.has(item.id);
     const hasChildren = item.children.length > 0;
     const indent = level * 24;
+    const isSaving = savingItems.has(item.id);
+
+    // Para os filhos, passar as matérias selecionadas deste item (se for matéria) ou manter o que veio do parent
+    const materiasParaFilhos = item.tipo === 'materia' && item.filtro_materias && item.filtro_materias.length > 0
+      ? item.filtro_materias
+      : parentMaterias;
 
     return (
       <div key={item.id}>
@@ -261,17 +534,40 @@ export const EditalAdmin: React.FC = () => {
           <GripVertical className="w-4 h-4 text-gray-600 cursor-move opacity-0 group-hover:opacity-100 transition-opacity" />
 
           {/* Icon */}
-          <span className={getTipoColor(item.tipo).split(' ')[0]}>
+          <span className={getTipoColor(item.tipo)}>
             {getItemIcon(item.tipo, isExpanded)}
           </span>
 
           {/* Title */}
-          <span className="flex-1 text-white text-sm">{item.titulo}</span>
+          <span className="text-white text-sm min-w-[150px]">{item.titulo}</span>
 
-          {/* Tipo Badge */}
-          <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded border ${getTipoColor(item.tipo)}`}>
-            {getTipoLabel(item.tipo)}
-          </span>
+          {/* Saving indicator */}
+          {isSaving && (
+            <Loader2 className="w-3 h-3 text-brand-yellow animate-spin" />
+          )}
+
+          {/* Inline Filter Dropdowns */}
+          <div className="flex items-center gap-2 flex-1 justify-end mr-2">
+            {item.tipo === 'materia' && (
+              <InlineDropdown
+                value={item.filtro_materias || []}
+                options={availableMaterias}
+                onChange={(values) => handleFilterChange(item.id, 'materias', values)}
+                placeholder="Selecionar matéria..."
+                single={true}
+              />
+            )}
+
+            {item.tipo === 'topico' && (
+              <InlineDropdown
+                value={item.filtro_assuntos || []}
+                loadOptions={() => loadAssuntosForMaterias(parentMaterias)}
+                onChange={(values) => handleFilterChange(item.id, 'assuntos', values)}
+                placeholder={parentMaterias.length === 0 ? "Configure a matéria pai" : "Selecionar assuntos..."}
+                disabled={parentMaterias.length === 0}
+              />
+            )}
+          </div>
 
           {/* Actions */}
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -340,7 +636,7 @@ export const EditalAdmin: React.FC = () => {
         {/* Children */}
         {isExpanded && hasChildren && (
           <div>
-            {item.children.map(child => renderItem(child, level + 1))}
+            {item.children.map(child => renderItem(child, level + 1, materiasParaFilhos))}
           </div>
         )}
       </div>
@@ -495,7 +791,7 @@ export const EditalAdmin: React.FC = () => {
               </button>
             </div>
             <p className="text-xs text-gray-500">
-              Arraste os itens para reordenar
+              Configure os filtros diretamente nos dropdowns (v3 - sob demanda)
             </p>
           </div>
 
