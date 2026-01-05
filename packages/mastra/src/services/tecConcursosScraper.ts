@@ -185,16 +185,19 @@ async function loadCookies(page: Page): Promise<boolean> {
   try {
     // Primeiro, tentar carregar do banco de dados (tec_accounts)
     const supabase = getSupabase();
-    const { data: account, error: dbError } = await supabase
+    const { data: accounts, error: dbError } = await supabase
       .from('tec_accounts')
       .select('cookies')
       .eq('is_active', true)
-      .single();
+      .limit(1);
 
+    const account = accounts?.[0];
     if (!dbError && account?.cookies && Array.isArray(account.cookies) && account.cookies.length > 0) {
       await page.setCookie(...account.cookies);
       log(`Cookies loaded from database (${account.cookies.length} cookies)`);
       return true;
+    } else if (dbError) {
+      log(`Erro ao carregar cookies do banco: ${dbError.message}`, 'error');
     }
 
     // Fallback: tentar carregar do arquivo
