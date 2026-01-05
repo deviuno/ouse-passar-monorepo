@@ -2419,8 +2419,53 @@ async function extrairQuestoesDeCadernoUrl(
         break;
       }
 
+      let questoesPuladas = 0;
+
       for (const questaoEl of questoesElements) {
         try {
+          // OTIMIZAÇÃO: Primeiro obter apenas o ID rapidamente
+          let questaoIdRapido = await questaoEl.evaluate((el: Element) => {
+            // Tentar diferentes formas de obter o ID rapidamente
+            const dataId = el.getAttribute('data-id') ||
+                           el.getAttribute('data-questao-id') ||
+                           el.getAttribute('id');
+            if (dataId) return dataId.replace(/\D/g, '');
+
+            // Procurar em links dentro da questão
+            const link = el.querySelector('a[href*="/questoes/"]');
+            if (link) {
+              const match = link.getAttribute('href')?.match(/\/questoes\/(\d+)/);
+              if (match) return match[1];
+            }
+
+            // Procurar #ID no texto (ex: #1635243)
+            const text = el.textContent || '';
+            const idMatch = text.match(/#(\d{5,})/);
+            if (idMatch) return idMatch[1];
+
+            return '';
+          });
+
+          // Fallback: tentar obter ID do body text
+          if (!questaoIdRapido) {
+            const bodyText = await page.evaluate(() => document.body.innerText);
+            const idMatch = bodyText.match(/#(\d{5,})/);
+            if (idMatch) questaoIdRapido = idMatch[1];
+          }
+
+          // Se conseguimos o ID, verificar se já existe no banco
+          if (questaoIdRapido) {
+            const jaExiste = await questaoJaExiste(questaoIdRapido);
+            if (jaExiste) {
+              questoesPuladas++;
+              log(`Questão ${questaoIdRapido} já existe, pulando... (${questoesPuladas} puladas)`);
+              // Atualizar posição mesmo pulando (para retomada correta)
+              await updateCadernoPosition(paginaAtual, questaoIdRapido);
+              continue; // Pular para próxima questão sem extrair dados
+            }
+          }
+
+          // Questão não existe, fazer extração completa
           const questao = await extrairDadosQuestaoTec(questaoEl, page);
           if (questao) {
             questoes.push(questao);
