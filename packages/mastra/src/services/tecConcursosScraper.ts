@@ -15,9 +15,11 @@ import puppeteer, { Browser, Page, Cookie } from 'puppeteer';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
-// Caminho para salvar cookies
-const COOKIES_PATH = process.env.TEC_COOKIES_PATH || '/tmp/tec-cookies.json';
+// Caminho para salvar cookies - usar temp dir do sistema
+const TEMP_DIR = os.tmpdir();
+const COOKIES_PATH = process.env.TEC_COOKIES_PATH || path.join(TEMP_DIR, 'tec-cookies.json');
 
 // ==================== CONFIGURAÇÕES ====================
 
@@ -181,22 +183,34 @@ async function saveCookies(page: Page): Promise<void> {
 
 async function loadCookies(page: Page): Promise<boolean> {
   try {
-    if (!fs.existsSync(COOKIES_PATH)) {
-      log('Arquivo de cookies não encontrado');
-      return false;
+    // Primeiro, tentar carregar do banco de dados (tec_accounts)
+    const supabase = getSupabase();
+    const { data: account, error: dbError } = await supabase
+      .from('tec_accounts')
+      .select('cookies')
+      .eq('is_active', true)
+      .single();
+
+    if (!dbError && account?.cookies && Array.isArray(account.cookies) && account.cookies.length > 0) {
+      await page.setCookie(...account.cookies);
+      log(`Cookies loaded from database (${account.cookies.length} cookies)`);
+      return true;
     }
 
-    const cookiesJson = fs.readFileSync(COOKIES_PATH, 'utf-8');
-    const cookies: Cookie[] = JSON.parse(cookiesJson);
+    // Fallback: tentar carregar do arquivo
+    if (fs.existsSync(COOKIES_PATH)) {
+      const cookiesJson = fs.readFileSync(COOKIES_PATH, 'utf-8');
+      const cookies: Cookie[] = JSON.parse(cookiesJson);
 
-    if (!cookies || cookies.length === 0) {
-      log('Arquivo de cookies vazio');
-      return false;
+      if (cookies && cookies.length > 0) {
+        await page.setCookie(...cookies);
+        log(`Cookies carregados do arquivo (${cookies.length} cookies)`);
+        return true;
+      }
     }
 
-    await page.setCookie(...cookies);
-    log(`Cookies carregados (${cookies.length} cookies)`);
-    return true;
+    log('Nenhum cookie disponível (banco ou arquivo)');
+    return false;
   } catch (error) {
     log(`Erro ao carregar cookies: ${error instanceof Error ? error.message : String(error)}`, 'error');
     return false;
@@ -271,8 +285,26 @@ async function importCookiesFromJson(cookiesJson: string): Promise<{ success: bo
       return { success: false, message: 'JSON de cookies vazio ou inválido' };
     }
 
-    fs.writeFileSync(COOKIES_PATH, JSON.stringify(cookies, null, 2));
-    log(`Cookies importados (${cookies.length} cookies)`);
+    // Salvar no banco de dados (tec_accounts)
+    const supabase = getSupabase();
+    const { error: dbError } = await supabase
+      .from('tec_accounts')
+      .update({
+        cookies: cookies,
+        login_status: 'valid',
+        last_login_check: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('is_active', true);
+
+    if (dbError) {
+      log(`Erro ao salvar cookies no banco: ${dbError.message}`, 'error');
+      // Fallback: salvar no arquivo
+      fs.writeFileSync(COOKIES_PATH, JSON.stringify(cookies, null, 2));
+      log(`Cookies salvos no arquivo como fallback (${cookies.length} cookies)`);
+    } else {
+      log(`Cookies salvos no banco de dados (${cookies.length} cookies)`);
+    }
 
     // Recarregar cookies na página atual se houver
     if (_page && !_page.isClosed()) {
@@ -2142,14 +2174,23 @@ export function isScrapingRunning(): boolean {
  * Extrai questões de um caderno existente por URL
  * Usado para cadernos criados manualmente
  */
-async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
+async function extrairQuestoesDeCadernoUrl(
+  cadernoUrl: string,
+  options?: {
+    startFromQuestion?: number; // Número da questão para começar (1-indexed)
+    cadernoId?: string; // ID do caderno para atualizar progresso no banco
+  }
+): Promise<{
   success: boolean;
   questoes: QuestaoColetada[];
   salvos: number;
   erros: number;
   message: string;
 }> {
-  log(`Iniciando extração de questões do caderno: ${cadernoUrl}`);
+  const startFrom = options?.startFromQuestion || 1;
+  const cadernoId = options?.cadernoId;
+
+  log(`Iniciando extração de questões do caderno: ${cadernoUrl} (começando da questão ${startFrom})`);
 
   if (!cadernoUrl.includes('tecconcursos.com.br')) {
     return {
@@ -2229,6 +2270,48 @@ async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
     let questoesSemDadosConsecutivas = 0;
     const MAX_SEM_DADOS = 10;
 
+    // Se precisamos começar de uma posição específica, pular rapidamente até lá
+    if (startFrom > 1) {
+      log(`Pulando para a questão ${startFrom} (${startFrom - 1} questões a pular)...`);
+      const questoesAPular = startFrom - 1;
+
+      for (let i = 0; i < questoesAPular && _isRunning; i++) {
+        // Navegar rápido sem extrair dados
+        await page.keyboard.press('ArrowRight');
+        await delay(300); // Delay menor para navegação rápida
+
+        // Log a cada 100 questões puladas
+        if ((i + 1) % 100 === 0) {
+          log(`Puladas ${i + 1}/${questoesAPular} questões...`);
+        }
+      }
+
+      // Esperar a página carregar após pular
+      await delay(1500);
+      paginaAtual = startFrom;
+      log(`Chegou na questão ${startFrom}, iniciando extração...`);
+    }
+
+    // Função auxiliar para atualizar posição no banco
+    const updateCadernoPosition = async (questionNumber: number, questionId: string) => {
+      if (cadernoId) {
+        try {
+          const supabase = getSupabase();
+          await supabase
+            .from('tec_cadernos')
+            .update({
+              last_question_number: questionNumber,
+              last_question_id: questionId,
+              collected_questions: questionNumber,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', cadernoId);
+        } catch (err) {
+          log(`Erro ao atualizar posição do caderno: ${err}`, 'warn');
+        }
+      }
+    };
+
     while (temMaisQuestoes && _isRunning) {
       log(`Processando página ${paginaAtual}...`);
 
@@ -2254,8 +2337,50 @@ async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
       if (questoesElements.length === 0) {
         // Tentar pegar o HTML para debug
         const html = await page.content();
-        fs.writeFileSync('/tmp/caderno-debug.html', html);
-        log('Nenhuma questão encontrada na página. HTML salvo em /tmp/caderno-debug.html', 'warn');
+        const debugPath = path.join(TEMP_DIR, 'caderno-debug.html');
+        fs.writeFileSync(debugPath, html);
+        log(`Nenhuma questão encontrada na página. HTML salvo em ${debugPath}`, 'warn');
+
+        // Analisar estrutura da página para debug
+        const pageStructure = await page.evaluate(() => {
+          const result: {
+            mainClasses: string[];
+            articleElements: string[];
+            divClasses: string[];
+            questionLikeElements: string[];
+            bodyText: string;
+          } = {
+            mainClasses: [],
+            articleElements: [],
+            divClasses: [],
+            questionLikeElements: [],
+            bodyText: document.body.innerText.substring(0, 500),
+          };
+
+          // Encontrar todas as classes principais
+          document.querySelectorAll('main, article, section, .container, [class*="quest"]').forEach(el => {
+            result.mainClasses.push(`${el.tagName}.${el.className}`);
+          });
+
+          // Encontrar elementos article
+          document.querySelectorAll('article').forEach(el => {
+            result.articleElements.push(`${el.tagName}.${el.className}`);
+          });
+
+          // Encontrar divs com classes que possam conter questões
+          document.querySelectorAll('div[class*="quest"], div[class*="enunciado"], div[class*="conteudo"]').forEach(el => {
+            result.divClasses.push(`${el.tagName}.${el.className}`);
+          });
+
+          // Encontrar elementos que parecem questões
+          document.querySelectorAll('[data-id], [data-questao], [id*="quest"]').forEach(el => {
+            result.questionLikeElements.push(`${el.tagName}#${el.id}.${el.className}`);
+          });
+
+          return result;
+        });
+
+        log(`Estrutura da página: ${JSON.stringify(pageStructure, null, 2)}`);
 
         // Verificar se há erro de permissão
         const errorText = await page.$eval('body', (el: Element) => el.textContent || '').catch(() => '');
@@ -2285,6 +2410,9 @@ async function extrairQuestoesDeCadernoUrl(cadernoUrl: string): Promise<{
             }
 
             log(`Questão ${questao.id} extraída (${questoes.length} total)`);
+
+            // Atualizar posição no banco para retomada
+            await updateCadernoPosition(paginaAtual, questao.id);
           } else {
             questoesSemDadosConsecutivas++;
           }

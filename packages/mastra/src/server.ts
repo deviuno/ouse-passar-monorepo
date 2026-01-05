@@ -41,6 +41,7 @@ import { createScraperRoutes } from './routes/scraper.js';
 import { createTecConcursosScraperRoutes } from './routes/tecConcursosScraper.js';
 import { startImageProcessorCron, getImageProcessorStatus } from './cron/imageProcessor.js';
 import { startQuestionReviewerCron, getQuestionReviewerStatus } from './cron/questionReviewer.js';
+import { startGabaritoExtractorCron, getGabaritoExtractorStatus } from './cron/gabaritoExtractor.js';
 
 // Load environment variables
 import path from 'path';
@@ -6991,6 +6992,7 @@ app.use('/api/tec-scraper', tecScraperRoutes);
 app.get('/api/scraper/cron-status', (req, res) => {
     const imageStatus = getImageProcessorStatus();
     const reviewerStatus = getQuestionReviewerStatus();
+    const gabaritoStatus = getGabaritoExtractorStatus();
 
     res.json({
         success: true,
@@ -7003,6 +7005,11 @@ app.get('/api/scraper/cron-status', (req, res) => {
             isProcessing: reviewerStatus.isProcessing,
             lastRun: reviewerStatus.lastRun,
             totalReviewed: reviewerStatus.totalReviewed,
+        },
+        gabaritoExtractor: {
+            isProcessing: gabaritoStatus.isProcessing,
+            lastRun: gabaritoStatus.lastRun,
+            stats: gabaritoStatus.stats,
         },
     });
 });
@@ -7024,6 +7031,14 @@ const questionReviewerInterval = startQuestionReviewerCron(
     questionsDbKey,
     process.env.GOOGLE_GENERATIVE_AI_API_KEY || '',
     10 * 60 * 1000 // 10 minutos
+);
+
+// Cron job para extrair gabaritos de questões sem resposta (a cada 5 minutos)
+const gabaritoExtractorInterval = startGabaritoExtractorCron(
+    questionsDbUrl,
+    questionsDbKey,
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY || '',
+    5 * 60 * 1000 // 5 minutos
 );
 
 console.log('[Server] Cron jobs de scraping iniciados');

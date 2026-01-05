@@ -5,8 +5,10 @@
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/server.ts",
+        "dev:worker": "tsx src/scraper-worker.ts",
         "build": "tsc",
         "start": "node dist/server.js",
+        "start:worker": "node dist/scraper-worker.js",
         "migrate:questoes": "tsx scripts/migrate-questoes.ts"
     },
     "dependencies": {
