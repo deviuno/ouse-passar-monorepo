@@ -2293,24 +2293,34 @@ async function extrairQuestoesDeCadernoUrl(
     let questoesSemDadosConsecutivas = 0;
     const MAX_SEM_DADOS = 10;
 
-    // Se precisamos começar de uma posição específica, pular rapidamente até lá
+    // Se precisamos começar de uma posição específica, pular até lá
+    // IMPORTANTE: Usar delays maiores e variáveis para evitar detecção de bot
     if (startFrom > 1) {
       log(`Pulando para a questão ${startFrom} (${startFrom - 1} questões a pular)...`);
       const questoesAPular = startFrom - 1;
 
       for (let i = 0; i < questoesAPular && _isRunning; i++) {
-        // Navegar rápido sem extrair dados
+        // Navegar com delay variável para parecer humano
         await page.keyboard.press('ArrowRight');
-        await delay(300); // Delay menor para navegação rápida
 
-        // Log a cada 100 questões puladas
-        if ((i + 1) % 100 === 0) {
+        // Delay variável: 800-1500ms (média ~1150ms)
+        const delayBase = 800 + Math.floor(Math.random() * 700);
+        await delay(delayBase);
+
+        // A cada 30 questões, fazer uma pausa maior (2-4s) para parecer humano
+        if ((i + 1) % 30 === 0) {
+          const pausaLonga = 2000 + Math.floor(Math.random() * 2000);
+          await delay(pausaLonga);
+        }
+
+        // Log a cada 50 questões puladas
+        if ((i + 1) % 50 === 0) {
           log(`Puladas ${i + 1}/${questoesAPular} questões...`);
         }
       }
 
       // Esperar a página carregar após pular
-      await delay(1500);
+      await delay(2000);
       paginaAtual = startFrom;
       log(`Chegou na questão ${startFrom}, iniciando extração...`);
     }
