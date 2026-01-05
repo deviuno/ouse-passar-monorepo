@@ -320,5 +320,24 @@ export const editalService = {
     });
     if (error) throw error;
     return data || 0;
+  },
+
+  // Auto-configurar filtros via IA
+  async autoConfigureFilters(preparatorioId: string): Promise<{
+    success: boolean;
+    itemsConfigured: number;
+    itemsProcessed: number;
+    error?: string;
+  }> {
+    const MASTRA_URL = import.meta.env.VITE_MASTRA_URL
+      ? import.meta.env.VITE_MASTRA_URL
+      : 'http://localhost:4000';
+
+    const response = await fetch(`${MASTRA_URL}/api/edital/${preparatorioId}/auto-configure-filters`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    return response.json();
   }
 };

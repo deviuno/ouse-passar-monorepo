@@ -133,8 +133,19 @@ interface ScrapingProgress {
 
 // ==================== ESTADO GLOBAL ====================
 
+// Legacy single browser (for backward compatibility)
 let _browser: Browser | null = null;
 let _page: Page | null = null;
+
+// Multi-browser support: Map of accountId -> { browser, page, isLoggedIn }
+interface BrowserSession {
+  browser: Browser;
+  page: Page;
+  isLoggedIn: boolean;
+  accountId: string;
+}
+const _browserSessions: Map<string, BrowserSession> = new Map();
+
 let _isLoggedIn = false;
 let _isRunning = false;
 let _progress: ScrapingProgress | null = null;
@@ -213,6 +224,47 @@ async function saveCookies(page: Page): Promise<void> {
 // ID da conta sendo usada atualmente
 let _currentAccountId: string | null = null;
 
+// Normalize sameSite value from EditThisCookie format to Puppeteer format
+function normalizeSameSite(sameSite: string | undefined): 'Strict' | 'Lax' | 'None' | undefined {
+  if (!sameSite) return undefined;
+  const lower = sameSite.toLowerCase();
+  if (lower === 'strict') return 'Strict';
+  if (lower === 'lax') return 'Lax';
+  if (lower === 'none' || lower === 'no_restriction') return 'None';
+  return undefined;
+}
+
+// Normalize cookies from EditThisCookie format to Puppeteer format
+function normalizeCookies(cookies: any[]): Cookie[] {
+  return cookies.map(cookie => {
+    const normalized: any = {
+      name: cookie.name,
+      value: cookie.value,
+      domain: cookie.domain,
+      path: cookie.path || '/',
+    };
+
+    // Only add optional fields if they exist
+    if (cookie.expires !== undefined && cookie.expires !== -1) {
+      normalized.expires = cookie.expires;
+    }
+    if (cookie.httpOnly !== undefined) {
+      normalized.httpOnly = cookie.httpOnly;
+    }
+    if (cookie.secure !== undefined) {
+      normalized.secure = cookie.secure;
+    }
+
+    // Normalize sameSite value
+    const sameSite = normalizeSameSite(cookie.sameSite);
+    if (sameSite) {
+      normalized.sameSite = sameSite;
+    }
+
+    return normalized as Cookie;
+  });
+}
+
 async function loadCookies(page: Page, accountId?: string): Promise<boolean> {
   try {
     // Carregar do banco de dados (tec_accounts)
@@ -232,9 +284,18 @@ async function loadCookies(page: Page, accountId?: string): Promise<boolean> {
 
     const account = accounts?.[0];
     if (!dbError && account?.cookies && Array.isArray(account.cookies) && account.cookies.length > 0) {
-      await page.setCookie(...account.cookies);
+      // Normalize cookies before setting
+      const normalizedCookies = normalizeCookies(account.cookies);
+
+      // Log session cookie info for debugging
+      const sessionCookie = normalizedCookies.find(c => c.name === 'JSESSIONID');
+      if (sessionCookie) {
+        log(`Session cookie (JSESSIONID): ${sessionCookie.value.substring(0, 8)}...`);
+      }
+
+      await page.setCookie(...normalizedCookies);
       _currentAccountId = account.id;
-      log(`Cookies loaded from database (${account.cookies.length} cookies) - Account: ${account.email}`);
+      log(`Cookies loaded from database (${normalizedCookies.length} cookies) - Account: ${account.email}`);
       return true;
     } else if (dbError) {
       log(`Erro ao carregar cookies do banco: ${dbError.message}`, 'error');
@@ -245,11 +306,12 @@ async function loadCookies(page: Page, accountId?: string): Promise<boolean> {
     // Fallback: tentar carregar do arquivo
     if (fs.existsSync(COOKIES_PATH)) {
       const cookiesJson = fs.readFileSync(COOKIES_PATH, 'utf-8');
-      const cookies: Cookie[] = JSON.parse(cookiesJson);
+      const rawCookies = JSON.parse(cookiesJson);
 
-      if (cookies && cookies.length > 0) {
-        await page.setCookie(...cookies);
-        log(`Cookies carregados do arquivo (${cookies.length} cookies)`);
+      if (rawCookies && rawCookies.length > 0) {
+        const normalizedCookies = normalizeCookies(rawCookies);
+        await page.setCookie(...normalizedCookies);
+        log(`Cookies carregados do arquivo (${normalizedCookies.length} cookies)`);
         return true;
       }
     }
@@ -394,7 +456,74 @@ async function initBrowser(): Promise<Browser> {
   return _browser;
 }
 
-async function getPage(): Promise<Page> {
+/**
+ * Get page for a specific account (supports parallel scraping)
+ * If accountId is provided, returns a dedicated browser session for that account
+ * Otherwise, uses the legacy single browser
+ */
+async function getPage(accountId?: string): Promise<Page> {
+  // If accountId provided, use dedicated session
+  if (accountId) {
+    const existingSession = _browserSessions.get(accountId);
+    if (existingSession && !existingSession.page.isClosed()) {
+      return existingSession.page;
+    }
+
+    // Create new browser session for this account
+    log(`Criando nova sessão de browser para conta ${accountId.slice(0, 8)}...`);
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--window-size=1920,1080',
+      ],
+      defaultViewport: {
+        width: 1920,
+        height: 1080,
+      },
+    });
+
+    const page = await browser.newPage();
+
+    // Configurar user agent para parecer um navegador real (Chrome mais recente)
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+    );
+
+    // Configurar headers extras para parecer mais real
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+    });
+
+    // Configurar timeouts
+    page.setDefaultTimeout(30000);
+    page.setDefaultNavigationTimeout(60000);
+
+    const session: BrowserSession = {
+      browser,
+      page,
+      isLoggedIn: false,
+      accountId,
+    };
+
+    _browserSessions.set(accountId, session);
+    log(`Sessão de browser criada para conta ${accountId.slice(0, 8)}`);
+
+    return page;
+  }
+
+  // Legacy: use single browser
   if (_page && !_page.isClosed()) {
     return _page;
   }
@@ -402,10 +531,19 @@ async function getPage(): Promise<Page> {
   const browser = await initBrowser();
   _page = await browser.newPage();
 
-  // Configurar user agent para parecer um navegador real
+  // Configurar user agent para parecer um navegador real (Chrome mais recente)
   await _page.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
   );
+
+  // Configurar headers extras para parecer mais real
+  await _page.setExtraHTTPHeaders({
+    'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+  });
 
   // Configurar timeouts
   _page.setDefaultTimeout(30000);
@@ -414,7 +552,25 @@ async function getPage(): Promise<Page> {
   return _page;
 }
 
-async function closeBrowser(): Promise<void> {
+/**
+ * Close browser for a specific account or all browsers
+ */
+async function closeBrowser(accountId?: string): Promise<void> {
+  // If accountId provided, close only that session
+  if (accountId) {
+    const session = _browserSessions.get(accountId);
+    if (session) {
+      if (!session.page.isClosed()) {
+        await session.page.close();
+      }
+      await session.browser.close();
+      _browserSessions.delete(accountId);
+      log(`Navegador fechado para conta ${accountId.slice(0, 8)}`);
+    }
+    return;
+  }
+
+  // Close legacy browser
   if (_page && !_page.isClosed()) {
     await _page.close();
     _page = null;
@@ -427,6 +583,29 @@ async function closeBrowser(): Promise<void> {
 
   _isLoggedIn = false;
   log('Navegador fechado');
+}
+
+/**
+ * Close all browser sessions (for cleanup)
+ */
+async function closeAllBrowsers(): Promise<void> {
+  // Close all account sessions
+  for (const [accountId, session] of _browserSessions) {
+    try {
+      if (!session.page.isClosed()) {
+        await session.page.close();
+      }
+      await session.browser.close();
+      log(`Navegador fechado para conta ${accountId.slice(0, 8)}`);
+    } catch (e) {
+      log(`Erro ao fechar browser para ${accountId}: ${e}`, 'warn');
+    }
+  }
+  _browserSessions.clear();
+
+  // Close legacy browser
+  await closeBrowser();
+  log('Todos os navegadores fechados');
 }
 
 // ==================== CAPTCHA HANDLING ====================
@@ -2336,6 +2515,7 @@ async function extrairQuestoesDeCadernoUrl(
   cadernoUrl: string,
   options?: {
     startFromQuestion?: number; // Número da questão para começar (1-indexed)
+    endAtQuestion?: number; // Número da questão para parar (inclusive, para modo paralelo)
     cadernoId?: string; // ID do caderno para atualizar progresso no banco
     accountId?: string; // ID da conta para usar (para workers paralelos)
   }
@@ -2347,10 +2527,12 @@ async function extrairQuestoesDeCadernoUrl(
   message: string;
 }> {
   const startFrom = options?.startFromQuestion || 1;
+  const endAt = options?.endAtQuestion; // Se definido, parar nesta questão (modo paralelo)
   const cadernoId = options?.cadernoId;
   const accountId = options?.accountId;
 
-  log(`Iniciando extração de questões do caderno: ${cadernoUrl} (começando da questão ${startFrom})${accountId ? ` [Account: ${accountId}]` : ''}`);
+  const rangeInfo = endAt ? ` até questão ${endAt}` : '';
+  log(`Iniciando extração de questões do caderno: ${cadernoUrl} (começando da questão ${startFrom}${rangeInfo})${accountId ? ` [Account: ${accountId}]` : ''}`);
 
   if (!cadernoUrl.includes('tecconcursos.com.br')) {
     return {
@@ -2375,7 +2557,7 @@ async function extrairQuestoesDeCadernoUrl(
       };
     }
 
-    const page = await getPage();
+    const page = await getPage(accountId);
     const questoes: QuestaoColetada[] = [];
 
     log(`Navegando para o caderno: ${cadernoUrl}`);
@@ -2482,8 +2664,11 @@ async function extrairQuestoesDeCadernoUrl(
       }
     };
 
-    while (temMaisQuestoes && _isRunning) {
-      log(`Processando página ${paginaAtual}...`);
+    // Verificar se já atingiu o limite do range (modo paralelo)
+    const reachedEndLimit = () => endAt && paginaAtual > endAt;
+
+    while (temMaisQuestoes && _isRunning && !reachedEndLimit()) {
+      log(`Processando questão ${paginaAtual}${endAt ? `/${endAt}` : ''}...`);
 
       // Tentar diferentes seletores para as questões
       const seletores = [
@@ -2823,7 +3008,12 @@ async function extrairQuestoesDeCadernoUrl(
       }
     }
 
-    log(`Extração concluída. ${questoes.length} questões coletadas.`);
+    // Log de conclusão com motivo
+    if (reachedEndLimit()) {
+      log(`Range concluído (questão ${endAt}). ${questoes.length} questões coletadas neste range.`);
+    } else {
+      log(`Extração concluída. ${questoes.length} questões coletadas.`);
+    }
 
     // Salvar no banco
     let salvos = 0;
@@ -3019,6 +3209,260 @@ export function stopScrapingCron(): void {
   }
 }
 
+// ==================== CAPTURA AUTOMÁTICA DE COOKIES ====================
+
+/**
+ * Captura cookies de uma conta fazendo login em navegador visível
+ * O usuário precisa resolver o CAPTCHA manualmente
+ */
+async function captureCookiesForAccount(
+  accountId: string,
+  options?: { timeoutMinutes?: number }
+): Promise<{ success: boolean; message: string; cookiesCount?: number }> {
+  const timeoutMinutes = options?.timeoutMinutes || 5; // 5 minutos padrão para resolver CAPTCHA
+  const timeoutMs = timeoutMinutes * 60 * 1000;
+
+  log(`Iniciando captura de cookies para conta ${accountId}...`);
+
+  // Buscar credenciais da conta
+  const supabase = getSupabase();
+  const { data: account, error: fetchError } = await supabase
+    .from('tec_accounts')
+    .select('id, email, password')
+    .eq('id', accountId)
+    .single();
+
+  if (fetchError || !account) {
+    return { success: false, message: `Conta não encontrada: ${accountId}` };
+  }
+
+  if (!account.password) {
+    return { success: false, message: `Conta ${account.email} não tem senha cadastrada` };
+  }
+
+  log(`Conta encontrada: ${account.email}`);
+
+  let browser: Browser | null = null;
+  let page: Page | null = null;
+
+  try {
+    // Abrir navegador VISÍVEL para o usuário resolver CAPTCHA
+    log('Abrindo navegador visível (resolva o CAPTCHA quando aparecer)...');
+    browser = await puppeteer.launch({
+      headless: false, // VISÍVEL para resolver CAPTCHA
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+        '--window-size=1366,768',
+      ],
+      defaultViewport: { width: 1366, height: 768 },
+    });
+
+    page = await browser.newPage();
+
+    // Configurar User-Agent e headers
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+    );
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+    });
+
+    // Navegar para login
+    log('Navegando para página de login...');
+    await page.goto(CONFIG.loginUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+    await delay(2000);
+
+    // Preencher email
+    log(`Preenchendo email: ${account.email}`);
+    const emailInput = await page.$('input[type="email"], input[name="email"], #email');
+    if (emailInput) {
+      await emailInput.click({ clickCount: 3 });
+      await page.keyboard.press('Backspace');
+      await emailInput.type(account.email, { delay: 80 });
+    } else {
+      throw new Error('Campo de email não encontrado');
+    }
+
+    // Preencher senha
+    log('Preenchendo senha...');
+    const passwordInput = await page.$('input[type="password"], input[name="senha"], #senha');
+    if (passwordInput) {
+      await passwordInput.click({ clickCount: 3 });
+      await page.keyboard.press('Backspace');
+      await passwordInput.type(account.password, { delay: 80 });
+    } else {
+      throw new Error('Campo de senha não encontrado');
+    }
+
+    log(`⚠️ RESOLVA O CAPTCHA NA JANELA DO NAVEGADOR E CLIQUE EM ENTRAR (${timeoutMinutes} minutos de timeout)`);
+
+    // Aguardar navegação para página logada (o usuário resolve CAPTCHA e clica em Entrar)
+    const startTime = Date.now();
+    let loggedIn = false;
+    const loginPageUrl = CONFIG.loginUrl; // https://www.tecconcursos.com.br/login
+
+    while (!loggedIn && (Date.now() - startTime) < timeoutMs) {
+      await delay(2000);
+
+      const currentUrl = page.url();
+
+      // Método 1: Verificar se saiu da página de login exata
+      const isOnLoginPage = currentUrl === loginPageUrl ||
+                            currentUrl.startsWith(loginPageUrl + '?') ||
+                            currentUrl.startsWith(loginPageUrl + '#');
+
+      if (!isOnLoginPage) {
+        loggedIn = true;
+        log(`Login detectado! URL mudou para: ${currentUrl}`);
+      } else {
+        // Método 2: Verificar se tem cookie de sessão novo (TecPermanecerLogado indica "lembrar-me")
+        const cookies = await page.cookies();
+        const hasNewSession = cookies.some(c => c.name === 'TecPermanecerLogado');
+        if (hasNewSession) {
+          loggedIn = true;
+          log('Login detectado via cookie TecPermanecerLogado!');
+        }
+      }
+
+      // Método 3: Verificar elementos na página que indicam login
+      if (!loggedIn) {
+        try {
+          const userElement = await page.$('.user-menu, .user-info, .logged-user, [data-user], .avatar, .menu-usuario, .dropdown-user, .user-name, .nome-usuario, a[href*="minha-conta"], a[href*="sair"], a[href*="logout"]');
+          if (userElement) {
+            loggedIn = true;
+            log('Login detectado via elemento de usuário na página!');
+          }
+        } catch {
+          // Ignorar erros de seletor
+        }
+      }
+
+      // Log a cada 30 segundos
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      if (elapsed > 0 && elapsed % 30 === 0) {
+        log(`Aguardando login... ${elapsed}s/${timeoutMinutes * 60}s (URL: ${currentUrl})`);
+      }
+    }
+
+    if (!loggedIn) {
+      return {
+        success: false,
+        message: `Timeout: Login não detectado após ${timeoutMinutes} minutos. Certifique-se de resolver o CAPTCHA e clicar em Entrar.`,
+      };
+    }
+
+    // Capturar cookies
+    log('Capturando cookies da sessão...');
+    await delay(3000); // Esperar cookies serem definidos
+
+    const cookies = await page.cookies();
+
+    if (cookies.length === 0) {
+      return { success: false, message: 'Nenhum cookie capturado após login' };
+    }
+
+    // Verificar se tem cookies essenciais
+    const hasSession = cookies.some(c => c.name === 'JSESSIONID');
+    const hasPermanecerLogado = cookies.some(c => c.name === 'TecPermanecerLogado');
+
+    if (!hasSession && !hasPermanecerLogado) {
+      log('Aviso: Cookies de sessão não encontrados, salvando mesmo assim...', 'warn');
+    }
+
+    // Salvar cookies no banco
+    log(`Salvando ${cookies.length} cookies no banco de dados...`);
+    const { error: updateError } = await supabase
+      .from('tec_accounts')
+      .update({
+        cookies: cookies,
+        cookies_updated_at: new Date().toISOString(),
+      })
+      .eq('id', accountId);
+
+    if (updateError) {
+      return { success: false, message: `Erro ao salvar cookies: ${updateError.message}` };
+    }
+
+    const sessionCookie = cookies.find(c => c.name === 'JSESSIONID');
+    log(`✅ Cookies salvos com sucesso! JSESSIONID: ${sessionCookie?.value?.substring(0, 8) || 'N/A'}...`);
+
+    return {
+      success: true,
+      message: `Cookies capturados com sucesso para ${account.email}`,
+      cookiesCount: cookies.length,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log(`Erro na captura de cookies: ${errorMessage}`, 'error');
+    return { success: false, message: errorMessage };
+  } finally {
+    // Fechar navegador
+    if (browser) {
+      try {
+        await browser.close();
+        log('Navegador fechado');
+      } catch {
+        // Ignorar erro ao fechar
+      }
+    }
+  }
+}
+
+/**
+ * Captura cookies para todas as contas ativas sequencialmente
+ */
+async function captureAllAccountsCookies(
+  options?: { timeoutMinutesPerAccount?: number }
+): Promise<{ total: number; success: number; failed: string[] }> {
+  const supabase = getSupabase();
+
+  // Buscar todas as contas ativas
+  const { data: accounts, error } = await supabase
+    .from('tec_accounts')
+    .select('id, email')
+    .eq('is_active', true)
+    .order('email');
+
+  if (error || !accounts || accounts.length === 0) {
+    log('Nenhuma conta ativa encontrada', 'warn');
+    return { total: 0, success: 0, failed: [] };
+  }
+
+  log(`Encontradas ${accounts.length} contas para captura de cookies`);
+
+  const failed: string[] = [];
+  let successCount = 0;
+
+  for (const account of accounts) {
+    log(`\n========== Processando: ${account.email} ==========`);
+
+    const result = await captureCookiesForAccount(account.id, options);
+
+    if (result.success) {
+      successCount++;
+      log(`✅ ${account.email}: ${result.cookiesCount} cookies capturados`);
+    } else {
+      failed.push(account.email);
+      log(`❌ ${account.email}: ${result.message}`, 'error');
+    }
+
+    // Pequena pausa entre contas
+    await delay(2000);
+  }
+
+  log(`\n========== RESULTADO FINAL ==========`);
+  log(`Total: ${accounts.length}, Sucesso: ${successCount}, Falha: ${failed.length}`);
+
+  return {
+    total: accounts.length,
+    success: successCount,
+    failed,
+  };
+}
+
 // ==================== EXPORTAÇÕES ====================
 
 // Wrapper para checkLogin que não precisa de page
@@ -3041,12 +3485,18 @@ export const TecConcursosScraper = {
   startScrapingCron,
   stopScrapingCron,
   closeBrowser,
+  closeAllBrowsers,
   // Cookie management
   exportCookies: exportCookiesFromCurrentSession,
   importCookies: importCookiesFromJson,
   checkLogin: checkLoginWrapper,
+  // Cookie capture (automated login)
+  captureCookiesForAccount,
+  captureAllAccountsCookies,
   // Extração de caderno por URL
   extrairQuestoesDeCadernoUrl,
+  // Multi-session info
+  getActiveSessions: () => Array.from(_browserSessions.keys()),
 };
 
 export default TecConcursosScraper;

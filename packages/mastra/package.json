@@ -6,9 +6,11 @@
     "scripts": {
         "dev": "tsx watch src/server.ts",
         "dev:worker": "tsx src/scraper-worker.ts",
+        "dev:parallel": "tsx src/parallel-worker.ts",
         "build": "tsc",
         "start": "node dist/server.js",
         "start:worker": "node dist/scraper-worker.js",
+        "start:parallel": "node dist/parallel-worker.js",
         "migrate:questoes": "tsx scripts/migrate-questoes.ts"
     },
     "dependencies": {
@@ -29,6 +31,7 @@
         "puppeteer-extra": "^3.3.6",
         "puppeteer-extra-plugin-recaptcha": "^3.6.8",
         "puppeteer-extra-plugin-stealth": "^2.11.2",
+        "sharp": "^0.33.5",
         "zod": "^3.24.1"
     },
     "devDependencies": {

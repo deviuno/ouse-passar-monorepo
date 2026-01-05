@@ -29,7 +29,7 @@ import { ModuleName } from '../../stores/useModuleSettingsStore';
 
 const mainNavItems = [
   { path: '/', icon: Map, label: 'Minhas Trilhas', tourId: 'sidebar-trilha' },
-  { path: '/praticar', icon: Target, label: 'Praticar Questões', tourId: 'sidebar-praticar' },
+  { path: '/questoes', icon: Target, label: 'Praticar Questões', tourId: 'sidebar-praticar' },
   { path: '/simulados', icon: FileText, label: 'Meus Simulados', tourId: 'sidebar-simulados' },
   { path: '/estatisticas', icon: BarChart2, label: 'Estatísticas', tourId: 'sidebar-raiox' },
   { path: '/loja', icon: ShoppingBag, label: 'Loja', tourId: 'sidebar-loja' },

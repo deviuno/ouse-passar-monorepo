@@ -34,6 +34,7 @@ interface TecCaderno {
   completed_at?: string;
   last_error?: string;
   current_page: number;
+  account_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -113,6 +114,7 @@ async function addLog(
 async function sendCommand(
   command: 'start' | 'stop' | 'pause' | 'resume',
   cadernoId: string | null = null,
+  accountId: string | null = null,
   payload?: any
 ): Promise<{ success: boolean; commandId?: string; error?: string }> {
   try {
@@ -122,6 +124,7 @@ async function sendCommand(
       .insert({
         command,
         caderno_id: cadernoId,
+        account_id: accountId,
         payload,
         status: 'pending',
       })
@@ -189,6 +192,96 @@ async function getRunningCaderno(): Promise<TecCaderno | null> {
     return data as TecCaderno | null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Get all running cadernos (for parallel scraping)
+ */
+async function getRunningCadernos(): Promise<TecCaderno[]> {
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from('tec_cadernos')
+      .select('*')
+      .eq('status', 'running');
+
+    return (data || []) as TecCaderno[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get accounts with valid login that are not currently running a caderno
+ */
+async function getAvailableAccounts(): Promise<TecAccount[]> {
+  try {
+    const supabase = getSupabase();
+
+    // Get all valid accounts
+    const { data: accounts } = await supabase
+      .from('tec_accounts')
+      .select('*')
+      .eq('login_status', 'valid')
+      .eq('is_active', true);
+
+    if (!accounts || accounts.length === 0) {
+      return [];
+    }
+
+    // Get running cadernos to see which accounts are busy
+    const runningCadernos = await getRunningCadernos();
+    const busyAccountIds = new Set(
+      runningCadernos
+        .filter(c => c.account_id)
+        .map(c => c.account_id)
+    );
+
+    // Filter out busy accounts
+    return accounts.filter(acc => !busyAccountIds.has(acc.id)) as TecAccount[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Check if an account is currently processing a caderno
+ */
+async function isAccountBusy(accountId: string): Promise<boolean> {
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from('tec_cadernos')
+      .select('id')
+      .eq('status', 'running')
+      .eq('account_id', accountId)
+      .limit(1)
+      .single();
+
+    return !!data;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get queued cadernos that don't have an account assigned
+ */
+async function getQueuedCadernos(limit: number = 10): Promise<TecCaderno[]> {
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from('tec_cadernos')
+      .select('*')
+      .in('status', ['queued', 'paused'])
+      .order('priority', { ascending: false })
+      .order('created_at', { ascending: true })
+      .limit(limit);
+
+    return (data || []) as TecCaderno[];
+  } catch {
+    return [];
   }
 }
 
@@ -276,7 +369,7 @@ export function createTecConcursosScraperRoutes(): Router {
     }
 
     // Send stop command to worker
-    const result = await sendCommand('stop', runningCaderno.id);
+    const result = await sendCommand('stop', runningCaderno.id, runningCaderno.account_id || null);
 
     if (!result.success) {
       return res.status(500).json({
@@ -445,6 +538,107 @@ export function createTecConcursosScraperRoutes(): Router {
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Erro ao verificar cookies',
+      });
+    }
+  });
+
+  /**
+   * POST /api/tec-scraper/cookies/capture/:accountId
+   * Captura cookies de uma conta fazendo login em navegador visível
+   * O usuário resolve o CAPTCHA manualmente e o sistema captura os cookies
+   *
+   * Query params:
+   * - timeoutMinutes: tempo máximo para resolver CAPTCHA (padrão: 5 minutos)
+   */
+  router.post('/cookies/capture/:accountId', async (req: Request, res: Response) => {
+    const { accountId } = req.params;
+    const { timeoutMinutes } = req.query;
+
+    try {
+      const result = await TecConcursosScraper.captureCookiesForAccount(accountId, {
+        timeoutMinutes: timeoutMinutes ? parseInt(timeoutMinutes as string) : 5,
+      });
+
+      if (result.success) {
+        // Update account login status
+        const supabase = getSupabase();
+        await supabase
+          .from('tec_accounts')
+          .update({
+            login_status: 'valid',
+            last_login_check: new Date().toISOString(),
+          })
+          .eq('id', accountId);
+
+        return res.json({
+          success: true,
+          message: result.message,
+          cookiesCount: result.cookiesCount,
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: result.message,
+        });
+      }
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao capturar cookies',
+      });
+    }
+  });
+
+  /**
+   * POST /api/tec-scraper/cookies/capture-all
+   * Captura cookies de TODAS as contas ativas, uma de cada vez
+   * Abre navegador visível para cada conta resolver CAPTCHA
+   *
+   * Query params:
+   * - timeoutMinutesPerAccount: tempo máximo para resolver CAPTCHA por conta (padrão: 5 minutos)
+   */
+  router.post('/cookies/capture-all', async (req: Request, res: Response) => {
+    const { timeoutMinutesPerAccount } = req.query;
+
+    try {
+      const result = await TecConcursosScraper.captureAllAccountsCookies({
+        timeoutMinutesPerAccount: timeoutMinutesPerAccount ? parseInt(timeoutMinutesPerAccount as string) : 5,
+      });
+
+      // Update login status for successful accounts
+      if (result.success > 0) {
+        const supabase = getSupabase();
+        // Get accounts that succeeded (those not in failed list)
+        const { data: accounts } = await supabase
+          .from('tec_accounts')
+          .select('id, email')
+          .eq('is_active', true);
+
+        if (accounts) {
+          const successfulAccounts = accounts.filter(a => !result.failed.includes(a.email));
+          for (const account of successfulAccounts) {
+            await supabase
+              .from('tec_accounts')
+              .update({
+                login_status: 'valid',
+                last_login_check: new Date().toISOString(),
+              })
+              .eq('id', account.id);
+          }
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: `Captura concluída: ${result.success}/${result.total} contas bem-sucedidas`,
+        total: result.total,
+        successCount: result.success,
+        failed: result.failed,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao capturar cookies',
       });
     }
   });
@@ -962,9 +1156,10 @@ export function createTecConcursosScraperRoutes(): Router {
 
     try {
       // If this caderno is running, send stop command first
-      const runningCaderno = await getRunningCaderno();
-      if (runningCaderno && runningCaderno.id === id) {
-        await sendCommand('stop', id);
+      const runningCadernos = await getRunningCadernos();
+      const thisRunningCaderno = runningCadernos.find(c => c.id === id);
+      if (thisRunningCaderno) {
+        await sendCommand('stop', id, thisRunningCaderno.account_id || null);
       }
 
       const supabase = getSupabase();
@@ -984,23 +1179,56 @@ export function createTecConcursosScraperRoutes(): Router {
   /**
    * POST /api/tec-scraper/cadernos/:id/start
    * Inicia extração de um caderno específico (sends command to worker)
+   * Suporta scraping paralelo - usa uma conta disponível
    */
   router.post('/cadernos/:id/start', async (req: Request, res: Response) => {
     const { id } = req.params;
-
-    // Check if there's already a running caderno
-    const runningCaderno = await getRunningCaderno();
-    if (runningCaderno) {
-      return res.status(409).json({
-        success: false,
-        error: 'Já existe uma extração em andamento',
-        runningCaderno: runningCaderno.name,
-      });
-    }
+    const { account_id } = req.body; // Opcionalmente especificar uma conta
 
     try {
-      // Send start command to worker
-      const result = await sendCommand('start', id);
+      const supabase = getSupabase();
+
+      // Get available accounts
+      const availableAccounts = await getAvailableAccounts();
+
+      if (availableAccounts.length === 0) {
+        // Check if there are any valid accounts at all
+        const { data: validAccounts } = await supabase
+          .from('tec_accounts')
+          .select('id, email')
+          .eq('login_status', 'valid')
+          .eq('is_active', true);
+
+        if (!validAccounts || validAccounts.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'Nenhuma conta válida disponível. Configure cookies válidos em pelo menos uma conta.',
+          });
+        }
+
+        return res.status(409).json({
+          success: false,
+          error: 'Todas as contas estão ocupadas. Aguarde uma extração terminar ou adicione mais contas.',
+          busyAccounts: validAccounts.length,
+        });
+      }
+
+      // Use specified account or first available
+      let selectedAccount = availableAccounts[0];
+      if (account_id) {
+        const specified = availableAccounts.find(a => a.id === account_id);
+        if (specified) {
+          selectedAccount = specified;
+        } else {
+          return res.status(400).json({
+            success: false,
+            error: 'A conta especificada não está disponível ou é inválida.',
+          });
+        }
+      }
+
+      // Send start command to worker with account_id
+      const result = await sendCommand('start', id, selectedAccount.id);
 
       if (!result.success) {
         return res.status(500).json({
@@ -1009,24 +1237,279 @@ export function createTecConcursosScraperRoutes(): Router {
         });
       }
 
-      // Update caderno status to queued (worker will set to running)
-      const supabase = getSupabase();
+      // Update caderno status to queued and assign account
       await supabase
         .from('tec_cadernos')
-        .update({ status: 'queued' })
+        .update({
+          status: 'queued',
+          account_id: selectedAccount.id
+        })
         .eq('id', id);
 
-      await addLog(id, 'info', 'Comando de iniciar enviado ao worker');
+      await addLog(id, 'info', `Comando de iniciar enviado ao worker (conta: ${selectedAccount.email})`);
 
       return res.json({
         success: true,
-        message: 'Comando de iniciar enviado ao worker',
+        message: `Extração iniciada com a conta ${selectedAccount.email}`,
         commandId: result.commandId,
+        account: { id: selectedAccount.id, email: selectedAccount.email },
       });
     } catch (error) {
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Erro ao iniciar extração',
+      });
+    }
+  });
+
+  /**
+   * POST /api/tec-scraper/parallel/start
+   * Inicia scraping paralelo com todas as contas disponíveis
+   * Distribui os cadernos na fila entre as contas
+   */
+  router.post('/parallel/start', async (req: Request, res: Response) => {
+    try {
+      const supabase = getSupabase();
+
+      // Get available accounts
+      const availableAccounts = await getAvailableAccounts();
+
+      if (availableAccounts.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Nenhuma conta disponível para scraping paralelo',
+        });
+      }
+
+      // Get queued cadernos
+      const queuedCadernos = await getQueuedCadernos(availableAccounts.length);
+
+      if (queuedCadernos.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Nenhum caderno na fila para processar',
+        });
+      }
+
+      const started: Array<{ caderno: string; account: string; commandId?: string }> = [];
+      const errors: Array<{ caderno: string; error: string }> = [];
+
+      // Distribute cadernos among accounts
+      for (let i = 0; i < Math.min(queuedCadernos.length, availableAccounts.length); i++) {
+        const caderno = queuedCadernos[i];
+        const account = availableAccounts[i];
+
+        // Send start command with account
+        const result = await sendCommand('start', caderno.id, account.id);
+
+        if (result.success) {
+          // Update caderno with account assignment
+          await supabase
+            .from('tec_cadernos')
+            .update({
+              status: 'queued',
+              account_id: account.id
+            })
+            .eq('id', caderno.id);
+
+          await addLog(caderno.id, 'info', `Scraping paralelo iniciado (conta: ${account.email})`);
+
+          started.push({
+            caderno: caderno.name,
+            account: account.email,
+            commandId: result.commandId,
+          });
+        } else {
+          errors.push({
+            caderno: caderno.name,
+            error: result.error || 'Erro desconhecido',
+          });
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: `Scraping paralelo iniciado: ${started.length} cadernos em ${started.length} contas`,
+        started,
+        errors: errors.length > 0 ? errors : undefined,
+        availableAccountsUsed: started.length,
+        totalAvailableAccounts: availableAccounts.length,
+        totalQueuedCadernos: queuedCadernos.length,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao iniciar scraping paralelo',
+      });
+    }
+  });
+
+  /**
+   * GET /api/tec-scraper/parallel/status
+   * Retorna status do scraping paralelo (todos os cadernos em execução)
+   */
+  router.get('/parallel/status', async (req: Request, res: Response) => {
+    try {
+      const supabase = getSupabase();
+
+      // Get all running cadernos with account info
+      const { data: runningCadernos } = await supabase
+        .from('tec_cadernos')
+        .select(`
+          *,
+          tec_accounts!tec_cadernos_account_id_fkey (
+            id,
+            email
+          )
+        `)
+        .eq('status', 'running');
+
+      // Get available accounts
+      const availableAccounts = await getAvailableAccounts();
+
+      // Get queued cadernos
+      const queuedCadernos = await getQueuedCadernos(20);
+
+      return res.json({
+        success: true,
+        parallel: {
+          running: (runningCadernos || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            progress: {
+              collected: c.collected_questions,
+              total: c.total_questions,
+              percentage: c.total_questions > 0
+                ? Math.round((c.collected_questions / c.total_questions) * 100)
+                : 0,
+            },
+            account: c.tec_accounts ? {
+              id: c.tec_accounts.id,
+              email: c.tec_accounts.email,
+            } : null,
+            startedAt: c.started_at,
+          })),
+          runningCount: runningCadernos?.length || 0,
+          availableAccounts: availableAccounts.length,
+          queuedCadernos: queuedCadernos.length,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao obter status paralelo',
+      });
+    }
+  });
+
+  /**
+   * POST /api/tec-scraper/parallel/caderno/:id
+   * Inicia scraping paralelo de UM ÚNICO caderno com TODAS as contas disponíveis
+   * Divide o caderno em ranges e cada conta processa um range diferente
+   */
+  router.post('/parallel/caderno/:id', async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    try {
+      const supabase = getSupabase();
+
+      // Get caderno info
+      const { data: caderno, error: cadernoError } = await supabase
+        .from('tec_cadernos')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (cadernoError || !caderno) {
+        return res.status(404).json({
+          success: false,
+          error: 'Caderno não encontrado',
+        });
+      }
+
+      // Get available accounts
+      const availableAccounts = await getAvailableAccounts();
+
+      if (availableAccounts.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Nenhuma conta disponível para scraping paralelo',
+        });
+      }
+
+      const totalQuestions = caderno.total_questions || 0;
+      const startFrom = (caderno.last_question_number || 0) + 1;
+      const remainingQuestions = totalQuestions - startFrom + 1;
+
+      if (remainingQuestions <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Caderno já foi completamente processado',
+        });
+      }
+
+      // Calculate ranges for each account
+      const numAccounts = availableAccounts.length;
+      const questionsPerAccount = Math.ceil(remainingQuestions / numAccounts);
+
+      const assignments: Array<{
+        account: { id: string; email: string };
+        startQuestion: number;
+        endQuestion: number;
+        commandId?: string;
+      }> = [];
+
+      for (let i = 0; i < numAccounts; i++) {
+        const account = availableAccounts[i];
+        const rangeStart = startFrom + (i * questionsPerAccount);
+        const rangeEnd = Math.min(rangeStart + questionsPerAccount - 1, totalQuestions);
+
+        // Skip if range is invalid
+        if (rangeStart > totalQuestions) break;
+
+        // Send command with range info in payload
+        const result = await sendCommand('start', id, account.id, {
+          startQuestion: rangeStart,
+          endQuestion: rangeEnd,
+          parallelMode: true,
+        });
+
+        if (result.success) {
+          assignments.push({
+            account: { id: account.id, email: account.email },
+            startQuestion: rangeStart,
+            endQuestion: rangeEnd,
+            commandId: result.commandId,
+          });
+
+          await addLog(id, 'info', `Scraping paralelo: ${account.email} processará questões ${rangeStart}-${rangeEnd}`);
+        }
+      }
+
+      // Update caderno status
+      await supabase
+        .from('tec_cadernos')
+        .update({
+          status: 'running',
+          started_at: caderno.started_at || new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      return res.json({
+        success: true,
+        message: `Scraping paralelo iniciado: ${assignments.length} contas processando o caderno "${caderno.name}"`,
+        caderno: {
+          id: caderno.id,
+          name: caderno.name,
+          totalQuestions,
+          remainingQuestions,
+        },
+        assignments,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao iniciar scraping paralelo',
       });
     }
   });
@@ -1038,9 +1521,11 @@ export function createTecConcursosScraperRoutes(): Router {
   router.post('/cadernos/:id/pause', async (req: Request, res: Response) => {
     const { id } = req.params;
 
-    // Check if this caderno is running
-    const runningCaderno = await getRunningCaderno();
-    if (!runningCaderno || runningCaderno.id !== id) {
+    // Check if this caderno is running (supports parallel scraping)
+    const runningCadernos = await getRunningCadernos();
+    const thisCaderno = runningCadernos.find(c => c.id === id);
+
+    if (!thisCaderno) {
       return res.status(400).json({
         success: false,
         error: 'Este caderno não está em execução',
@@ -1048,8 +1533,8 @@ export function createTecConcursosScraperRoutes(): Router {
     }
 
     try {
-      // Send pause command to worker
-      const result = await sendCommand('pause', id);
+      // Send pause command to worker with account_id
+      const result = await sendCommand('pause', id, thisCaderno.account_id || null);
 
       if (!result.success) {
         return res.status(500).json({
@@ -1076,23 +1561,36 @@ export function createTecConcursosScraperRoutes(): Router {
   /**
    * POST /api/tec-scraper/cadernos/:id/resume
    * Retoma a extração de um caderno pausado (sends command to worker)
+   * Suporta scraping paralelo - usa uma conta disponível
    */
   router.post('/cadernos/:id/resume', async (req: Request, res: Response) => {
     const { id } = req.params;
-
-    // Check if there's already a running caderno
-    const runningCaderno = await getRunningCaderno();
-    if (runningCaderno) {
-      return res.status(409).json({
-        success: false,
-        error: 'Já existe uma extração em andamento',
-        runningCaderno: runningCaderno.name,
-      });
-    }
+    const { account_id } = req.body;
 
     try {
-      // Send resume command to worker
-      const result = await sendCommand('resume', id);
+      const supabase = getSupabase();
+
+      // Get available accounts
+      const availableAccounts = await getAvailableAccounts();
+
+      if (availableAccounts.length === 0) {
+        return res.status(409).json({
+          success: false,
+          error: 'Todas as contas estão ocupadas. Aguarde uma extração terminar.',
+        });
+      }
+
+      // Use specified account or first available
+      let selectedAccount = availableAccounts[0];
+      if (account_id) {
+        const specified = availableAccounts.find(a => a.id === account_id);
+        if (specified) {
+          selectedAccount = specified;
+        }
+      }
+
+      // Send resume command to worker with account_id
+      const result = await sendCommand('resume', id, selectedAccount.id);
 
       if (!result.success) {
         return res.status(500).json({
@@ -1101,14 +1599,16 @@ export function createTecConcursosScraperRoutes(): Router {
         });
       }
 
-      // Update caderno status to queued (worker will set to running)
-      const supabase = getSupabase();
+      // Update caderno status to queued and assign account
       await supabase
         .from('tec_cadernos')
-        .update({ status: 'queued' })
+        .update({
+          status: 'queued',
+          account_id: selectedAccount.id
+        })
         .eq('id', id);
 
-      await addLog(id, 'info', 'Comando de retomar enviado ao worker');
+      await addLog(id, 'info', `Comando de retomar enviado ao worker (conta: ${selectedAccount.email})`);
 
       return res.json({
         success: true,
@@ -1259,46 +1759,67 @@ export function createTecConcursosScraperRoutes(): Router {
   /**
    * POST /api/tec-scraper/queue/process
    * Força o processamento da fila (sends command to worker)
+   * Suporta scraping paralelo - processa um caderno por conta disponível
    */
   router.post('/queue/process', async (req: Request, res: Response) => {
-    // Check if there's already a running caderno
-    const runningCaderno = await getRunningCaderno();
-    if (runningCaderno) {
-      return res.status(409).json({
-        success: false,
-        error: 'Já existe uma extração em andamento',
-        runningCaderno: runningCaderno.name,
-      });
-    }
+    try {
+      const supabase = getSupabase();
 
-    // Get next queued caderno
-    const supabase = getSupabase();
-    const { data: nextCaderno } = await supabase
-      .from('tec_cadernos')
-      .select('id, name')
-      .eq('status', 'queued')
-      .order('priority', { ascending: false })
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .single();
+      // Get available accounts (not busy)
+      const availableAccounts = await getAvailableAccounts();
 
-    if (!nextCaderno) {
+      if (availableAccounts.length === 0) {
+        const runningCadernos = await getRunningCadernos();
+        return res.status(409).json({
+          success: false,
+          error: 'Todas as contas estão ocupadas',
+          runningCadernos: runningCadernos.map(c => c.name),
+        });
+      }
+
+      // Get queued cadernos
+      const queuedCadernos = await getQueuedCadernos(availableAccounts.length);
+
+      if (queuedCadernos.length === 0) {
+        return res.json({
+          success: true,
+          message: 'Nenhum caderno na fila',
+        });
+      }
+
+      const started: Array<{ caderno: string; account: string }> = [];
+
+      // Start one caderno per available account
+      for (let i = 0; i < Math.min(queuedCadernos.length, availableAccounts.length); i++) {
+        const caderno = queuedCadernos[i];
+        const account = availableAccounts[i];
+
+        const result = await sendCommand('start', caderno.id, account.id);
+
+        if (result.success) {
+          await supabase
+            .from('tec_cadernos')
+            .update({
+              status: 'queued',
+              account_id: account.id
+            })
+            .eq('id', caderno.id);
+
+          started.push({ caderno: caderno.name, account: account.email });
+        }
+      }
+
       return res.json({
         success: true,
-        message: 'Nenhum caderno na fila',
+        message: `Iniciados ${started.length} cadernos`,
+        started,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao processar fila',
       });
     }
-
-    // Send start command to worker
-    const result = await sendCommand('start', nextCaderno.id);
-
-    return res.json({
-      success: result.success,
-      message: result.success
-        ? `Comando enviado para iniciar: ${nextCaderno.name}`
-        : result.error,
-      commandId: result.commandId,
-    });
   });
 
   /**

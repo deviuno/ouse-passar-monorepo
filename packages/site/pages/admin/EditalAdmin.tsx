@@ -225,6 +225,9 @@ export const EditalAdmin: React.FC = () => {
   // Saving state per item
   const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
 
+  // Auto-configuring filters state
+  const [autoConfiguring, setAutoConfiguring] = useState(false);
+
   const loadData = async () => {
     if (!preparatorioId) return;
 
@@ -462,6 +465,25 @@ export const EditalAdmin: React.FC = () => {
       }
     }
 
+    // Auto-configurar filtros via IA
+    console.log('[EditalAdmin] Itens criados, iniciando auto-configuração de filtros...');
+    setAutoConfiguring(true);
+
+    try {
+      const autoConfigResult = await editalService.autoConfigureFilters(preparatorioId);
+
+      if (autoConfigResult.success) {
+        console.log(`[EditalAdmin] Auto-configurados ${autoConfigResult.itemsConfigured}/${autoConfigResult.itemsProcessed} itens`);
+      } else {
+        console.error('[EditalAdmin] Erro na auto-configuração:', autoConfigResult.error);
+      }
+    } catch (error) {
+      console.error('[EditalAdmin] Erro ao chamar auto-configuração:', error);
+      // Non-blocking - os itens foram criados, apenas os filtros não foram auto-configurados
+    } finally {
+      setAutoConfiguring(false);
+    }
+
     // Recarregar lista
     await loadData();
   };
@@ -653,6 +675,19 @@ export const EditalAdmin: React.FC = () => {
 
   if (!preparatorio) {
     return null;
+  }
+
+  // Overlay de auto-configuração
+  if (autoConfiguring) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-yellow"></div>
+        <div className="text-center">
+          <p className="text-white font-medium">Configurando filtros com IA...</p>
+          <p className="text-gray-400 text-sm mt-1">Mapeando matérias e assuntos do banco de questões</p>
+        </div>
+      </div>
+    );
   }
 
   const counts = countItems(items);

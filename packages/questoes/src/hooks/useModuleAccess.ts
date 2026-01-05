@@ -26,7 +26,10 @@ const FULL_ACCESS_CONFIG: ModuleConfig = {
 export const routeToModule: Record<string, ModuleName> = {
   '/': 'trilha',
   '/trilha': 'trilha',
+  '/questoes': 'praticar',
   '/praticar': 'praticar',
+  '/cadernos': 'praticar',
+  '/trilhas': 'praticar',
   '/simulados': 'simulados',
   '/estatisticas': 'estatisticas',
   '/loja': 'loja',

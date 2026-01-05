@@ -33,9 +33,11 @@ import {
     getMissoesPorRodada,
 } from './services/missionBuilderService.js';
 import { otimizarFiltrosPreparatorio, sugerirFiltrosMissao } from './mastra/agents/filtrosAdapterAgent.js';
+import { autoConfigureEditalFilters } from './mastra/agents/editalFilterAutoConfigAgent.js';
 import * as storeService from './services/storeService.js';
 import { buscarOuGerarLogo } from './services/logoService.js';
 import { generateSimuladoPDF } from './services/pdfService.js';
+import { compressImage, getContentType, getFileExtension } from './services/imageCompressionService.js';
 import multer from 'multer';
 import { createScraperRoutes } from './routes/scraper.js';
 import { createTecConcursosScraperRoutes } from './routes/tecConcursosScraper.js';
@@ -285,6 +287,40 @@ app.post('/api/edital/parse', async (req, res) => {
         res.status(500).json({
             success: false,
             error: error.message || "Erro interno ao processar edital"
+        });
+    }
+});
+
+// Endpoint para auto-configurar filtros do edital via IA
+app.post('/api/edital/:preparatorioId/auto-configure-filters', async (req, res) => {
+    try {
+        const { preparatorioId } = req.params;
+
+        if (!preparatorioId) {
+            res.status(400).json({
+                success: false,
+                error: 'preparatorioId é obrigatório',
+            });
+            return;
+        }
+
+        console.log(`[EditalAutoConfig] Iniciando auto-configuração para: ${preparatorioId}`);
+
+        const result = await autoConfigureEditalFilters(preparatorioId);
+
+        if (result.success) {
+            console.log(`[EditalAutoConfig] Sucesso: ${result.itemsConfigured}/${result.itemsProcessed} itens configurados`);
+        } else {
+            console.error(`[EditalAutoConfig] Erro: ${result.error}`);
+        }
+
+        res.json(result);
+
+    } catch (error: any) {
+        console.error('[EditalAutoConfig] Erro:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao auto-configurar filtros',
         });
     }
 });
@@ -734,16 +770,28 @@ app.post('/api/preparatorio/gerar-imagem-capa', async (req, res) => {
             });
         }
 
-        console.log('[ImagemCapa API] Imagem estilo Netflix gerada, fazendo upload...');
+        console.log('[ImagemCapa API] Imagem estilo Netflix gerada, comprimindo...');
+
+        // Converter base64 para buffer
+        const rawBuffer = Buffer.from(imageData, 'base64');
+        console.log(`[ImagemCapa API] Tamanho original: ${(rawBuffer.length / 1024).toFixed(1)}KB`);
+
+        // Comprimir imagem para max 400KB, formato WebP
+        const compressed = await compressImage(rawBuffer, {
+            maxSizeKB: 400,
+            maxWidth: 1200,
+            format: 'webp',
+        });
+
+        console.log(`[ImagemCapa API] Comprimido: ${(compressed.compressedSize / 1024).toFixed(1)}KB (${compressed.width}x${compressed.height})`);
 
         // Upload para Supabase Storage
-        const fileName = `capa-ai-${Date.now()}-${Math.random().toString(36).substring(2)}.png`;
-        const buffer = Buffer.from(imageData, 'base64');
+        const fileName = `capa-ai-${Date.now()}-${Math.random().toString(36).substring(2)}${getFileExtension(compressed.format)}`;
 
         const { error: uploadError } = await supabase.storage
             .from('preparatorios')
-            .upload(fileName, buffer, {
-                contentType: 'image/png',
+            .upload(fileName, compressed.buffer, {
+                contentType: getContentType(compressed.format),
                 upsert: true,
             });
 
@@ -6334,46 +6382,38 @@ app.get('/api/taxonomia/:materia/assuntos', async (req, res) => {
 // IMPORTANTE: Este endpoint deve vir ANTES do /api/taxonomia/:materia
 app.get('/api/taxonomia/all', async (req, res) => {
     try {
-        // Buscar todas as matérias que têm taxonomia
-        const { data: materias, error: materiasError } = await questionsDb
-            .from('assuntos_taxonomia')
-            .select('materia')
-            .not('materia', 'is', null);
+        // Função para buscar todos os dados usando paginação (para bypasser limite de 1000 do Supabase)
+        const fetchAllPaginated = async (rpcName: string, pageSize = 1000) => {
+            const allData: any[] = [];
+            let offset = 0;
+            let hasMore = true;
 
-        if (materiasError) {
-            return res.status(500).json({
-                success: false,
-                error: "Erro ao buscar matérias"
-            });
-        }
+            while (hasMore) {
+                const { data, error } = await questionsDb
+                    .rpc(rpcName)
+                    .range(offset, offset + pageSize - 1);
 
-        // Obter lista única de matérias
-        const materiasUnicas = [...new Set(materias?.map(m => m.materia) || [])];
+                if (error) throw error;
 
-        // Buscar taxonomia e mapeamentos de todas as matérias em paralelo
-        const [taxonomiaResult, mapeamentoResult] = await Promise.all([
-            questionsDb
-                .from('assuntos_taxonomia')
-                .select('*')
-                .in('materia', materiasUnicas)
-                .order('materia')
-                .order('ordem'),
-            questionsDb
-                .from('assuntos_mapeamento')
-                .select('assunto_original, taxonomia_id, materia')
-                .in('materia', materiasUnicas)
-                .not('taxonomia_id', 'is', null)
+                if (data && data.length > 0) {
+                    allData.push(...data);
+                    offset += pageSize;
+                    hasMore = data.length === pageSize;
+                } else {
+                    hasMore = false;
+                }
+            }
+            return allData;
+        };
+
+        // Buscar todos os dados usando paginação
+        const [taxonomiaData, mapeamentoData] = await Promise.all([
+            fetchAllPaginated('get_all_taxonomia'),
+            fetchAllPaginated('get_all_taxonomia_mapeamentos')
         ]);
 
-        if (taxonomiaResult.error) {
-            return res.status(500).json({
-                success: false,
-                error: "Erro ao buscar taxonomia"
-            });
-        }
-
-        const taxonomiaData = taxonomiaResult.data || [];
-        const mapeamentoData = mapeamentoResult.data || [];
+        // Obter lista única de matérias
+        const materiasUnicas = [...new Set(taxonomiaData.map((t: any) => t.materia).filter(Boolean))];
 
         // Criar mapa de assuntos por taxonomia_id
         const assuntosPorTaxonomia = new Map<number, string[]>();
@@ -6437,12 +6477,14 @@ app.get('/api/taxonomia/:materia', async (req, res) => {
                 .from('assuntos_taxonomia')
                 .select('*')
                 .eq('materia', materia)
-                .order('ordem'),
+                .order('ordem')
+                .limit(5000),
             questionsDb
                 .from('assuntos_mapeamento')
                 .select('assunto_original, taxonomia_id')
                 .eq('materia', materia)
                 .not('taxonomia_id', 'is', null)
+                .limit(10000)
         ]);
 
         if (taxonomiaResult.error) {

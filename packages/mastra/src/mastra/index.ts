@@ -11,6 +11,7 @@ import { filtrosAdapterAgent } from "./agents/filtrosAdapterAgent.js";
 import { gabaritoExtractorAgent } from "./agents/gabaritoExtractorAgent.js";
 import { comentarioFormatterAgent } from "./agents/comentarioFormatterAgent.js";
 import { assuntosTaxonomiaAgent } from "./agents/assuntosTaxonomiaAgent.js";
+import { editalFilterAutoConfigAgent } from "./agents/editalFilterAutoConfigAgent.js";
 import { ousePassarMcpServer } from "./mcp/mcpServer.js";
 
 export const mastra = new Mastra({
@@ -28,6 +29,7 @@ export const mastra = new Mastra({
         gabaritoExtractorAgent,
         comentarioFormatterAgent,
         assuntosTaxonomiaAgent,
+        editalFilterAutoConfigAgent,
     },
     storage: new LibSQLStore({
         url: "file:./data/mastra.db",

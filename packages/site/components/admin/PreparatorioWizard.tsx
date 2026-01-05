@@ -74,6 +74,11 @@ export interface PreparatorioWizardData {
   precoPlataformaCompletaDesconto: string;
   checkoutPlataformaCompleta: string;
   guruProductIdPlataformaCompleta: string;
+  // Trilhas de Questões
+  precoTrilhas: string;
+  precoTrilhasDesconto: string;
+  checkoutTrilhas: string;
+  guruProductIdTrilhas: string;
   // Descrições
   descricaoCurta: string;
   descricaoVendas: string;
@@ -476,6 +481,10 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
     precoPlataformaCompletaDesconto: initialData?.precoPlataformaCompletaDesconto || '',
     checkoutPlataformaCompleta: initialData?.checkoutPlataformaCompleta || '',
     guruProductIdPlataformaCompleta: initialData?.guruProductIdPlataformaCompleta || '',
+    precoTrilhas: initialData?.precoTrilhas || '',
+    precoTrilhasDesconto: initialData?.precoTrilhasDesconto || '',
+    checkoutTrilhas: initialData?.checkoutTrilhas || '',
+    guruProductIdTrilhas: initialData?.guruProductIdTrilhas || '',
     descricaoCurta: initialData?.descricaoCurta || '',
     descricaoVendas: initialData?.descricaoVendas || '',
     // Campos legados
@@ -1019,6 +1028,21 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
         onDescontoChange={(v) => updateField('precoPlataformaCompletaDesconto', v)}
         onCheckoutChange={(v) => updateField('checkoutPlataformaCompleta', v)}
         onGuruProductIdChange={(v) => updateField('guruProductIdPlataformaCompleta', v)}
+      />
+
+      {/* Trilhas de Questões */}
+      <ProductPriceCard
+        title="Trilhas de Questões"
+        icon="🎯"
+        description="Edital verticalizado com prática guiada de questões"
+        precoValue={formData.precoTrilhas}
+        descontoValue={formData.precoTrilhasDesconto}
+        checkoutValue={formData.checkoutTrilhas}
+        guruProductIdValue={formData.guruProductIdTrilhas}
+        onPrecoChange={(v) => updateField('precoTrilhas', v)}
+        onDescontoChange={(v) => updateField('precoTrilhasDesconto', v)}
+        onCheckoutChange={(v) => updateField('checkoutTrilhas', v)}
+        onGuruProductIdChange={(v) => updateField('guruProductIdTrilhas', v)}
       />
 
       {/* Descrições */}

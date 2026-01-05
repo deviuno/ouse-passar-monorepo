@@ -111,7 +111,10 @@ export function Header() {
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === '/' || path === '/trilha') return 'Minhas Trilhas';
-    if (path === '/praticar') return 'Praticar Questões';
+    if (path === '/questoes') return 'Ouse Questões';
+    if (path === '/praticar') return 'Nova Prática';
+    if (path === '/cadernos') return 'Meus Cadernos';
+    if (path === '/trilhas') return 'Trilhas de Questões';
     if (path === '/simulados') return 'Meus Simulados';
     if (path === '/estatisticas') return 'Raio-X do Aluno';
     if (path === '/loja') return 'Loja';

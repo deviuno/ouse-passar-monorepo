@@ -8,7 +8,7 @@ import { ModuleName } from '../../stores/useModuleSettingsStore';
 
 const navItems = [
   { path: '/', icon: Map, label: 'Trilha', tourId: 'nav-trilha' },
-  { path: '/praticar', icon: Target, label: 'Praticar', tourId: 'nav-praticar' },
+  { path: '/questoes', icon: Target, label: 'Questões', tourId: 'nav-praticar' },
   { path: '/simulados', icon: FileText, label: 'Simulados', tourId: 'nav-simulados' },
   { path: '/estatisticas', icon: BarChart2, label: 'Raio-X', tourId: 'nav-raiox' },
   { path: '/loja', icon: ShoppingBag, label: 'Loja', tourId: 'nav-loja' },

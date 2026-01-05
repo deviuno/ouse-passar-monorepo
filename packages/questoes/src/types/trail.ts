@@ -21,6 +21,7 @@ export interface Preparatorio {
   nome: string;
   slug: string;
   descricao?: string;
+  descricao_curta?: string; // Descrição curta para cards
   icone?: string;
   cor?: string;
   banca?: string;
@@ -35,8 +36,11 @@ export interface Preparatorio {
   checkout_simulados?: string;
   checkout_reta_final?: string;
   checkout_plataforma_completa?: string;
+  checkout_trilhas?: string; // Trilhas de Questões
   // Preços
   price_questoes?: number;
+  preco_trilhas?: number;
+  preco_trilhas_desconto?: number;
   raio_x?: RaioXConcurso;
   is_active: boolean;
   ordem?: number;

@@ -124,6 +124,7 @@ import {
 } from '../../services/tecScraperService';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
 
 // ============================================================================
 // TYPES
@@ -2138,6 +2139,14 @@ function ScrapingSection() {
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [newAccount, setNewAccount] = useState({ email: '', password: '', cookies: '' });
   const [addingAccount, setAddingAccount] = useState(false);
+
+  // Delete confirmation modals
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    type: 'caderno' | 'account' | null;
+    id: string | null;
+    name: string;
+  }>({ isOpen: false, type: null, id: null, name: '' });
   const [showImportCookies, setShowImportCookies] = useState<string | null>(null);
   const [importCookiesValue, setImportCookiesValue] = useState('');
 
@@ -2202,10 +2211,14 @@ function ScrapingSection() {
     setAddingCaderno(false);
   };
 
-  const handleDeleteCaderno = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover este caderno?')) return;
-    setActionLoading(id);
-    const result = await tecScraperService.deleteCaderno(id);
+  const handleDeleteCaderno = (id: string, name: string) => {
+    setDeleteModal({ isOpen: true, type: 'caderno', id, name });
+  };
+
+  const confirmDeleteCaderno = async () => {
+    if (!deleteModal.id) return;
+    setActionLoading(deleteModal.id);
+    const result = await tecScraperService.deleteCaderno(deleteModal.id);
     if (result.success) {
       toast.success('Caderno removido');
       loadData();
@@ -2213,6 +2226,7 @@ function ScrapingSection() {
       toast.error(result.error || 'Erro ao remover caderno');
     }
     setActionLoading(null);
+    setDeleteModal({ isOpen: false, type: null, id: null, name: '' });
   };
 
   const handleStartCaderno = async (id: string) => {
@@ -2280,10 +2294,14 @@ function ScrapingSection() {
     setAddingAccount(false);
   };
 
-  const handleDeleteAccount = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover esta conta?')) return;
-    setActionLoading(id);
-    const result = await tecScraperService.deleteAccount(id);
+  const handleDeleteAccount = (id: string, email: string) => {
+    setDeleteModal({ isOpen: true, type: 'account', id, name: email });
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (!deleteModal.id) return;
+    setActionLoading(deleteModal.id);
+    const result = await tecScraperService.deleteAccount(deleteModal.id);
     if (result.success) {
       toast.success('Conta removida');
       loadData();
@@ -2291,6 +2309,7 @@ function ScrapingSection() {
       toast.error(result.error || 'Erro ao remover conta');
     }
     setActionLoading(null);
+    setDeleteModal({ isOpen: false, type: null, id: null, name: '' });
   };
 
   const handleActivateAccount = async (id: string) => {
@@ -2675,7 +2694,7 @@ function ScrapingSection() {
                         Logs
                       </button>
                       <button
-                        onClick={() => handleDeleteCaderno(caderno.id)}
+                        onClick={() => handleDeleteCaderno(caderno.id, caderno.name)}
                         disabled={actionLoading === caderno.id}
                         className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-sm text-sm ml-auto disabled:opacity-50"
                       >
@@ -2898,7 +2917,7 @@ function ScrapingSection() {
                       Importar Cookies
                     </button>
                     <button
-                      onClick={() => handleDeleteAccount(account.id)}
+                      onClick={() => handleDeleteAccount(account.id, account.email)}
                       disabled={actionLoading === account.id}
                       className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-sm text-sm ml-auto disabled:opacity-50"
                     >
@@ -3164,6 +3183,20 @@ function ScrapingSection() {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, type: null, id: null, name: '' })}
+        onConfirm={deleteModal.type === 'caderno' ? confirmDeleteCaderno : confirmDeleteAccount}
+        title={deleteModal.type === 'caderno' ? 'Remover Caderno' : 'Remover Conta'}
+        itemName={deleteModal.name}
+        message={deleteModal.type === 'caderno'
+          ? `Tem certeza que deseja remover o caderno "${deleteModal.name}"?`
+          : `Tem certeza que deseja remover a conta "${deleteModal.name}"?`
+        }
+        isLoading={actionLoading === deleteModal.id}
+      />
     </div>
   );
 }

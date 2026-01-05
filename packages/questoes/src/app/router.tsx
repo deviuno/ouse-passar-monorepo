@@ -12,6 +12,10 @@ import PracticePage from '../pages/PracticePage';
 import SimuladosPage from '../pages/SimuladosPage';
 import SimuladoDetailPage from '../pages/SimuladoDetailPage';
 import SimuladoExecPage from '../pages/SimuladoExecPage';
+import QuestoesHubPage from '../pages/QuestoesHubPage';
+import NotebooksPage from '../pages/NotebooksPage';
+import TrailsPage from '../pages/TrailsPage';
+import TrailEditalPage from '../pages/TrailEditalPage';
 import StatsPage from '../pages/StatsPage';
 import StorePage from '../pages/StorePage';
 import InventoryPage from '../pages/InventoryPage';
@@ -108,10 +112,29 @@ export const router = createBrowserRouter([
         path: ':prepSlug/r/:roundNum/m/:missionNum',
         element: <ModuleGuard module="trilha"><MissionPage /></ModuleGuard>,
       },
+      // Questões Hub - protected by ModuleGuard
+      {
+        path: 'questoes',
+        element: <ModuleGuard module="praticar"><QuestoesHubPage /></ModuleGuard>,
+      },
       // Praticar - protected by ModuleGuard
       {
         path: 'praticar',
         element: <ModuleGuard module="praticar"><PracticePage /></ModuleGuard>,
+      },
+      // Cadernos - protected by ModuleGuard
+      {
+        path: 'cadernos',
+        element: <ModuleGuard module="praticar"><NotebooksPage /></ModuleGuard>,
+      },
+      // Trilhas - protected by ModuleGuard
+      {
+        path: 'trilhas',
+        element: <ModuleGuard module="praticar"><TrailsPage /></ModuleGuard>,
+      },
+      {
+        path: 'trilhas/:slug',
+        element: <ModuleGuard module="praticar"><TrailEditalPage /></ModuleGuard>,
       },
       // Simulados - protected by ModuleGuard
       {
