@@ -11,11 +11,39 @@
  * 5. Salvar no banco de dados
  */
 
-import puppeteer, { Browser, Page, Cookie } from 'puppeteer';
+import puppeteerExtra from 'puppeteer-extra';
+import puppeteerVanilla, { Browser, Page, Cookie } from 'puppeteer';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import RecaptchaPlugin from 'puppeteer-extra-plugin-recaptcha';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+
+// Configurar puppeteer-extra com plugins
+const puppeteer = puppeteerExtra.default || puppeteerExtra;
+
+// Adicionar plugin stealth para evitar detecção
+const stealthPlugin = (StealthPlugin as any).default ? (StealthPlugin as any).default() : StealthPlugin();
+puppeteer.use(stealthPlugin);
+
+// Configurar plugin de CAPTCHA se a API key estiver disponível
+const CAPTCHA_API_KEY = process.env.TWOCAPTCHA_API_KEY || process.env.CAPTCHA_API_KEY;
+if (CAPTCHA_API_KEY) {
+  const recaptchaPlugin = (RecaptchaPlugin as any).default
+    ? (RecaptchaPlugin as any).default({
+        provider: { id: '2captcha', token: CAPTCHA_API_KEY },
+        visualFeedback: true,
+      })
+    : (RecaptchaPlugin as any)({
+        provider: { id: '2captcha', token: CAPTCHA_API_KEY },
+        visualFeedback: true,
+      });
+  puppeteer.use(recaptchaPlugin);
+  console.log('[TecConcursosScraper] Plugin de CAPTCHA configurado com 2captcha');
+} else {
+  console.log('[TecConcursosScraper] AVISO: TWOCAPTCHA_API_KEY não configurada - CAPTCHAs não serão resolvidos automaticamente');
+}
 
 // Caminho para salvar cookies - usar temp dir do sistema
 const TEMP_DIR = os.tmpdir();
@@ -48,12 +76,13 @@ const CONFIG = {
     'Militar',
     'Outras Carreiras',
   ],
-  // Delays para evitar bloqueio
+  // Delays para evitar bloqueio (aumentados para parecer mais humano)
   delays: {
-    afterLogin: 3000,
-    afterPageLoad: 2000,
-    betweenQuestions: 500,
-    betweenCadernos: 5000,
+    afterLogin: 5000,
+    afterPageLoad: 3000,
+    betweenQuestions: 1500,      // Aumentado de 500 para 1500
+    betweenCadernos: 8000,
+    randomExtra: () => Math.floor(Math.random() * 1000), // 0-1000ms extra aleatório
   },
 };
 
@@ -398,6 +427,114 @@ async function closeBrowser(): Promise<void> {
 
   _isLoggedIn = false;
   log('Navegador fechado');
+}
+
+// ==================== CAPTCHA HANDLING ====================
+
+/**
+ * Detecta se há um CAPTCHA na página
+ */
+async function detectCaptcha(page: Page): Promise<boolean> {
+  try {
+    const bodyText = await page.evaluate(() => document.body.innerText);
+
+    // Detectar diferentes tipos de CAPTCHA/verificação
+    const captchaIndicators = [
+      'confirm you are human',
+      'security check',
+      'verify you are not a bot',
+      'captcha',
+      'challenge',
+      'cloudflare',
+      'verificação de segurança',
+      'confirme que você é humano',
+    ];
+
+    const hasCaptcha = captchaIndicators.some(indicator =>
+      bodyText.toLowerCase().includes(indicator.toLowerCase())
+    );
+
+    if (hasCaptcha) {
+      log('CAPTCHA detectado na página!', 'warn');
+    }
+
+    return hasCaptcha;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Tenta resolver um CAPTCHA usando o plugin 2captcha
+ */
+async function solveCaptcha(page: Page): Promise<boolean> {
+  if (!CAPTCHA_API_KEY) {
+    log('API key de CAPTCHA não configurada. Configure TWOCAPTCHA_API_KEY para resolver CAPTCHAs automaticamente.', 'error');
+    return false;
+  }
+
+  try {
+    log('Tentando resolver CAPTCHA automaticamente...');
+
+    // O plugin puppeteer-extra-plugin-recaptcha adiciona este método
+    const { solved, error } = await (page as any).solveRecaptchas();
+
+    if (error) {
+      log(`Erro ao resolver CAPTCHA: ${error}`, 'error');
+      return false;
+    }
+
+    if (solved && solved.length > 0) {
+      log(`CAPTCHA resolvido com sucesso! (${solved.length} captcha(s))`);
+
+      // Aguardar um pouco após resolver
+      await delay(3000);
+
+      // Clicar no botão de submit se houver
+      try {
+        await page.click('button[type="submit"], input[type="submit"], .submit-button');
+        await delay(2000);
+      } catch {
+        // Botão pode não existir
+      }
+
+      return true;
+    }
+
+    log('Nenhum CAPTCHA encontrado para resolver');
+    return false;
+  } catch (error) {
+    log(`Exceção ao resolver CAPTCHA: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    return false;
+  }
+}
+
+/**
+ * Verifica se há CAPTCHA e tenta resolver
+ */
+async function handleCaptchaIfPresent(page: Page): Promise<boolean> {
+  const hasCaptcha = await detectCaptcha(page);
+
+  if (!hasCaptcha) {
+    return true; // Sem CAPTCHA, pode continuar
+  }
+
+  // Tentar resolver
+  const solved = await solveCaptcha(page);
+
+  if (!solved) {
+    log('Não foi possível resolver o CAPTCHA. Aguardando 30 segundos antes de tentar novamente...', 'warn');
+    await delay(30000);
+
+    // Verificar se o CAPTCHA ainda está presente
+    const stillHasCaptcha = await detectCaptcha(page);
+    if (stillHasCaptcha) {
+      log('CAPTCHA ainda presente após espera. Retornando erro.', 'error');
+      return false;
+    }
+  }
+
+  return true;
 }
 
 // ==================== AUTENTICAÇÃO ====================
@@ -2499,7 +2636,18 @@ async function extrairQuestoesDeCadernoUrl(
           log(`Erro ao extrair questão: ${err instanceof Error ? err.message : String(err)}`, 'warn');
         }
 
-        await delay(100); // Pequeno delay entre questões
+        // Delay entre questões (aumentado para parecer mais humano)
+        const delayBetween = CONFIG.delays.betweenQuestions + CONFIG.delays.randomExtra();
+        await delay(delayBetween);
+
+        // Verificar CAPTCHA periodicamente (a cada 10 questões)
+        if (questoes.length % 10 === 0) {
+          const captchaOk = await handleCaptchaIfPresent(page);
+          if (!captchaOk) {
+            log('CAPTCHA não resolvido, interrompendo extração', 'error');
+            break;
+          }
+        }
       }
 
       // Se muitas questões consecutivas sem dados, pode haver problema
@@ -2572,7 +2720,18 @@ async function extrairQuestoesDeCadernoUrl(
         // Tentar navegação via teclado primeiro (mais confiável)
         // TecConcursos suporta atalho de teclado para próxima questão
         await page.keyboard.press('ArrowRight');
-        await delay(2000); // Esperar carregamento AJAX
+
+        // Delay maior e variável para parecer mais humano
+        const navDelay = 2500 + Math.floor(Math.random() * 1000);
+        await delay(navDelay);
+
+        // Verificar se apareceu CAPTCHA após navegação
+        const captchaOk = await handleCaptchaIfPresent(page);
+        if (!captchaOk) {
+          log('CAPTCHA detectado durante navegação, interrompendo...', 'error');
+          temMaisQuestoes = false;
+          break;
+        }
 
         // Verificar se mudou via teclado
         let navegouComSucesso = false;
