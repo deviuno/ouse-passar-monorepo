@@ -134,14 +134,22 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     }
   }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos, selectedEscolaridade, selectedModalidade]);
 
+  // Referência para saber se os assuntos iniciais já foram preservados
+  const [initialAssuntosPreserved, setInitialAssuntosPreserved] = useState(false);
+
   // Carregar assuntos quando materias mudam
   useEffect(() => {
     const loadAssuntos = async () => {
       if (selectedMaterias.length === 0) {
-        setAvailableAssuntos([]);
-        // Limpar assuntos selecionados se nao ha materias
-        if (selectedAssuntos.length > 0) {
-          setSelectedAssuntos([]);
+        // Se há assuntos iniciais e ainda não foram preservados, manter eles
+        if (initialFilters?.assuntos && initialFilters.assuntos.length > 0 && !initialAssuntosPreserved) {
+          setAvailableAssuntos(initialFilters.assuntos);
+          setInitialAssuntosPreserved(true);
+          return;
+        }
+        // Se já foram preservados uma vez, agora pode limpar se necessário
+        if (initialAssuntosPreserved) {
+          setAvailableAssuntos([]);
         }
         return;
       }
@@ -149,12 +157,21 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
       setLoadingAssuntos(true);
       try {
         const result = await getAssuntosByMaterias(selectedMaterias);
-        setAvailableAssuntos(result.assuntos);
-        // Manter apenas assuntos que ainda existem
-        setSelectedAssuntos(prev => prev.filter(a => result.assuntos.includes(a)));
+        // Combinar assuntos do banco com assuntos iniciais (se houver)
+        const combinedAssuntos = new Set([
+          ...result.assuntos,
+          ...(initialFilters?.assuntos || [])
+        ]);
+        setAvailableAssuntos(Array.from(combinedAssuntos));
+        setInitialAssuntosPreserved(true);
       } catch (error) {
         console.error('Erro ao carregar assuntos:', error);
-        setAvailableAssuntos([]);
+        // Em caso de erro, manter os assuntos iniciais se houver
+        if (initialFilters?.assuntos) {
+          setAvailableAssuntos(initialFilters.assuntos);
+        } else {
+          setAvailableAssuntos([]);
+        }
       } finally {
         setLoadingAssuntos(false);
       }
@@ -163,7 +180,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     if (dbConfigured && !loading) {
       loadAssuntos();
     }
-  }, [selectedMaterias, dbConfigured, loading]);
+  }, [selectedMaterias, dbConfigured, loading, initialFilters, initialAssuntosPreserved]);
 
   // Atualizar contagem quando filtros mudam
   const updateCount = useCallback(async () => {
@@ -307,21 +324,108 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
 
   const hasAnyFilter = selectedMaterias.length > 0 || selectedAssuntos.length > 0 || selectedBancas.length > 0 || selectedAnos.length > 0 || selectedOrgaos.length > 0 || selectedCargos.length > 0 || selectedEscolaridade.length > 0 || selectedModalidade.length > 0;
 
-  // Filtrar opcoes por busca
-  const filteredMaterias = dynamicMaterias.filter(m =>
-    m.toLowerCase().includes(searchMaterias.toLowerCase())
+  // Função para ordenar itens com selecionados no topo
+  const sortWithSelectedFirst = <T,>(items: T[], selected: T[]): T[] => {
+    const selectedSet = new Set(selected);
+    const selectedItems = items.filter(item => selectedSet.has(item));
+    const unselectedItems = items.filter(item => !selectedSet.has(item));
+    return [...selectedItems, ...unselectedItems];
+  };
+
+  // Mapeamento de bancas: sigla → nome completo (para exibição)
+  const BANCA_DISPLAY_MAP: Record<string, string> = {
+    // Siglas conhecidas
+    'CEBRASPE': 'CEBRASPE - Centro Brasileiro de Pesquisa em Avaliação e Seleção',
+    'CESPE': 'CESPE - Centro de Seleção e de Promoção de Eventos',
+    'CESPE/CEBRASPE': 'CESPE/CEBRASPE',
+    'FGV': 'FGV - Fundação Getúlio Vargas',
+    'FCC': 'FCC - Fundação Carlos Chagas',
+    'CESGRANRIO': 'CESGRANRIO - Fundação Cesgranrio',
+    'VUNESP': 'VUNESP - Fundação para o Vestibular da UNESP',
+    'IBFC': 'IBFC - Instituto Brasileiro de Formação e Capacitação',
+    'QUADRIX': 'QUADRIX - Instituto Quadrix',
+    'IADES': 'IADES - Instituto Americano de Desenvolvimento',
+    'IDECAN': 'IDECAN - Instituto de Desenvolvimento Educacional',
+    'FUNCAB': 'FUNCAB - Fundação Prof. Carlos Augusto Bittencourt',
+    'AOCP': 'AOCP - Assessoria em Organização de Concursos',
+    'CONSULPLAN': 'CONSULPLAN',
+    'INSTITUTO ACESSO': 'Instituto Acesso',
+    // Nomes por extenso mapeados para sigla primeiro
+    'Fundação Getúlio Vargas': 'FGV - Fundação Getúlio Vargas',
+    'Fundação Getulio Vargas': 'FGV - Fundação Getúlio Vargas',
+    'Fundação Carlos Chagas': 'FCC - Fundação Carlos Chagas',
+    'Fundação Cesgranrio': 'CESGRANRIO - Fundação Cesgranrio',
+    'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos': 'CEBRASPE',
+  };
+
+  // Função para formatar nome da banca (sigla primeiro)
+  const formatBancaDisplay = (banca: string): string => {
+    // Se já está no mapeamento, usar o formato definido
+    if (BANCA_DISPLAY_MAP[banca]) {
+      return BANCA_DISPLAY_MAP[banca];
+    }
+    // Verificar se o nome contém alguma sigla conhecida
+    const upperBanca = banca.toUpperCase();
+    for (const sigla of ['CEBRASPE', 'CESPE', 'FGV', 'FCC', 'CESGRANRIO', 'VUNESP', 'IBFC', 'QUADRIX', 'IADES', 'IDECAN', 'FUNCAB', 'AOCP']) {
+      if (upperBanca.includes(sigla)) {
+        return banca; // Já contém sigla, manter como está
+      }
+    }
+    return banca;
+  };
+
+  // Função para verificar se banca corresponde à busca (sigla ou nome)
+  const bancaMatchesSearch = (banca: string, search: string): boolean => {
+    const searchLower = search.toLowerCase();
+    const bancaLower = banca.toLowerCase();
+    const displayLower = formatBancaDisplay(banca).toLowerCase();
+
+    return bancaLower.includes(searchLower) || displayLower.includes(searchLower);
+  };
+
+  // Filtrar opcoes por busca e ordenar com selecionados primeiro
+  // Para matérias, combinar as disponíveis com as selecionadas (para mostrar herdadas que podem não estar na lista)
+  const allMateriasToShow = [...new Set([...selectedMaterias, ...dynamicMaterias])];
+  const filteredMaterias = sortWithSelectedFirst(
+    allMateriasToShow.filter(m => m.toLowerCase().includes(searchMaterias.toLowerCase())),
+    selectedMaterias
   );
-  const filteredBancas = dynamicBancas.filter(b =>
-    b.toLowerCase().includes(searchBancas.toLowerCase())
+  // Para bancas, combinar as disponíveis com as selecionadas (para mostrar herdadas)
+  // Usar busca que funciona com sigla ou nome completo
+  const allBancasToShow = [...new Set([...selectedBancas, ...dynamicBancas])];
+  const filteredBancas = sortWithSelectedFirst(
+    allBancasToShow.filter(b => bancaMatchesSearch(b, searchBancas)),
+    selectedBancas
   );
-  const filteredOrgaos = dynamicOrgaos.filter(o =>
-    o.toLowerCase().includes(searchOrgaos.toLowerCase())
+  // Para órgãos, combinar os disponíveis com os selecionados
+  const allOrgaosToShow = [...new Set([...selectedOrgaos, ...dynamicOrgaos])];
+  const filteredOrgaos = sortWithSelectedFirst(
+    allOrgaosToShow.filter(o => o.toLowerCase().includes(searchOrgaos.toLowerCase())),
+    selectedOrgaos
   );
-  const filteredCargos = dynamicCargos.filter(c =>
-    c.toLowerCase().includes(searchCargos.toLowerCase())
+  // Para cargos, combinar os disponíveis com os selecionados
+  const allCargosToShow = [...new Set([...selectedCargos, ...dynamicCargos])];
+  const filteredCargos = sortWithSelectedFirst(
+    allCargosToShow.filter(c => c.toLowerCase().includes(searchCargos.toLowerCase())),
+    selectedCargos
   );
-  const filteredAssuntos = availableAssuntos.filter(a =>
-    a.toLowerCase().includes(searchAssuntos.toLowerCase())
+  // Para assuntos, combinar os disponíveis com os selecionados (para mostrar herdados que podem não estar na lista)
+  const allAssuntosToShow = [...new Set([...selectedAssuntos, ...availableAssuntos])];
+  const filteredAssuntos = sortWithSelectedFirst(
+    allAssuntosToShow.filter(a => a.toLowerCase().includes(searchAssuntos.toLowerCase())),
+    selectedAssuntos
+  );
+  // Para anos, combinar os disponíveis com os selecionados
+  const allAnosToShow = [...new Set([...selectedAnos, ...dynamicAnos])];
+  const filteredAnos = sortWithSelectedFirst(allAnosToShow, selectedAnos);
+  // Para escolaridade e modalidade, ordenar com selecionados primeiro
+  const sortedEscolaridade = sortWithSelectedFirst(
+    OPTIONS_ESCOLARIDADE.map(o => o.value),
+    selectedEscolaridade
+  );
+  const sortedModalidade = sortWithSelectedFirst(
+    OPTIONS_MODALIDADE.map(o => o.value),
+    selectedModalidade
   );
 
   if (!dbConfigured) {
@@ -428,7 +532,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
               selectedCount={selectedAssuntos.length}
               totalCount={availableAssuntos.length}
             >
-              {selectedMaterias.length === 0 ? (
+              {selectedMaterias.length === 0 && availableAssuntos.length === 0 && selectedAssuntos.length === 0 ? (
                 <div className="text-gray-500 text-sm text-center py-4">
                   Selecione uma ou mais materias primeiro
                 </div>
@@ -497,7 +601,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
                 {filteredBancas.map(banca => (
                   <FilterOption
                     key={banca}
-                    label={banca}
+                    label={formatBancaDisplay(banca)}
                     selected={selectedBancas.includes(banca)}
                     available={dynamicBancas.includes(banca)}
                     onClick={() => toggleBanca(banca)}
@@ -519,7 +623,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
               totalCount={allAnos.length}
             >
               <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                {dynamicAnos.map(ano => (
+                {filteredAnos.map(ano => (
                   <button
                     key={ano}
                     onClick={() => toggleAno(ano)}
@@ -619,19 +723,22 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
               totalCount={OPTIONS_ESCOLARIDADE.length}
             >
               <div className="flex flex-wrap gap-2">
-                {OPTIONS_ESCOLARIDADE.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => toggleEscolaridade(opt.value)}
-                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                      selectedEscolaridade.includes(opt.value)
-                        ? 'bg-brand-yellow text-brand-darker'
-                        : 'bg-brand-dark border border-white/10 text-gray-300 hover:border-white/30'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                {sortedEscolaridade.map(value => {
+                  const opt = OPTIONS_ESCOLARIDADE.find(o => o.value === value);
+                  return opt ? (
+                    <button
+                      key={opt.value}
+                      onClick={() => toggleEscolaridade(opt.value)}
+                      className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                        selectedEscolaridade.includes(opt.value)
+                          ? 'bg-brand-yellow text-brand-darker'
+                          : 'bg-brand-dark border border-white/10 text-gray-300 hover:border-white/30'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ) : null;
+                })}
               </div>
             </FilterSection>
 
@@ -645,19 +752,22 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
               totalCount={OPTIONS_MODALIDADE.length}
             >
               <div className="flex flex-wrap gap-2">
-                {OPTIONS_MODALIDADE.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => toggleModalidade(opt.value)}
-                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                      selectedModalidade.includes(opt.value)
-                        ? 'bg-brand-yellow text-brand-darker'
-                        : 'bg-brand-dark border border-white/10 text-gray-300 hover:border-white/30'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                {sortedModalidade.map(value => {
+                  const opt = OPTIONS_MODALIDADE.find(o => o.value === value);
+                  return opt ? (
+                    <button
+                      key={opt.value}
+                      onClick={() => toggleModalidade(opt.value)}
+                      className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                        selectedModalidade.includes(opt.value)
+                          ? 'bg-brand-yellow text-brand-darker'
+                          : 'bg-brand-dark border border-white/10 text-gray-300 hover:border-white/30'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ) : null;
+                })}
               </div>
             </FilterSection>
           </>

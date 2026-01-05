@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, Edit, Trash2,
   MoreVertical, Book, FileText, List, GripVertical, Copy, FolderOpen, Folder, Sparkles,
-  Search, Check, X, Loader2
+  Search, Check, X, Loader2, ArrowRight
 } from 'lucide-react';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { editalService, EditalItem, EditalItemWithChildren, EditalItemTipo } from '../../services/editalService';
@@ -126,7 +126,7 @@ const InlineDropdown: React.FC<InlineDropdownProps> = ({
 
       {isOpen && (
         <div
-          className="absolute right-0 z-50 w-72 mt-1 bg-brand-dark border border-white/10 rounded shadow-xl overflow-hidden"
+          className="absolute right-0 z-50 w-96 mt-1 bg-brand-dark border border-white/10 rounded shadow-xl overflow-hidden"
           onClick={e => e.stopPropagation()}
         >
           {/* Search */}
@@ -163,17 +163,17 @@ const InlineDropdown: React.FC<InlineDropdownProps> = ({
                     key={opt}
                     onClick={() => toggleOption(opt)}
                     className={`
-                      w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors
+                      w-full flex items-start gap-2 px-3 py-2 text-left text-xs transition-colors
                       ${isSelected ? 'bg-brand-yellow/10 text-brand-yellow' : 'text-gray-300 hover:bg-white/5'}
                     `}
                   >
                     <div className={`
-                      w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0
+                      w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 mt-0.5
                       ${isSelected ? 'bg-brand-yellow border-brand-yellow' : 'border-gray-600'}
                     `}>
                       {isSelected && <Check size={8} className="text-black" />}
                     </div>
-                    <span className="truncate">{opt}</span>
+                    <span className="break-words whitespace-normal leading-relaxed">{opt}</span>
                   </button>
                 );
               })
@@ -735,14 +735,7 @@ export const EditalAdmin: React.FC = () => {
             </div>
           </div>
 
-          {/* Add Buttons */}
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 bg-purple-600/20 text-purple-400 border border-purple-500/30 px-3 py-2 font-bold uppercase text-xs hover:bg-purple-600/30 transition-colors"
-          >
-            <Sparkles className="w-4 h-4" />
-            Importar via IA
-          </button>
+          {/* Action Buttons */}
           <button
             onClick={() => openAddModal(null, 'bloco')}
             className="flex items-center gap-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 px-3 py-2 font-bold uppercase text-xs hover:bg-purple-500/30 transition-colors"
@@ -751,11 +744,11 @@ export const EditalAdmin: React.FC = () => {
             Bloco
           </button>
           <button
-            onClick={() => openAddModal(null, 'materia')}
-            className="flex items-center gap-2 bg-brand-yellow text-brand-darker px-4 py-2 font-bold uppercase text-sm hover:bg-brand-yellow/90 transition-colors"
+            onClick={() => navigate(`/admin/preparatorios/${preparatorioId}/rodadas`)}
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 font-bold uppercase text-xs hover:bg-green-500 transition-colors"
           >
-            <Plus className="w-4 h-4" />
-            Matéria
+            Configurar Missões
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -825,9 +818,6 @@ export const EditalAdmin: React.FC = () => {
                 Recolher Todos
               </button>
             </div>
-            <p className="text-xs text-gray-500">
-              Configure os filtros diretamente nos dropdowns (v3 - sob demanda)
-            </p>
           </div>
 
           {/* Tree */}

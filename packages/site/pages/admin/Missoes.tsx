@@ -6,7 +6,7 @@ import { editalService, EditalItem } from '../../services/editalService';
 import { Preparatorio, Rodada, Missao, MissaoTipo } from '../../lib/database.types';
 import { EditalTopicSelector } from '../../components/admin/EditalTopicSelector';
 import { QuestionFilterSelector } from '../../components/admin/QuestionFilterSelector';
-import { QuestionFilters, getQuestionsForFilters, ExternalQuestion } from '../../services/externalQuestionsService';
+import { QuestionFilters, getQuestionsForFilters, ExternalQuestion, getMateriasByAssuntos } from '../../services/externalQuestionsService';
 import { supabase } from '../../lib/supabase';
 import ReactMarkdown from 'react-markdown';
 
@@ -1174,6 +1174,37 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
   const [observacoesSugestao, setObservacoesSugestao] = useState<string[]>([]);
   const [questoesDisponiveisSugestao, setQuestoesDisponiveisSugestao] = useState<number>(0);
 
+  // Estado para filtros herdados dos itens do edital
+  const [filtrosHerdados, setFiltrosHerdados] = useState<FiltrosSugeridos | null>(null);
+
+  // Função para agregar filtros de múltiplos itens do edital
+  const agregarFiltrosEdital = (items: EditalItem[]): FiltrosSugeridos | null => {
+    if (items.length === 0) return null;
+
+    const materias = new Set<string>();
+    const assuntos = new Set<string>();
+
+    items.forEach(item => {
+      // Adicionar filtros de matérias
+      if (item.filtro_materias && item.filtro_materias.length > 0) {
+        item.filtro_materias.forEach(m => materias.add(m));
+      }
+      // Adicionar filtros de assuntos
+      if (item.filtro_assuntos && item.filtro_assuntos.length > 0) {
+        item.filtro_assuntos.forEach(a => assuntos.add(a));
+      }
+    });
+
+    // Se não há filtros configurados, retornar null
+    if (materias.size === 0 && assuntos.size === 0) return null;
+
+    return {
+      materias: Array.from(materias),
+      assuntos: Array.from(assuntos),
+      bancas: [], // Pode ser preenchido pelo preparatório depois
+    };
+  };
+
   // Carregar topicos ja vinculados a esta missao e topicos ja usados
   useEffect(() => {
     const loadTopics = async () => {
@@ -1199,7 +1230,12 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
             const items = await Promise.all(
               itemIds.map(id => editalService.getById(id))
             );
-            setSelectedEditalItems(items.filter((i): i is EditalItem => i !== null));
+            const validItems = items.filter((i): i is EditalItem => i !== null);
+            setSelectedEditalItems(validItems);
+
+            // Calcular filtros herdados dos itens
+            const filtrosHerdadosCalculados = agregarFiltrosEdital(validItems);
+            setFiltrosHerdados(filtrosHerdadosCalculados);
           }
 
           // Carregar filtros de questoes existentes
@@ -1228,15 +1264,26 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
       const items = await Promise.all(
         ids.map(id => editalService.getById(id))
       );
-      setSelectedEditalItems(items.filter((i): i is EditalItem => i !== null));
+      const validItems = items.filter((i): i is EditalItem => i !== null);
+      setSelectedEditalItems(validItems);
+
+      // Agregar filtros dos itens selecionados
+      const filtros = agregarFiltrosEdital(validItems);
+      setFiltrosHerdados(filtros);
     } else {
       setSelectedEditalItems([]);
+      setFiltrosHerdados(null);
     }
   };
 
   const removeEditalItem = (id: string) => {
     setSelectedEditalItemIds(prev => prev.filter(i => i !== id));
-    setSelectedEditalItems(prev => prev.filter(i => i.id !== id));
+    const newItems = selectedEditalItems.filter(i => i.id !== id);
+    setSelectedEditalItems(newItems);
+
+    // Recalcular filtros herdados
+    const filtros = agregarFiltrosEdital(newItems);
+    setFiltrosHerdados(filtros);
   };
 
   // Salvar dados da missao e avancar para etapa 2
@@ -1281,38 +1328,68 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
         await missoesService.setEditalItems(missaoId, selectedEditalItemIds);
       }
 
-      // Se for tipo estudo, buscar sugestao de filtros com IA e avancar para etapa 2
+      // Se for tipo estudo, verificar filtros herdados ou buscar sugestao com IA
       if (isTipoEstudo) {
-        // Chamar endpoint de sugestao de filtros
-        setLoadingSugestao(true);
-        try {
-          const response = await fetch(`${MASTRA_SERVER_URL}/api/missao/sugerir-filtros`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              materiaEdital: formData.materia,
-              assuntoEdital: formData.assunto || undefined,
-              banca: (preparatorio as any).banca || undefined,
-              cargo: (preparatorio as any).cargo || undefined,
-              escolaridade: (preparatorio as any).escolaridade || undefined,
-            }),
-          });
+        // Recalcular filtros herdados dos itens selecionados
+        const filtrosDoEdital = agregarFiltrosEdital(selectedEditalItems);
+        setFiltrosHerdados(filtrosDoEdital);
 
-          const result = await response.json();
-
-          if (result.success) {
-            setFiltrosSugeridos(result.filtrosSugeridos);
-            setObservacoesSugestao(result.observacoes || []);
-            setQuestoesDisponiveisSugestao(result.questoesDisponiveis || 0);
+        // Se há filtros herdados dos itens do edital, usar eles diretamente
+        if (filtrosDoEdital && (filtrosDoEdital.materias.length > 0 || filtrosDoEdital.assuntos.length > 0)) {
+          // Se há assuntos mas não há matérias, buscar as matérias correspondentes
+          if (filtrosDoEdital.materias.length === 0 && filtrosDoEdital.assuntos.length > 0) {
+            try {
+              const { materias } = await getMateriasByAssuntos(filtrosDoEdital.assuntos);
+              if (materias.length > 0) {
+                filtrosDoEdital.materias = materias;
+              }
+            } catch (err) {
+              console.error('Erro ao buscar matérias correspondentes:', err);
+            }
           }
-        } catch (err) {
-          console.error('Erro ao buscar sugestao de filtros:', err);
-          // Continua mesmo se falhar - usuario pode configurar manualmente
-        } finally {
-          setLoadingSugestao(false);
-        }
 
-        setStep(2);
+          // Adicionar banca do preparatório aos filtros herdados se disponível
+          const bancaPreparatorio = (preparatorio as any).banca;
+          if (bancaPreparatorio) {
+            filtrosDoEdital.bancas = [bancaPreparatorio];
+          }
+
+          setFiltrosSugeridos(filtrosDoEdital);
+          setObservacoesSugestao(['Filtros herdados dos itens do edital selecionados']);
+          setQuestoesDisponiveisSugestao(0); // Será calculado pelo QuestionFilterSelector
+          setStep(2);
+        } else {
+          // Se não há filtros herdados, buscar sugestão via IA
+          setLoadingSugestao(true);
+          try {
+            const response = await fetch(`${MASTRA_SERVER_URL}/api/missao/sugerir-filtros`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                materiaEdital: formData.materia,
+                assuntoEdital: formData.assunto || undefined,
+                banca: (preparatorio as any).banca || undefined,
+                cargo: (preparatorio as any).cargo || undefined,
+                escolaridade: (preparatorio as any).escolaridade || undefined,
+              }),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              setFiltrosSugeridos(result.filtrosSugeridos);
+              setObservacoesSugestao(result.observacoes || []);
+              setQuestoesDisponiveisSugestao(result.questoesDisponiveis || 0);
+            }
+          } catch (err) {
+            console.error('Erro ao buscar sugestao de filtros:', err);
+            // Continua mesmo se falhar - usuario pode configurar manualmente
+          } finally {
+            setLoadingSugestao(false);
+          }
+
+          setStep(2);
+        }
       } else {
         // Se nao for tipo estudo, finalizar
         onSave();
@@ -1670,29 +1747,6 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
                   </p>
                 </div>
                 <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
-              </div>
-            )}
-
-            {/* Observações da IA */}
-            {!loadingSugestao && observacoesSugestao.length > 0 && (
-              <div className="mx-6 mt-4 bg-purple-500/10 border border-purple-500/30 rounded-sm p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span className="text-purple-400 text-sm font-bold uppercase">Adaptações da IA</span>
-                </div>
-                <ul className="space-y-1">
-                  {observacoesSugestao.map((obs, idx) => (
-                    <li key={idx} className="text-purple-300/80 text-sm flex items-start gap-2">
-                      <span className="text-purple-400">•</span>
-                      {obs}
-                    </li>
-                  ))}
-                </ul>
-                {questoesDisponiveisSugestao > 0 && (
-                  <p className="text-purple-400 text-sm mt-3 font-medium">
-                    {questoesDisponiveisSugestao.toLocaleString()} questões encontradas com os filtros sugeridos
-                  </p>
-                )}
               </div>
             )}
 

@@ -8,11 +8,16 @@ import { questionsDb } from './questionsDbClient';
 import { ParsedQuestion, Alternative, StudyMode } from '../types';
 import { getEffectiveQuestionCount } from './retaFinalService';
 
-// Filtros de questões salvos para uma missão
+// Filtros de questões salvos para uma missão (TODOS os filtros disponíveis)
 interface MissaoFiltros {
+  materias?: string[];
   assuntos?: string[];
   bancas?: string[];
-  materias?: string[];
+  orgaos?: string[];
+  anos?: number[];
+  escolaridade?: string[];
+  modalidade?: string[];
+  cargos?: string[];
 }
 
 interface MissaoQuestaoFiltros {
@@ -250,6 +255,28 @@ const MATERIA_KEYWORDS: Record<string, string[]> = {
 };
 
 /**
+ * Gera variações de um assunto para busca flexível (com e sem acentos)
+ */
+function getAssuntoVariations(assunto: string): string[] {
+  const variations = new Set<string>();
+
+  // Versão original
+  variations.add(assunto);
+
+  // Versão sem acentos
+  const semAcento = assunto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  variations.add(semAcento);
+
+  // Versões em maiúsculas e minúsculas
+  variations.add(assunto.toLowerCase());
+  variations.add(assunto.toUpperCase());
+  variations.add(semAcento.toLowerCase());
+  variations.add(semAcento.toUpperCase());
+
+  return [...variations];
+}
+
+/**
  * Busca variações do nome da matéria para aumentar chances de match
  */
 function getMateriaVariations(materia: string): string[] {
@@ -279,216 +306,233 @@ function getMateriaVariations(materia: string): string[] {
 
 /**
  * Busca questões do banco de questões baseado nos filtros
- * Usa estratégias otimizadas para evitar timeout
- * IMPORTANTE: Só retorna questões com gabarito válido
- * IMPORTANTE: Filtro de matéria é OBRIGATÓRIO - nunca retorna questões de outras matérias
+ * IMPORTANTE: Aplica TODOS os filtros de forma RIGOROSA
+ * Só retorna questões que atendem a TODOS os filtros especificados
  */
 async function fetchQuestionsWithFilters(
   filtros: MissaoFiltros,
   limit: number = DEFAULT_QUESTIONS_PER_MISSION
 ): Promise<ParsedQuestion[]> {
   try {
-    // REGRA CRÍTICA: Se tem filtro de matéria, DEVE respeitar
-    // Nunca deve retornar questões de matérias diferentes
-    const materiasObrigatorias = filtros.materias && filtros.materias.length > 0
-      ? filtros.materias
-      : null;
+    console.log('[MissaoQuestoesService] Aplicando filtros RIGOROSOS:', JSON.stringify(filtros, null, 2));
 
-    // Estratégia 1: Buscar por matéria com variações (mais seguro)
-    if (materiasObrigatorias) {
-      console.log('[MissaoQuestoesService] Buscando por matéria (OBRIGATÓRIO):', materiasObrigatorias);
+    // Construir query base
+    let query = questionsDb
+      .from('questoes_concurso')
+      .select('*');
 
-      // Expandir variações para cada matéria
-      const todasVariacoes = materiasObrigatorias.flatMap(getMateriaVariations);
+    // FILTRO RIGOROSO: Matérias (com variações de nome)
+    if (filtros.materias && filtros.materias.length > 0) {
+      const todasVariacoes = filtros.materias.flatMap(getMateriaVariations);
       const variacoesUnicas = [...new Set(todasVariacoes)];
+      console.log('[MissaoQuestoesService] Filtro matérias:', variacoesUnicas);
+      query = query.in('materia', variacoesUnicas);
+    }
 
-      console.log('[MissaoQuestoesService] Variações de matéria:', variacoesUnicas);
+    // FILTRO RIGOROSO: Assuntos (com variações de acentuação para flexibilidade)
+    if (filtros.assuntos && filtros.assuntos.length > 0) {
+      const todasVariacoesAssuntos = filtros.assuntos.flatMap(getAssuntoVariations);
+      const variacoesUnicasAssuntos = [...new Set(todasVariacoesAssuntos)];
+      console.log('[MissaoQuestoesService] Filtro assuntos (com variações):', filtros.assuntos, '→', variacoesUnicasAssuntos.length, 'variações');
+      query = query.in('assunto', variacoesUnicasAssuntos);
+    }
 
-      let query = questionsDb
-        .from('questoes_concurso')
-        .select('*')
-        .in('materia', variacoesUnicas);
+    // FILTRO RIGOROSO: Bancas (com variações de sigla e nome completo)
+    if (filtros.bancas && filtros.bancas.length > 0) {
+      // Mapeamento completo: sigla ↔ nome completo (bidirecional)
+      const bancaVariations: Record<string, string[]> = {
+        // CEBRASPE / CESPE
+        'cebraspe': ['CEBRASPE', 'Cebraspe', 'CESPE', 'Cespe', 'CESPE/CEBRASPE', 'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos'],
+        'cespe': ['CESPE', 'Cespe', 'CEBRASPE', 'Cebraspe', 'CESPE/CEBRASPE', 'Centro de Seleção e de Promoção de Eventos'],
+        'centro brasileiro de pesquisa': ['CEBRASPE', 'Cebraspe', 'CESPE', 'Cespe'],
+        // FGV
+        'fgv': ['FGV', 'Fgv', 'Fundação Getúlio Vargas', 'Fundação Getulio Vargas', 'FUNDAÇÃO GETÚLIO VARGAS'],
+        'fundação getúlio vargas': ['FGV', 'Fgv', 'Fundação Getúlio Vargas', 'Fundação Getulio Vargas'],
+        'fundação getulio vargas': ['FGV', 'Fgv', 'Fundação Getúlio Vargas', 'Fundação Getulio Vargas'],
+        'fundacao getulio vargas': ['FGV', 'Fgv', 'Fundação Getúlio Vargas', 'Fundação Getulio Vargas'],
+        // FCC
+        'fcc': ['FCC', 'Fcc', 'Fundação Carlos Chagas', 'FUNDAÇÃO CARLOS CHAGAS'],
+        'fundação carlos chagas': ['FCC', 'Fcc', 'Fundação Carlos Chagas'],
+        'fundacao carlos chagas': ['FCC', 'Fcc', 'Fundação Carlos Chagas'],
+        // CESGRANRIO
+        'cesgranrio': ['CESGRANRIO', 'Cesgranrio', 'Fundação Cesgranrio', 'FUNDAÇÃO CESGRANRIO'],
+        'fundação cesgranrio': ['CESGRANRIO', 'Cesgranrio', 'Fundação Cesgranrio'],
+        // VUNESP
+        'vunesp': ['VUNESP', 'Vunesp', 'Fundação Vunesp', 'Fundação para o Vestibular da UNESP'],
+        'fundação vunesp': ['VUNESP', 'Vunesp', 'Fundação Vunesp'],
+        // IBFC
+        'ibfc': ['IBFC', 'Ibfc', 'Instituto Brasileiro de Formação e Capacitação'],
+        'instituto brasileiro de formação': ['IBFC', 'Ibfc'],
+        // QUADRIX
+        'quadrix': ['QUADRIX', 'Quadrix', 'Instituto Quadrix'],
+        'instituto quadrix': ['QUADRIX', 'Quadrix', 'Instituto Quadrix'],
+        // IADES
+        'iades': ['IADES', 'Iades', 'Instituto Americano de Desenvolvimento'],
+        'instituto americano': ['IADES', 'Iades'],
+        // IDECAN
+        'idecan': ['IDECAN', 'Idecan', 'Instituto de Desenvolvimento Educacional, Cultural e Assistencial Nacional'],
+        // FUNCAB
+        'funcab': ['FUNCAB', 'Funcab', 'Fundação Professor Carlos Augusto Bittencourt'],
+        // AOCP
+        'aocp': ['AOCP', 'Aocp', 'Assessoria em Organização de Concursos Públicos'],
+        // CONSULPLAN
+        'consulplan': ['CONSULPLAN', 'Consulplan'],
+        // INSTITUTO ACESSO
+        'instituto acesso': ['INSTITUTO ACESSO', 'Instituto Acesso', 'Acesso'],
+        'acesso': ['INSTITUTO ACESSO', 'Instituto Acesso', 'Acesso'],
+      };
 
-      if (filtros.bancas && filtros.bancas.length > 0) {
-        query = query.in('banca', filtros.bancas);
-      }
+      const todasVariacoesBancas = filtros.bancas.flatMap(banca => {
+        const normalized = banca.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-      // Aplicar filtros de qualidade (gabarito obrigatório)
-      query = applyQualityFilters(query);
-      query = query.limit(limit * 5); // Buscar mais para ter margem
-      const { data, error } = await query;
-
-      if (!error && data && data.length > 0) {
-        // Filtro adicional de segurança no código
-        const validData = data.filter(isValidQuestion);
-        console.log('[MissaoQuestoesService] Encontradas', validData.length, 'questões válidas por matéria (de', data.length, 'total)');
-
-        // Se temos assuntos, priorizar questões que combinam matéria + assunto
-        if (filtros.assuntos && filtros.assuntos.length > 0 && validData.length > limit) {
-          const assuntoKeywords = filtros.assuntos.flatMap(extractKeywords);
-
-          // Pontuar questões pelo match de assunto
-          const scored = validData.map(q => {
-            const qAssuntoNorm = normalizeMateria(q.assunto || '');
-            let score = 0;
-            for (const kw of assuntoKeywords) {
-              if (qAssuntoNorm.includes(kw.toLowerCase())) {
-                score += 1;
-              }
-            }
-            return { question: q, score };
-          });
-
-          // Ordenar por score (maior primeiro) e embaralhar os de mesmo score
-          scored.sort((a, b) => b.score - a.score || Math.random() - 0.5);
-
-          const selected = scored.slice(0, limit).map(s => s.question);
-          console.log('[MissaoQuestoesService] Selecionadas', selected.length, 'questões priorizadas por assunto');
-          return selected.map(transformQuestion);
-        }
-
-        const shuffled = validData.sort(() => Math.random() - 0.5).slice(0, limit);
-        return shuffled.map(transformQuestion);
-      }
-
-      // Se não encontrou por matéria, tentar busca ILIKE mais flexível
-      console.log('[MissaoQuestoesService] Tentando busca ILIKE por matéria...');
-
-      for (const materia of materiasObrigatorias) {
-        const normalized = normalizeMateria(materia);
-
-        // Primeiro tentar keywords otimizadas do mapeamento
-        let keywordsToTry: string[] = [];
-
-        // Buscar no mapeamento MATERIA_KEYWORDS
-        if (MATERIA_KEYWORDS[normalized]) {
-          keywordsToTry = MATERIA_KEYWORDS[normalized];
-        } else {
-          // Procurar correspondência parcial no mapeamento
-          for (const [key, keywords] of Object.entries(MATERIA_KEYWORDS)) {
-            if (normalized.includes(key) || key.includes(normalized)) {
-              keywordsToTry = keywords;
-              break;
-            }
+        // Procurar correspondência exata ou parcial no mapeamento
+        for (const [key, values] of Object.entries(bancaVariations)) {
+          if (normalized === key || normalized.includes(key) || key.includes(normalized)) {
+            return values;
           }
         }
 
-        // Se não encontrou no mapeamento, extrair da matéria diretamente
-        if (keywordsToTry.length === 0) {
-          const materiaKeywords = extractKeywords(materia);
-          const mainKeyword = materiaKeywords.find(kw => kw.length >= 4) || materiaKeywords[0];
-          if (mainKeyword) {
-            keywordsToTry = [mainKeyword];
-          }
-        }
+        // Retornar variações básicas se não encontrou no mapeamento
+        return [banca, banca.toUpperCase(), banca.toLowerCase()];
+      });
+      const variacoesUnicasBancas = [...new Set(todasVariacoesBancas)];
+      console.log('[MissaoQuestoesService] Filtro bancas (com variações):', filtros.bancas, '→', variacoesUnicasBancas);
+      query = query.in('banca', variacoesUnicasBancas);
+    }
 
-        console.log('[MissaoQuestoesService] Keywords para ILIKE:', keywordsToTry);
+    // FILTRO RIGOROSO: Órgãos
+    if (filtros.orgaos && filtros.orgaos.length > 0) {
+      console.log('[MissaoQuestoesService] Filtro órgãos:', filtros.orgaos);
+      query = query.in('orgao', filtros.orgaos);
+    }
 
-        for (const keyword of keywordsToTry) {
-          const sanitizedKeyword = sanitizeKeywordForQuery(keyword);
-          if (!sanitizedKeyword || sanitizedKeyword.length < 3) continue;
+    // FILTRO RIGOROSO: Anos
+    if (filtros.anos && filtros.anos.length > 0) {
+      console.log('[MissaoQuestoesService] Filtro anos:', filtros.anos);
+      query = query.in('ano', filtros.anos);
+    }
 
-          console.log('[MissaoQuestoesService] Tentando ILIKE matéria com:', sanitizedKeyword);
+    // NOTA: campos 'cargo', 'escolaridade' e 'modalidade' não existem na tabela questoes_concurso
+    // Esses filtros são ignorados no banco mas podem ser usados para filtragem em memória se necessário
 
-          let iLikeQuery = questionsDb
-            .from('questoes_concurso')
-            .select('*')
-            .ilike('materia', `%${sanitizedKeyword}%`);
+    // Aplicar filtros de qualidade (gabarito obrigatório, questão ativa)
+    query = applyQualityFilters(query);
 
-          if (filtros.bancas && filtros.bancas.length > 0) {
-            iLikeQuery = iLikeQuery.in('banca', filtros.bancas);
-          }
+    // Buscar mais questões do que o limite para ter margem de seleção
+    query = query.limit(limit * 5);
 
-          iLikeQuery = applyQualityFilters(iLikeQuery);
-          iLikeQuery = iLikeQuery.limit(limit * 3);
-          const { data: iLikeData, error: iLikeError } = await iLikeQuery;
+    const { data, error } = await query;
 
-          if (!iLikeError && iLikeData && iLikeData.length > 0) {
-            const validILike = iLikeData.filter(isValidQuestion);
-            console.log('[MissaoQuestoesService] Encontradas', validILike.length, 'questões via ILIKE matéria');
-            const shuffledILike = validILike.sort(() => Math.random() - 0.5).slice(0, limit);
-            return shuffledILike.map(transformQuestion);
-          }
-        }
-      }
-
-      // IMPORTANTE: Se não encontrou questões da matéria, NÃO fazer fallback para outras matérias
-      console.error('[MissaoQuestoesService] FALHA: Nenhuma questão encontrada para matéria:', materiasObrigatorias);
-      console.error('[MissaoQuestoesService] NÃO fazendo fallback para evitar questões de matérias incorretas');
+    if (error) {
+      console.error('[MissaoQuestoesService] Erro na query:', error);
       return [];
     }
 
-    // Estratégia 2: Buscar por palavras-chave extraídas dos assuntos
-    // SOMENTE se não há filtro de matéria obrigatório
-    if (filtros.assuntos && filtros.assuntos.length > 0) {
-      // Extrair palavras-chave de todos os assuntos
-      const allKeywords = filtros.assuntos.flatMap(extractKeywords);
-      const uniqueKeywords = [...new Set(allKeywords)];
+    if (!data || data.length === 0) {
+      console.warn('[MissaoQuestoesService] Nenhuma questão encontrada com os filtros rigorosos');
 
-      console.log('[MissaoQuestoesService] Palavras-chave extraídas (sem filtro de matéria):', uniqueKeywords);
+      // FALLBACK: Se não encontrou com filtros exatos de assunto, tentar sem o filtro de assunto
+      // mas MANTENDO todos os outros filtros
+      if (filtros.assuntos && filtros.assuntos.length > 0 && filtros.materias && filtros.materias.length > 0) {
+        console.log('[MissaoQuestoesService] Tentando fallback sem filtro de assunto exato...');
 
-      // Tentar buscar com as 2-3 palavras mais relevantes (geralmente as mais longas)
-      const topKeywords = uniqueKeywords
-        .sort((a, b) => b.length - a.length)
-        .slice(0, 3);
+        const filtrosSemAssunto = { ...filtros };
+        delete filtrosSemAssunto.assuntos;
 
-      for (const keyword of topKeywords) {
-        const sanitizedKeyword = sanitizeKeywordForQuery(keyword);
-        if (!sanitizedKeyword || sanitizedKeyword.length < 3) continue;
-
-        console.log('[MissaoQuestoesService] Tentando palavra-chave:', sanitizedKeyword);
-
-        let query = questionsDb
-          .from('questoes_concurso')
-          .select('*')
-          .ilike('assunto', `%${sanitizedKeyword}%`);
-
-        // Se há bancas, aplicar filtro
-        if (filtros.bancas && filtros.bancas.length > 0) {
-          query = query.in('banca', filtros.bancas);
-        }
-
-        // Aplicar filtros de qualidade (gabarito obrigatório)
-        query = applyQualityFilters(query);
-        query = query.limit(limit * 3);
-        const { data, error } = await query;
-
-        if (!error && data && data.length > 0) {
-          // Filtro adicional de segurança no código
-          const validData = data.filter(isValidQuestion);
-          console.log('[MissaoQuestoesService] Encontradas', validData.length, 'questões válidas com keyword:', keyword);
-          const shuffled = validData.sort(() => Math.random() - 0.5).slice(0, limit);
-          return shuffled.map(transformQuestion);
-        }
+        return fetchQuestionsWithFiltersFallback(filtrosSemAssunto, filtros.assuntos, limit);
       }
+
+      return [];
     }
 
-    // Estratégia 3: Buscar por banca apenas (fallback SOMENTE se não há filtro de matéria)
-    if (!materiasObrigatorias && filtros.bancas && filtros.bancas.length > 0) {
-      console.log('[MissaoQuestoesService] Fallback: buscando por banca apenas');
+    // Filtro adicional de segurança no código
+    const validData = data.filter(isValidQuestion);
+    console.log('[MissaoQuestoesService] Encontradas', validData.length, 'questões válidas (de', data.length, 'total)');
 
-      let query = questionsDb
-        .from('questoes_concurso')
-        .select('*')
-        .in('banca', filtros.bancas);
-
-      // Aplicar filtros de qualidade (gabarito obrigatório)
-      query = applyQualityFilters(query);
-      query = query.limit(limit * 3);
-      const { data, error } = await query;
-
-      if (!error && data && data.length > 0) {
-        // Filtro adicional de segurança no código
-        const validData = data.filter(isValidQuestion);
-        const shuffled = validData.sort(() => Math.random() - 0.5).slice(0, limit);
-        return shuffled.map(transformQuestion);
-      }
+    if (validData.length === 0) {
+      console.warn('[MissaoQuestoesService] Nenhuma questão válida após filtro de qualidade');
+      return [];
     }
 
-    console.warn('[MissaoQuestoesService] Nenhuma questão encontrada com os filtros');
-    return [];
+    // Embaralhar e limitar
+    const shuffled = validData.sort(() => Math.random() - 0.5).slice(0, limit);
+    console.log('[MissaoQuestoesService] Retornando', shuffled.length, 'questões');
+
+    return shuffled.map(transformQuestion);
   } catch (error) {
     console.error('[MissaoQuestoesService] Erro:', error);
+    return [];
+  }
+}
+
+/**
+ * Fallback quando não encontra questões com assunto exato
+ * Busca por matéria e prioriza questões que melhor combinam com os assuntos
+ * MAS ainda respeita todos os outros filtros rigorosamente
+ */
+async function fetchQuestionsWithFiltersFallback(
+  filtros: MissaoFiltros,
+  assuntosOriginais: string[],
+  limit: number
+): Promise<ParsedQuestion[]> {
+  try {
+    let query = questionsDb
+      .from('questoes_concurso')
+      .select('*');
+
+    // Aplicar TODOS os filtros exceto assunto
+    if (filtros.materias && filtros.materias.length > 0) {
+      const todasVariacoes = filtros.materias.flatMap(getMateriaVariations);
+      query = query.in('materia', [...new Set(todasVariacoes)]);
+    }
+
+    if (filtros.bancas && filtros.bancas.length > 0) {
+      query = query.in('banca', filtros.bancas);
+    }
+
+    if (filtros.orgaos && filtros.orgaos.length > 0) {
+      query = query.in('orgao', filtros.orgaos);
+    }
+
+    if (filtros.anos && filtros.anos.length > 0) {
+      query = query.in('ano', filtros.anos);
+    }
+
+    query = applyQualityFilters(query);
+    query = query.limit(limit * 10);
+
+    const { data, error } = await query;
+
+    if (error || !data || data.length === 0) {
+      console.warn('[MissaoQuestoesService] Fallback também não encontrou questões');
+      return [];
+    }
+
+    const validData = data.filter(isValidQuestion);
+
+    // Priorizar questões cujo assunto tenha palavras em comum com os assuntos originais
+    const assuntoKeywords = assuntosOriginais.flatMap(extractKeywords);
+
+    const scored = validData.map(q => {
+      const qAssuntoNorm = normalizeMateria(q.assunto || '');
+      let score = 0;
+      for (const kw of assuntoKeywords) {
+        if (qAssuntoNorm.includes(kw.toLowerCase())) {
+          score += 1;
+        }
+      }
+      return { question: q, score };
+    });
+
+    // Ordenar por score (maior primeiro) e embaralhar os de mesmo score
+    scored.sort((a, b) => b.score - a.score || Math.random() - 0.5);
+
+    const selected = scored.slice(0, limit).map(s => s.question);
+    console.log('[MissaoQuestoesService] Fallback retornando', selected.length, 'questões priorizadas por assunto');
+
+    return selected.map(transformQuestion);
+  } catch (error) {
+    console.error('[MissaoQuestoesService] Erro no fallback:', error);
     return [];
   }
 }

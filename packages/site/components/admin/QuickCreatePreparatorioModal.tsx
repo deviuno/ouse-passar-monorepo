@@ -217,10 +217,10 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     }
   };
 
-  const handleIrParaRodadas = () => {
+  const handleIrParaEdital = () => {
     if (resultado?.preparatorio?.id) {
       onSuccess(resultado.preparatorio.id);
-      navigate(`/admin/preparatorios/${resultado.preparatorio.id}/rodadas`);
+      navigate(`/admin/preparatorios/${resultado.preparatorio.id}/edital`);
     }
     onClose();
   };
@@ -534,10 +534,10 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                 Criar outro
               </button>
               <button
-                onClick={handleIrParaRodadas}
+                onClick={handleIrParaEdital}
                 className="bg-brand-yellow text-brand-darker px-6 py-2 rounded-sm font-bold uppercase tracking-wide hover:bg-white transition-colors flex items-center gap-2"
               >
-                Configurar Rodadas
+                Configurar Edital
                 <ArrowRight className="w-4 h-4" />
               </button>
             </>

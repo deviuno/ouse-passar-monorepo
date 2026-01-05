@@ -417,6 +417,54 @@ export async function getDynamicFilterOptions(currentFilters: QuestionFilters): 
  * Get assuntos available for selected materias
  * Loads dynamically based on selected materias
  */
+export async function getMateriasByAssuntos(
+  assuntos: string[]
+): Promise<{ materias: string[]; error?: string }> {
+  if (!questionsDb) {
+    return {
+      materias: [],
+      error: 'Banco de questões não configurado.'
+    };
+  }
+
+  if (!assuntos || assuntos.length === 0) {
+    return { materias: [] };
+  }
+
+  try {
+    // Buscar matérias correspondentes aos assuntos
+    const materiasSet = new Set<string>();
+
+    for (const assunto of assuntos) {
+      const { data, error } = await questionsDb
+        .from('questoes_concurso')
+        .select('materia')
+        .eq('ativo', true)
+        .eq('assunto', assunto)
+        .not('materia', 'is', null)
+        .not('enunciado', 'is', null)
+        .neq('enunciado', '')
+        .neq('enunciado', 'deleted')
+        .limit(1);
+
+      if (error) {
+        console.error(`Erro ao buscar matéria para ${assunto}:`, error);
+        continue;
+      }
+
+      (data || []).forEach(r => {
+        if (r.materia) materiasSet.add(r.materia);
+      });
+    }
+
+    const uniqueMaterias = Array.from(materiasSet).sort();
+    return { materias: uniqueMaterias };
+  } catch (error: any) {
+    console.error('Erro ao buscar matérias:', error);
+    return { materias: [], error: error.message };
+  }
+}
+
 export async function getAssuntosByMaterias(
   materias: string[]
 ): Promise<{ assuntos: string[]; error?: string }> {
