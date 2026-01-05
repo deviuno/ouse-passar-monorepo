@@ -31,7 +31,13 @@ if (result.error || !process.env.VITE_SUPABASE_URL) {
 
 // ==================== CONSTANTS ====================
 
-const WORKER_ID = `worker-${process.pid}-${Date.now()}`;
+// Account ID pode vir de argumento de linha de comando ou variável de ambiente
+// Uso: node dist/scraper-worker.js --account=UUID
+// Ou: SCRAPER_ACCOUNT_ID=UUID node dist/scraper-worker.js
+const accountArg = process.argv.find(arg => arg.startsWith('--account='));
+const ACCOUNT_ID = accountArg?.split('=')[1] || process.env.SCRAPER_ACCOUNT_ID || null;
+
+const WORKER_ID = `worker-${process.pid}-${Date.now()}${ACCOUNT_ID ? `-${ACCOUNT_ID.slice(0, 8)}` : ''}`;
 const POLL_INTERVAL = 2000; // 2 seconds
 const HEARTBEAT_INTERVAL = 10000; // 10 seconds
 
@@ -40,6 +46,7 @@ const HEARTBEAT_INTERVAL = 10000; // 10 seconds
 let _supabase: SupabaseClient | null = null;
 let _currentCadernoId: string | null = null;
 let _shouldStop = false;
+let _accountEmail: string | null = null;
 
 // ==================== HELPERS ====================
 
@@ -140,6 +147,7 @@ interface Command {
   id: string;
   command: 'start' | 'stop' | 'pause' | 'resume';
   caderno_id: string | null;
+  account_id: string | null;
   payload: any;
   status: string;
   created_at: string;
@@ -148,10 +156,18 @@ interface Command {
 async function getNextCommand(): Promise<Command | null> {
   const supabase = getSupabase();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('tec_scraper_commands')
     .select('*')
-    .eq('status', 'pending')
+    .eq('status', 'pending');
+
+  // Se este worker está atribuído a uma conta específica, filtrar por ela
+  // Também pegar comandos sem account_id (compatibilidade)
+  if (ACCOUNT_ID) {
+    query = query.or(`account_id.eq.${ACCOUNT_ID},account_id.is.null`);
+  }
+
+  const { data, error } = await query
     .order('created_at', { ascending: true })
     .limit(1)
     .single();
@@ -261,9 +277,12 @@ async function checkForStopCommand(): Promise<boolean> {
   return false;
 }
 
-async function processCaderno(cadernoId: string): Promise<void> {
+async function processCaderno(cadernoId: string, commandAccountId?: string | null): Promise<void> {
   _currentCadernoId = cadernoId;
   _shouldStop = false;
+
+  // Usar account_id do comando, do worker, ou null
+  const effectiveAccountId = commandAccountId || ACCOUNT_ID || null;
 
   const caderno = await getCaderno(cadernoId);
   if (!caderno) {
@@ -271,7 +290,7 @@ async function processCaderno(cadernoId: string): Promise<void> {
     return;
   }
 
-  log(`Starting caderno: ${caderno.name}`);
+  log(`Starting caderno: ${caderno.name}${effectiveAccountId ? ` [Account: ${effectiveAccountId.slice(0, 8)}...]` : ''}`);
   await addLog(cadernoId, 'info', `Iniciando extração: ${caderno.name}`);
 
   // Update status to running
@@ -315,6 +334,7 @@ async function processCaderno(cadernoId: string): Promise<void> {
     const result = await TecConcursosScraper.extrairQuestoesDeCadernoUrl(caderno.url, {
       startFromQuestion,
       cadernoId,
+      accountId: effectiveAccountId || undefined,
     });
 
     clearInterval(progressInterval);
@@ -357,7 +377,7 @@ async function processCaderno(cadernoId: string): Promise<void> {
 // ==================== MAIN LOOP ====================
 
 async function processCommand(command: Command): Promise<void> {
-  log(`Processing command: ${command.command} (caderno: ${command.caderno_id || 'none'})`);
+  log(`Processing command: ${command.command} (caderno: ${command.caderno_id || 'none'}, account: ${command.account_id?.slice(0, 8) || 'any'})`);
 
   await markCommandProcessing(command.id);
 
@@ -368,7 +388,7 @@ async function processCommand(command: Command): Promise<void> {
         if (!command.caderno_id) {
           throw new Error('caderno_id is required for start/resume command');
         }
-        await processCaderno(command.caderno_id);
+        await processCaderno(command.caderno_id, command.account_id);
         break;
 
       case 'stop':
@@ -393,7 +413,23 @@ async function processCommand(command: Command): Promise<void> {
 }
 
 async function mainLoop(): Promise<void> {
+  // Buscar email da conta se tiver account_id
+  if (ACCOUNT_ID) {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from('tec_accounts')
+      .select('email')
+      .eq('id', ACCOUNT_ID)
+      .single();
+    _accountEmail = data?.email || null;
+  }
+
   log(`Worker started: ${WORKER_ID}`);
+  if (ACCOUNT_ID) {
+    log(`Assigned to account: ${_accountEmail || ACCOUNT_ID}`);
+  } else {
+    log('No specific account assigned - will process any command');
+  }
   await updateWorkerState('idle', null);
 
   // Heartbeat interval

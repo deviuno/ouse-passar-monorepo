@@ -181,23 +181,36 @@ async function saveCookies(page: Page): Promise<void> {
   }
 }
 
-async function loadCookies(page: Page): Promise<boolean> {
+// ID da conta sendo usada atualmente
+let _currentAccountId: string | null = null;
+
+async function loadCookies(page: Page, accountId?: string): Promise<boolean> {
   try {
-    // Primeiro, tentar carregar do banco de dados (tec_accounts)
+    // Carregar do banco de dados (tec_accounts)
     const supabase = getSupabase();
-    const { data: accounts, error: dbError } = await supabase
+
+    let query = supabase
       .from('tec_accounts')
-      .select('cookies')
-      .eq('is_active', true)
-      .limit(1);
+      .select('id, email, cookies')
+      .eq('is_active', true);
+
+    // Se accountId fornecido, buscar conta específica
+    if (accountId) {
+      query = query.eq('id', accountId);
+    }
+
+    const { data: accounts, error: dbError } = await query.limit(1);
 
     const account = accounts?.[0];
     if (!dbError && account?.cookies && Array.isArray(account.cookies) && account.cookies.length > 0) {
       await page.setCookie(...account.cookies);
-      log(`Cookies loaded from database (${account.cookies.length} cookies)`);
+      _currentAccountId = account.id;
+      log(`Cookies loaded from database (${account.cookies.length} cookies) - Account: ${account.email}`);
       return true;
     } else if (dbError) {
       log(`Erro ao carregar cookies do banco: ${dbError.message}`, 'error');
+    } else if (accountId && !account) {
+      log(`Conta ${accountId} não encontrada ou sem cookies válidos`, 'error');
     }
 
     // Fallback: tentar carregar do arquivo
@@ -389,17 +402,22 @@ async function closeBrowser(): Promise<void> {
 
 // ==================== AUTENTICAÇÃO ====================
 
-async function login(): Promise<boolean> {
-  if (_isLoggedIn) {
+async function login(accountId?: string): Promise<boolean> {
+  if (_isLoggedIn && (!accountId || accountId === _currentAccountId)) {
     log('Já está logado');
     return true;
+  }
+
+  // Se trocar de conta, limpar estado de login
+  if (accountId && accountId !== _currentAccountId) {
+    _isLoggedIn = false;
   }
 
   const page = await getPage();
 
   // Tentar usar cookies salvos primeiro
   log('Tentando login com cookies salvos...');
-  const cookiesLoaded = await loadCookies(page);
+  const cookiesLoaded = await loadCookies(page, accountId);
 
   if (cookiesLoaded) {
     const isLoggedIn = await checkIfLoggedIn(page);
@@ -2182,6 +2200,7 @@ async function extrairQuestoesDeCadernoUrl(
   options?: {
     startFromQuestion?: number; // Número da questão para começar (1-indexed)
     cadernoId?: string; // ID do caderno para atualizar progresso no banco
+    accountId?: string; // ID da conta para usar (para workers paralelos)
   }
 ): Promise<{
   success: boolean;
@@ -2192,8 +2211,9 @@ async function extrairQuestoesDeCadernoUrl(
 }> {
   const startFrom = options?.startFromQuestion || 1;
   const cadernoId = options?.cadernoId;
+  const accountId = options?.accountId;
 
-  log(`Iniciando extração de questões do caderno: ${cadernoUrl} (começando da questão ${startFrom})`);
+  log(`Iniciando extração de questões do caderno: ${cadernoUrl} (começando da questão ${startFrom})${accountId ? ` [Account: ${accountId}]` : ''}`);
 
   if (!cadernoUrl.includes('tecconcursos.com.br')) {
     return {
@@ -2206,8 +2226,8 @@ async function extrairQuestoesDeCadernoUrl(
   }
 
   try {
-    // Fazer login primeiro
-    const loggedIn = await login();
+    // Fazer login primeiro (com conta específica se fornecida)
+    const loggedIn = await login(accountId);
     if (!loggedIn) {
       return {
         success: false,
