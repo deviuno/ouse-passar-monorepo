@@ -1,4 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import {
+  validateAndSanitizeQuestion,
+  detectCorruptedHTML,
+  QuestionValidationResult,
+} from '../utils/htmlValidator.js';
 
 // Interface para alternativas
 interface Alternative {
@@ -77,10 +82,43 @@ export class QuestionScraperService {
   }
 
   /**
-   * Insere ou atualiza uma questão
+   * Valida o conteúdo de uma questão
    */
-  async upsertQuestion(question: ScrapedQuestion): Promise<boolean> {
+  validateQuestion(question: ScrapedQuestion): QuestionValidationResult {
+    return validateAndSanitizeQuestion(
+      question.enunciado,
+      question.alternativas,
+      question.comentario
+    );
+  }
+
+  /**
+   * Insere ou atualiza uma questão (com validação e sanitização)
+   */
+  async upsertQuestion(question: ScrapedQuestion, skipValidation: boolean = false): Promise<{ success: boolean; error?: string; skipped?: boolean }> {
     try {
+      // Validar e sanitizar conteúdo
+      if (!skipValidation) {
+        const validation = this.validateQuestion(question);
+
+        if (!validation.isValid) {
+          console.warn(`[QuestionScraperService] Questão ${question.id} rejeitada: ${validation.errors.join(', ')}`);
+          return { success: false, error: validation.errors.join(', '), skipped: true };
+        }
+
+        // Usar conteúdo sanitizado
+        question.enunciado = validation.sanitizedEnunciado;
+        question.alternativas = validation.sanitizedAlternativas;
+        if (validation.sanitizedComentario !== null) {
+          question.comentario = validation.sanitizedComentario;
+        }
+
+        // Log warnings
+        if (validation.warnings.length > 0) {
+          console.log(`[QuestionScraperService] Questão ${question.id} sanitizada: ${validation.warnings.join(', ')}`);
+        }
+      }
+
       const { error } = await this.db
         .from('questoes_concurso')
         .upsert({
@@ -111,18 +149,18 @@ export class QuestionScraperService {
 
       if (error) {
         console.error(`[QuestionScraperService] Erro ao inserir questão ${question.id}:`, error);
-        return false;
+        return { success: false, error: error.message };
       }
 
-      return true;
+      return { success: true };
     } catch (err) {
       console.error(`[QuestionScraperService] Exceção ao inserir questão ${question.id}:`, err);
-      return false;
+      return { success: false, error: err instanceof Error ? err.message : 'Erro desconhecido' };
     }
   }
 
   /**
-   * Processa um lote de questões
+   * Processa um lote de questões (com validação)
    */
   async processBatch(questions: ScrapedQuestion[]): Promise<ProcessingResult> {
     const result: ProcessingResult = {
@@ -136,6 +174,8 @@ export class QuestionScraperService {
       },
     };
 
+    let validationRejected = 0;
+
     for (const question of questions) {
       try {
         // Verificar se já existe
@@ -147,15 +187,19 @@ export class QuestionScraperService {
           continue;
         }
 
-        // Inserir nova questão
-        const success = await this.upsertQuestion(question);
+        // Inserir nova questão (com validação)
+        const insertResult = await this.upsertQuestion(question);
 
-        if (success) {
+        if (insertResult.success) {
           result.inserted++;
           result.details.insertedIds.push(question.id);
+        } else if (insertResult.skipped) {
+          // Rejeitada pela validação
+          validationRejected++;
+          result.details.errorIds.push({ id: question.id, error: `Validação: ${insertResult.error}` });
         } else {
           result.errors++;
-          result.details.errorIds.push({ id: question.id, error: 'Falha ao inserir' });
+          result.details.errorIds.push({ id: question.id, error: insertResult.error || 'Falha ao inserir' });
         }
       } catch (err) {
         result.errors++;
@@ -166,7 +210,7 @@ export class QuestionScraperService {
       }
     }
 
-    console.log(`[QuestionScraperService] Processamento concluído: ${result.inserted} inseridas, ${result.skipped} ignoradas, ${result.errors} erros`);
+    console.log(`[QuestionScraperService] Processamento concluído: ${result.inserted} inseridas, ${result.skipped} duplicadas, ${validationRejected} rejeitadas por validação, ${result.errors} erros`);
 
     return result;
   }
@@ -287,5 +331,129 @@ export class QuestionScraperService {
     }
 
     return true;
+  }
+
+  /**
+   * Busca questões potencialmente corrompidas (para limpeza)
+   * Procura por padrões de HTML corrompido no enunciado
+   */
+  async findCorruptedQuestions(limit: number = 100): Promise<any[]> {
+    // Busca questões que contêm padrões de AngularJS corrompido
+    const patterns = [
+      '%ng-if%',
+      '%ng-repeat%',
+      '%ng-model%',
+      '%ng-click%',
+      '%ng-scope%',
+      '%<!-- ngIf%',
+      '%<!-- ngRepeat%',
+      '%vm.questao%',
+      '%aria-labelledby%',
+    ];
+
+    const queries = patterns.map(pattern =>
+      this.db
+        .from('questoes_concurso')
+        .select('id, enunciado, alternativas, comentario')
+        .ilike('enunciado', pattern)
+        .limit(Math.ceil(limit / patterns.length))
+    );
+
+    const results = await Promise.all(queries);
+    const allCorrupted = results.flatMap(r => r.data || []);
+
+    // Remove duplicates by id
+    const uniqueIds = new Set<string>();
+    const uniqueQuestions = allCorrupted.filter(q => {
+      if (uniqueIds.has(q.id)) return false;
+      uniqueIds.add(q.id);
+      return true;
+    });
+
+    return uniqueQuestions.slice(0, limit);
+  }
+
+  /**
+   * Tenta sanitizar e atualizar uma questão corrompida
+   */
+  async sanitizeAndUpdateQuestion(questionId: string): Promise<{ success: boolean; action: 'updated' | 'deactivated' | 'error'; details?: string }> {
+    try {
+      // Buscar questão
+      const { data: question, error: fetchError } = await this.db
+        .from('questoes_concurso')
+        .select('*')
+        .eq('id', questionId)
+        .single();
+
+      if (fetchError || !question) {
+        return { success: false, action: 'error', details: 'Questão não encontrada' };
+      }
+
+      // Validar e sanitizar
+      const validation = validateAndSanitizeQuestion(
+        question.enunciado,
+        question.alternativas,
+        question.comentario
+      );
+
+      if (!validation.isValid) {
+        // Se não é possível sanitizar, desativar a questão
+        const { error: updateError } = await this.db
+          .from('questoes_concurso')
+          .update({ ativo: false })
+          .eq('id', questionId);
+
+        if (updateError) {
+          return { success: false, action: 'error', details: updateError.message };
+        }
+
+        return { success: true, action: 'deactivated', details: validation.errors.join(', ') };
+      }
+
+      // Atualizar com conteúdo sanitizado
+      const { error: updateError } = await this.db
+        .from('questoes_concurso')
+        .update({
+          enunciado: validation.sanitizedEnunciado,
+          alternativas: validation.sanitizedAlternativas,
+          comentario: validation.sanitizedComentario,
+        })
+        .eq('id', questionId);
+
+      if (updateError) {
+        return { success: false, action: 'error', details: updateError.message };
+      }
+
+      return { success: true, action: 'updated', details: validation.warnings.join(', ') };
+    } catch (err) {
+      return { success: false, action: 'error', details: err instanceof Error ? err.message : 'Erro desconhecido' };
+    }
+  }
+
+  /**
+   * Executa limpeza em lote de questões corrompidas
+   */
+  async cleanupCorruptedQuestions(batchSize: number = 50): Promise<{ updated: number; deactivated: number; errors: number }> {
+    const result = { updated: 0, deactivated: 0, errors: 0 };
+
+    const corrupted = await this.findCorruptedQuestions(batchSize);
+    console.log(`[QuestionScraperService] Encontradas ${corrupted.length} questões potencialmente corrompidas`);
+
+    for (const question of corrupted) {
+      const cleanupResult = await this.sanitizeAndUpdateQuestion(question.id);
+
+      if (cleanupResult.action === 'updated') {
+        result.updated++;
+      } else if (cleanupResult.action === 'deactivated') {
+        result.deactivated++;
+        console.log(`[QuestionScraperService] Questão ${question.id} desativada: ${cleanupResult.details}`);
+      } else {
+        result.errors++;
+        console.error(`[QuestionScraperService] Erro ao processar questão ${question.id}: ${cleanupResult.details}`);
+      }
+    }
+
+    console.log(`[QuestionScraperService] Limpeza concluída: ${result.updated} atualizadas, ${result.deactivated} desativadas, ${result.errors} erros`);
+    return result;
   }
 }

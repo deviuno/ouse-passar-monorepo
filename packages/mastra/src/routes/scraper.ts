@@ -215,5 +215,85 @@ export function createScraperRoutes(
     }
   });
 
+  /**
+   * GET /api/scraper/corrupted
+   * Lista questões com HTML corrompido (AngularJS templates, etc)
+   */
+  router.get('/corrupted', async (req: Request, res: Response) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const questions = await questionService.findCorruptedQuestions(limit);
+
+      return res.json({
+        success: true,
+        count: questions.length,
+        questions: questions.map(q => ({
+          id: q.id,
+          enunciado_preview: q.enunciado?.substring(0, 200) + '...',
+        })),
+      });
+    } catch (error) {
+      console.error('[Scraper API] Erro ao listar questões corrompidas:', error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno',
+      });
+    }
+  });
+
+  /**
+   * POST /api/scraper/cleanup
+   * Executa limpeza de questões corrompidas
+   * - Tenta sanitizar e atualizar questões com HTML corrompido
+   * - Questões que não podem ser sanitizadas são desativadas (ativo=false)
+   */
+  router.post('/cleanup', async (req: Request, res: Response) => {
+    try {
+      const batchSize = parseInt(req.query.batchSize as string) || 50;
+
+      console.log(`[Scraper API] Iniciando limpeza de até ${batchSize} questões corrompidas`);
+
+      const result = await questionService.cleanupCorruptedQuestions(batchSize);
+
+      return res.json({
+        success: true,
+        message: 'Limpeza de questões corrompidas concluída',
+        result,
+      });
+    } catch (error) {
+      console.error('[Scraper API] Erro ao executar limpeza:', error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno',
+      });
+    }
+  });
+
+  /**
+   * POST /api/scraper/cleanup/:id
+   * Sanitiza uma questão específica
+   */
+  router.post('/cleanup/:id', async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      console.log(`[Scraper API] Sanitizando questão ${id}`);
+
+      const result = await questionService.sanitizeAndUpdateQuestion(id);
+
+      return res.json({
+        success: result.success,
+        action: result.action,
+        details: result.details,
+      });
+    } catch (error) {
+      console.error('[Scraper API] Erro ao sanitizar questão:', error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno',
+      });
+    }
+  });
+
   return router;
 }
