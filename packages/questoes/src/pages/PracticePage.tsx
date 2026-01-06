@@ -71,6 +71,7 @@ import { createPracticeSession } from '../services/practiceSessionService';
 import { SessionResultsScreen } from '../components/practice/SessionResultsScreen';
 import { getGamificationSettings, GamificationSettings } from '../services/gamificationSettingsService';
 import { formatBancaDisplay, sortBancas } from '../utils/bancaFormatter';
+import { isOuseQuestoesSubscriber } from '../services/subscriptionService';
 
 interface FilterOptions {
   materia: string[];
@@ -309,6 +310,9 @@ export default function PracticePage() {
   const [isLoadingFilters, setIsLoadingFilters] = useState(true);
   const [isLoadingCount, setIsLoadingCount] = useState(false);
 
+  // Assinante Ouse Questões (bateria ilimitada APENAS nesta rota /praticar)
+  const [isSubscriber, setIsSubscriber] = useState(false);
+
   // Dados do banco
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [filteredCount, setFilteredCount] = useState(0);
@@ -404,6 +408,18 @@ export default function PracticePage() {
     if (user?.id) {
       loadNotebooks();
     }
+  }, [user?.id]);
+
+  // Verificar se é assinante do Ouse Questões (bateria ilimitada nesta rota)
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (user?.id) {
+        const subscriberStatus = await isOuseQuestoesSubscriber(user.id);
+        setIsSubscriber(subscriberStatus);
+        console.log('[PracticePage] Subscriber status:', subscriberStatus);
+      }
+    };
+    checkSubscription();
   }, [user?.id]);
 
   // Carregar configurações de gamificação
@@ -580,10 +596,10 @@ export default function PracticePage() {
 
     setIsSavingNotebook(true);
     try {
-      // Consumir bateria por criar caderno
+      // Consumir bateria por criar caderno (pular se assinante Ouse Questões)
       const prep = getSelectedPreparatorio();
       const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
-      if (prepIdToUse) {
+      if (prepIdToUse && !isSubscriber) {
         const batteryResult = await consumeBattery(
           user.id,
           prepIdToUse,
@@ -1018,9 +1034,10 @@ export default function PracticePage() {
       // Consumir bateria se usuario nao for premium
       // Usa o preparatorio_id correto (não o user_trail.id)
       // No modo trilha, NÃO consumir bateria (usuário já pagou pelo acesso)
+      // Assinantes Ouse Questões também não consomem bateria nesta rota
       const isTrailMode = !!trailPreparatorioId;
 
-      if (!isTrailMode) {
+      if (!isTrailMode && !isSubscriber) {
         console.log('[PracticePage] Obtendo preparatório selecionado...');
         const selectedPrep = getSelectedPreparatorio();
         const prepIdToUse = selectedPrep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
@@ -1045,7 +1062,7 @@ export default function PracticePage() {
           console.log('[PracticePage] Pulando verificação de bateria (sem user ou prepId)');
         }
       } else {
-        console.log('[PracticePage] Modo trilha: pulando consumo de bateria');
+        console.log('[PracticePage] Modo trilha ou assinante: pulando consumo de bateria');
       }
 
       let questionsToUse: ParsedQuestion[] = [];
@@ -1156,7 +1173,8 @@ export default function PracticePage() {
 
     // DEPOIS: Consumir bateria por responder a questão (não bloqueia stats)
     // No modo trilha, NÃO consumir bateria (usuário já pagou pelo acesso)
-    if (!trailPreparatorioId) {
+    // Assinantes Ouse Questões também não consomem bateria nesta rota
+    if (!trailPreparatorioId && !isSubscriber) {
       try {
         const prep = getSelectedPreparatorio();
         const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;

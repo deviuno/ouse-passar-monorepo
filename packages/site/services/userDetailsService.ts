@@ -356,6 +356,9 @@ export async function updateUserProfile(
 
 /**
  * Update user settings (is_active, show_answers, is_ouse_questoes_subscriber)
+ *
+ * Nota: is_ouse_questoes_subscriber dá acesso ilimitado APENAS na rota /praticar.
+ * Outros produtos (Trilha de Questões, Turma de Elite, Simulados, etc.) têm suas próprias regras.
  */
 export async function updateUserSettings(
   userId: string,
@@ -374,24 +377,6 @@ export async function updateUserSettings(
     if (error) {
       console.error('[userDetailsService] Error updating settings:', error);
       return { success: false, error: error.message };
-    }
-
-    // Se is_ouse_questoes_subscriber foi alterado, sincronizar com user_trails
-    // Assinantes do Ouse Questões têm bateria ilimitada em TODOS os preparatórios
-    if (updates.is_ouse_questoes_subscriber !== undefined) {
-      const { error: trailsError } = await supabase
-        .from('user_trails' as any)
-        .update({
-          has_unlimited_battery: updates.is_ouse_questoes_subscriber,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId);
-
-      if (trailsError) {
-        console.error('[userDetailsService] Error updating user_trails battery:', trailsError);
-        // Não retornamos erro aqui pois a configuração principal foi salva
-        // mas logamos para debug
-      }
     }
 
     return { success: true, error: null };
