@@ -44,6 +44,14 @@ import { createTecConcursosScraperRoutes } from './routes/tecConcursosScraper.js
 import { startImageProcessorCron, getImageProcessorStatus } from './cron/imageProcessor.js';
 import { startQuestionReviewerCron, getQuestionReviewerStatus } from './cron/questionReviewer.js';
 import { startGabaritoExtractorCron, getGabaritoExtractorStatus } from './cron/gabaritoExtractor.js';
+import {
+    questionGeneratorAgent,
+    fetchReferenceQuestions,
+    generateQuestions,
+    saveGeneratedQuestions,
+    generateQuestionComment,
+    QuestionGenerationParams,
+} from './mastra/agents/questionGeneratorAgent.js';
 
 // Load environment variables
 import path from 'path';
@@ -6856,6 +6864,373 @@ app.get('/api/scraper/cron-status', (req, res) => {
             stats: gabaritoStatus.stats,
         },
     });
+});
+
+// ============================================
+// Question Generator API
+// ============================================
+
+// POST /api/questions/generate - Gerar questões com IA
+app.post('/api/questions/generate', async (req, res) => {
+    try {
+        const params: QuestionGenerationParams = req.body;
+
+        // Validação básica
+        if (!params.banca || !params.materia || !params.tipo || !params.escolaridade || !params.quantidade) {
+            res.status(400).json({
+                success: false,
+                error: 'Parâmetros obrigatórios: banca, materia, tipo, escolaridade, quantidade'
+            });
+            return;
+        }
+
+        if (params.quantidade < 1 || params.quantidade > 20) {
+            res.status(400).json({
+                success: false,
+                error: 'Quantidade deve estar entre 1 e 20'
+            });
+            return;
+        }
+
+        console.log('[QuestionGenerator] Iniciando geração:', params);
+
+        // Buscar questões de referência
+        const references = await fetchReferenceQuestions(
+            params,
+            questionsDbUrl,
+            questionsDbKey
+        );
+
+        if (references.length < 3) {
+            res.status(400).json({
+                success: false,
+                error: `Poucas questões de referência encontradas (${references.length}). Necessário pelo menos 3 questões da banca ${params.banca} na matéria ${params.materia}.`
+            });
+            return;
+        }
+
+        console.log(`[QuestionGenerator] Encontradas ${references.length} questões de referência`);
+
+        // Gerar questões
+        const result = await generateQuestions(questionGeneratorAgent, params, references);
+
+        // Salvar no banco
+        const savedIds = await saveGeneratedQuestions(
+            result.questoes,
+            params,
+            questionsDbUrl,
+            questionsDbKey
+        );
+
+        res.json({
+            success: true,
+            questions: result.questoes.map((q, i) => ({
+                ...q,
+                id: savedIds[i]
+            })),
+            totalGenerated: result.questoes.length,
+            totalSaved: savedIds.length
+        });
+
+    } catch (error) {
+        console.error('[QuestionGenerator] Erro:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro ao gerar questões'
+        });
+    }
+});
+
+// POST /api/questions/generate-comment - Gerar comentário para questão
+app.post('/api/questions/generate-comment', async (req, res) => {
+    try {
+        const { questionId, enunciado, alternativas, gabarito } = req.body;
+
+        if (!enunciado || !alternativas || !gabarito) {
+            res.status(400).json({
+                success: false,
+                error: 'Parâmetros obrigatórios: enunciado, alternativas, gabarito'
+            });
+            return;
+        }
+
+        console.log(`[QuestionGenerator] Gerando comentário para questão ${questionId || 'nova'}`);
+
+        const comentario = await generateQuestionComment(questionGeneratorAgent, {
+            enunciado,
+            alternativas,
+            gabarito
+        });
+
+        // Se tiver questionId, atualiza no banco
+        if (questionId) {
+            const supabase = createClient(questionsDbUrl, questionsDbKey);
+            await supabase
+                .from('questoes_concurso')
+                .update({ comentario, updated_at: new Date().toISOString() })
+                .eq('id', questionId);
+        }
+
+        res.json({
+            success: true,
+            comentario
+        });
+
+    } catch (error) {
+        console.error('[QuestionGenerator] Erro ao gerar comentário:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro ao gerar comentário'
+        });
+    }
+});
+
+// GET /api/questions/generated - Listar questões geradas por IA
+app.get('/api/questions/generated', async (req, res) => {
+    try {
+        const { status, page = '1', limit = '20' } = req.query;
+        const pageNum = parseInt(page as string, 10);
+        const limitNum = parseInt(limit as string, 10);
+        const offset = (pageNum - 1) * limitNum;
+
+        const supabase = createClient(questionsDbUrl, questionsDbKey);
+
+        let query = supabase
+            .from('questoes_concurso')
+            .select('*', { count: 'exact' })
+            .eq('is_ai_generated', true)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limitNum - 1);
+
+        if (status) {
+            query = query.eq('generation_status', status);
+        }
+
+        const { data, error, count } = await query;
+
+        if (error) throw error;
+
+        res.json({
+            success: true,
+            questions: data || [],
+            total: count || 0,
+            page: pageNum,
+            limit: limitNum,
+            totalPages: Math.ceil((count || 0) / limitNum)
+        });
+
+    } catch (error) {
+        console.error('[QuestionGenerator] Erro ao listar questões:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro ao listar questões'
+        });
+    }
+});
+
+// PUT /api/questions/generated/:id - Atualizar questão gerada
+app.put('/api/questions/generated/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        // Campos permitidos para atualização
+        const allowedFields = [
+            'enunciado', 'alternativas', 'gabarito', 'comentario',
+            'materia', 'assunto', 'banca', 'generation_status'
+        ];
+
+        const sanitizedUpdates: Record<string, any> = {};
+        for (const field of allowedFields) {
+            if (updates[field] !== undefined) {
+                sanitizedUpdates[field] = updates[field];
+            }
+        }
+
+        sanitizedUpdates.updated_at = new Date().toISOString();
+
+        const supabase = createClient(questionsDbUrl, questionsDbKey);
+        const { data, error } = await supabase
+            .from('questoes_concurso')
+            .update(sanitizedUpdates)
+            .eq('id', id)
+            .eq('is_ai_generated', true)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({
+            success: true,
+            question: data
+        });
+
+    } catch (error) {
+        console.error('[QuestionGenerator] Erro ao atualizar questão:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro ao atualizar questão'
+        });
+    }
+});
+
+// PUT /api/questions/generated/:id/publish - Publicar questão gerada
+app.put('/api/questions/generated/:id/publish', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const supabase = createClient(questionsDbUrl, questionsDbKey);
+        const { data, error } = await supabase
+            .from('questoes_concurso')
+            .update({
+                generation_status: 'published',
+                ativo: true,
+                published_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .eq('is_ai_generated', true)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({
+            success: true,
+            question: data
+        });
+
+    } catch (error) {
+        console.error('[QuestionGenerator] Erro ao publicar questão:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro ao publicar questão'
+        });
+    }
+});
+
+// DELETE /api/questions/generated/:id - Excluir ou rejeitar questão gerada
+app.delete('/api/questions/generated/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { softDelete = true } = req.query;
+
+        const supabase = createClient(questionsDbUrl, questionsDbKey);
+
+        if (softDelete === 'true' || softDelete === true) {
+            // Soft delete - marca como rejeitada
+            const { error } = await supabase
+                .from('questoes_concurso')
+                .update({
+                    generation_status: 'rejected',
+                    ativo: false,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+                .eq('is_ai_generated', true);
+
+            if (error) throw error;
+        } else {
+            // Hard delete - remove do banco
+            const { error } = await supabase
+                .from('questoes_concurso')
+                .delete()
+                .eq('id', id)
+                .eq('is_ai_generated', true);
+
+            if (error) throw error;
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('[QuestionGenerator] Erro ao excluir questão:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro ao excluir questão'
+        });
+    }
+});
+
+// GET /api/questions/filters - Obter opções de filtros (bancas, materias, assuntos)
+app.get('/api/questions/filters', async (req, res) => {
+    try {
+        const supabase = createClient(questionsDbUrl, questionsDbKey);
+
+        // Buscar bancas únicas
+        const { data: bancasData } = await supabase
+            .from('questoes_concurso')
+            .select('banca')
+            .eq('ativo', true)
+            .not('banca', 'is', null);
+
+        const bancas = [...new Set((bancasData || []).map(q => q.banca))].filter(Boolean).sort();
+
+        // Buscar matérias únicas
+        const { data: materiasData } = await supabase
+            .from('questoes_concurso')
+            .select('materia')
+            .eq('ativo', true);
+
+        const materias = [...new Set((materiasData || []).map(q => q.materia))].filter(Boolean).sort();
+
+        res.json({
+            success: true,
+            bancas,
+            materias
+        });
+
+    } catch (error) {
+        console.error('[QuestionGenerator] Erro ao buscar filtros:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro ao buscar filtros'
+        });
+    }
+});
+
+// GET /api/questions/assuntos - Buscar assuntos por matéria
+app.get('/api/questions/assuntos', async (req, res) => {
+    try {
+        const { materia, banca } = req.query;
+
+        if (!materia) {
+            res.status(400).json({
+                success: false,
+                error: 'Parâmetro obrigatório: materia'
+            });
+            return;
+        }
+
+        const supabase = createClient(questionsDbUrl, questionsDbKey);
+
+        let query = supabase
+            .from('questoes_concurso')
+            .select('assunto')
+            .eq('materia', materia)
+            .eq('ativo', true)
+            .not('assunto', 'is', null);
+
+        if (banca) {
+            query = query.eq('banca', banca);
+        }
+
+        const { data } = await query;
+
+        const assuntos = [...new Set((data || []).map(q => q.assunto))].filter(Boolean).sort();
+
+        res.json({
+            success: true,
+            assuntos
+        });
+
+    } catch (error) {
+        console.error('[QuestionGenerator] Erro ao buscar assuntos:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro ao buscar assuntos'
+        });
+    }
 });
 
 // ============================================

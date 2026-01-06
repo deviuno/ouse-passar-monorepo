@@ -74,6 +74,7 @@ import { RodadasAdmin } from './pages/admin/Rodadas';
 import { MissoesAdmin } from './pages/admin/Missoes';
 import { MensagensIncentivoAdmin } from './pages/admin/MensagensIncentivo';
 import { EditalAdmin } from './pages/admin/EditalAdmin';
+import { GerarQuestoes } from './pages/admin/GerarQuestoes';
 import { MissionBuilder } from './pages/admin/MissionBuilder';
 import { AutomacaoConteudoMissao } from './pages/admin/AutomacaoConteudoMissao';
 import { Suporte } from './pages/admin/Suporte';
@@ -261,6 +262,9 @@ const App: React.FC = () => {
                 <Route path="preparatorios/:preparatorioId/mensagens" element={<AdminOnlyRoute><MensagensIncentivoAdmin /></AdminOnlyRoute>} />
                 <Route path="preparatorios/:preparatorioId/edital" element={<AdminOnlyRoute><EditalAdmin /></AdminOnlyRoute>} />
                 <Route path="preparatorios/:preparatorioId/montar-missoes" element={<AdminOnlyRoute><MissionBuilder /></AdminOnlyRoute>} />
+
+                {/* Gerar Questões com IA */}
+                <Route path="gerar-questoes" element={<AdminOnlyRoute><GerarQuestoes /></AdminOnlyRoute>} />
 
                 {/* Courses (Simulados) - Sistema legado para app Ouse Questões */}
                 <Route path="courses" element={<AdminOnlyRoute><Preparatorios /></AdminOnlyRoute>} />

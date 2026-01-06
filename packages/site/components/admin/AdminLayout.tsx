@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag, Sparkles } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -222,6 +222,15 @@ export const AdminLayout: React.FC = () => {
                             >
                                 <GraduationCap className="w-5 h-5 mr-3" />
                                 Preparatórios
+                            </Link>
+
+                            {/* Gerar Questões */}
+                            <Link
+                                to="/admin/gerar-questoes"
+                                className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/gerar-questoes')}`}
+                            >
+                                <Sparkles className="w-5 h-5 mr-3" />
+                                Gerar Questões
                             </Link>
 
                             {/* Loja Accordion */}
