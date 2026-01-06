@@ -13,38 +13,47 @@ export const TrailsPage: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     let timeoutId: ReturnType<typeof setTimeout>;
+    const startTime = Date.now();
 
     async function loadPreparatorios() {
+      console.log('[TrailsPage] Iniciando carregamento...', { userId: user?.id, timestamp: new Date().toISOString() });
       setIsLoading(true);
 
-      // Timeout de segurança de 10 segundos
+      // Timeout de segurança de 15 segundos (aumentado)
       timeoutId = setTimeout(() => {
         if (isMounted) {
-          console.warn('[TrailsPage] Timeout ao carregar preparatórios');
+          console.warn('[TrailsPage] Timeout ao carregar preparatórios após 15s');
           setIsLoading(false);
         }
-      }, 10000);
+      }, 15000);
 
       try {
+        console.log('[TrailsPage] Chamando getPreparatoriosForTrilhasStore...');
         const data = await getPreparatoriosForTrilhasStore(user?.id);
+        console.log('[TrailsPage] Dados recebidos:', { count: data.length, elapsed: Date.now() - startTime + 'ms' });
         if (isMounted) {
           setPreparatorios(data);
         }
       } catch (error) {
-        console.error('Erro ao carregar preparatórios:', error);
+        console.error('[TrailsPage] Erro ao carregar preparatórios:', error);
       } finally {
         if (isMounted) {
           clearTimeout(timeoutId);
           setIsLoading(false);
+          console.log('[TrailsPage] Carregamento finalizado em', Date.now() - startTime + 'ms');
         }
       }
     }
 
-    loadPreparatorios();
+    // Pequeno delay para garantir que o estado da aplicação está estabilizado
+    const delayId = setTimeout(() => {
+      loadPreparatorios();
+    }, 100);
 
     return () => {
       isMounted = false;
       clearTimeout(timeoutId);
+      clearTimeout(delayId);
     };
   }, [user?.id]);
 

@@ -124,8 +124,12 @@ export interface TrilhasStoreItem {
  * e indica se o usuário já tem acesso (via user_trails)
  */
 export async function getPreparatoriosForTrilhasStore(userId?: string): Promise<TrilhasStoreItem[]> {
+  const startTime = Date.now();
+  console.log('[preparatoriosService] getPreparatoriosForTrilhasStore iniciado', { userId });
+
   try {
     // Buscar preparatórios ativos com preço de trilhas configurado
+    console.log('[preparatoriosService] Buscando preparatórios...');
     const { data: preparatorios, error } = await supabase
       .from('preparatorios')
       .select('id, nome, slug, descricao_curta, banca, orgao, imagem_capa, logo_url, preco_trilhas, preco_trilhas_desconto, checkout_trilhas')
@@ -134,14 +138,19 @@ export async function getPreparatoriosForTrilhasStore(userId?: string): Promise<
       .order('ordem', { ascending: true, nullsFirst: false })
       .order('nome', { ascending: true });
 
+    console.log('[preparatoriosService] Query completada em', Date.now() - startTime + 'ms');
+
     if (error) {
       console.error('[preparatoriosService] Erro ao buscar preparatórios para trilhas:', error);
       return [];
     }
 
     if (!preparatorios || preparatorios.length === 0) {
+      console.log('[preparatoriosService] Nenhum preparatório encontrado');
       return [];
     }
+
+    console.log('[preparatoriosService] Encontrados', preparatorios.length, 'preparatórios');
 
     // Se não há userId, retornar sem verificar acesso
     if (!userId) {
