@@ -1012,28 +1012,35 @@ export default function PracticePage() {
     try {
       // Consumir bateria se usuario nao for premium
       // Usa o preparatorio_id correto (não o user_trail.id)
-      console.log('[PracticePage] Obtendo preparatório selecionado...');
-      const selectedPrep = getSelectedPreparatorio();
-      const prepIdToUse = selectedPrep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
-      console.log('[PracticePage] prepIdToUse:', prepIdToUse, 'user?.id:', user?.id);
+      // No modo trilha, NÃO consumir bateria (usuário já pagou pelo acesso)
+      const isTrailMode = !!trailPreparatorioId;
 
-      if (user?.id && prepIdToUse) {
-        console.log('[PracticePage] Consumindo bateria...');
-        const batteryResult = await consumeBattery(
-          user.id,
-          prepIdToUse,
-          'practice_session',
-          { question_count: questionCount }
-        );
-        console.log('[PracticePage] Resultado bateria:', batteryResult);
+      if (!isTrailMode) {
+        console.log('[PracticePage] Obtendo preparatório selecionado...');
+        const selectedPrep = getSelectedPreparatorio();
+        const prepIdToUse = selectedPrep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
+        console.log('[PracticePage] prepIdToUse:', prepIdToUse, 'user?.id:', user?.id);
 
-        if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
-          console.log('[PracticePage] Bateria insuficiente');
-          setIsLoading(false);
-          return; // Modal sera aberto automaticamente pelo store
+        if (user?.id && prepIdToUse) {
+          console.log('[PracticePage] Consumindo bateria...');
+          const batteryResult = await consumeBattery(
+            user.id,
+            prepIdToUse,
+            'practice_session',
+            { question_count: questionCount }
+          );
+          console.log('[PracticePage] Resultado bateria:', batteryResult);
+
+          if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
+            console.log('[PracticePage] Bateria insuficiente');
+            setIsLoading(false);
+            return; // Modal sera aberto automaticamente pelo store
+          }
+        } else {
+          console.log('[PracticePage] Pulando verificação de bateria (sem user ou prepId)');
         }
       } else {
-        console.log('[PracticePage] Pulando verificação de bateria (sem user ou prepId)');
+        console.log('[PracticePage] Modo trilha: pulando consumo de bateria');
       }
 
       let questionsToUse: ParsedQuestion[] = [];
@@ -1085,7 +1092,13 @@ export default function PracticePage() {
 
         if (dbQuestions.length > 0) {
           questionsToUse = dbQuestions;
+        } else if (isTrailMode) {
+          // No modo trilha, NUNCA usar questões de exemplo
+          addToast('error', 'Nenhuma questão encontrada para este tópico. Verifique os filtros do edital.');
+          setIsLoading(false);
+          return;
         } else {
+          // Modo livre: usar questões de exemplo como fallback
           addToast('info', 'Nenhuma questao encontrada. Usando questoes de exemplo.');
           const shuffled = [...MOCK_QUESTIONS].sort(() => Math.random() - 0.5);
           questionsToUse = shuffled.slice(0, questionCount).map(parseRawQuestion);
@@ -1101,7 +1114,13 @@ export default function PracticePage() {
       setMode('practicing');
     } catch (error) {
       console.error('Erro ao carregar questoes:', error);
-      addToast('error', 'Erro ao carregar questoes.');
+      // No modo trilha, não usar fallback de questões de exemplo
+      if (trailPreparatorioId) {
+        addToast('error', 'Erro ao carregar questões. Tente novamente.');
+        setIsLoading(false);
+        return;
+      }
+      addToast('error', 'Erro ao carregar questoes. Usando questoes de exemplo.');
       const shuffled = [...MOCK_QUESTIONS].sort(() => Math.random() - 0.5);
       setQuestions(shuffled.slice(0, questionCount).map(parseRawQuestion));
       setCurrentIndex(0);
@@ -1131,24 +1150,27 @@ export default function PracticePage() {
     }));
 
     // DEPOIS: Consumir bateria por responder a questão (não bloqueia stats)
-    try {
-      const prep = getSelectedPreparatorio();
-      const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
-      if (user?.id && prepIdToUse) {
-        const batteryResult = await consumeBattery(
-          user.id,
-          prepIdToUse,
-          'question',
-          { question_id: question.id.toString(), clickX, clickY }
-        );
+    // No modo trilha, NÃO consumir bateria (usuário já pagou pelo acesso)
+    if (!trailPreparatorioId) {
+      try {
+        const prep = getSelectedPreparatorio();
+        const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
+        if (user?.id && prepIdToUse) {
+          const batteryResult = await consumeBattery(
+            user.id,
+            prepIdToUse,
+            'question',
+            { question_id: question.id.toString(), clickX, clickY }
+          );
 
-        if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
-          console.log('[PracticePage] Bateria insuficiente');
-          // Modal será aberto automaticamente pelo store, mas não bloqueamos mais a resposta
+          if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
+            console.log('[PracticePage] Bateria insuficiente');
+            // Modal será aberto automaticamente pelo store, mas não bloqueamos mais a resposta
+          }
         }
+      } catch (error) {
+        console.error('[PracticePage] Erro ao consumir bateria:', error);
       }
-    } catch (error) {
-      console.error('[PracticePage] Erro ao consumir bateria:', error);
     }
 
     // Calculate rewards based on gamification settings
