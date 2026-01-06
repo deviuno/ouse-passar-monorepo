@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { QuestionScraperService, ScraperPayload, ScrapedQuestion } from '../services/questionScraperService.js';
 import { ImageScraperService } from '../services/imageScraperService.js';
 import { StatsScraperService } from '../services/statsScraperService.js';
+import { QuestionCleanupService } from '../services/questionCleanupService.js';
 
 export function createScraperRoutes(
   questionsDbUrl: string,
@@ -13,6 +14,7 @@ export function createScraperRoutes(
   const questionService = new QuestionScraperService(questionsDbUrl, questionsDbKey);
   const imageService = new ImageScraperService(questionsDbUrl, questionsDbKey);
   const statsService = new StatsScraperService(questionsDbUrl, questionsDbKey);
+  const cleanupService = new QuestionCleanupService(questionsDbUrl, questionsDbKey);
 
   /**
    * POST /api/scraper/questoes
@@ -288,6 +290,144 @@ export function createScraperRoutes(
       });
     } catch (error) {
       console.error('[Scraper API] Erro ao sanitizar questão:', error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno',
+      });
+    }
+  });
+
+  // ==================== LIMPEZA COM IA ====================
+
+  /**
+   * GET /api/scraper/ai-cleanup/stats
+   * Retorna estatísticas de questões corrompidas para limpeza com IA
+   */
+  router.get('/ai-cleanup/stats', async (req: Request, res: Response) => {
+    try {
+      const total = await cleanupService.countCorruptedQuestions();
+      const sample = await cleanupService.getCorruptedQuestions(5);
+
+      return res.json({
+        success: true,
+        totalCorrupted: total,
+        sampleIds: sample.map(q => q.id),
+      });
+    } catch (error) {
+      console.error('[Scraper API] Erro ao buscar stats de limpeza:', error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno',
+      });
+    }
+  });
+
+  /**
+   * POST /api/scraper/ai-cleanup/question/:id
+   * Limpa uma questão específica usando IA
+   */
+  router.post('/ai-cleanup/question/:id', async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const questionId = parseInt(id);
+
+      if (isNaN(questionId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'ID inválido',
+        });
+      }
+
+      console.log(`[Scraper API] Iniciando limpeza IA da questão ${questionId}`);
+
+      const result = await cleanupService.cleanAndUpdateQuestion(questionId);
+
+      return res.json({
+        success: result.success,
+        action: result.action,
+        details: result.details,
+      });
+    } catch (error) {
+      console.error('[Scraper API] Erro ao limpar questão com IA:', error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno',
+      });
+    }
+  });
+
+  /**
+   * POST /api/scraper/ai-cleanup/batch
+   * Processa um lote de questões corrompidas usando IA
+   * Query params:
+   *   - batchSize: número de questões por lote (default: 10)
+   *   - delay: delay entre questões em ms (default: 1000)
+   */
+  router.post('/ai-cleanup/batch', async (req: Request, res: Response) => {
+    try {
+      const batchSize = parseInt(req.query.batchSize as string) || 10;
+      const delay = parseInt(req.query.delay as string) || 1000;
+
+      console.log(`[Scraper API] Iniciando limpeza IA em lote (${batchSize} questões, delay ${delay}ms)`);
+
+      const stats = await cleanupService.processBatch(batchSize, delay);
+
+      return res.json({
+        success: true,
+        message: 'Lote processado com sucesso',
+        stats,
+      });
+    } catch (error) {
+      console.error('[Scraper API] Erro ao processar lote com IA:', error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno',
+      });
+    }
+  });
+
+  /**
+   * POST /api/scraper/ai-cleanup/start
+   * Inicia processamento contínuo em background
+   * Query params:
+   *   - batchSize: número de questões por lote (default: 10)
+   *   - maxBatches: número máximo de lotes (default: 100)
+   *   - delayBetweenBatches: delay entre lotes em ms (default: 5000)
+   */
+  router.post('/ai-cleanup/start', async (req: Request, res: Response) => {
+    try {
+      const batchSize = parseInt(req.query.batchSize as string) || 10;
+      const maxBatches = parseInt(req.query.maxBatches as string) || 100;
+      const delayBetweenBatches = parseInt(req.query.delayBetweenBatches as string) || 5000;
+
+      console.log(`[Scraper API] Iniciando processamento contínuo (${maxBatches} lotes de ${batchSize})`);
+
+      // Iniciar em background (não aguarda)
+      cleanupService.startContinuousProcessing(
+        batchSize,
+        delayBetweenBatches,
+        maxBatches,
+        (stats, batch) => {
+          console.log(`[Scraper API] Progresso: Lote ${batch} - ${stats.cleaned} limpas, ${stats.failed} falhas`);
+        }
+      ).then(stats => {
+        console.log(`[Scraper API] Processamento finalizado: ${stats.cleaned} limpas, ${stats.failed} falhas`);
+      }).catch(error => {
+        console.error('[Scraper API] Erro no processamento contínuo:', error);
+      });
+
+      return res.json({
+        success: true,
+        message: 'Processamento iniciado em background',
+        config: {
+          batchSize,
+          maxBatches,
+          delayBetweenBatches,
+          estimatedQuestions: batchSize * maxBatches,
+        },
+      });
+    } catch (error) {
+      console.error('[Scraper API] Erro ao iniciar processamento:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Erro interno',
