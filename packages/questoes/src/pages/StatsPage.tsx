@@ -16,6 +16,7 @@ import {
 import { Card, Progress, CircularProgress, StaggerContainer, StaggerItem } from '../components/ui';
 import { useUserStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
+import { getOptimizedImageUrl } from '../utils/image';
 import {
   getUserMateriaStats,
   getUserDailyEvolution,
@@ -533,9 +534,10 @@ function WeeklyRankingCard({
             <div className="w-8 h-8 rounded-full bg-[#3A3A3A] flex items-center justify-center overflow-hidden flex-shrink-0">
               {member.avatar_url ? (
                 <img
-                  src={member.avatar_url}
+                  src={getOptimizedImageUrl(member.avatar_url, 64, 80)}
                   alt={member.name}
                   className="w-full h-full object-cover"
+                  loading="lazy"
                 />
               ) : (
                 <User size={16} className="text-[#6E6E6E]" />

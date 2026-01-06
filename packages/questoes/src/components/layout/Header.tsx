@@ -127,18 +127,27 @@ export function Header() {
 
   // Practice Mode Header - quando está praticando questões
   if (practiceMode.isActive) {
+    // Handler para voltar: usa backPath se disponível, senão chama onBack
+    const handleBackClick = () => {
+      if (practiceMode.backPath) {
+        navigate(practiceMode.backPath);
+      } else {
+        practiceMode.onBack?.();
+      }
+    };
+
     return (
       <header className="sticky top-0 h-14 bg-[#1A1A1A]/95 backdrop-blur-md border-b border-[#3A3A3A] z-30">
         <div className="flex items-center justify-between h-full px-4 relative">
           {/* Left: Back + Title */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <button
-              onClick={() => practiceMode.onBack?.()}
-              className="p-1.5 rounded-lg hover:bg-[#252525] transition-colors"
+              onClick={handleBackClick}
+              className="p-1.5 rounded-lg hover:bg-[#252525] transition-colors flex-shrink-0"
             >
               <ChevronLeft size={20} className="text-[#A0A0A0]" />
             </button>
-            <span className="text-white font-semibold">Nova Prática</span>
+            <span className="text-white font-semibold truncate">{practiceMode.title || 'Nova Prática'}</span>
           </div>
 
           {/* Center: Counter */}
@@ -154,7 +163,7 @@ export function Header() {
           {practiceMode.isTrailMode ? (
             <button
               onClick={() => practiceMode.onToggleEdital?.()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium hover:bg-[#252525] text-[#A0A0A0] hover:text-white"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium hover:bg-[#252525] text-[#A0A0A0] hover:text-white flex-shrink-0"
             >
               <ChevronLeft size={16} className="text-[#FFB800]" />
               <span>Edital</span>
@@ -162,7 +171,7 @@ export function Header() {
           ) : (
             <button
               onClick={() => practiceMode.onToggleFilters?.()}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium flex-shrink-0 ${
                 practiceMode.showFilters
                   ? 'bg-[#FFB800] text-black'
                   : 'hover:bg-[#252525] text-[#A0A0A0] hover:text-white'

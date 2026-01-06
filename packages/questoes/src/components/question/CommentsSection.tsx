@@ -7,6 +7,7 @@ import {
   voteComment,
   getRelativeTime,
 } from '../../services/commentsService';
+import { getOptimizedImageUrl } from '../../utils/image';
 
 interface CommentsSectionProps {
   questionId: number;
@@ -41,7 +42,7 @@ const CommentItem: React.FC<{
         {/* Avatar */}
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FFB800] to-[#FF8C00] flex items-center justify-center text-black font-bold text-sm shrink-0">
           {comment.user?.avatar_url ? (
-            <img src={comment.user.avatar_url} alt={userName} className="w-full h-full rounded-full object-cover" />
+            <img src={getOptimizedImageUrl(comment.user.avatar_url, 64, 80)} alt={userName} className="w-full h-full rounded-full object-cover" loading="lazy" />
           ) : (
             userInitial
           )}

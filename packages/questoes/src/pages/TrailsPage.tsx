@@ -1,59 +1,69 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Map, Loader2, ExternalLink, CheckCircle, ShoppingBag } from 'lucide-react';
-import { useAuthStore } from '../stores';
+import { Map, Loader2, ExternalLink, CheckCircle, ShoppingBag } from 'lucide-react';
+import { useAuthStore, useUIStore } from '../stores';
 import { getPreparatoriosForTrilhasStore, TrilhasStoreItem } from '../services/preparatoriosService';
+import { getOptimizedImageUrl } from '../utils/image';
 
 export const TrailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { setHeaderOverride, clearHeaderOverride } = useUIStore();
   const [preparatorios, setPreparatorios] = useState<TrilhasStoreItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Configurar header override
   useEffect(() => {
-    let isMounted = true;
-    let timeoutId: ReturnType<typeof setTimeout>;
+    setHeaderOverride({
+      title: 'Trilhas de Questões',
+      showBackButton: true,
+      backPath: '/questoes',
+    });
+
+    return () => {
+      clearHeaderOverride();
+    };
+  }, [setHeaderOverride, clearHeaderOverride]);
+
+  useEffect(() => {
+    const abortController = new AbortController();
     const startTime = Date.now();
 
     async function loadPreparatorios() {
       console.log('[TrailsPage] Iniciando carregamento...', { userId: user?.id, timestamp: new Date().toISOString() });
       setIsLoading(true);
 
-      // Timeout de segurança de 15 segundos (aumentado)
-      timeoutId = setTimeout(() => {
-        if (isMounted) {
-          console.warn('[TrailsPage] Timeout ao carregar preparatórios após 15s');
-          setIsLoading(false);
-        }
-      }, 15000);
-
       try {
         console.log('[TrailsPage] Chamando getPreparatoriosForTrilhasStore...');
         const data = await getPreparatoriosForTrilhasStore(user?.id);
-        console.log('[TrailsPage] Dados recebidos:', { count: data.length, elapsed: Date.now() - startTime + 'ms' });
-        if (isMounted) {
-          setPreparatorios(data);
+
+        // Verificar se o componente ainda está montado
+        if (abortController.signal.aborted) {
+          console.log('[TrailsPage] Requisição abortada, ignorando dados');
+          return;
         }
-      } catch (error) {
+
+        console.log('[TrailsPage] Dados recebidos:', { count: data.length, elapsed: Date.now() - startTime + 'ms' });
+        setPreparatorios(data);
+      } catch (error: any) {
+        if (error?.name === 'AbortError' || abortController.signal.aborted) {
+          console.log('[TrailsPage] Requisição cancelada');
+          return;
+        }
         console.error('[TrailsPage] Erro ao carregar preparatórios:', error);
       } finally {
-        if (isMounted) {
-          clearTimeout(timeoutId);
+        if (!abortController.signal.aborted) {
           setIsLoading(false);
           console.log('[TrailsPage] Carregamento finalizado em', Date.now() - startTime + 'ms');
         }
       }
     }
 
-    // Pequeno delay para garantir que o estado da aplicação está estabilizado
-    const delayId = setTimeout(() => {
-      loadPreparatorios();
-    }, 100);
+    loadPreparatorios();
 
     return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-      clearTimeout(delayId);
+      console.log('[TrailsPage] Cleanup - abortando requisições pendentes');
+      abortController.abort();
     };
   }, [user?.id]);
 
@@ -74,29 +84,6 @@ export const TrailsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#121212]">
-      {/* Header */}
-      <div className="bg-[#1A1A1A] border-b border-[#2A2A2A] px-4 py-4">
-        <div className="max-w-6xl mx-auto flex items-center gap-4">
-          <button
-            onClick={() => navigate('/questoes')}
-            className="p-2 hover:bg-[#2A2A2A] rounded-lg transition-colors"
-          >
-            <ArrowLeft size={24} className="text-gray-400" />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <Map size={24} className="text-emerald-500" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-white">Trilhas de Questões</h1>
-              <p className="text-gray-400 text-sm">
-                Escolha um preparatório para acessar o edital verticalizado
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Content */}
       <div className="max-w-6xl mx-auto p-4">
         {isLoading ? (
@@ -127,9 +114,10 @@ export const TrailsPage: React.FC = () => {
                 <div className="relative h-40 bg-[#2A2A2A] overflow-hidden">
                   {prep.imagem_capa ? (
                     <img
-                      src={prep.imagem_capa}
+                      src={getOptimizedImageUrl(prep.imagem_capa, 400, 80)}
                       alt={prep.nome}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -147,9 +135,10 @@ export const TrailsPage: React.FC = () => {
                   {prep.logo_url && (
                     <div className="absolute bottom-2 left-2 w-10 h-10 bg-white rounded-lg p-1 shadow-lg">
                       <img
-                        src={prep.logo_url}
+                        src={getOptimizedImageUrl(prep.logo_url, 80, 80)}
                         alt={prep.orgao || ''}
                         className="w-full h-full object-contain"
+                        loading="lazy"
                       />
                     </div>
                   )}

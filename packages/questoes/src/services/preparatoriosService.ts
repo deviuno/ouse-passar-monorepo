@@ -130,6 +130,7 @@ export async function getPreparatoriosForTrilhasStore(userId?: string): Promise<
   try {
     // Buscar preparatórios ativos com preço de trilhas configurado
     console.log('[preparatoriosService] Buscando preparatórios...');
+
     const { data: preparatorios, error } = await supabase
       .from('preparatorios')
       .select('id, nome, slug, descricao_curta, banca, orgao, imagem_capa, logo_url, preco_trilhas, preco_trilhas_desconto, checkout_trilhas')

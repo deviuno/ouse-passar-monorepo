@@ -298,6 +298,8 @@ export default function PracticePage() {
     const params = new URLSearchParams(window.location.search);
     return params.get('autostart') === 'true';
   });
+  // Ref para evitar múltiplas execuções do autostart
+  const autoStartTriggeredRef = React.useRef(false);
 
   // Estado do modo (agora 'selection', 'practicing' ou 'results')
   const [mode, setMode] = useState<'selection' | 'practicing' | 'results'>('selection');
@@ -393,6 +395,8 @@ export default function PracticePage() {
   // Sidebar do edital (para modo trilha)
   const [showEditalSidebar, setShowEditalSidebar] = useState(false);
   const trailPreparatorioId = searchParams.get('preparatorioId');
+  const editalItemTitle = searchParams.get('editalItemTitle');
+  const preparatorioSlug = searchParams.get('preparatorioSlug');
 
   // Auto-iniciar prática com questões aleatórias (true se não houver query params)
   const [shouldAutoStart, setShouldAutoStart] = useState(() => {
@@ -449,11 +453,14 @@ export default function PracticePage() {
         // Trail mode
         isTrailMode: !!trailPreparatorioId,
         onToggleEdital: () => setShowEditalSidebar(prev => !prev),
+        // Custom title and back path (for trail practice)
+        title: editalItemTitle,
+        backPath: preparatorioSlug ? `/trilhas/${preparatorioSlug}` : null,
       });
     } else {
       clearPracticeMode();
     }
-  }, [mode, sessionStats, showPracticingFilters, trailPreparatorioId]);
+  }, [mode, sessionStats, showPracticingFilters, trailPreparatorioId, editalItemTitle, preparatorioSlug]);
 
   // Clean up practice mode when unmounting
   useEffect(() => {
@@ -551,13 +558,15 @@ export default function PracticePage() {
       (expectedAssuntos.length === 0 || expectedAssuntos.every(a => filters.assunto.includes(a))) &&
       (!bancaParam || filters.banca.includes(bancaParam));
 
-    if (autoStartPending && !isLoadingFilters && !isLoadingCount && filtersApplied) {
+    if (autoStartPending && !isLoadingFilters && !isLoadingCount && filtersApplied && !autoStartTriggeredRef.current) {
+      // Usar ref para evitar múltiplas execuções
+      autoStartTriggeredRef.current = true;
       console.log('[PracticePage] Auto-iniciando prática com filtros dos query params:', {
         materia: filters.materia,
         assunto: filters.assunto,
         banca: filters.banca
       });
-      setAutoStartPending(false);
+      // Chamar startPractice - o autoStartPending permanece true até o modo mudar
       startPractice();
     }
   }, [autoStartPending, isLoadingFilters, isLoadingCount, filters, searchParams]);
@@ -570,6 +579,14 @@ export default function PracticePage() {
       startPractice();
     }
   }, [shouldAutoStart, isLoadingFilters, isLoadingCount, mode, isLoading]);
+
+  // Resetar autoStartPending quando entrar no modo 'practicing'
+  useEffect(() => {
+    if (mode === 'practicing' && autoStartPending) {
+      setAutoStartPending(false);
+      autoStartTriggeredRef.current = false;
+    }
+  }, [mode, autoStartPending]);
 
   const loadNotebooks = async () => {
     if (!user?.id) return;
@@ -1649,6 +1666,7 @@ export default function PracticePage() {
             preparatorioId={trailPreparatorioId}
             banca={filters.banca[0]}
             currentAssuntos={filters.assunto}
+            preparatorioSlug={preparatorioSlug || undefined}
           />
         )}
       </div>
@@ -2452,6 +2470,7 @@ export default function PracticePage() {
           preparatorioId={trailPreparatorioId}
           banca={filters.banca[0]}
           currentAssuntos={filters.assunto}
+          preparatorioSlug={preparatorioSlug || undefined}
         />
       )}
     </div>

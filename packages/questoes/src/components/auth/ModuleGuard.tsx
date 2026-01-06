@@ -6,7 +6,7 @@ import { ModuleName } from '../../stores/useModuleSettingsStore';
 interface ModuleGuardProps {
   module: ModuleName;
   children: React.ReactNode;
-  /** Where to redirect if module is blocked. Defaults to /praticar */
+  /** Where to redirect if module is blocked. Defaults to /questoes */
   redirectTo?: string;
 }
 
@@ -18,7 +18,7 @@ interface ModuleGuardProps {
 export function ModuleGuard({
   module,
   children,
-  redirectTo = '/praticar',
+  redirectTo = '/questoes',
 }: ModuleGuardProps) {
   const navigate = useNavigate();
   const { hasFullAccess, isLoading, [module]: config } = useModuleAccess();

@@ -22,6 +22,7 @@ import {
 import { Card, Button, Modal, Progress, CircularProgress } from '../components/ui';
 import { useAuthStore, useUserStore } from '../stores';
 import { calculateXPProgress, calculateLevel } from '../constants/levelConfig';
+import { getOptimizedImageUrl } from '../utils/image';
 import {
   getReferralLink,
   getUserReferralStats,
@@ -210,9 +211,10 @@ export default function ProfilePage() {
                 </div>
               ) : profile?.avatar_url ? (
                 <img
-                  src={profile.avatar_url}
+                  src={getOptimizedImageUrl(profile.avatar_url, 160, 80)}
                   alt="Avatar"
                   className="w-full h-full object-cover"
+                  loading="lazy"
                 />
               ) : (
                 <User size={32} className="text-[#6E6E6E]" />

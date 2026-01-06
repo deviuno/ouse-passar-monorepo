@@ -8,6 +8,7 @@ interface TrailsTabProps {
   preparatorioId: string | undefined;
   banca: string | undefined;
   preparatorioNome?: string;
+  preparatorioSlug?: string;
 }
 
 // Componente para renderizar um item do edital
@@ -46,6 +47,9 @@ const EditalItemNode: React.FC<{
   // Verificar se tem filtros configurados
   const hasFilters = (item.filtro_materias?.length > 0) || (item.filtro_assuntos?.length > 0);
 
+  // Tópicos com filtros são clicáveis para praticar
+  const isClickableTopic = item.tipo === 'topico' && hasFilters;
+
   const paddingLeft = 16 + level * 20;
 
   // Cor de fundo baseada no tipo
@@ -55,12 +59,21 @@ const EditalItemNode: React.FC<{
     return 'hover:bg-[#252525]';
   };
 
+  // Handler para clique na linha
+  const handleRowClick = () => {
+    if (isClickableTopic) {
+      onPraticar(item);
+    } else if (hasChildren) {
+      toggleExpanded(item.id);
+    }
+  };
+
   return (
     <div>
       <div
         className={`flex items-center justify-between py-3 px-4 cursor-pointer transition-colors ${getBgColor()} border-b border-[#2A2A2A]`}
         style={{ paddingLeft }}
-        onClick={() => hasChildren && toggleExpanded(item.id)}
+        onClick={handleRowClick}
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {/* Botão de expandir */}
@@ -153,7 +166,8 @@ const EditalItemNode: React.FC<{
 export const TrailsTab: React.FC<TrailsTabProps> = ({
   preparatorioId,
   banca,
-  preparatorioNome
+  preparatorioNome,
+  preparatorioSlug
 }) => {
   const navigate = useNavigate();
   const [editalTree, setEditalTree] = useState<EditalItemWithChildren[]>([]);
@@ -179,6 +193,12 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
 
     // Identificador do preparatório (para mostrar sidebar do edital)
     if (preparatorioId) params.set('preparatorioId', preparatorioId);
+
+    // Título do item do edital (para header)
+    params.set('editalItemTitle', item.titulo);
+
+    // Slug do preparatório (para navegação de volta)
+    if (preparatorioSlug) params.set('preparatorioSlug', preparatorioSlug);
 
     params.set('autostart', 'true');
 

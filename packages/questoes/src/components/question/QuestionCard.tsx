@@ -13,6 +13,7 @@ import { useHorizontalSwipe } from '../../hooks/useSwipe';
 import RippleEffect from '../ui/RippleEffect';
 import { validateQuestion } from '../../utils/questionValidator';
 import CorruptedQuestionCard from './CorruptedQuestionCard';
+import { getOptimizedImageUrl } from '../../utils/image';
 
 interface QuestionCardProps {
   question: ParsedQuestion;
@@ -434,7 +435,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
             img: ({ src, alt }) => (
               <img
-                src={src}
+                src={getOptimizedImageUrl(src, 800, 85)}
                 alt={alt || 'Imagem da questão'}
                 className="max-w-full h-auto rounded-lg my-3 border border-gray-700"
                 loading="lazy"
@@ -605,7 +606,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                         code: ({ children }) => <code className="bg-gray-800 px-1.5 py-0.5 rounded text-[#FFB800] text-sm">{children}</code>,
                         img: ({ src, alt }) => (
                           <img
-                            src={src}
+                            src={getOptimizedImageUrl(src, 800, 85)}
                             alt={alt || 'Imagem da questão'}
                             className="max-w-full h-auto rounded-lg my-3 border border-gray-700"
                             loading="lazy"
@@ -627,26 +628,28 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
 
             {/* 4. Bottom Nav Buttons */}
             <div className="flex space-x-3 pb-4 border-b border-gray-800 mb-6">
-              {/* Botão de Report (primeiro, ao lado do Tirar Dúvida) */}
+              {/* Botão de Report - estilo secundário */}
               <button
                 onClick={() => setShowReportModal(true)}
-                className="w-12 h-12 flex items-center justify-center bg-[#2A2A2A] text-[#E74C3C] border border-[#E74C3C] rounded-full hover:bg-[#E74C3C]/10 transition-colors flex-shrink-0"
+                className="w-12 h-12 flex items-center justify-center bg-transparent text-gray-400 border border-[#4A4A4A] rounded-full hover:bg-[#2A2A2A] hover:text-white transition-colors flex-shrink-0"
                 title="Reportar problema"
               >
                 <Flag size={18} />
               </button>
 
+              {/* Botão Tirar Dúvida - estilo secundário */}
               <button
                 onClick={onOpenTutor}
-                className="flex-1 flex items-center justify-center py-3 bg-[#2A2A2A] text-white border border-[#FFB800] rounded-full font-semibold hover:bg-[#333]"
+                className="flex-1 flex items-center justify-center py-3 bg-transparent text-gray-300 border border-[#4A4A4A] rounded-full font-medium hover:bg-[#2A2A2A] hover:text-white transition-colors"
               >
-                <MessageCircle size={18} className="mr-2 text-[#FFB800]" />
+                <MessageCircle size={18} className="mr-2 text-gray-400" />
                 Tirar Dúvida
               </button>
 
+              {/* Botão Próxima Questão - estilo primário */}
               <button
                 onClick={onNext}
-                className="flex-1 py-3 bg-gray-800 text-gray-300 border border-gray-700 rounded-full font-medium hover:bg-gray-700"
+                className="flex-1 py-3 bg-[#FFB800] text-black rounded-full font-bold hover:bg-[#FFC933] transition-colors"
               >
                 {isLastQuestion ? 'Finalizar' : 'Próxima Questão'}
               </button>

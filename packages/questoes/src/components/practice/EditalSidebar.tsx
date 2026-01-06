@@ -10,6 +10,7 @@ interface EditalSidebarProps {
   preparatorioId: string;
   banca?: string;
   currentAssuntos?: string[]; // Para destacar o tópico atual
+  preparatorioSlug?: string; // Para navegação de volta
 }
 
 // Componente para renderizar um item do edital no sidebar
@@ -25,6 +26,9 @@ const EditalItemNode: React.FC<{
   const isExpanded = expandedNodes.has(item.id);
   const hasChildren = item.children && item.children.length > 0;
   const hasFilters = (item.filtro_materias?.length > 0) || (item.filtro_assuntos?.length > 0);
+
+  // Tópicos com filtros são clicáveis para praticar
+  const isClickableTopic = item.tipo === 'topico' && hasFilters;
 
   // Verificar se este é o tópico atual
   const isCurrentTopic = currentAssuntos && item.filtro_assuntos &&
@@ -50,6 +54,18 @@ const EditalItemNode: React.FC<{
 
   const paddingLeft = 12 + level * 16;
 
+  // Handler para clique na linha
+  const handleRowClick = () => {
+    // Se é o tópico atual, não fazer nada
+    if (isCurrentTopic) return;
+
+    if (isClickableTopic) {
+      onPraticar(item);
+    } else if (hasChildren) {
+      toggleExpanded(item.id);
+    }
+  };
+
   return (
     <div>
       <div
@@ -57,7 +73,7 @@ const EditalItemNode: React.FC<{
           isCurrentTopic ? 'bg-[#FFB800]/10 border-l-2 border-l-[#FFB800]' : 'hover:bg-[#252525]'
         }`}
         style={{ paddingLeft }}
-        onClick={() => hasChildren && toggleExpanded(item.id)}
+        onClick={handleRowClick}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {/* Botão de expandir */}
@@ -158,6 +174,7 @@ export const EditalSidebar: React.FC<EditalSidebarProps> = ({
   preparatorioId,
   banca,
   currentAssuntos,
+  preparatorioSlug,
 }) => {
   const navigate = useNavigate();
   const [editalTree, setEditalTree] = useState<EditalItemWithChildren[]>([]);
@@ -179,6 +196,13 @@ export const EditalSidebar: React.FC<EditalSidebarProps> = ({
 
     if (banca) params.set('banca', banca);
     if (preparatorioId) params.set('preparatorioId', preparatorioId);
+
+    // Título do item do edital (para header)
+    params.set('editalItemTitle', item.titulo);
+
+    // Slug do preparatório (para navegação de volta)
+    if (preparatorioSlug) params.set('preparatorioSlug', preparatorioSlug);
+
     params.set('autostart', 'true');
 
     onClose();
@@ -197,28 +221,16 @@ export const EditalSidebar: React.FC<EditalSidebarProps> = ({
         const tree = await editalService.getTreeByPreparatorio(preparatorioId);
         setEditalTree(tree);
 
-        // Expandir blocos e primeira matéria
-        const blocosIds = tree
-          .filter((item) => item.tipo === 'bloco')
-          .map((item) => item.id);
-
-        let firstMateriaId: string | null = null;
-        for (const item of tree) {
-          if (item.tipo === 'materia') {
-            firstMateriaId = item.id;
-            break;
-          } else if (item.children) {
-            const materia = item.children.find((c) => c.tipo === 'materia');
-            if (materia) {
-              firstMateriaId = materia.id;
-              break;
-            }
-          }
-        }
-
-        const initialExpanded = new Set(blocosIds);
-        if (firstMateriaId) initialExpanded.add(firstMateriaId);
-        setExpandedNodes(initialExpanded);
+        // Expandir TODOS os nós por padrão
+        const allIds = new Set<string>();
+        const collectAllIds = (items: EditalItemWithChildren[]) => {
+          items.forEach((item) => {
+            allIds.add(item.id);
+            if (item.children) collectAllIds(item.children);
+          });
+        };
+        collectAllIds(tree);
+        setExpandedNodes(allIds);
       } catch (err) {
         console.error('[EditalSidebar] Erro ao carregar edital:', err);
         setError('Erro ao carregar edital');

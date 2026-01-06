@@ -38,8 +38,7 @@ export const TrailEditalPage: React.FC = () => {
   }, [preparatorio, setHeaderOverride]);
 
   useEffect(() => {
-    let isMounted = true;
-    let timeoutId: ReturnType<typeof setTimeout>;
+    const abortController = new AbortController();
 
     async function loadData() {
       if (!slug) {
@@ -51,32 +50,31 @@ export const TrailEditalPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      // Timeout de segurança de 10 segundos
-      timeoutId = setTimeout(() => {
-        if (isMounted) {
-          console.warn('[TrailEditalPage] Timeout ao carregar dados');
-          setError('Tempo limite excedido. Tente novamente.');
-          setIsLoading(false);
-        }
-      }, 10000);
-
       try {
+        console.log('[TrailEditalPage] Buscando preparatório:', slug);
+
         // Buscar preparatório pelo slug
         const { data: prep, error: prepError } = await supabase
           .from('preparatorios')
           .select('*')
           .eq('slug', slug)
           .eq('is_active', true)
-          .single();
+          .single()
+          .abortSignal(abortController.signal);
 
-        if (!isMounted) return;
+        if (abortController.signal.aborted) {
+          console.log('[TrailEditalPage] Requisição abortada');
+          return;
+        }
 
         if (prepError || !prep) {
+          console.error('[TrailEditalPage] Erro ao buscar preparatório:', prepError);
           setError('Preparatório não encontrado');
           setIsLoading(false);
           return;
         }
 
+        console.log('[TrailEditalPage] Preparatório encontrado:', prep.nome);
         setPreparatorio(prep);
 
         // Verificar se usuário tem acesso
@@ -86,24 +84,26 @@ export const TrailEditalPage: React.FC = () => {
             .select('id')
             .eq('user_id', user.id)
             .eq('preparatorio_id', prep.id)
-            .limit(1);
+            .limit(1)
+            .abortSignal(abortController.signal);
 
-          if (isMounted) {
+          if (!abortController.signal.aborted) {
             setHasAccess(!!(userTrail && userTrail.length > 0));
           }
         } else {
-          if (isMounted) {
+          if (!abortController.signal.aborted) {
             setHasAccess(false);
           }
         }
-      } catch (err) {
-        console.error('Erro ao carregar dados:', err);
-        if (isMounted) {
-          setError('Erro ao carregar dados');
+      } catch (err: any) {
+        if (err?.name === 'AbortError' || abortController.signal.aborted) {
+          console.log('[TrailEditalPage] Requisição cancelada');
+          return;
         }
+        console.error('[TrailEditalPage] Erro ao carregar dados:', err);
+        setError('Erro ao carregar dados');
       } finally {
-        if (isMounted) {
-          clearTimeout(timeoutId);
+        if (!abortController.signal.aborted) {
           setIsLoading(false);
         }
       }
@@ -112,8 +112,8 @@ export const TrailEditalPage: React.FC = () => {
     loadData();
 
     return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
+      console.log('[TrailEditalPage] Cleanup - abortando requisições');
+      abortController.abort();
     };
   }, [slug, user?.id]);
 
@@ -188,6 +188,7 @@ export const TrailEditalPage: React.FC = () => {
           preparatorioId={preparatorio.id}
           banca={preparatorio.banca}
           preparatorioNome={preparatorio.nome}
+          preparatorioSlug={slug}
         />
       </div>
     </div>

@@ -17,6 +17,7 @@ import {
   StoreItem,
   UserInventoryItem
 } from '../services/storeService';
+import { getOptimizedImageUrl } from '../utils/image';
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   'avatares': User,
@@ -114,7 +115,7 @@ function StoreItemCard({
             {isTheme && item.metadata ? (
               <ThemePreview metadata={item.metadata} />
             ) : item.image_url ? (
-              <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+              <img src={getOptimizedImageUrl(item.image_url, 200, 80)} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
             ) : item.icon ? (
               <span>{item.icon}</span>
             ) : (
@@ -386,7 +387,7 @@ export default function StorePage() {
           <div className="text-center">
             <div className="w-20 h-20 rounded-2xl bg-[#3A3A3A] flex items-center justify-center mx-auto mb-4 overflow-hidden">
               {selectedItem.image_url ? (
-                <img src={selectedItem.image_url} alt={selectedItem.name} className="w-full h-full object-cover" />
+                <img src={getOptimizedImageUrl(selectedItem.image_url, 160, 80)} alt={selectedItem.name} className="w-full h-full object-cover" loading="lazy" />
               ) : selectedItem.icon ? (
                 <span className="text-5xl">{selectedItem.icon}</span>
               ) : (

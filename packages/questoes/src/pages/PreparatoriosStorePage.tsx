@@ -13,6 +13,7 @@ import { Button, Modal } from '../components/ui';
 import { Preparatorio, UserLevel } from '../types';
 import { userPreparatoriosService } from '../services';
 import { useAuthStore, useTrailStore, useUIStore } from '../stores';
+import { getOptimizedImageUrl } from '../utils/image';
 
 export default function PreparatoriosStorePage() {
   const navigate = useNavigate();
@@ -162,9 +163,10 @@ export default function PreparatoriosStorePage() {
               <div className="relative h-[17rem] w-full">
                 {selectedPrep.imagem_capa ? (
                   <img
-                    src={selectedPrep.imagem_capa}
+                    src={getOptimizedImageUrl(selectedPrep.imagem_capa, 600, 80)}
                     alt={selectedPrep.nome}
                     className="w-full h-full object-cover rounded-t-2xl"
+                    loading="lazy"
                   />
                 ) : (
                   <div
@@ -285,9 +287,10 @@ function PreparatorioCard({
       <div className="w-full aspect-[4/3] bg-[#333] relative overflow-hidden">
         {preparatorio.imagem_capa ? (
           <img
-            src={preparatorio.imagem_capa}
+            src={getOptimizedImageUrl(preparatorio.imagem_capa, 400, 80)}
             alt={preparatorio.nome}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            loading="lazy"
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#333] to-[#252525]">

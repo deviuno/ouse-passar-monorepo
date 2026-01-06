@@ -17,6 +17,7 @@ import {
   UserBoost,
   StoreItem
 } from '../services/storeService';
+import { getOptimizedImageUrl } from '../utils/image';
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   'avatar': User,
@@ -58,7 +59,7 @@ function InventoryItemCard({
       <div className="flex items-start gap-4">
         <div className="w-14 h-14 rounded-xl bg-[#3A3A3A] flex items-center justify-center text-3xl overflow-hidden flex-shrink-0">
           {item.image_url ? (
-            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+            <img src={getOptimizedImageUrl(item.image_url, 112, 80)} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
           ) : item.icon ? (
             <span>{item.icon}</span>
           ) : (
@@ -415,7 +416,7 @@ export default function InventoryPage() {
           <div className="text-center">
             <div className="w-20 h-20 rounded-2xl bg-[#3A3A3A] flex items-center justify-center mx-auto mb-4 overflow-hidden">
               {selectedItem.item.image_url ? (
-                <img src={selectedItem.item.image_url} alt={selectedItem.item.name} className="w-full h-full object-cover" />
+                <img src={getOptimizedImageUrl(selectedItem.item.image_url, 160, 80)} alt={selectedItem.item.name} className="w-full h-full object-cover" loading="lazy" />
               ) : selectedItem.item.icon ? (
                 <span className="text-5xl">{selectedItem.item.icon}</span>
               ) : (

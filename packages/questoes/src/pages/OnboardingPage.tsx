@@ -26,6 +26,7 @@ import {
 import { UserLevel, WeeklySchedule, DAYS_OF_WEEK, Preparatorio } from '../types';
 import { getPreparatorios, userPreparatoriosService } from '../services';
 import { calcularQuestoesPorSchedule, descreverCalculoQuestoes } from '../lib';
+import { getOptimizedImageUrl } from '../utils/image';
 
 // ============================================
 // PASSO 0: INÍCIO (Já tem conta? ou Criar conta)
@@ -371,9 +372,10 @@ function ConcursoStep({
               <div className="w-full aspect-[4/3] bg-[#333] relative overflow-hidden">
                 {prep.imagem_capa ? (
                   <img
-                    src={prep.imagem_capa}
+                    src={getOptimizedImageUrl(prep.imagem_capa, 400, 80)}
                     alt={prep.nome}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    loading="lazy"
                   />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#333] to-[#252525]">
