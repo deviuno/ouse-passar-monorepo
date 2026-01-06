@@ -292,7 +292,11 @@ export default function PracticePage() {
 
   // Query params para abrir com filtros pré-definidos
   const [searchParams] = useSearchParams();
-  const [autoStartPending, setAutoStartPending] = useState(false);
+  // Inicializar autoStartPending baseado na URL para evitar flash da tela de seleção
+  const [autoStartPending, setAutoStartPending] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('autostart') === 'true';
+  });
 
   // Estado do modo (agora 'selection', 'practicing' ou 'results')
   const [mode, setMode] = useState<'selection' | 'practicing' | 'results'>('selection');
