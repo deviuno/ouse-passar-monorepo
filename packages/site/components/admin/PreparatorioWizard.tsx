@@ -1015,35 +1015,36 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
         />
       </div>
 
-      {/* Plataforma Completa */}
-      <ProductPriceCard
-        title="Plataforma Completa"
-        icon="🚀"
-        description="Acesso a todos os produtos acima + recursos exclusivos"
-        precoValue={formData.precoPlataformaCompleta}
-        descontoValue={formData.precoPlataformaCompletaDesconto}
-        checkoutValue={formData.checkoutPlataformaCompleta}
-        guruProductIdValue={formData.guruProductIdPlataformaCompleta}
-        onPrecoChange={(v) => updateField('precoPlataformaCompleta', v)}
-        onDescontoChange={(v) => updateField('precoPlataformaCompletaDesconto', v)}
-        onCheckoutChange={(v) => updateField('checkoutPlataformaCompleta', v)}
-        onGuruProductIdChange={(v) => updateField('guruProductIdPlataformaCompleta', v)}
-      />
+      {/* Plataforma Completa + Trilhas de Questões */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ProductPriceCard
+          title="Plataforma Completa"
+          icon="🚀"
+          description="Acesso a todos os produtos acima + recursos exclusivos"
+          precoValue={formData.precoPlataformaCompleta}
+          descontoValue={formData.precoPlataformaCompletaDesconto}
+          checkoutValue={formData.checkoutPlataformaCompleta}
+          guruProductIdValue={formData.guruProductIdPlataformaCompleta}
+          onPrecoChange={(v) => updateField('precoPlataformaCompleta', v)}
+          onDescontoChange={(v) => updateField('precoPlataformaCompletaDesconto', v)}
+          onCheckoutChange={(v) => updateField('checkoutPlataformaCompleta', v)}
+          onGuruProductIdChange={(v) => updateField('guruProductIdPlataformaCompleta', v)}
+        />
 
-      {/* Trilhas de Questões */}
-      <ProductPriceCard
-        title="Trilhas de Questões"
-        icon="🎯"
-        description="Edital verticalizado com prática guiada de questões"
-        precoValue={formData.precoTrilhas}
-        descontoValue={formData.precoTrilhasDesconto}
-        checkoutValue={formData.checkoutTrilhas}
-        guruProductIdValue={formData.guruProductIdTrilhas}
-        onPrecoChange={(v) => updateField('precoTrilhas', v)}
-        onDescontoChange={(v) => updateField('precoTrilhasDesconto', v)}
-        onCheckoutChange={(v) => updateField('checkoutTrilhas', v)}
-        onGuruProductIdChange={(v) => updateField('guruProductIdTrilhas', v)}
-      />
+        <ProductPriceCard
+          title="Trilhas de Questões"
+          icon="🎯"
+          description="Edital verticalizado com prática guiada de questões"
+          precoValue={formData.precoTrilhas}
+          descontoValue={formData.precoTrilhasDesconto}
+          checkoutValue={formData.checkoutTrilhas}
+          guruProductIdValue={formData.guruProductIdTrilhas}
+          onPrecoChange={(v) => updateField('precoTrilhas', v)}
+          onDescontoChange={(v) => updateField('precoTrilhasDesconto', v)}
+          onCheckoutChange={(v) => updateField('checkoutTrilhas', v)}
+          onGuruProductIdChange={(v) => updateField('guruProductIdTrilhas', v)}
+        />
+      </div>
 
       {/* Descrições */}
       <div className="border-t border-white/10 pt-6 space-y-4">

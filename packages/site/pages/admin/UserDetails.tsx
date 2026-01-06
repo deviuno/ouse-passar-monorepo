@@ -19,6 +19,8 @@ import {
   Zap,
   RefreshCw,
   Infinity,
+  Plus,
+  Check,
 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import {
@@ -26,7 +28,10 @@ import {
   updateUserProfile,
   updateUserSettings,
   rechargeBattery,
+  getAvailablePreparatorios,
+  addUserPreparatorio,
   UserDetailsData,
+  AvailablePreparatorio,
 } from '../../services/userDetailsService';
 
 export const UserDetails: React.FC = () => {
@@ -45,6 +50,14 @@ export const UserDetails: React.FC = () => {
     email: '',
   });
   const [rechargingTrailId, setRechargingTrailId] = useState<string | null>(null);
+
+  // Modal state for adding preparatorios
+  const [showAddPrepModal, setShowAddPrepModal] = useState(false);
+  const [availablePreps, setAvailablePreps] = useState<AvailablePreparatorio[]>([]);
+  const [loadingPreps, setLoadingPreps] = useState(false);
+  const [selectedPrepId, setSelectedPrepId] = useState<string | null>(null);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [addingPrep, setAddingPrep] = useState(false);
 
   useEffect(() => {
     if (userId) {
@@ -166,6 +179,58 @@ export const UserDetails: React.FC = () => {
 
     setRechargingTrailId(null);
   };
+
+  const handleOpenAddPrepModal = async () => {
+    setShowAddPrepModal(true);
+    setSelectedPrepId(null);
+    setSelectedProducts([]);
+    setLoadingPreps(true);
+
+    const { data: preps, error: err } = await getAvailablePreparatorios();
+    if (err) {
+      toast.error(`Erro ao carregar preparatórios: ${err}`);
+    } else {
+      setAvailablePreps(preps || []);
+    }
+    setLoadingPreps(false);
+  };
+
+  const handleSelectPrep = (prepId: string) => {
+    setSelectedPrepId(prepId);
+    setSelectedProducts([]);
+  };
+
+  const handleToggleProduct = (productType: string) => {
+    setSelectedProducts((prev) =>
+      prev.includes(productType)
+        ? prev.filter((p) => p !== productType)
+        : [...prev, productType]
+    );
+  };
+
+  const handleAddPreparatorio = async () => {
+    if (!userId || !selectedPrepId || selectedProducts.length === 0) return;
+
+    setAddingPrep(true);
+
+    const { success, error: err } = await addUserPreparatorio(
+      userId,
+      selectedPrepId,
+      selectedProducts
+    );
+
+    if (err) {
+      toast.error(`Erro ao adicionar preparatório: ${err}`);
+    } else if (success) {
+      toast.success('Preparatório adicionado com sucesso!');
+      setShowAddPrepModal(false);
+      loadUserDetails(); // Reload to show the new preparatorio
+    }
+
+    setAddingPrep(false);
+  };
+
+  const selectedPrep = availablePreps.find((p) => p.id === selectedPrepId);
 
   if (loading) {
     return (
@@ -406,9 +471,18 @@ export const UserDetails: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Preparatorios */}
         <div className="bg-brand-card border border-white/5 rounded-sm p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <BookOpen className="w-5 h-5 text-brand-yellow" />
-            <h3 className="text-white font-bold uppercase tracking-wide">Preparatórios Contratados</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-brand-yellow" />
+              <h3 className="text-white font-bold uppercase tracking-wide">Preparatórios Contratados</h3>
+            </div>
+            <button
+              onClick={handleOpenAddPrepModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-yellow text-black text-sm font-bold rounded hover:bg-yellow-400 transition-colors"
+            >
+              <Plus size={16} />
+              Novo
+            </button>
           </div>
 
           {preparatorios.length === 0 ? (
@@ -570,6 +644,151 @@ export const UserDetails: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal: Adicionar Preparatório */}
+      {showAddPrepModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-card border border-white/10 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="text-white font-bold text-lg">Adicionar Preparatório</h2>
+              <button
+                onClick={() => setShowAddPrepModal(false)}
+                className="p-1 text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {loadingPreps ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 text-brand-yellow animate-spin" />
+                </div>
+              ) : (
+                <>
+                  {/* Step 1: Select Preparatorio */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
+                      1. Selecione o Preparatório
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                      {availablePreps.map((prep) => (
+                        <button
+                          key={prep.id}
+                          onClick={() => handleSelectPrep(prep.id)}
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                            selectedPrepId === prep.id
+                              ? 'border-brand-yellow bg-brand-yellow/10'
+                              : 'border-white/10 hover:border-white/30 bg-brand-dark/50'
+                          }`}
+                        >
+                          {prep.logo_url ? (
+                            <img
+                              src={prep.logo_url}
+                              alt={prep.nome}
+                              className="w-10 h-10 rounded object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-brand-yellow/20 flex items-center justify-center">
+                              <BookOpen className="w-5 h-5 text-brand-yellow" />
+                            </div>
+                          )}
+                          <span className={`text-sm font-medium ${selectedPrepId === prep.id ? 'text-brand-yellow' : 'text-white'}`}>
+                            {prep.nome}
+                          </span>
+                          {selectedPrepId === prep.id && (
+                            <Check className="w-4 h-4 text-brand-yellow ml-auto" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Step 2: Select Products */}
+                  {selectedPrep && (
+                    <div className="border-t border-white/10 pt-4">
+                      <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
+                        2. Selecione os Produtos
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {selectedPrep.products.map((product) => (
+                          <button
+                            key={product.type}
+                            onClick={() => product.available && handleToggleProduct(product.type)}
+                            disabled={!product.available}
+                            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                              !product.available
+                                ? 'border-white/5 bg-brand-dark/30 cursor-not-allowed opacity-50'
+                                : selectedProducts.includes(product.type)
+                                ? 'border-green-500 bg-green-500/10'
+                                : 'border-white/10 hover:border-white/30 bg-brand-dark/50'
+                            }`}
+                          >
+                            <div
+                              className={`w-5 h-5 rounded border flex items-center justify-center ${
+                                selectedProducts.includes(product.type)
+                                  ? 'bg-green-500 border-green-500'
+                                  : 'border-white/30'
+                              }`}
+                            >
+                              {selectedProducts.includes(product.type) && (
+                                <Check className="w-3 h-3 text-white" />
+                              )}
+                            </div>
+                            <span
+                              className={`text-sm ${
+                                !product.available
+                                  ? 'text-gray-500'
+                                  : selectedProducts.includes(product.type)
+                                  ? 'text-green-400 font-medium'
+                                  : 'text-white'
+                              }`}
+                            >
+                              {product.name}
+                            </span>
+                            {!product.available && (
+                              <span className="text-xs text-gray-500 ml-auto">(Não disponível)</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-white/10">
+              <button
+                onClick={() => setShowAddPrepModal(false)}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAddPreparatorio}
+                disabled={!selectedPrepId || selectedProducts.length === 0 || addingPrep}
+                className="flex items-center gap-2 px-4 py-2 bg-brand-yellow text-black font-bold rounded hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {addingPrep ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Adicionando...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={16} />
+                    Adicionar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

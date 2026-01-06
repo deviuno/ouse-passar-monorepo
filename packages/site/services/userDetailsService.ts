@@ -391,3 +391,200 @@ export async function rechargeBattery(
     return { success: false, error: err.message };
   }
 }
+
+export interface AvailablePreparatorio {
+  id: string;
+  nome: string;
+  slug: string;
+  logo_url?: string;
+  products: {
+    type: string;
+    name: string;
+    available: boolean;
+  }[];
+}
+
+/**
+ * Get all available preparatórios with their products for admin to assign to users
+ */
+export async function getAvailablePreparatorios(): Promise<{
+  data: AvailablePreparatorio[] | null;
+  error: string | null;
+}> {
+  try {
+    const { data: preparatorios, error } = await supabase
+      .from('preparatorios')
+      .select('id, nome, slug, logo_url, preco_planejador, preco_simulados, preco_reta_final, preco_plataforma_completa, preco_trilhas, preco_8_questoes, checkout_ouse_questoes')
+      .eq('is_active', true)
+      .order('nome');
+
+    if (error) {
+      console.error('[userDetailsService] Error fetching preparatorios:', error);
+      return { data: null, error: error.message };
+    }
+
+    const result: AvailablePreparatorio[] = (preparatorios || []).map((prep: any) => ({
+      id: prep.id,
+      nome: prep.nome,
+      slug: prep.slug,
+      logo_url: prep.logo_url,
+      products: [
+        { type: 'planejador', name: 'Planejador', available: !!prep.preco_planejador },
+        { type: 'simulado', name: 'Simulados', available: !!prep.preco_simulados },
+        { type: 'reta_final', name: 'Reta Final', available: !!prep.preco_reta_final },
+        { type: 'turma_elite', name: 'Turma de Elite (Questões)', available: !!prep.preco_8_questoes || !!prep.checkout_ouse_questoes },
+        { type: 'trilha_questoes', name: 'Trilha de Questões', available: !!prep.preco_trilhas },
+        { type: 'plataforma_completa', name: 'Plataforma Completa', available: !!prep.preco_plataforma_completa },
+      ],
+    }));
+
+    return { data: result, error: null };
+  } catch (err: any) {
+    console.error('[userDetailsService] Exception:', err);
+    return { data: null, error: err.message };
+  }
+}
+
+/**
+ * Add preparatorio products to a user
+ */
+export async function addUserPreparatorio(
+  userId: string,
+  preparatorioId: string,
+  productTypes: string[]
+): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const errors: string[] = [];
+
+    for (const productType of productTypes) {
+      let insertError = null;
+
+      switch (productType) {
+        case 'planejador':
+          // Get planejamento_id for this preparatorio
+          const { data: planejamento } = await supabase
+            .from('planejamentos')
+            .select('id')
+            .eq('preparatorio_id', preparatorioId)
+            .limit(1)
+            .single();
+
+          if (planejamento) {
+            const { error } = await supabase
+              .from('leads' as any)
+              .upsert({
+                user_id: userId,
+                planejamento_id: planejamento.id,
+                created_at: new Date().toISOString(),
+              } as any, { onConflict: 'user_id,planejamento_id' });
+            insertError = error;
+          } else {
+            errors.push('Planejamento não encontrado para este preparatório');
+          }
+          break;
+
+        case 'turma_elite':
+        case 'trilha_questoes':
+          // Add to user_trails
+          const { error: trailError } = await supabase
+            .from('user_trails' as any)
+            .upsert({
+              user_id: userId,
+              preparatorio_id: preparatorioId,
+              is_reta_final: false,
+              battery_current: 100,
+              has_unlimited_battery: false,
+              bonus_battery: 0,
+              created_at: new Date().toISOString(),
+            }, { onConflict: 'user_id,preparatorio_id' });
+          insertError = trailError;
+          break;
+
+        case 'reta_final':
+          // Add to user_trails with is_reta_final = true
+          const { error: retaError } = await supabase
+            .from('user_trails' as any)
+            .upsert({
+              user_id: userId,
+              preparatorio_id: preparatorioId,
+              is_reta_final: true,
+              battery_current: 100,
+              has_unlimited_battery: false,
+              bonus_battery: 0,
+              created_at: new Date().toISOString(),
+            }, { onConflict: 'user_id,preparatorio_id' });
+          insertError = retaError;
+          break;
+
+        case 'simulado':
+          // Simulados are typically stored in user_courses, check if there's a course for this preparatorio
+          const { data: simuladoCourse } = await supabase
+            .from('courses' as any)
+            .select('id')
+            .eq('preparatorio_id', preparatorioId)
+            .eq('course_type', 'Simulado')
+            .limit(1)
+            .single();
+
+          if (simuladoCourse) {
+            const { error } = await supabase
+              .from('user_courses' as any)
+              .upsert({
+                user_id: userId,
+                course_id: (simuladoCourse as any).id,
+                purchased_at: new Date().toISOString(),
+              } as any, { onConflict: 'user_id,course_id' });
+            insertError = error;
+          } else {
+            // If no course exists, add to user_trails as fallback
+            const { error } = await supabase
+              .from('user_trails' as any)
+              .upsert({
+                user_id: userId,
+                preparatorio_id: preparatorioId,
+                is_reta_final: false,
+                battery_current: 100,
+                has_unlimited_battery: false,
+                bonus_battery: 0,
+                created_at: new Date().toISOString(),
+              }, { onConflict: 'user_id,preparatorio_id' });
+            insertError = error;
+          }
+          break;
+
+        case 'plataforma_completa':
+          // Plataforma completa gives access to everything - add to user_trails with unlimited battery
+          const { error: plataformaError } = await supabase
+            .from('user_trails' as any)
+            .upsert({
+              user_id: userId,
+              preparatorio_id: preparatorioId,
+              is_reta_final: false,
+              battery_current: 100,
+              has_unlimited_battery: true,
+              bonus_battery: 0,
+              created_at: new Date().toISOString(),
+            }, { onConflict: 'user_id,preparatorio_id' });
+          insertError = plataformaError;
+          break;
+
+        default:
+          errors.push(`Tipo de produto desconhecido: ${productType}`);
+      }
+
+      if (insertError) {
+        console.error(`[userDetailsService] Error adding ${productType}:`, insertError);
+        errors.push(`Erro ao adicionar ${productType}: ${insertError.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      return { success: false, error: errors.join('; ') };
+    }
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('[userDetailsService] Exception:', err);
+    return { success: false, error: err.message };
+  }
+}

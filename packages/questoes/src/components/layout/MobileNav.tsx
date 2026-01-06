@@ -35,7 +35,8 @@ export function MobileNav() {
         <div className="flex items-center justify-around h-16 px-2">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path ||
-              (item.path === '/' && location.pathname === '/trilha');
+              (item.path === '/' && location.pathname === '/trilha') ||
+              (item.path === '/questoes' && ['/questoes', '/praticar', '/cadernos'].includes(location.pathname));
             const Icon = item.icon;
 
             // Get module access config for this nav item

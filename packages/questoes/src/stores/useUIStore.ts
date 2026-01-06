@@ -47,6 +47,18 @@ interface UIState {
   completeTour: () => void;
   skipTour: () => void;
   checkTourStatus: () => void;
+
+  // Practice Mode (for Header integration)
+  practiceMode: {
+    isActive: boolean;
+    correctCount: number;
+    wrongCount: number;
+    showFilters: boolean;
+    onBack: (() => void) | null;
+    onToggleFilters: (() => void) | null;
+  };
+  setPracticeMode: (mode: Partial<UIState['practiceMode']>) => void;
+  clearPracticeMode: () => void;
 }
 
 let toastIdCounter = 0;
@@ -130,6 +142,31 @@ export const useUIStore = create<UIState>()((set, get) => ({
     const completed = localStorage.getItem('ousepassar_tour_completed') === 'true';
     set({ isTourCompleted: completed });
   },
+
+  // Practice Mode
+  practiceMode: {
+    isActive: false,
+    correctCount: 0,
+    wrongCount: 0,
+    showFilters: false,
+    onBack: null,
+    onToggleFilters: null,
+  },
+  setPracticeMode: (mode) =>
+    set((state) => ({
+      practiceMode: { ...state.practiceMode, ...mode },
+    })),
+  clearPracticeMode: () =>
+    set({
+      practiceMode: {
+        isActive: false,
+        correctCount: 0,
+        wrongCount: 0,
+        showFilters: false,
+        onBack: null,
+        onToggleFilters: null,
+      },
+    }),
 }));
 
 // Helper hooks for common toast patterns

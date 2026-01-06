@@ -243,7 +243,8 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
         <ul className="space-y-1">
           {mainNavItems.map((item) => {
             const isActive = location.pathname === item.path ||
-              (item.path === '/' && location.pathname === '/trilha');
+              (item.path === '/' && location.pathname === '/trilha') ||
+              (item.path === '/questoes' && ['/questoes', '/praticar', '/cadernos'].includes(location.pathname));
             const Icon = item.icon;
 
             // Get module access config for this nav item

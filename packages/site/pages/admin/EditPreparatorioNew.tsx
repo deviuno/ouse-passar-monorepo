@@ -156,13 +156,18 @@ export const EditPreparatorioNew: React.FC = () => {
         preco_plataforma_completa_desconto: parseNumber(data.precoPlataformaCompletaDesconto),
         checkout_plataforma_completa: data.checkoutPlataformaCompleta || undefined,
         guru_product_id_plataforma_completa: data.guruProductIdPlataformaCompleta || undefined,
+        // Trilhas de Questões
+        preco_trilhas: parseNumber(data.precoTrilhas),
+        preco_trilhas_desconto: parseNumber(data.precoTrilhasDesconto),
+        checkout_trilhas: data.checkoutTrilhas || undefined,
+        guru_product_id_trilhas: data.guruProductIdTrilhas || undefined,
         // Campos legados
         preco: parseNumber(data.precoPlanejador),
         preco_desconto: parseNumber(data.precoPlanejadorDesconto),
         checkout_url: data.checkoutPlanejador || undefined,
         descricao_curta: data.descricaoCurta || undefined,
         descricao_vendas: data.descricaoVendas || undefined,
-      });
+      } as any);
 
       setShowSuccess(true);
       toast.success('Preparatório atualizado com sucesso!');
@@ -259,6 +264,11 @@ export const EditPreparatorioNew: React.FC = () => {
       precoPlataformaCompletaDesconto: prep.preco_plataforma_completa_desconto?.toString() || '',
       checkoutPlataformaCompleta: prep.checkout_plataforma_completa || '',
       guruProductIdPlataformaCompleta: prep.guru_product_id_plataforma_completa || '',
+      // Trilhas de Questões
+      precoTrilhas: prep.preco_trilhas?.toString() || '',
+      precoTrilhasDesconto: prep.preco_trilhas_desconto?.toString() || '',
+      checkoutTrilhas: prep.checkout_trilhas || '',
+      guruProductIdTrilhas: prep.guru_product_id_trilhas || '',
       // Campos legados
       preco: prep.preco?.toString() || '',
       precoDesconto: prep.preco_desconto?.toString() || '',

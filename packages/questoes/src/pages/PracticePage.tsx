@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Filter,
@@ -265,9 +265,10 @@ function MultiSelectDropdown({
 
 export default function PracticePage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, profile, fetchProfile } = useAuthStore();
   const { incrementStats } = useUserStore();
-  const { addToast } = useUIStore();
+  const { addToast, setPracticeMode, clearPracticeMode } = useUIStore();
   const { selectedPreparatorioId, getSelectedPreparatorio, userPreparatorios } = useTrailStore();
   const {
     batteryStatus,
@@ -334,6 +335,9 @@ export default function PracticePage() {
   const [answers, setAnswers] = useState<Map<number, { letter: string; correct: boolean }>>(new Map());
   const [showMentorChat, setShowMentorChat] = useState(false);
 
+  // Rastreamento de tempo por questão
+  const [questionStartTime, setQuestionStartTime] = useState<number | null>(null);
+
   // Estatisticas da sessao
   const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
 
@@ -360,6 +364,21 @@ export default function PracticePage() {
   // Modal de visualização de filtros
   const [viewingNotebookFilters, setViewingNotebookFilters] = useState<Caderno | null>(null);
 
+  // Controle de visibilidade dos filtros (oculto por padrão)
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Controle de visibilidade dos filtros no modo practicing
+  const [showPracticingFilters, setShowPracticingFilters] = useState(false);
+
+  // Auto-iniciar prática com questões aleatórias (true se não houver query params)
+  const [shouldAutoStart, setShouldAutoStart] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hasFilterParams = params.has('materia') || params.has('materias') ||
+                           params.has('assunto') || params.has('assuntos') ||
+                           params.has('banca') || params.has('autostart');
+    return !hasFilterParams; // Auto-start apenas se não houver filtros na URL
+  });
+
   // Carregar cadernos
   useEffect(() => {
     if (user?.id) {
@@ -380,6 +399,36 @@ export default function PracticePage() {
     };
     loadGamificationSettings();
   }, []);
+
+  // Sync practice mode with UIStore for Header integration
+  useEffect(() => {
+    if (mode === 'practicing') {
+      setPracticeMode({
+        isActive: true,
+        correctCount: sessionStats.correct,
+        wrongCount: sessionStats.total - sessionStats.correct,
+        showFilters: showPracticingFilters,
+        onBack: handleBack,
+        onToggleFilters: () => setShowPracticingFilters(prev => !prev),
+      });
+    } else {
+      clearPracticeMode();
+    }
+  }, [mode, sessionStats, showPracticingFilters]);
+
+  // Clean up practice mode when unmounting
+  useEffect(() => {
+    return () => {
+      clearPracticeMode();
+    };
+  }, [clearPracticeMode]);
+
+  // Iniciar timer quando a questão muda ou quando entra no modo practicing
+  useEffect(() => {
+    if (mode === 'practicing' && questions.length > 0) {
+      setQuestionStartTime(Date.now());
+    }
+  }, [mode, currentIndex, questions.length]);
 
   // Processar query params para aplicar filtros automaticamente
   useEffect(() => {
@@ -473,6 +522,15 @@ export default function PracticePage() {
       startPractice();
     }
   }, [autoStartPending, isLoadingFilters, isLoadingCount, filters, searchParams]);
+
+  // Auto-iniciar prática com questões aleatórias quando não houver filtros na URL
+  useEffect(() => {
+    if (shouldAutoStart && !isLoadingFilters && !isLoadingCount && mode === 'selection' && !isLoading) {
+      console.log('[PracticePage] Auto-iniciando prática com questões aleatórias (modo Zen)');
+      setShouldAutoStart(false);
+      startPractice();
+    }
+  }, [shouldAutoStart, isLoadingFilters, isLoadingCount, mode, isLoading]);
 
   const loadNotebooks = async () => {
     if (!user?.id) return;
@@ -685,6 +743,13 @@ export default function PracticePage() {
     setIsLoadingFilters(true); // Reset loading state for fresh filter load
     // Incrementar key para forçar reload dos dados
     setLoadKey(prev => prev + 1);
+
+    // Verificar se deve auto-iniciar (apenas se não houver filtros na URL)
+    const params = new URLSearchParams(window.location.search);
+    const hasFilterParams = params.has('materia') || params.has('materias') ||
+                           params.has('assunto') || params.has('assuntos') ||
+                           params.has('banca') || params.has('autostart');
+    setShouldAutoStart(!hasFilterParams);
   }, [location.pathname]);
 
   // Carregar opcoes de filtro ao montar ou quando loadKey muda
@@ -1033,6 +1098,11 @@ export default function PracticePage() {
     const question = questions[currentIndex];
     const isCorrect = letter === question.gabarito;
 
+    // Calcular tempo gasto na questão
+    const timeSpentSeconds = questionStartTime
+      ? Math.round((Date.now() - questionStartTime) / 1000)
+      : null;
+
     // Consumir bateria por responder a questão
     const prep = getSelectedPreparatorio();
     const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
@@ -1083,11 +1153,12 @@ export default function PracticePage() {
       coins: coinsReward,
     });
 
-    // Save answer to database for statistics
+    // Save answer to database for statistics (including time spent)
     saveUserAnswer({
       questionId: question.id,
       selectedAlternative: letter,
       isCorrect: isCorrect,
+      timeSpentSeconds: timeSpentSeconds || undefined,
     }, user?.id);
   };
 
@@ -1145,7 +1216,7 @@ export default function PracticePage() {
       if (answers.size > 0) {
         setShowExitConfirm(true);
       } else {
-        setMode('selection');
+        navigate('/questoes');
       }
     }
   };
@@ -1164,24 +1235,275 @@ export default function PracticePage() {
   // Modo de pratica
   if (mode === 'practicing' && currentQuestion) {
     return (
-      <div className="min-h-screen bg-[#1A1A1A] flex flex-col">
-        <div className="p-4 border-b border-[#3A3A3A] bg-[#1A1A1A]">
-          <div className="flex items-center gap-4">
-            <button onClick={handleBack} className="p-2 rounded-full hover:bg-[#252525] transition-colors">
-              <ChevronLeft size={24} className="text-[#A0A0A0]" />
-            </button>
-            <Progress value={((currentIndex + 1) / questions.length) * 100} size="md" className="flex-1" />
-            <span className="text-[#A0A0A0] text-sm font-medium">
-              {currentIndex + 1}/{questions.length}
-            </span>
-          </div>
-          <div className="flex justify-center gap-4 mt-2 text-xs">
-            <span className="text-[#2ECC71]">✓ {sessionStats.correct}</span>
-            <span className="text-[#E74C3C]">✗ {sessionStats.total - sessionStats.correct}</span>
-          </div>
-        </div>
+      <div className="min-h-[calc(100vh-3.5rem)] bg-[#1A1A1A] flex flex-col">
+        {/* Painel de filtros deslizante */}
+        <AnimatePresence>
+          {showPracticingFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="overflow-hidden border-b border-[#3A3A3A] bg-[#121212]"
+            >
+              <div className="p-4 md:p-6 space-y-4 max-w-[1200px] mx-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Filter size={18} className="text-[#FFB800]" />
+                    <h3 className="text-base font-bold text-white">Filtrar Questões</h3>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={clearFilters} className="text-xs text-[#E74C3C] hover:underline font-medium">
+                      Limpar Filtros
+                    </button>
+                    <button
+                      onClick={() => setShowPracticingFilters(false)}
+                      className="p-1.5 rounded-lg hover:bg-[#252525] text-[#A0A0A0] hover:text-white transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filtros Grid */}
+                <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-4 md:p-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                    <MultiSelectDropdown
+                      label="Matérias"
+                      icon={<BookOpen size={16} />}
+                      items={availableMaterias}
+                      selected={filters.materia}
+                      onToggle={(item) => toggleFilter('materia', item)}
+                      onClear={() => setFilters(prev => ({ ...prev, materia: [] }))}
+                      placeholder="Selecione matérias..."
+                    />
+                    <HierarchicalAssuntosDropdown
+                      label="Assuntos"
+                      icon={<FileText size={16} />}
+                      taxonomyByMateria={taxonomyByMateria}
+                      flatAssuntos={availableAssuntos}
+                      selectedAssuntos={filters.assunto}
+                      onToggleAssunto={(item) => toggleFilter('assunto', item)}
+                      onToggleMultiple={(assuntos, select) => {
+                        setFilters(prev => {
+                          const current = new Set(prev.assunto);
+                          assuntos.forEach(a => {
+                            if (select) {
+                              current.add(a);
+                            } else {
+                              current.delete(a);
+                            }
+                          });
+                          return { ...prev, assunto: Array.from(current) };
+                        });
+                      }}
+                      onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
+                      placeholder="Selecionar assuntos..."
+                      isLoading={isLoadingAssuntos}
+                      isLoadingTaxonomy={isLoadingTaxonomy}
+                    />
+                    <MultiSelectDropdown
+                      label="Bancas"
+                      icon={<Building2 size={16} />}
+                      items={availableBancas}
+                      selected={filters.banca}
+                      onToggle={(item) => toggleFilter('banca', item)}
+                      onClear={() => setFilters(prev => ({ ...prev, banca: [] }))}
+                      placeholder="Selecione bancas..."
+                    />
+                    <MultiSelectDropdown
+                      label="Órgãos"
+                      icon={<Building2 size={16} />}
+                      items={availableOrgaos}
+                      selected={filters.orgao}
+                      onToggle={(item) => toggleFilter('orgao', item)}
+                      onClear={() => setFilters(prev => ({ ...prev, orgao: [] }))}
+                      placeholder="Selecione órgãos..."
+                    />
+                    <MultiSelectDropdown
+                      label="Cargos"
+                      icon={<Briefcase size={16} />}
+                      items={availableCargos}
+                      selected={filters.cargo}
+                      onToggle={(item) => toggleFilter('cargo', item)}
+                      onClear={() => setFilters(prev => ({ ...prev, cargo: [] }))}
+                      placeholder="Selecione cargos..."
+                    />
+                    <MultiSelectDropdown
+                      label="Anos"
+                      icon={<Calendar size={16} />}
+                      items={availableAnos}
+                      selected={filters.ano}
+                      onToggle={(item) => toggleFilter('ano', item)}
+                      onClear={() => setFilters(prev => ({ ...prev, ano: [] }))}
+                      placeholder="Selecione anos..."
+                    />
+                    <MultiSelectDropdown
+                      label="Escolaridade"
+                      icon={<GraduationCap size={16} />}
+                      items={OPTIONS_ESCOLARIDADE.map(opt => opt.value)}
+                      selected={filters.escolaridade}
+                      onToggle={(item) => toggleFilter('escolaridade', item)}
+                      onClear={() => setFilters(prev => ({ ...prev, escolaridade: [] }))}
+                      placeholder="Selecione escolaridade..."
+                    />
+                    <MultiSelectDropdown
+                      label="Modalidade"
+                      icon={<CheckCircle size={16} />}
+                      items={OPTIONS_MODALIDADE.map(opt => opt.value)}
+                      selected={filters.modalidade}
+                      onToggle={(item) => toggleFilter('modalidade', item)}
+                      onClear={() => setFilters(prev => ({ ...prev, modalidade: [] }))}
+                      placeholder="Selecione modalidade..."
+                    />
+                    <MultiSelectDropdown
+                      label="Dificuldade"
+                      icon={<Zap size={16} />}
+                      items={OPTIONS_DIFICULDADE.map(opt => opt.value)}
+                      selected={filters.dificuldade}
+                      onToggle={(item) => toggleFilter('dificuldade', item)}
+                      onClear={() => setFilters(prev => ({ ...prev, dificuldade: [] }))}
+                      placeholder="Selecione dificuldade..."
+                    />
+                  </div>
+
+                  {/* Toggle Filters */}
+                  <div className="flex flex-wrap gap-6 pt-4 border-t border-[#3A3A3A]">
+                    <button
+                      onClick={() => setToggleFilters(prev => ({ ...prev, apenasRevisadas: !prev.apenasRevisadas }))}
+                      className="flex items-center gap-3 group"
+                    >
+                      <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasRevisadas ? 'bg-[#FFB800]' : 'bg-[#3A3A3A]'}`}>
+                        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasRevisadas ? 'left-[22px]' : 'left-0.5'}`} />
+                      </div>
+                      <span className={`text-sm transition-colors ${toggleFilters.apenasRevisadas ? 'text-white' : 'text-[#A0A0A0] group-hover:text-white'}`}>Apenas questões revisadas</span>
+                    </button>
+                    <button
+                      onClick={() => setToggleFilters(prev => ({ ...prev, apenasComComentario: !prev.apenasComComentario }))}
+                      className="flex items-center gap-3 group"
+                    >
+                      <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasComComentario ? 'bg-[#FFB800]' : 'bg-[#3A3A3A]'}`}>
+                        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasComComentario ? 'left-[22px]' : 'left-0.5'}`} />
+                      </div>
+                      <span className={`text-sm transition-colors ${toggleFilters.apenasComComentario ? 'text-white' : 'text-[#A0A0A0] group-hover:text-white'}`}>Apenas com comentário</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Resumo Section */}
+                <section className="bg-[#1E1E1E] border border-[#FFB800]/20 rounded-2xl p-4 md:p-5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-[#FFB800]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+                  <div className="relative">
+                    <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <SlidersHorizontal size={14} /> Resumo do Treino
+                    </h3>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-5">
+                      {/* Questões Disponíveis */}
+                      <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A]">
+                        <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-1">Disponíveis</p>
+                        {isLoadingCount ? (
+                          <Loader2 size={20} className="animate-spin text-[#FFB800]" />
+                        ) : (
+                          <p className="text-2xl font-bold text-white">{filteredCount.toLocaleString()}</p>
+                        )}
+                      </div>
+
+                      {/* Filtros Ativos */}
+                      <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A]">
+                        <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-1">Filtros Ativos</p>
+                        <p className="text-2xl font-bold text-[#FFB800]">{totalFilters}</p>
+                      </div>
+
+                      {/* Questões por Sessão */}
+                      <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A] col-span-2 md:col-span-1 lg:col-span-2">
+                        <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-2">Questões por Sessão</p>
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl font-bold text-[#FFB800] min-w-[3rem]">{questionCount}</span>
+                          <input
+                            type="range"
+                            min="5"
+                            max="120"
+                            step="5"
+                            value={questionCount}
+                            onChange={(e) => setQuestionCount(Number(e.target.value))}
+                            className="flex-1 h-2 bg-[#3A3A3A] rounded-lg appearance-none cursor-pointer accent-[#FFB800]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Modo de Estudo */}
+                      <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A] col-span-2">
+                        <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-2">Modo de Estudo</p>
+                        <button
+                          onClick={() => setStudyMode(studyMode === 'zen' ? 'hard' : 'zen')}
+                          className="relative inline-flex items-center h-8 rounded-full w-full bg-[#1A1A1A] border border-[#3A3A3A] transition-colors"
+                        >
+                          <span
+                            className={`absolute inline-flex items-center justify-center h-7 rounded-full text-xs font-bold transition-all duration-300 ${
+                              studyMode === 'zen'
+                                ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[#2ECC71] text-black'
+                                : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[#E74C3C] text-black'
+                            }`}
+                          >
+                            {studyMode === 'zen' ? 'Zen' : 'Simulado'}
+                          </span>
+                          <span className="absolute left-[25%] -translate-x-1/2 text-[10px] text-[#6E6E6E] pointer-events-none" style={{ opacity: studyMode === 'zen' ? 0 : 1 }}>Zen</span>
+                          <span className="absolute left-[75%] -translate-x-1/2 text-[10px] text-[#6E6E6E] pointer-events-none" style={{ opacity: studyMode === 'hard' ? 0 : 1 }}>Simulado</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Botões de Ação */}
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => setShowPracticingFilters(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-[#A0A0A0] hover:text-white font-medium rounded-lg hover:bg-[#252525] transition-colors"
+                      >
+                        <ChevronUp size={18} />
+                        Ocultar filtros
+                      </button>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setShowSaveNotebookModal(true)}
+                          className="flex items-center gap-2 px-5 py-3 bg-[#252525] text-white font-bold rounded-xl border border-[#3A3A3A] hover:bg-[#303030] hover:border-[#FFB800] transition-colors"
+                        >
+                          <Save size={18} />
+                          Salvar como Caderno
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowPracticingFilters(false);
+                            startPractice();
+                          }}
+                          disabled={isLoading || filteredCount === 0}
+                          className="flex items-center gap-2 px-6 py-3 bg-[#FFB800] text-black font-bold rounded-xl hover:bg-[#FFC933] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 size={18} className="animate-spin" />
+                              Carregando...
+                            </>
+                          ) : (
+                            <>
+                              <Play size={18} />
+                              Iniciar Treino
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="flex-1 overflow-hidden">
+          <div className="max-w-[1000px] mx-auto h-full">
           <QuestionCard
             question={currentQuestion}
             isLastQuestion={currentIndex === questions.length - 1}
@@ -1198,6 +1520,7 @@ export default function PracticePage() {
             showCorrectAnswers={profile?.show_answers || false}
             onShowToast={handleShowToast}
           />
+          </div>
         </div>
 
         {/* Mentor Chat */}
@@ -1227,7 +1550,7 @@ export default function PracticePage() {
         <ConfirmModal
           isOpen={showExitConfirm}
           onClose={() => setShowExitConfirm(false)}
-          onConfirm={() => setMode('selection')}
+          onConfirm={() => navigate('/questoes')}
           title="Sair da Prática?"
           message="Você tem progresso não salvo. Se sair agora, suas respostas serão perdidas."
           confirmText="Sair"
@@ -1254,6 +1577,27 @@ export default function PracticePage() {
         onNewSession={startPractice}
         onBackToMenu={() => setMode('selection')}
       />
+    );
+  }
+
+  // ==========================================
+  // RENDER: LOADING STATE (Auto-start)
+  // ==========================================
+  if (shouldAutoStart && (isLoadingFilters || isLoadingCount || isLoading)) {
+    return (
+      <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center font-sans text-white">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="relative mb-6">
+            <div className="w-16 h-16 border-4 border-[#3A3A3A] border-t-[#FFB800] rounded-full animate-spin"></div>
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Carregando questões...</h2>
+          <p className="text-[#A0A0A0]">Preparando sua sessão de prática</p>
+        </motion.div>
+      </div>
     );
   }
 
@@ -1288,340 +1632,394 @@ export default function PracticePage() {
                 Painel de Prática
               </h1>
               <p className="text-sm md:text-base text-[#A0A0A0] font-medium">
-                Configure seu treino personalizado ou retome seus cadernos.
+                Configure seu treino de questões.
               </p>
             </>
           )}
         </motion.div>
 
-        {/* User Quick Stats */}
+        {/* User Quick Stats + Filter Toggle */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="hidden md:flex items-center gap-6 bg-[#1E1E1E]/50 border border-[#3A3A3A] p-3 rounded-2xl backdrop-blur-sm"
+          className="hidden md:flex items-center gap-4"
         >
-          <div className="flex items-center gap-3 px-2">
-            <div className="p-2 bg-[#FFB800]/10 rounded-lg">
-              <Zap size={20} className="text-[#FFB800]" />
+          <div className="flex items-center gap-6 bg-[#1E1E1E]/50 border border-[#3A3A3A] p-3 rounded-2xl backdrop-blur-sm">
+            <div className="flex items-center gap-3 px-2">
+              <div className="p-2 bg-[#FFB800]/10 rounded-lg">
+                <Zap size={20} className="text-[#FFB800]" />
+              </div>
+              <div>
+                <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider">Nível</p>
+                <p className="font-bold text-lg leading-none">{profile?.level || 1}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider">Nível</p>
-              <p className="font-bold text-lg leading-none">{profile?.level || 1}</p>
+            <div className="w-px h-8 bg-[#3A3A3A]" />
+            <div className="flex items-center gap-3 px-2">
+              <div className="p-2 bg-[#2ECC71]/10 rounded-lg">
+                <CheckCircle size={20} className="text-[#2ECC71]" />
+              </div>
+              <div>
+                <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider">Acertos</p>
+                <p className="font-bold text-lg leading-none">{profile?.correct_answers || 0}</p>
+              </div>
             </div>
           </div>
-          <div className="w-px h-8 bg-[#3A3A3A]" />
-          <div className="flex items-center gap-3 px-2">
-            <div className="p-2 bg-[#2ECC71]/10 rounded-lg">
-              <CheckCircle size={20} className="text-[#2ECC71]" />
+
+          {/* Filter Toggle Button - same height as stats */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all backdrop-blur-sm ${
+              showFilters
+                ? 'bg-[#FFB800] border-[#FFB800] text-black'
+                : 'bg-[#1E1E1E]/50 border-[#3A3A3A] text-white hover:border-[#FFB800] hover:text-[#FFB800]'
+            }`}
+          >
+            <div className={`p-2 rounded-lg ${showFilters ? 'bg-black/10' : 'bg-[#FFB800]/10'}`}>
+              <Filter size={20} className={showFilters ? 'text-black' : 'text-[#FFB800]'} />
             </div>
-            <div>
-              <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider">Acertos</p>
-              <p className="font-bold text-lg leading-none">{profile?.correct_answers || 0}</p>
+            <div className="text-left">
+              <p className="text-xs uppercase font-bold tracking-wider opacity-70">{showFilters ? 'Ocultar' : 'Exibir'}</p>
+              <p className="font-bold text-lg leading-none">Filtros</p>
             </div>
-          </div>
+            {totalFilters > 0 && (
+              <span className={`px-2 py-1 text-xs font-bold rounded-lg ${showFilters ? 'bg-black/20 text-black' : 'bg-[#FFB800] text-black'}`}>
+                {totalFilters}
+              </span>
+            )}
+            {showFilters ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </button>
         </motion.div>
+
+        {/* Mobile Filter Toggle */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all ${
+            showFilters
+              ? 'bg-[#FFB800] border-[#FFB800] text-black'
+              : 'bg-[#1E1E1E] border-[#3A3A3A] text-white'
+          }`}
+        >
+          <Filter size={16} />
+          <span className="font-bold text-sm">{showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}</span>
+          {totalFilters > 0 && !showFilters && (
+            <span className="px-1.5 py-0.5 bg-[#FFB800] text-black text-xs font-bold rounded">{totalFilters}</span>
+          )}
+        </button>
       </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-12 gap-6 lg:gap-8">
+      <div className="max-w-7xl mx-auto space-y-6">
 
-        {/* LEFT COLUMN: Configuration */}
-        <div className="col-span-12 lg:col-span-8 space-y-6">
-                {/* Editing: Title and Description */}
-                {editingNotebook && (
-                  <section>
-                    <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <PenLine size={14} /> Dados do Caderno
-                    </h3>
-                    <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-5 space-y-4">
-                      <div>
-                        <label className="text-white text-sm font-medium mb-2 block">Nome do Caderno</label>
-                        <input
-                          type="text"
-                          value={editingTitle}
-                          onChange={(e) => setEditingTitle(e.target.value)}
-                          placeholder="Nome do caderno"
-                          className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-white text-sm font-medium mb-2 block">Descrição (opcional)</label>
-                        <textarea
-                          value={editingDescription}
-                          onChange={(e) => setEditingDescription(e.target.value)}
-                          placeholder="Descrição do caderno"
-                          rows={2}
-                          className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors resize-none"
-                        />
-                      </div>
-                    </div>
-                  </section>
-                )}
-
-                {/* Filters */}
-                <section>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider flex items-center gap-2">
-                      <Filter size={14} /> Filtros
-                    </h3>
-                    <button onClick={clearFilters} className="text-xs text-[#E74C3C] hover:underline font-medium">
-                      Limpar Filtros
-                    </button>
-                  </div>
-
-                  <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-5 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <MultiSelectDropdown
-                        label="Matérias"
-                        icon={<BookOpen size={16} />}
-                        items={availableMaterias}
-                        selected={filters.materia}
-                        onToggle={(item) => toggleFilter('materia', item)}
-                        onClear={() => setFilters(prev => ({ ...prev, materia: [] }))}
-                        placeholder="Selecione matérias..."
-                      />
-                      <MultiSelectDropdown
-                        label="Bancas"
-                        icon={<Building2 size={16} />}
-                        items={availableBancas}
-                        selected={filters.banca}
-                        onToggle={(item) => toggleFilter('banca', item)}
-                        onClear={() => setFilters(prev => ({ ...prev, banca: [] }))}
-                        placeholder="Selecione bancas..."
-                      />
-                      <HierarchicalAssuntosDropdown
-                        label="Assuntos"
-                        icon={<FileText size={16} />}
-                        taxonomyByMateria={taxonomyByMateria}
-                        flatAssuntos={availableAssuntos}
-                        selectedAssuntos={filters.assunto}
-                        onToggleAssunto={(item) => toggleFilter('assunto', item)}
-                        onToggleMultiple={(assuntos, select) => {
-                          setFilters(prev => {
-                            const current = new Set(prev.assunto);
-                            assuntos.forEach(a => {
-                              if (select) {
-                                current.add(a);
-                              } else {
-                                current.delete(a);
-                              }
-                            });
-                            return { ...prev, assunto: Array.from(current) };
-                          });
-                        }}
-                        onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
-                        placeholder="Selecionar assuntos..."
-                        isLoading={isLoadingAssuntos}
-                        isLoadingTaxonomy={isLoadingTaxonomy}
-                      />
-                      <MultiSelectDropdown
-                        label="Órgãos"
-                        icon={<Building2 size={16} />}
-                        items={availableOrgaos}
-                        selected={filters.orgao}
-                        onToggle={(item) => toggleFilter('orgao', item)}
-                        onClear={() => setFilters(prev => ({ ...prev, orgao: [] }))}
-                        placeholder="Selecione órgãos..."
-                      />
-                      <MultiSelectDropdown
-                        label="Anos"
-                        icon={<Calendar size={16} />}
-                        items={availableAnos}
-                        selected={filters.ano}
-                        onToggle={(item) => toggleFilter('ano', item)}
-                        onClear={() => setFilters(prev => ({ ...prev, ano: [] }))}
-                        placeholder="Selecione anos..."
-                      />
-                      <MultiSelectDropdown
-                        label="Cargos"
-                        icon={<Briefcase size={16} />}
-                        items={availableCargos}
-                        selected={filters.cargo}
-                        onToggle={(item) => toggleFilter('cargo', item)}
-                        onClear={() => setFilters(prev => ({ ...prev, cargo: [] }))}
-                        placeholder="Selecione cargos..."
-                      />
-                      <MultiSelectDropdown
-                        label="Escolaridade"
-                        icon={<GraduationCap size={16} />}
-                        items={OPTIONS_ESCOLARIDADE.map(opt => opt.value)}
-                        selected={filters.escolaridade}
-                        onToggle={(item) => toggleFilter('escolaridade', item)}
-                        onClear={() => setFilters(prev => ({ ...prev, escolaridade: [] }))}
-                        placeholder="Selecione escolaridade..."
-                      />
-                      <MultiSelectDropdown
-                        label="Modalidade"
-                        icon={<CheckCircle size={16} />}
-                        items={OPTIONS_MODALIDADE.map(opt => opt.value)}
-                        selected={filters.modalidade}
-                        onToggle={(item) => toggleFilter('modalidade', item)}
-                        onClear={() => setFilters(prev => ({ ...prev, modalidade: [] }))}
-                        placeholder="Selecione modalidade..."
-                      />
-                      <MultiSelectDropdown
-                        label="Dificuldade"
-                        icon={<Zap size={16} />}
-                        items={OPTIONS_DIFICULDADE.map(opt => opt.value)}
-                        selected={filters.dificuldade}
-                        onToggle={(item) => toggleFilter('dificuldade', item)}
-                        onClear={() => setFilters(prev => ({ ...prev, dificuldade: [] }))}
-                        placeholder="Selecione dificuldade..."
-                      />
-                    </div>
-                  </div>
-                </section>
-
-                {/* 3. Quantity Slider */}
-                <section>
-                  <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <SlidersHorizontal size={14} /> Quantidade
-                  </h3>
-                  <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-white font-medium">Questões por sessão</span>
-                      <span className="text-2xl font-bold text-[#FFB800]">{questionCount}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="5"
-                      max="120"
-                      step="5"
-                      value={questionCount}
-                      onChange={(e) => setQuestionCount(Number(e.target.value))}
-                      className="w-full h-2 bg-[#3A3A3A] rounded-lg appearance-none cursor-pointer accent-[#FFB800]"
-                    />
-                    <div className="flex justify-between mt-2 text-xs text-[#6E6E6E] font-medium">
-                      <span>5</span>
-                      <span>60</span>
-                      <span>120</span>
-                    </div>
-                  </div>
-                </section>
-        </div>
-
-        {/* RIGHT COLUMN: Stats & Action (Sticky) */}
-        <div className="col-span-12 lg:col-span-4 space-y-6">
-            <div className="lg:sticky lg:top-8 space-y-6">
-
-            {/* Action Card */}
-            <Card className="border border-[#FFB800]/20 bg-[#1E1E1E] shadow-2xl shadow-black/50 p-6 relative overflow-hidden">
-              {/* Background Glow */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFB800]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-
-              <h3 className="text-lg font-bold text-white mb-4">
-                {editingNotebook ? 'Parâmetros do Caderno' : 'Resumo do Treino'}
-              </h3>
-
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#A0A0A0]">Questões disponíveis</span>
-                  {isLoadingCount ? (
-                    <Loader2 size={14} className="animate-spin text-[#FFB800]" />
-                  ) : (
-                    <span className="font-bold text-white">{filteredCount.toLocaleString()}</span>
-                  )}
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#A0A0A0]">Filtros ativos</span>
-                  <span className="font-bold text-[#FFB800]">{totalFilters}</span>
-                </div>
-                <div className="h-px bg-[#3A3A3A] my-2" />
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#A0A0A0]">Seleção atual</span>
-                  <span className="font-bold text-white">{questionCount} questões</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[#A0A0A0]">Modo de Estudo</span>
-                  {/* Toggle entre Zen e Simulado */}
-                  <button
-                    onClick={() => setStudyMode(studyMode === 'zen' ? 'hard' : 'zen')}
-                    className="relative inline-flex items-center h-7 rounded-full w-36 bg-[#252525] border border-[#3A3A3A] transition-colors"
-                  >
-                    <span
-                      className={`absolute inline-flex items-center justify-center h-6 rounded-full text-xs font-bold transition-all duration-300 ${
-                        studyMode === 'zen'
-                          ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[#2ECC71] text-black'
-                          : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[#E74C3C] text-black'
-                      }`}
-                    >
-                      {studyMode === 'zen' ? 'Zen' : 'Simulado'}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {editingNotebook ? (
-                <>
-                  <Button
-                    fullWidth
-                    size="lg"
-                    onClick={() => handleSaveEditedNotebook(false)}
-                    disabled={isSavingNotebook || isLoadingFilters || !editingTitle.trim()}
-                    className="mb-3 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
-                    leftIcon={<Save size={20} />}
-                  >
-                    {isSavingNotebook ? 'Salvando...' : 'Salvar'}
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="secondary"
-                    size="lg"
-                    onClick={() => handleSaveEditedNotebook(true)}
-                    disabled={isSavingNotebook || isLoadingFilters || filteredCount === 0 || !editingTitle.trim()}
-                    rightIcon={<Play size={18} fill="currentColor" />}
-                  >
-                    Salvar e Iniciar
-                  </Button>
-                  <button
-                    onClick={handleCancelEdit}
-                    className="w-full mt-3 text-sm text-[#6E6E6E] hover:text-white transition-colors"
-                  >
-                    Cancelar edição
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    fullWidth
-                    size="lg"
-                    onClick={startPractice}
-                    disabled={isLoading || isLoadingFilters || filteredCount === 0}
-                    className="mb-3 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
-                    rightIcon={<Play size={20} fill="currentColor" />}
-                  >
-                    INICIAR PRÁTICA
-                  </Button>
-
-                  <Button
-                    fullWidth
-                    variant="secondary"
-                    size="lg"
-                    onClick={() => setShowSaveNotebookModal(true)}
-                    leftIcon={<Save size={18} />}
-                  >
-                    Salvar como Caderno
-                  </Button>
-                </>
-              )}
-            </Card>
-
-            {/* Quick Tips or Last Session */}
-            <div className="bg-[#1E1E1E] rounded-xl p-5 border border-[#3A3A3A]">
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-[#121212] rounded-lg">
-                  <GraduationCap size={18} className="text-[#A0A0A0]" />
+        {/* Editing: Title and Description */}
+        {editingNotebook && (
+          <section>
+            <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-3 flex items-center gap-2">
+              <PenLine size={14} /> Dados do Caderno
+            </h3>
+            <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-white text-sm font-medium mb-2 block">Nome do Caderno</label>
+                  <input
+                    type="text"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    placeholder="Nome do caderno"
+                    className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors"
+                  />
                 </div>
                 <div>
-                  <h4 className="font-bold text-white text-sm mb-1">Dica do Dia</h4>
-                  <p className="text-xs text-[#A0A0A0] leading-relaxed">
-                    Alterne entre o Modo Zen para aprender com os comentários e o Modo Simulado para treinar seu tempo de prova.
-                  </p>
+                  <label className="text-white text-sm font-medium mb-2 block">Descrição (opcional)</label>
+                  <input
+                    type="text"
+                    value={editingDescription}
+                    onChange={(e) => setEditingDescription(e.target.value)}
+                    placeholder="Descrição do caderno"
+                    className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors"
+                  />
                 </div>
               </div>
             </div>
+          </section>
+        )}
 
-          </div>
-        </div>
+        {/* Filters Section - Full Width, 3 Columns */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.section
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider flex items-center gap-2">
+                  <Filter size={14} /> Filtros
+                </h3>
+                <button onClick={clearFilters} className="text-xs text-[#E74C3C] hover:underline font-medium">
+                  Limpar Filtros
+                </button>
+              </div>
+
+              <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-5">
+                {/* Main Filters - 3 columns */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                  <MultiSelectDropdown
+                    label="Matérias"
+                    icon={<BookOpen size={16} />}
+                    items={availableMaterias}
+                    selected={filters.materia}
+                    onToggle={(item) => toggleFilter('materia', item)}
+                    onClear={() => setFilters(prev => ({ ...prev, materia: [] }))}
+                    placeholder="Selecione matérias..."
+                  />
+                  <HierarchicalAssuntosDropdown
+                    label="Assuntos"
+                    icon={<FileText size={16} />}
+                    taxonomyByMateria={taxonomyByMateria}
+                    flatAssuntos={availableAssuntos}
+                    selectedAssuntos={filters.assunto}
+                    onToggleAssunto={(item) => toggleFilter('assunto', item)}
+                    onToggleMultiple={(assuntos, select) => {
+                      setFilters(prev => {
+                        const current = new Set(prev.assunto);
+                        assuntos.forEach(a => {
+                          if (select) {
+                            current.add(a);
+                          } else {
+                            current.delete(a);
+                          }
+                        });
+                        return { ...prev, assunto: Array.from(current) };
+                      });
+                    }}
+                    onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
+                    placeholder="Selecionar assuntos..."
+                    isLoading={isLoadingAssuntos}
+                    isLoadingTaxonomy={isLoadingTaxonomy}
+                  />
+                  <MultiSelectDropdown
+                    label="Bancas"
+                    icon={<Building2 size={16} />}
+                    items={availableBancas}
+                    selected={filters.banca}
+                    onToggle={(item) => toggleFilter('banca', item)}
+                    onClear={() => setFilters(prev => ({ ...prev, banca: [] }))}
+                    placeholder="Selecione bancas..."
+                  />
+                  <MultiSelectDropdown
+                    label="Órgãos"
+                    icon={<Building2 size={16} />}
+                    items={availableOrgaos}
+                    selected={filters.orgao}
+                    onToggle={(item) => toggleFilter('orgao', item)}
+                    onClear={() => setFilters(prev => ({ ...prev, orgao: [] }))}
+                    placeholder="Selecione órgãos..."
+                  />
+                  <MultiSelectDropdown
+                    label="Cargos"
+                    icon={<Briefcase size={16} />}
+                    items={availableCargos}
+                    selected={filters.cargo}
+                    onToggle={(item) => toggleFilter('cargo', item)}
+                    onClear={() => setFilters(prev => ({ ...prev, cargo: [] }))}
+                    placeholder="Selecione cargos..."
+                  />
+                  <MultiSelectDropdown
+                    label="Anos"
+                    icon={<Calendar size={16} />}
+                    items={availableAnos}
+                    selected={filters.ano}
+                    onToggle={(item) => toggleFilter('ano', item)}
+                    onClear={() => setFilters(prev => ({ ...prev, ano: [] }))}
+                    placeholder="Selecione anos..."
+                  />
+                  <MultiSelectDropdown
+                    label="Escolaridade"
+                    icon={<GraduationCap size={16} />}
+                    items={OPTIONS_ESCOLARIDADE.map(opt => opt.value)}
+                    selected={filters.escolaridade}
+                    onToggle={(item) => toggleFilter('escolaridade', item)}
+                    onClear={() => setFilters(prev => ({ ...prev, escolaridade: [] }))}
+                    placeholder="Selecione escolaridade..."
+                  />
+                  <MultiSelectDropdown
+                    label="Modalidade"
+                    icon={<CheckCircle size={16} />}
+                    items={OPTIONS_MODALIDADE.map(opt => opt.value)}
+                    selected={filters.modalidade}
+                    onToggle={(item) => toggleFilter('modalidade', item)}
+                    onClear={() => setFilters(prev => ({ ...prev, modalidade: [] }))}
+                    placeholder="Selecione modalidade..."
+                  />
+                  <MultiSelectDropdown
+                    label="Dificuldade"
+                    icon={<Zap size={16} />}
+                    items={OPTIONS_DIFICULDADE.map(opt => opt.value)}
+                    selected={filters.dificuldade}
+                    onToggle={(item) => toggleFilter('dificuldade', item)}
+                    onClear={() => setFilters(prev => ({ ...prev, dificuldade: [] }))}
+                    placeholder="Selecione dificuldade..."
+                  />
+                </div>
+
+                {/* Toggle Filters */}
+                <div className="flex flex-wrap gap-6 pt-4 border-t border-[#3A3A3A]">
+                  <button
+                    onClick={() => setToggleFilters(prev => ({ ...prev, apenasRevisadas: !prev.apenasRevisadas }))}
+                    className="flex items-center gap-3 group"
+                  >
+                    <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasRevisadas ? 'bg-[#FFB800]' : 'bg-[#3A3A3A]'}`}>
+                      <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasRevisadas ? 'left-[22px]' : 'left-0.5'}`} />
+                    </div>
+                    <span className={`text-sm transition-colors ${toggleFilters.apenasRevisadas ? 'text-white' : 'text-[#A0A0A0] group-hover:text-white'}`}>Apenas questões revisadas</span>
+                  </button>
+                  <button
+                    onClick={() => setToggleFilters(prev => ({ ...prev, apenasComComentario: !prev.apenasComComentario }))}
+                    className="flex items-center gap-3 group"
+                  >
+                    <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasComComentario ? 'bg-[#FFB800]' : 'bg-[#3A3A3A]'}`}>
+                      <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasComComentario ? 'left-[22px]' : 'left-0.5'}`} />
+                    </div>
+                    <span className={`text-sm transition-colors ${toggleFilters.apenasComComentario ? 'text-white' : 'text-[#A0A0A0] group-hover:text-white'}`}>Apenas com comentário</span>
+                  </button>
+                </div>
+              </div>
+              {/* Summary Section - Horizontal Layout */}
+              <section className="bg-[#1E1E1E] border border-[#FFB800]/20 rounded-2xl p-5 relative overflow-hidden mt-6">
+                {/* Background Glow */}
+                <div className="absolute top-0 right-0 w-48 h-48 bg-[#FFB800]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+                <div className="relative">
+                  <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <SlidersHorizontal size={14} /> {editingNotebook ? 'Parâmetros do Caderno' : 'Resumo do Treino'}
+                  </h3>
+
+                  {/* Horizontal Stats Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-5">
+                    {/* Questões Disponíveis */}
+                    <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A]">
+                      <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-1">Disponíveis</p>
+                      {isLoadingCount ? (
+                        <Loader2 size={20} className="animate-spin text-[#FFB800]" />
+                      ) : (
+                        <p className="text-2xl font-bold text-white">{filteredCount.toLocaleString()}</p>
+                      )}
+                    </div>
+
+                    {/* Filtros Ativos */}
+                    <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A]">
+                      <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-1">Filtros Ativos</p>
+                      <p className="text-2xl font-bold text-[#FFB800]">{totalFilters}</p>
+                    </div>
+
+                    {/* Questões por Sessão */}
+                    <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A] col-span-2 md:col-span-1 lg:col-span-2">
+                      <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-2">Questões por Sessão</p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl font-bold text-[#FFB800] min-w-[3rem]">{questionCount}</span>
+                        <input
+                          type="range"
+                          min="5"
+                          max="120"
+                          step="5"
+                          value={questionCount}
+                          onChange={(e) => setQuestionCount(Number(e.target.value))}
+                          className="flex-1 h-2 bg-[#3A3A3A] rounded-lg appearance-none cursor-pointer accent-[#FFB800]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Modo de Estudo */}
+                    <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A] col-span-2">
+                      <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-2">Modo de Estudo</p>
+                      <button
+                        onClick={() => setStudyMode(studyMode === 'zen' ? 'hard' : 'zen')}
+                        className="relative inline-flex items-center h-8 rounded-full w-full bg-[#1A1A1A] border border-[#3A3A3A] transition-colors"
+                      >
+                        <span
+                          className={`absolute inline-flex items-center justify-center h-7 rounded-full text-xs font-bold transition-all duration-300 ${
+                            studyMode === 'zen'
+                              ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[#2ECC71] text-black'
+                              : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[#E74C3C] text-black'
+                          }`}
+                        >
+                          {studyMode === 'zen' ? 'Zen' : 'Simulado'}
+                        </span>
+                        <span className="absolute left-[25%] -translate-x-1/2 text-[10px] text-[#6E6E6E] pointer-events-none" style={{ opacity: studyMode === 'zen' ? 0 : 1 }}>Zen</span>
+                        <span className="absolute left-[75%] -translate-x-1/2 text-[10px] text-[#6E6E6E] pointer-events-none" style={{ opacity: studyMode === 'hard' ? 0 : 1 }}>Simulado</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons - Horizontal */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {editingNotebook ? (
+                      <>
+                        <Button
+                          size="lg"
+                          onClick={() => handleSaveEditedNotebook(false)}
+                          disabled={isSavingNotebook || isLoadingFilters || !editingTitle.trim()}
+                          className="flex-1 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
+                          leftIcon={<Save size={20} />}
+                        >
+                          {isSavingNotebook ? 'Salvando...' : 'Salvar'}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="lg"
+                          onClick={() => handleSaveEditedNotebook(true)}
+                          disabled={isSavingNotebook || isLoadingFilters || filteredCount === 0 || !editingTitle.trim()}
+                          className="flex-1"
+                          rightIcon={<Play size={18} fill="currentColor" />}
+                        >
+                          Salvar e Iniciar
+                        </Button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 text-sm text-[#6E6E6E] hover:text-white transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="secondary"
+                          size="lg"
+                          onClick={() => setShowFilters(false)}
+                          className="whitespace-nowrap"
+                          leftIcon={<ChevronUp size={18} />}
+                        >
+                          Ocultar
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="lg"
+                          onClick={() => setShowSaveNotebookModal(true)}
+                          className="flex-1 whitespace-nowrap"
+                          leftIcon={<Save size={18} />}
+                        >
+                          Salvar como Caderno
+                        </Button>
+                        <Button
+                          size="lg"
+                          onClick={startPractice}
+                          disabled={isLoading || isLoadingFilters || filteredCount === 0}
+                          className="flex-1 sm:flex-[2] whitespace-nowrap bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
+                          rightIcon={<Play size={20} fill="currentColor" />}
+                        >
+                          INICIAR PRÁTICA
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </section>
+            </motion.section>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Modal Salvar Caderno */}

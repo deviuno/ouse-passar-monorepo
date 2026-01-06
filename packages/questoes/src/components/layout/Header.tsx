@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Flame, Eye, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Flame, Eye, BookOpen, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTrailStore, useAuthStore } from '../../stores';
+import { useTrailStore, useAuthStore, useUIStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
 import { PreparatorioDropdown } from '../trail/PreparatorioDropdown';
 import { RoundSelector } from '../trail/RoundSelector';
@@ -14,6 +14,7 @@ export function Header() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
+  const { practiceMode } = useUIStore();
   const [showAssuntosPopover, setShowAssuntosPopover] = useState(false);
   const eyeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -123,6 +124,49 @@ export function Header() {
     if (isMissionPage) return getMissionTitle();
     return 'Ouse Questões';
   };
+
+  // Practice Mode Header - quando está praticando questões
+  if (practiceMode.isActive) {
+    return (
+      <header className="sticky top-0 h-14 bg-[#1A1A1A]/95 backdrop-blur-md border-b border-[#3A3A3A] z-30">
+        <div className="flex items-center justify-between h-full px-4 relative">
+          {/* Left: Back + Title */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => practiceMode.onBack?.()}
+              className="p-1.5 rounded-lg hover:bg-[#252525] transition-colors"
+            >
+              <ChevronLeft size={20} className="text-[#A0A0A0]" />
+            </button>
+            <span className="text-white font-semibold">Nova Prática</span>
+          </div>
+
+          {/* Center: Counter */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="text-[#2ECC71] font-bold">{practiceMode.correctCount}</span>
+              <span className="text-[#3A3A3A]">/</span>
+              <span className="text-[#E74C3C] font-bold">{practiceMode.wrongCount}</span>
+            </div>
+          </div>
+
+          {/* Right: Filter Button */}
+          <button
+            onClick={() => practiceMode.onToggleFilters?.()}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${
+              practiceMode.showFilters
+                ? 'bg-[#FFB800] text-black'
+                : 'hover:bg-[#252525] text-[#A0A0A0] hover:text-white'
+            }`}
+          >
+            <Filter size={16} />
+            <span>Filtrar</span>
+            <ChevronDown size={14} className={`transition-transform ${practiceMode.showFilters ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 h-14 bg-[#1A1A1A]/95 backdrop-blur-md border-b border-[#3A3A3A] z-30">
