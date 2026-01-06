@@ -20,7 +20,8 @@ const EditalItemNode: React.FC<{
   onPraticar: (item: EditalItemWithChildren) => void;
   level?: number;
   parentMateria?: string; // Matéria pai (para tópicos)
-}> = ({ item, banca, expandedNodes, toggleExpanded, onPraticar, level = 0, parentMateria }) => {
+  isMobile?: boolean; // Para ajustes de layout mobile
+}> = ({ item, banca, expandedNodes, toggleExpanded, onPraticar, level = 0, parentMateria, isMobile = false }) => {
   const isExpanded = expandedNodes.has(item.id);
   const hasChildren = item.children && item.children.length > 0;
 
@@ -50,7 +51,8 @@ const EditalItemNode: React.FC<{
   // Tópicos com filtros são clicáveis para praticar
   const isClickableTopic = item.tipo === 'topico' && hasFilters;
 
-  const paddingLeft = 16 + level * 20;
+  // Desktop: indentação progressiva / Mobile: espaçamento mínimo (alinhado à esquerda)
+  const paddingLeft = isMobile ? 8 : (16 + level * 20);
 
   // Cor de fundo baseada no tipo
   const getBgColor = () => {
@@ -71,11 +73,11 @@ const EditalItemNode: React.FC<{
   return (
     <div>
       <div
-        className={`flex items-center justify-between py-3 px-4 cursor-pointer transition-colors ${getBgColor()} border-b border-[#2A2A2A]`}
+        className={`flex items-start justify-between py-3 px-2 md:px-4 cursor-pointer transition-colors ${getBgColor()} border-b border-[#2A2A2A]`}
         style={{ paddingLeft }}
         onClick={handleRowClick}
       >
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-start gap-2 md:gap-3 flex-1 min-w-0">
           {/* Botão de expandir */}
           {hasChildren ? (
             <button
@@ -83,7 +85,7 @@ const EditalItemNode: React.FC<{
                 e.stopPropagation();
                 toggleExpanded(item.id);
               }}
-              className="p-1 hover:bg-[#3A3A3A] rounded transition-colors flex-shrink-0"
+              className="p-1 hover:bg-[#3A3A3A] rounded transition-colors flex-shrink-0 mt-0.5"
             >
               {isExpanded ? (
                 <ChevronDown size={16} className="text-gray-400" />
@@ -95,12 +97,12 @@ const EditalItemNode: React.FC<{
             <div className="w-6 flex-shrink-0" /> // Spacer para alinhar
           )}
 
-          {/* Ícone */}
-          <span className="flex-shrink-0">{getIcon()}</span>
+          {/* Ícone - oculto no mobile */}
+          <span className="flex-shrink-0 hidden md:block">{getIcon()}</span>
 
-          {/* Título */}
+          {/* Título - no mobile sem truncate para permitir wrap */}
           <span
-            className={`truncate ${
+            className={`${isMobile ? '' : 'truncate'} ${
               item.tipo === 'bloco'
                 ? 'font-bold text-white text-sm uppercase tracking-wide'
                 : item.tipo === 'materia'
@@ -124,11 +126,13 @@ const EditalItemNode: React.FC<{
         {item.tipo === 'topico' && hasFilters && (
           <button
             onClick={handlePraticar}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex-shrink-0 ml-2 bg-[#FFB800] hover:bg-[#FFC933] text-black transform hover:scale-105"
+            className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex-shrink-0 ml-2 bg-[#FFB800] hover:bg-[#FFC933] text-black transform hover:scale-105"
             title="Iniciar prática"
           >
             <Play size={12} fill="currentColor" />
-            Praticar
+            {/* Mobile: "Ir" / Desktop: "Praticar" */}
+            <span className="md:hidden">Ir</span>
+            <span className="hidden md:inline">Praticar</span>
           </button>
         )}
       </div>
@@ -153,6 +157,7 @@ const EditalItemNode: React.FC<{
                 onPraticar={onPraticar}
                 level={level + 1}
                 parentMateria={item.tipo === 'materia' ? item.titulo : parentMateria}
+                isMobile={isMobile}
               />
             ))}
           </motion.div>
@@ -174,6 +179,15 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detectar mobile
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Função para navegar para a prática com filtros configurados
   const handlePraticar = (item: EditalItemWithChildren) => {
@@ -348,17 +362,21 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#1A1A1A] border-b border-[#2A2A2A]">
-        <div>
-          <h3 className="text-white font-semibold text-sm">
-            Edital Verticalizado {preparatorioNome && `- ${preparatorioNome}`}
+      <div className="flex items-center justify-between px-2 md:px-4 py-3 bg-[#1A1A1A] border-b border-[#2A2A2A]">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-white font-semibold text-sm truncate">
+            {/* Mobile: apenas nome do preparatório / Desktop: título completo */}
+            <span className="md:hidden">{preparatorioNome || 'Edital Verticalizado'}</span>
+            <span className="hidden md:inline">Edital Verticalizado {preparatorioNome && `- ${preparatorioNome}`}</span>
           </h3>
           <p className="text-gray-400 text-xs mt-0.5">
             {counts.blocos} blocos, {counts.materias} matérias, {counts.topicos} tópicos
-            {banca && ` | Banca: ${banca}`}
+            {/* Banca apenas no desktop */}
+            <span className="hidden md:inline">{banca && ` | Banca: ${banca}`}</span>
           </p>
         </div>
-        <div className="flex gap-2">
+        {/* Botões apenas no desktop */}
+        <div className="hidden md:flex gap-2 flex-shrink-0">
           <button
             onClick={expandAll}
             className="px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-[#2A2A2A] rounded transition-colors"
@@ -384,6 +402,7 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
             expandedNodes={expandedNodes}
             toggleExpanded={toggleExpanded}
             onPraticar={handlePraticar}
+            isMobile={isMobile}
           />
         ))}
       </div>
