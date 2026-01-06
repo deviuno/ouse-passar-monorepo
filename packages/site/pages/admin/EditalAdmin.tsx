@@ -87,6 +87,9 @@ const InlineDropdown: React.FC<InlineDropdownProps> = ({
   const toggleOption = (opt: string) => {
     if (single) {
       onChange(value.includes(opt) ? [] : [opt]);
+      // Fechar dropdown automaticamente quando single select
+      setIsOpen(false);
+      setSearch('');
     } else {
       onChange(value.includes(opt) ? value.filter(v => v !== opt) : [...value, opt]);
     }

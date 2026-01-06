@@ -113,8 +113,8 @@ const EditalItemNode: React.FC<{
           )}
         </div>
 
-        {/* Botão Praticar (apenas para matérias e tópicos) */}
-        {(item.tipo === 'materia' || item.tipo === 'topico') && (
+        {/* Botão Praticar (apenas para tópicos - matérias não devem ter o botão) */}
+        {item.tipo === 'topico' && (
           <button
             onClick={handlePraticar}
             disabled={!hasFilters}
