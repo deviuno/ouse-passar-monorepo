@@ -31,10 +31,30 @@ function getSupabaseClient(): SupabaseClient {
             throw new Error('Supabase URL and Key are required. Check your .env file.');
         }
 
-        _supabase = createClient(supabaseUrl, supabaseKey);
+        _supabase = createClient(supabaseUrl, supabaseKey, {
+            db: {
+                schema: 'public',
+            },
+            global: {
+                headers: {
+                    // Aumentar timeout para 30 segundos
+                    'x-client-info': 'edital-auto-config',
+                },
+                fetch: (url, options = {}) => {
+                    return fetch(url, {
+                        ...options,
+                        signal: AbortSignal.timeout(30000), // 30 segundos
+                    });
+                },
+            },
+        });
     }
     return _supabase;
 }
+
+// Cache de matérias para evitar queries repetidas
+let _cachedMaterias: string[] | null = null;
+let _cachedAssuntos: Map<string, { assunto: string; materia: string }[]> = new Map();
 
 // ==================== TIPOS ====================
 
@@ -109,10 +129,20 @@ function normalizeText(text: string): string {
 }
 
 /**
- * Busca matérias distintas disponíveis no banco de questões
+ * Busca matérias distintas disponíveis no banco de questões (com cache)
  */
 async function getDistinctMaterias(): Promise<string[]> {
+    // Usar cache se disponível
+    if (_cachedMaterias) {
+        console.log(`[EditalAutoConfig] Usando cache de matérias (${_cachedMaterias.length} matérias)`);
+        return _cachedMaterias;
+    }
+
     const supabase = getSupabaseClient();
+
+    console.log('[EditalAutoConfig] Buscando matérias distintas do banco...');
+    const startTime = Date.now();
+
     const { data, error } = await supabase.rpc('get_distinct_materias');
 
     if (error) {
@@ -120,7 +150,14 @@ async function getDistinctMaterias(): Promise<string[]> {
         throw error;
     }
 
-    return (data || []).map((d: { materia: string }) => d.materia).filter(Boolean);
+    const materias = (data || []).map((d: { materia: string }) => d.materia).filter(Boolean);
+    const elapsed = Date.now() - startTime;
+    console.log(`[EditalAutoConfig] ${materias.length} matérias encontradas em ${elapsed}ms`);
+
+    // Salvar no cache
+    _cachedMaterias = materias;
+
+    return materias;
 }
 
 /**
