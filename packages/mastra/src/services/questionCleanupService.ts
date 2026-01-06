@@ -7,6 +7,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { questionCleanupAgent } from '../mastra/agents/questionCleanupAgent.js';
+import { questionReviewAgent } from '../mastra/agents/questionReviewAgent.js';
 
 interface CleanupResult {
   success: boolean;
@@ -17,6 +18,12 @@ interface CleanupResult {
   confianca?: number;
   observacoes?: string;
   error?: string;
+}
+
+interface ReviewResult {
+  aprovada: boolean;
+  confianca: number;
+  motivo: string;
 }
 
 interface ProcessingStats {
@@ -104,6 +111,117 @@ export class QuestionCleanupService {
   }
 
   /**
+   * Extrai URLs de imagens do HTML original
+   */
+  extractImagesFromHTML(html: string): string[] {
+    const images: string[] = [];
+
+    // Padrão 1: <img src="URL">
+    const imgSrcRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+    let match;
+    while ((match = imgSrcRegex.exec(html)) !== null) {
+      const url = match[1];
+      // Ignorar data URLs e placeholders
+      if (url && !url.startsWith('data:') && !url.includes('placeholder')) {
+        images.push(url);
+      }
+    }
+
+    // Padrão 2: URLs diretas de imagem
+    const imageUrlRegex = /https?:\/\/[^\s<>"']+\.(jpg|jpeg|png|gif|webp)/gi;
+    while ((match = imageUrlRegex.exec(html)) !== null) {
+      if (!images.includes(match[0])) {
+        images.push(match[0]);
+      }
+    }
+
+    return images;
+  }
+
+  /**
+   * Usa agente de IA para revisar questão limpa e decidir se deve ser reativada
+   */
+  async reviewCleanedQuestion(enunciado: string, alternativas: { letter: string; text: string }[]): Promise<ReviewResult> {
+    try {
+      const alternativasText = alternativas.map(a => `${a.letter}) ${a.text}`).join('\n');
+      const prompt = `Revise esta questão de concurso:\n\nEnunciado:\n${enunciado}\n\nAlternativas:\n${alternativasText}`;
+
+      const response = await questionReviewAgent.generate(prompt);
+
+      // Parse the JSON response
+      let jsonText = response.text.trim();
+      if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+      } else if (jsonText.startsWith('```')) {
+        jsonText = jsonText.replace(/^```\n?/, '').replace(/\n?```$/, '');
+      }
+
+      const result = JSON.parse(jsonText) as ReviewResult;
+      return result;
+    } catch (error) {
+      console.error('[QuestionCleanupService] Erro ao revisar questão:', error);
+      // Em caso de erro, retornar não aprovada para segurança
+      return {
+        aprovada: false,
+        confianca: 0,
+        motivo: `Erro ao revisar: ${error instanceof Error ? error.message : 'desconhecido'}`
+      };
+    }
+  }
+
+  /**
+   * Valida o resultado da limpeza
+   */
+  validateCleanResult(cleanResult: CleanupResult, originalHtml: string): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // 1. Verificar confiança mínima
+    if (!cleanResult.confianca || cleanResult.confianca < 0.7) {
+      errors.push(`Confiança muito baixa: ${cleanResult.confianca || 0}`);
+    }
+
+    // 2. Verificar enunciado
+    if (!cleanResult.enunciado || cleanResult.enunciado.length < 30) {
+      errors.push(`Enunciado muito curto: ${cleanResult.enunciado?.length || 0} caracteres`);
+    }
+
+    // 3. Verificar se não contém lixo de template
+    const templatePatterns = ['ng-if', 'ng-repeat', 'ng-model', 'vm.questao', '<!-- ngIf'];
+    for (const pattern of templatePatterns) {
+      if (cleanResult.enunciado?.includes(pattern)) {
+        errors.push(`Enunciado ainda contém template: ${pattern}`);
+      }
+    }
+
+    // 4. Verificar alternativas
+    if (!cleanResult.alternativas || cleanResult.alternativas.length < 2) {
+      errors.push('Menos de 2 alternativas');
+    } else {
+      // Verificar se alternativas têm conteúdo
+      for (const alt of cleanResult.alternativas) {
+        if (!alt.text || alt.text.length === 0) {
+          errors.push(`Alternativa ${alt.letter} sem texto`);
+        }
+      }
+    }
+
+    // 5. Verificar se original tinha imagens que precisam ser preservadas
+    const originalImages = this.extractImagesFromHTML(originalHtml);
+    if (originalImages.length > 0) {
+      const extractedImages = cleanResult.imagensEnunciado || [];
+      if (extractedImages.length < originalImages.length) {
+        // Não é erro crítico, mas vamos adicionar as imagens faltantes
+        console.log(`[QuestionCleanupService] Aviso: ${originalImages.length - extractedImages.length} imagens não foram extraídas pela IA`);
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
    * Limpa uma questão específica e atualiza no banco
    */
   async cleanAndUpdateQuestion(questionId: number): Promise<{ success: boolean; action: string; details?: string }> {
@@ -124,6 +242,12 @@ export class QuestionCleanupService {
         return { success: false, action: 'skipped', details: 'Questão não está corrompida' };
       }
 
+      // Extrair imagens do HTML original ANTES de limpar
+      const originalImages = this.extractImagesFromHTML(question.enunciado);
+      if (originalImages.length > 0) {
+        console.log(`[QuestionCleanupService] Questão ${questionId} tem ${originalImages.length} imagens no original`);
+      }
+
       // Processar com IA
       console.log(`[QuestionCleanupService] Processando questão ${questionId}...`);
       const cleanResult = await this.cleanQuestionWithAI(question.enunciado);
@@ -134,24 +258,68 @@ export class QuestionCleanupService {
       }
 
       // Validar resultado
-      if (!cleanResult.enunciado || cleanResult.enunciado.length < 20) {
-        return { success: false, action: 'failed', details: 'Enunciado extraído muito curto' };
+      const validation = this.validateCleanResult(cleanResult, question.enunciado);
+      if (!validation.valid) {
+        console.log(`[QuestionCleanupService] Questão ${questionId} falhou na validação: ${validation.errors.join(', ')}`);
+        return { success: false, action: 'validation_failed', details: validation.errors.join('; ') };
       }
 
-      if (!cleanResult.alternativas || cleanResult.alternativas.length < 2) {
-        return { success: false, action: 'failed', details: 'Alternativas não extraídas corretamente' };
+      // Combinar imagens: as extraídas pela IA + as do HTML original (sem duplicatas)
+      const allImages = [...(cleanResult.imagensEnunciado || [])];
+      for (const img of originalImages) {
+        if (!allImages.includes(img)) {
+          allImages.push(img);
+        }
+      }
+
+      // Se tem imagens, garantir que estão embedadas no enunciado
+      let finalEnunciado = cleanResult.enunciado;
+      if (allImages.length > 0) {
+        // Verificar se as imagens já estão no enunciado como markdown
+        for (const imgUrl of allImages) {
+          if (!finalEnunciado.includes(imgUrl)) {
+            // Adicionar imagem ao final do enunciado
+            finalEnunciado += `\n\n![Imagem](${imgUrl})`;
+            console.log(`[QuestionCleanupService] Imagem adicionada ao enunciado: ${imgUrl.substring(0, 50)}...`);
+          }
+        }
+      }
+
+      // Decidir se reativa baseado em confiança
+      let shouldReactivate = false;
+      let reviewInfo = '';
+
+      const cleanupConfianca = cleanResult.confianca || 0;
+
+      if (cleanupConfianca >= 0.90) {
+        // Alta confiança - reativar direto
+        shouldReactivate = true;
+        reviewInfo = 'Alta confiança na limpeza';
+      } else if (cleanupConfianca >= 0.70) {
+        // Confiança média - passar pelo agente de revisão
+        console.log(`[QuestionCleanupService] Questão ${questionId} com confiança ${cleanupConfianca}, enviando para revisão...`);
+        const reviewResult = await this.reviewCleanedQuestion(finalEnunciado!, cleanResult.alternativas!);
+
+        if (reviewResult.aprovada && reviewResult.confianca >= 0.80) {
+          shouldReactivate = true;
+          reviewInfo = `Aprovada na revisão: ${reviewResult.motivo}`;
+        } else {
+          reviewInfo = `Reprovada na revisão: ${reviewResult.motivo}`;
+        }
+      } else {
+        reviewInfo = 'Confiança muito baixa na limpeza';
       }
 
       // Atualizar no banco
       const { error: updateError } = await this.db
         .from('questoes_concurso')
         .update({
-          enunciado: cleanResult.enunciado,
+          enunciado: finalEnunciado,
           alternativas: cleanResult.alternativas,
-          imagens_enunciado: cleanResult.imagensEnunciado?.length
-            ? `{${cleanResult.imagensEnunciado.join(',')}}`
-            : null,
-          ativo: true, // Reativar questão
+          imagens_enunciado: allImages.length > 0
+            ? `{${allImages.join(',')}}`
+            : question.imagens_enunciado, // Preservar imagens existentes se houver
+          ativo: shouldReactivate,
         })
         .eq('id', questionId);
 
@@ -159,11 +327,13 @@ export class QuestionCleanupService {
         return { success: false, action: 'error', details: updateError.message };
       }
 
-      console.log(`[QuestionCleanupService] Questão ${questionId} limpa e reativada com sucesso`);
+      const actionMsg = shouldReactivate ? 'limpa e REATIVADA' : 'limpa (não reativada)';
+      console.log(`[QuestionCleanupService] Questão ${questionId} ${actionMsg}. ${reviewInfo}`);
+
       return {
         success: true,
-        action: 'cleaned',
-        details: `Confiança: ${cleanResult.confianca}, Tipo: ${cleanResult.tipoQuestao}`
+        action: shouldReactivate ? 'cleaned_reactivated' : 'cleaned_pending_review',
+        details: `Confiança: ${cleanResult.confianca}, Tipo: ${cleanResult.tipoQuestao}, Imagens: ${allImages.length}, Reativada: ${shouldReactivate}`
       };
     } catch (error) {
       return {
@@ -186,6 +356,10 @@ export class QuestionCleanupService {
       errors: [],
     };
 
+    let reactivated = 0;
+    let pendingReview = 0;
+    let validationFailed = 0;
+
     // Buscar questões
     const questions = await this.getCorruptedQuestions(batchSize);
     stats.total = questions.length;
@@ -196,14 +370,21 @@ export class QuestionCleanupService {
       try {
         const result = await this.cleanAndUpdateQuestion(question.id);
 
-        if (result.action === 'cleaned') {
+        if (result.action === 'cleaned_reactivated') {
           stats.cleaned++;
+          reactivated++;
+        } else if (result.action === 'cleaned_pending_review') {
+          stats.cleaned++;
+          pendingReview++;
+        } else if (result.action === 'validation_failed') {
+          validationFailed++;
+          stats.errors.push({ id: question.id, error: result.details || 'Falha na validação' });
         } else if (result.action === 'failed') {
           stats.failed++;
           stats.errors.push({ id: question.id, error: result.details || 'Falha desconhecida' });
         } else if (result.action === 'skipped') {
           stats.skipped++;
-        } else {
+        } else if (result.action === 'error') {
           stats.failed++;
           stats.errors.push({ id: question.id, error: result.details || 'Erro' });
         }
@@ -221,7 +402,7 @@ export class QuestionCleanupService {
       }
     }
 
-    console.log(`[QuestionCleanupService] Lote concluído: ${stats.cleaned} limpas, ${stats.failed} falhas, ${stats.skipped} ignoradas`);
+    console.log(`[QuestionCleanupService] Lote concluído: ${stats.cleaned} limpas (${reactivated} reativadas, ${pendingReview} pendentes revisão), ${validationFailed} falhas validação, ${stats.failed} erros, ${stats.skipped} ignoradas`);
     return stats;
   }
 
