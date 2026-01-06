@@ -13,7 +13,7 @@ import {
   ImageIcon,
   ArrowRight,
   Layers,
-  MessageSquare,
+  Settings,
 } from 'lucide-react';
 
 interface QuickCreatePreparatorioModalProps {
@@ -27,6 +27,8 @@ interface EtapaProgresso {
   status: 'pending' | 'in_progress' | 'completed' | 'error';
   detalhes?: string;
   progress?: number; // 0-100 para barra de progresso
+  hidden?: boolean; // Etapas ocultas que ainda executam no backend
+  serverProgress?: { current: number; total: number }; // Progresso real do servidor
 }
 
 interface ResultadoCriacao {
@@ -179,13 +181,13 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     setError(null);
     setResultado(null);
 
-    // Inicializar 5 etapas conforme o servidor SSE (Finalizando é oculta)
+    // Inicializar 5 etapas visíveis (as ocultas são gerenciadas pelo servidor)
     const etapasBase: EtapaProgresso[] = [
       { etapa: 'Analisando PDF do edital', status: 'in_progress', progress: 0 },
       { etapa: 'Criando preparatório', status: 'pending', progress: 0 },
       { etapa: 'Gerando imagem de capa', status: 'pending', progress: 0 },
       { etapa: 'Criando edital verticalizado', status: 'pending', progress: 0 },
-      { etapa: 'Criando mensagens de incentivo', status: 'pending', progress: 0 },
+      { etapa: 'Configurando filtros', status: 'pending', progress: 0 },
     ];
 
     setEtapas(etapasBase);
@@ -193,8 +195,8 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     // Iniciar animação da primeira etapa (análise demora mais)
     animateProgress(0, 60000);
 
-    // Tempos estimados para cada etapa (em ms)
-    const temposEstimados = [60000, 5000, 10000, 15000, 5000];
+    // Tempos estimados para cada etapa (em ms) - filtros usa progresso real do servidor
+    const temposEstimados = [60000, 5000, 10000, 15000, 120000];
 
     try {
       // Usar SSE para progresso em tempo real
@@ -246,19 +248,41 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
                   clearInterval(progressIntervalRef.current);
                 }
 
-                const novasEtapas = data.etapas.map((e: any, idx: number) => ({
-                  etapa: e.etapa,
-                  status: e.status,
-                  detalhes: e.detalhes,
-                  progress: e.status === 'completed' ? 100 : e.status === 'in_progress' ? 50 : 0,
-                }));
+                // Filtrar etapas ocultas e mapear com progresso real
+                const etapasVisiveis = data.etapas
+                  .filter((e: any) => !e.hidden)
+                  .map((e: any) => {
+                    // Usar progresso real do servidor se disponível
+                    let progressValue = 0;
+                    if (e.status === 'completed') {
+                      progressValue = 100;
+                    } else if (e.status === 'in_progress') {
+                      if (e.progress?.current && e.progress?.total) {
+                        progressValue = Math.round((e.progress.current / e.progress.total) * 100);
+                      } else {
+                        progressValue = 50;
+                      }
+                    }
 
-                setEtapas(novasEtapas);
+                    return {
+                      etapa: e.etapa,
+                      status: e.status,
+                      detalhes: e.detalhes,
+                      progress: progressValue,
+                      serverProgress: e.progress,
+                    };
+                  });
 
-                // Encontrar etapa atual e animar
-                const etapaAtualIdx = novasEtapas.findIndex((e: EtapaProgresso) => e.status === 'in_progress');
+                setEtapas(etapasVisiveis);
+
+                // Encontrar etapa atual - só animar se não tiver progresso real do servidor
+                const etapaAtualIdx = etapasVisiveis.findIndex((e: EtapaProgresso) => e.status === 'in_progress');
                 if (etapaAtualIdx >= 0) {
-                  animateProgress(etapaAtualIdx, temposEstimados[etapaAtualIdx] || 15000);
+                  const etapaAtual = etapasVisiveis[etapaAtualIdx];
+                  // Só usar animação fake se não tiver progresso real
+                  if (!etapaAtual.serverProgress) {
+                    animateProgress(etapaAtualIdx, temposEstimados[etapaAtualIdx] || 15000);
+                  }
                 }
               }
 
@@ -347,8 +371,8 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
   };
 
   const getEtapaIcon = (etapa: EtapaProgresso, index: number) => {
-    // 5 ícones para as 5 etapas
-    const icons = [FileText, GraduationCap, ImageIcon, Layers, MessageSquare];
+    // 5 ícones para as 5 etapas visíveis
+    const icons = [FileText, GraduationCap, ImageIcon, Layers, Settings];
     const Icon = icons[index] || CheckCircle;
 
     if (etapa.status === 'in_progress') {

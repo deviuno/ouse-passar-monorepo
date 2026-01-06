@@ -33,7 +33,7 @@ import {
     getMissoesPorRodada,
 } from './services/missionBuilderService.js';
 import { otimizarFiltrosPreparatorio, sugerirFiltrosMissao } from './mastra/agents/filtrosAdapterAgent.js';
-import { autoConfigureEditalFilters } from './mastra/agents/editalFilterAutoConfigAgent.js';
+import { autoConfigureEditalFilters, AutoConfigProgressCallback } from './mastra/agents/editalFilterAutoConfigAgent.js';
 import * as storeService from './services/storeService.js';
 import { buscarOuGerarLogo } from './services/logoService.js';
 import { generateSimuladoPDF } from './services/pdfService.js';
@@ -2540,6 +2540,8 @@ interface EtapaProgresso {
     etapa: string;
     status: 'pending' | 'in_progress' | 'completed' | 'error';
     detalhes?: string;
+    hidden?: boolean; // Etapas ocultas do frontend mas ainda executam
+    progress?: { current: number; total: number }; // Progresso detalhado para etapas longas
 }
 
 /**
@@ -2879,13 +2881,15 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
         { etapa: 'Criando preparatório', status: 'pending' },
         { etapa: 'Gerando imagem de capa', status: 'pending' },
         { etapa: 'Criando edital verticalizado', status: 'pending' },
-        { etapa: 'Criando mensagens de incentivo', status: 'pending' },
-        { etapa: 'Finalizando', status: 'pending' },
+        { etapa: 'Configurando filtros', status: 'pending' }, // Nova etapa com progresso real
+        { etapa: 'Criando mensagens de incentivo', status: 'pending', hidden: true },
+        { etapa: 'Finalizando', status: 'pending', hidden: true },
     ];
 
-    const updateEtapa = (index: number, status: EtapaProgresso['status'], detalhes?: string) => {
+    const updateEtapa = (index: number, status: EtapaProgresso['status'], detalhes?: string, progress?: { current: number; total: number }) => {
         etapas[index].status = status;
         if (detalhes) etapas[index].detalhes = detalhes;
+        if (progress) etapas[index].progress = progress;
         sendEvent('progress', { etapas, currentStep: index });
     };
 
@@ -3007,17 +3011,28 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
         const totalItems = resultadoEdital.blocos_criados + resultadoEdital.materias_criadas + resultadoEdital.topicos_criados + resultadoEdital.subtopicos_criados;
         console.log(`[FromPDF-SSE] Edital criado: ${totalItems} itens`);
 
-        // Auto-configurar filtros do edital via IA
-        console.log('[FromPDF-SSE] Auto-configurando filtros do edital...');
+        // ========== ETAPA 5: CONFIGURAR FILTROS (com progresso real) ==========
+        updateEtapa(4, 'in_progress', 'Iniciando...');
+        console.log('[FromPDF-SSE] Etapa 5: Auto-configurando filtros do edital...');
+
         try {
-            const autoConfigResult = await autoConfigureEditalFilters(preparatorioId);
+            // Callback de progresso para atualizar SSE em tempo real
+            const onFilterProgress: AutoConfigProgressCallback = (current, total, itemName) => {
+                const percentage = Math.round((current / total) * 100);
+                updateEtapa(4, 'in_progress', `${current}/${total} itens (${percentage}%)`, { current, total });
+            };
+
+            const autoConfigResult = await autoConfigureEditalFilters(preparatorioId, onFilterProgress);
             if (autoConfigResult.success) {
                 console.log(`[FromPDF-SSE] Filtros auto-configurados: ${autoConfigResult.itemsConfigured}/${autoConfigResult.itemsProcessed} itens`);
+                updateEtapa(4, 'completed', `${autoConfigResult.itemsConfigured}/${autoConfigResult.itemsProcessed} filtros configurados`);
             } else {
                 console.error('[FromPDF-SSE] Erro na auto-configuração:', autoConfigResult.error);
+                updateEtapa(4, 'completed', 'Concluído com avisos');
             }
         } catch (autoConfigError) {
             console.error('[FromPDF-SSE] Erro ao auto-configurar filtros:', autoConfigError);
+            updateEtapa(4, 'completed', 'Concluído com erros');
             // Non-blocking - continua mesmo se falhar
         }
 
@@ -3033,22 +3048,22 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
         };
         await atualizarRaioX(preparatorioId, raioX);
 
-        // ========== ETAPA 5: CRIAR MENSAGENS DE INCENTIVO ==========
-        updateEtapa(4, 'in_progress');
-        console.log('[FromPDF-SSE] Etapa 5: Criando mensagens de incentivo...');
+        // ========== ETAPA 6: CRIAR MENSAGENS DE INCENTIVO (oculta) ==========
+        updateEtapa(5, 'in_progress');
+        console.log('[FromPDF-SSE] Etapa 6: Criando mensagens de incentivo...');
 
         const resultadoMensagens = await criarMensagensIncentivoPadrao(preparatorioId);
 
-        updateEtapa(4, 'completed', `${resultadoMensagens.mensagens_criadas} mensagens`);
+        updateEtapa(5, 'completed', `${resultadoMensagens.mensagens_criadas} mensagens`);
         console.log(`[FromPDF-SSE] Mensagens criadas: ${resultadoMensagens.mensagens_criadas}`);
 
-        // ========== ETAPA 6: FINALIZAR ==========
-        updateEtapa(5, 'in_progress');
-        console.log('[FromPDF-SSE] Etapa 6: Finalizando...');
+        // ========== ETAPA 7: FINALIZAR (oculta) ==========
+        updateEtapa(6, 'in_progress');
+        console.log('[FromPDF-SSE] Etapa 7: Finalizando...');
 
         // Preparatório fica inativo até as rodadas serem criadas manualmente
         console.log(`[FromPDF-SSE] ✅ Preparatório criado (aguardando criação de rodadas)`);
-        updateEtapa(5, 'completed', 'Preparatório criado com sucesso');
+        updateEtapa(6, 'completed', 'Preparatório criado com sucesso');
 
         const tempoTotal = Date.now() - startTime;
         console.log(`[FromPDF-SSE] Processo concluído em ${(tempoTotal / 1000).toFixed(1)}s`);

@@ -450,10 +450,18 @@ Lembre-se de considerar sinonimos e variacoes comuns em concursos.`;
 // ==================== MAIN FUNCTION ====================
 
 /**
+ * Callback para reportar progresso durante a auto-configuração
+ */
+export type AutoConfigProgressCallback = (current: number, total: number, item?: string) => void;
+
+/**
  * Função principal que auto-configura os filtros de todos os itens do edital
+ * @param preparatorioId ID do preparatório
+ * @param onProgress Callback opcional para reportar progresso
  */
 export async function autoConfigureEditalFilters(
-    preparatorioId: string
+    preparatorioId: string,
+    onProgress?: AutoConfigProgressCallback
 ): Promise<AutoConfigResult> {
     console.log(`[EditalAutoConfig] Iniciando para preparatório: ${preparatorioId}`);
 
@@ -486,6 +494,10 @@ export async function autoConfigureEditalFilters(
 
         // 4. Processar itens do tipo MATÉRIA primeiro
         const materiaItems = items.filter(i => i.tipo === 'materia');
+        const topicoItems = items.filter(i => i.tipo === 'topico');
+        const totalToProcess = materiaItems.length + topicoItems.length;
+        let processedCount = 0;
+
         console.log(`[EditalAutoConfig] Processando ${materiaItems.length} matérias...`);
 
         for (const item of materiaItems) {
@@ -552,10 +564,15 @@ export async function autoConfigureEditalFilters(
                 matchType,
                 observacao,
             });
+
+            // Reportar progresso
+            processedCount++;
+            if (onProgress) {
+                onProgress(processedCount, totalToProcess, item.titulo);
+            }
         }
 
         // 5. Processar itens do tipo TÓPICO (dependem da matéria pai)
-        const topicoItems = items.filter(i => i.tipo === 'topico');
         console.log(`[EditalAutoConfig] Processando ${topicoItems.length} tópicos...`);
 
         for (const item of topicoItems) {
@@ -666,6 +683,12 @@ export async function autoConfigureEditalFilters(
                 matchType,
                 observacao,
             });
+
+            // Reportar progresso
+            processedCount++;
+            if (onProgress) {
+                onProgress(processedCount, totalToProcess, item.titulo);
+            }
         }
 
         console.log(`[EditalAutoConfig] Concluído: ${itemsConfigured}/${items.length} itens configurados`);
