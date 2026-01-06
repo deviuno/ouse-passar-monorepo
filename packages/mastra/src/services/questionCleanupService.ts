@@ -273,8 +273,8 @@ export class QuestionCleanupService {
       }
 
       // Se tem imagens, garantir que estão embedadas no enunciado
-      let finalEnunciado = cleanResult.enunciado;
-      if (allImages.length > 0) {
+      let finalEnunciado = cleanResult.enunciado || '';
+      if (allImages.length > 0 && finalEnunciado) {
         // Verificar se as imagens já estão no enunciado como markdown
         for (const imgUrl of allImages) {
           if (!finalEnunciado.includes(imgUrl)) {
@@ -298,7 +298,7 @@ export class QuestionCleanupService {
       } else if (cleanupConfianca >= 0.70) {
         // Confiança média - passar pelo agente de revisão
         console.log(`[QuestionCleanupService] Questão ${questionId} com confiança ${cleanupConfianca}, enviando para revisão...`);
-        const reviewResult = await this.reviewCleanedQuestion(finalEnunciado!, cleanResult.alternativas!);
+        const reviewResult = await this.reviewCleanedQuestion(finalEnunciado, cleanResult.alternativas || []);
 
         if (reviewResult.aprovada && reviewResult.confianca >= 0.80) {
           shouldReactivate = true;
