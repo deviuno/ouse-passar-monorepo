@@ -1652,9 +1652,10 @@ export default function PracticePage() {
   }
 
   // ==========================================
-  // RENDER: LOADING STATE (Auto-start)
+  // RENDER: LOADING STATE (Auto-start or Trail auto-start)
   // ==========================================
-  if (shouldAutoStart && (isLoadingFilters || isLoadingCount || isLoading)) {
+  const isAutoStarting = shouldAutoStart || autoStartPending;
+  if (isAutoStarting && (isLoadingFilters || isLoadingCount || isLoading || mode === 'selection')) {
     return (
       <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center font-sans text-white">
         <motion.div
