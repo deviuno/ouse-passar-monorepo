@@ -16,7 +16,7 @@ interface HubCard {
 const hubCards: HubCard[] = [
   {
     id: 'praticar',
-    title: 'Praticar Questões',
+    title: 'Ouse Questões',
     description: 'Resolva questões com filtros personalizados por banca, matéria, assunto e mais.',
     icon: <Play size={32} fill="currentColor" />,
     path: '/praticar',

@@ -29,7 +29,7 @@ import { ModuleName } from '../../stores/useModuleSettingsStore';
 
 const mainNavItems = [
   { path: '/', icon: Map, label: 'Minhas Trilhas', tourId: 'sidebar-trilha' },
-  { path: '/questoes', icon: Target, label: 'Praticar Questões', tourId: 'sidebar-praticar' },
+  { path: '/questoes', icon: Target, label: 'Ouse Questões', tourId: 'sidebar-praticar' },
   { path: '/simulados', icon: FileText, label: 'Meus Simulados', tourId: 'sidebar-simulados' },
   { path: '/estatisticas', icon: BarChart2, label: 'Estatísticas', tourId: 'sidebar-raiox' },
   { path: '/loja', icon: ShoppingBag, label: 'Loja', tourId: 'sidebar-loja' },
@@ -47,7 +47,7 @@ interface SidebarProps {
 // Module name labels for the blocked modal
 const MODULE_LABELS: Record<ModuleName, string> = {
   trilha: 'Minhas Trilhas',
-  praticar: 'Praticar Questões',
+  praticar: 'Ouse Questões',
   simulados: 'Meus Simulados',
   estatisticas: 'Estatísticas',
   loja: 'Loja',

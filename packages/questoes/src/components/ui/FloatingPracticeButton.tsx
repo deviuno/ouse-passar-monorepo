@@ -27,7 +27,7 @@ export function FloatingPracticeButton({
                      left-0 right-0 mx-auto w-fit"
         >
           <BookOpen size={20} />
-          <span>Praticar Questões</span>
+          <span>Ouse Questões</span>
         </motion.button>
       )}
     </AnimatePresence>

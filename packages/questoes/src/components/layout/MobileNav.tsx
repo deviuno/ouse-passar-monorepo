@@ -17,7 +17,7 @@ const navItems = [
 // Module name labels for the blocked modal
 const MODULE_LABELS: Record<ModuleName, string> = {
   trilha: 'Minhas Trilhas',
-  praticar: 'Praticar Questões',
+  praticar: 'Ouse Questões',
   simulados: 'Meus Simulados',
   estatisticas: 'Estatísticas',
   loja: 'Loja',

@@ -50,7 +50,7 @@ export function ModuleBlockedModal({
             className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-[#FFB800] hover:bg-[#FFC933] text-black font-semibold rounded-xl transition-colors"
           >
             <Target size={20} />
-            Ir para Praticar Questões
+            Ir para Ouse Questões
           </button>
           <button
             onClick={onClose}
