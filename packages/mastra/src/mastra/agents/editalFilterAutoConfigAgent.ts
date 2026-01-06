@@ -183,6 +183,41 @@ async function updateItemFilters(
 // ==================== MATCHING FUNCTIONS ====================
 
 /**
+ * Mapeamentos especiais para casos que não são pegos por exact/partial match
+ * Chave: termo normalizado (lowercase sem acentos)
+ * Valor: lista de termos possíveis (retorna o primeiro que existir na lista de disponíveis)
+ */
+const SPECIAL_MAPPINGS: Record<string, string[]> = {
+    // Língua estrangeira genérica -> pode ser inglês OU espanhol
+    'lingua estrangeira ingles ou espanhol': ['Língua Inglesa (Inglês)', 'Língua Espanhola (Espanhol)'],
+    'lingua estrangeira': ['Língua Inglesa (Inglês)', 'Língua Espanhola (Espanhol)'],
+    // Legislação de trânsito
+    'legislacao de transito': ['Legislação de Trânsito', 'Direito de Trânsito', 'Código de Trânsito Brasileiro'],
+    // Legislação especial
+    'legislacao especial': ['Legislação Penal Especial', 'Legislação Especial'],
+};
+
+/**
+ * Tenta encontrar match usando mapeamentos especiais
+ */
+function findSpecialMapping(titulo: string, disponiveis: string[]): string | null {
+    const tituloNorm = normalizeText(titulo);
+
+    for (const [key, possibleMatches] of Object.entries(SPECIAL_MAPPINGS)) {
+        if (tituloNorm.includes(key) || key.includes(tituloNorm)) {
+            for (const match of possibleMatches) {
+                const found = disponiveis.find(d => normalizeText(d) === normalizeText(match));
+                if (found) {
+                    return found;
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
  * Tenta encontrar match exato (case-insensitive, sem acentos)
  */
 function findExactMatch(titulo: string, disponiveis: string[]): string | null {
@@ -327,6 +362,18 @@ function sortByRelevance(titulo: string, disponiveis: string[]): string[] {
 }
 
 /**
+ * Helper para adicionar timeout a uma Promise
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(errorMsg)), timeoutMs)
+        )
+    ]);
+}
+
+/**
  * Usa IA para encontrar correspondência semântica
  */
 async function findAIMatch(
@@ -348,9 +395,14 @@ ${listaLimitada.join('\n')}
 Qual item da lista corresponde semanticamente ao termo "${titulo}"?
 Lembre-se de considerar sinonimos e variacoes comuns em concursos.`;
 
-        const result = await editalFilterAutoConfigAgent.generate([
-            { role: "user", content: prompt }
-        ]);
+        // Adiciona timeout de 30 segundos para evitar travamentos
+        const result = await withTimeout(
+            editalFilterAutoConfigAgent.generate([
+                { role: "user", content: prompt }
+            ]),
+            30000,
+            `Timeout ao buscar match IA para "${titulo}"`
+        );
 
         const responseText = result.text || '';
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -441,6 +493,16 @@ export async function autoConfigureEditalFilters(
                     matchType = 'partial';
                     observacao = `Match parcial: "${item.titulo}" -> "${matchedMateria}"`;
                     console.log(`[EditalAutoConfig] PARCIAL: "${item.titulo}" -> "${matchedMateria}"`);
+                }
+            }
+
+            // Tentar mapeamento especial (para casos como "LÍNGUA ESTRANGEIRA")
+            if (!matchedMateria) {
+                matchedMateria = findSpecialMapping(item.titulo, availableMaterias);
+                if (matchedMateria) {
+                    matchType = 'partial';
+                    observacao = `Mapeamento especial: "${item.titulo}" -> "${matchedMateria}"`;
+                    console.log(`[EditalAutoConfig] ESPECIAL: "${item.titulo}" -> "${matchedMateria}"`);
                 }
             }
 
