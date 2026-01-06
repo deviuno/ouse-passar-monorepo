@@ -2565,7 +2565,6 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
         { etapa: 'Criando preparatório', status: 'pending' },
         { etapa: 'Gerando imagem de capa', status: 'pending' },
         { etapa: 'Criando edital verticalizado', status: 'pending' },
-        { etapa: 'Gerando rodadas e missões', status: 'pending' },
         { etapa: 'Criando mensagens de incentivo', status: 'pending' },
         { etapa: 'Finalizando', status: 'pending' },
     ];
@@ -2774,174 +2773,37 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
             // Non-blocking - continua mesmo se falhar
         }
 
-        // ========== ETAPA 5: GERAR RODADAS E MISSÕES ==========
-        etapas[4].status = 'in_progress';
-        console.log('[FromPDF] Etapa 4: Gerando rodadas e missões...');
-
-        // Buscar matérias com tópicos
-        const materias = await buscarMateriasComTopicos(preparatorioId);
-
-        if (materias.length === 0) {
-            etapas[4].status = 'error';
-            etapas[4].detalhes = 'Nenhuma matéria com tópicos encontrada';
-            // Rollback
-            await deletarPreparatorio(preparatorioId);
-            res.status(500).json({
-                success: false,
-                error: 'Nenhuma matéria com tópicos foi encontrada no edital',
-                etapas,
-            });
-            return;
-        }
-
-        // Buscar configurações de rodadas do banco
-        const rodadasSettings = await getRodadasSettings();
-
-        // Configuração padrão
-        const config: ConfiguracaoGeracao = {
-            materias_por_rodada: rodadasSettings.materias_por_rodada,
-            max_topicos_por_missao: rodadasSettings.topicos_por_missao_com_subtopicos,
-            incluir_revisao_op: true,
-            incluir_tecnicas_op: true,
-            incluir_simulado: true,
-            gerar_filtros_questoes: true,
-        };
-
-        // Gerar rodadas
-        const resultadoRodadas = gerarRodadas(materias, config, rodadasSettings);
-
-        if (!resultadoRodadas.success) {
-            etapas[4].status = 'error';
-            etapas[4].detalhes = resultadoRodadas.error;
-            await deletarPreparatorio(preparatorioId);
-            res.status(500).json({
-                success: false,
-                error: resultadoRodadas.error || 'Erro ao gerar rodadas',
-                etapas,
-            });
-            return;
-        }
-
-        // Persistir rodadas
-        const resultadoPersistencia = await persistirRodadas(
-            preparatorioId,
-            resultadoRodadas.rodadas,
-            true, // substituir existentes
-            true, // gerar filtros
-            analise.infoBasica.banca || undefined
-        );
-
-        if (!resultadoPersistencia.success) {
-            etapas[4].status = 'error';
-            etapas[4].detalhes = resultadoPersistencia.error;
-            await deletarPreparatorio(preparatorioId);
-            res.status(500).json({
-                success: false,
-                error: resultadoPersistencia.error || 'Erro ao salvar rodadas',
-                etapas,
-            });
-            return;
-        }
-
-        etapas[4].status = 'completed';
-        etapas[4].detalhes = `${resultadoRodadas.estatisticas.total_rodadas} rodadas, ${resultadoRodadas.estatisticas.total_missoes} missões`;
-        console.log(`[FromPDF] Rodadas criadas: ${resultadoRodadas.estatisticas.total_rodadas}`);
-
-        // Salvar raio-x com estatísticas
+        // Salvar raio-x (sem rodadas - serão criadas depois manualmente)
         const raioX = {
             analise_automatica: true,
             data_analise: new Date().toISOString(),
             total_blocos: resultadoEdital.blocos_criados,
             total_materias: resultadoEdital.materias_criadas,
             total_topicos: resultadoEdital.topicos_criados,
-            total_rodadas: resultadoRodadas.estatisticas.total_rodadas,
-            total_missoes: resultadoRodadas.estatisticas.total_missoes,
-            missoes_estudo: resultadoRodadas.estatisticas.missoes_estudo,
-            missoes_revisao: resultadoRodadas.estatisticas.missoes_revisao,
+            total_rodadas: 0,
+            total_missoes: 0,
         };
 
         await atualizarRaioX(preparatorioId, raioX);
 
-        // ========== ETAPA 6: CRIAR MENSAGENS DE INCENTIVO ==========
-        etapas[5].status = 'in_progress';
-        console.log('[FromPDF] Etapa 6: Criando mensagens de incentivo...');
+        // ========== ETAPA 5: CRIAR MENSAGENS DE INCENTIVO ==========
+        etapas[4].status = 'in_progress';
+        console.log('[FromPDF] Etapa 5: Criando mensagens de incentivo...');
 
         const resultadoMensagens = await criarMensagensIncentivoPadrao(preparatorioId);
 
-        etapas[5].status = 'completed';
-        etapas[5].detalhes = `${resultadoMensagens.mensagens_criadas} mensagens`;
+        etapas[4].status = 'completed';
+        etapas[4].detalhes = `${resultadoMensagens.mensagens_criadas} mensagens`;
         console.log(`[FromPDF] Mensagens criadas: ${resultadoMensagens.mensagens_criadas}`);
 
-        // ========== ETAPA 7: GERAR CONTEÚDO DAS PRIMEIRAS MISSÕES ==========
-        etapas[6].status = 'in_progress';
-        console.log('[FromPDF] Etapa 7: Gerando conteúdo das primeiras missões...');
+        // ========== ETAPA 6: FINALIZAR ==========
+        etapas[5].status = 'in_progress';
+        console.log('[FromPDF] Etapa 6: Finalizando...');
 
-        // Gerar conteúdo das primeiras missões ANTES de ativar o preparatório
-        // Apenas missões do tipo 'padrao' têm conteúdo a ser gerado
-        const missoes = await getPrimeirasMissoesPadrao(preparatorioId, 2);
-        console.log(`[FromPDF] Gerando conteúdo para ${missoes.length} missões do tipo 'padrao'...`);
-        
-        // Iniciar geração de todas as missões
-        for (const missaoId of missoes) {
-            try {
-                await gerarConteudoMissaoBackground(missaoId);
-            } catch (err) {
-                console.error(`[FromPDF] ❌ Erro ao iniciar geração da missão ${missaoId}:`, err);
-            }
-        }
-
-        // Aguardar até que todas as missões tenham conteúdo com status 'completed'
-        const TIMEOUT_MS = 5 * 60 * 1000;
-        const POLL_INTERVAL_MS = 3000;
-        const pollStartTime = Date.now();
-        let missoesCompletas = 0;
-
-        console.log(`[FromPDF] Aguardando conclusão das missões (timeout: 5min)...`);
-
-        while (Date.now() - pollStartTime < TIMEOUT_MS) {
-            const { data: conteudos } = await supabase
-                .from('missao_conteudos')
-                .select('missao_id, status')
-                .in('missao_id', missoes);
-
-            const completedCount = conteudos?.filter(c => c.status === 'completed').length || 0;
-            const failedCount = conteudos?.filter(c => c.status === 'failed').length || 0;
-
-            if (completedCount + failedCount >= missoes.length) {
-                missoesCompletas = completedCount;
-                console.log(`[FromPDF] ✅ Todas as missões processadas: ${completedCount} completas, ${failedCount} falharam`);
-                break;
-            }
-
-            const elapsed = Math.floor((Date.now() - pollStartTime) / 1000);
-            if (elapsed % 15 === 0) {
-                console.log(`[FromPDF] ⏳ Aguardando... ${completedCount}/${missoes.length} completas (${elapsed}s)`);
-            }
-
-            await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
-        }
-
-        if (Date.now() - pollStartTime >= TIMEOUT_MS) {
-            const { data: conteudos } = await supabase
-                .from('missao_conteudos')
-                .select('missao_id, status')
-                .in('missao_id', missoes);
-            
-            missoesCompletas = conteudos?.filter(c => c.status === 'completed').length || 0;
-            console.warn(`[FromPDF] ⚠️ Timeout atingido. ${missoesCompletas}/${missoes.length} missões completas`);
-        }
-
-        // Só ativar preparatório DEPOIS que as primeiras missões foram geradas
-        if (missoesCompletas > 0) {
-            await ativarPreparatorio(preparatorioId);
-            console.log(`[FromPDF] ✅ Preparatório ativado após ${missoesCompletas} missões geradas`);
-            etapas[6].status = 'completed';
-            etapas[6].detalhes = `${missoesCompletas} missões geradas, preparatório ativado`;
-        } else {
-            console.warn(`[FromPDF] ⚠️ Nenhuma missão foi gerada, preparatório permanece inativo`);
-            etapas[6].status = 'completed';
-            etapas[6].detalhes = 'Preparatório criado (inativo - sem missões)';
-        }
+        // Preparatório fica inativo até as rodadas serem criadas manualmente
+        console.log(`[FromPDF] ✅ Preparatório criado (aguardando criação de rodadas)`);
+        etapas[5].status = 'completed';
+        etapas[5].detalhes = 'Preparatório criado com sucesso';
 
         const tempoTotal = Date.now() - startTime;
         console.log(`[FromPDF] Processo concluído em ${(tempoTotal / 1000).toFixed(1)}s`);
@@ -2962,10 +2824,10 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
                 materias: resultadoEdital.materias_criadas,
                 topicos: resultadoEdital.topicos_criados,
                 subtopicos: resultadoEdital.subtopicos_criados,
-                rodadas: resultadoRodadas.estatisticas.total_rodadas,
-                missoes: resultadoRodadas.estatisticas.total_missoes,
+                rodadas: 0,
+                missoes: 0,
                 mensagens_incentivo: resultadoMensagens.mensagens_criadas,
-                tempo_processamento_ms: tempoTotal,
+                tempo_total_ms: tempoTotal,
             },
             etapas,
         });
@@ -3017,7 +2879,6 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
         { etapa: 'Criando preparatório', status: 'pending' },
         { etapa: 'Gerando imagem de capa', status: 'pending' },
         { etapa: 'Criando edital verticalizado', status: 'pending' },
-        { etapa: 'Gerando rodadas e missões', status: 'pending' },
         { etapa: 'Criando mensagens de incentivo', status: 'pending' },
         { etapa: 'Finalizando', status: 'pending' },
     ];
@@ -3160,150 +3021,34 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
             // Non-blocking - continua mesmo se falhar
         }
 
-        // ========== ETAPA 5: GERAR RODADAS E MISSÕES ==========
-        updateEtapa(4, 'in_progress');
-        console.log('[FromPDF-SSE] Etapa 5: Gerando rodadas e missões...');
-
-        const materias = await buscarMateriasComTopicos(preparatorioId);
-
-        if (materias.length === 0) {
-            updateEtapa(4, 'error', 'Nenhuma matéria com tópicos encontrada');
-            await deletarPreparatorio(preparatorioId);
-            sendEvent('error', { error: 'Nenhuma matéria com tópicos foi encontrada', etapas });
-            res.end();
-            return;
-        }
-
-        // Buscar configurações de rodadas do banco
-        const rodadasSettings = await getRodadasSettings();
-
-        const config: ConfiguracaoGeracao = {
-            materias_por_rodada: rodadasSettings.materias_por_rodada,
-            max_topicos_por_missao: rodadasSettings.topicos_por_missao_com_subtopicos,
-            incluir_revisao_op: true,
-            incluir_tecnicas_op: true,
-            incluir_simulado: true,
-            gerar_filtros_questoes: true,
-        };
-
-        const resultadoRodadas = gerarRodadas(materias, config, rodadasSettings);
-
-        if (!resultadoRodadas.success) {
-            updateEtapa(4, 'error', resultadoRodadas.error);
-            await deletarPreparatorio(preparatorioId);
-            sendEvent('error', { error: resultadoRodadas.error || 'Erro ao gerar rodadas', etapas });
-            res.end();
-            return;
-        }
-
-        const resultadoPersistencia = await persistirRodadas(
-            preparatorioId,
-            resultadoRodadas.rodadas,
-            true,
-            true,
-            analise.infoBasica.banca || undefined
-        );
-
-        if (!resultadoPersistencia.success) {
-            updateEtapa(4, 'error', resultadoPersistencia.error);
-            await deletarPreparatorio(preparatorioId);
-            sendEvent('error', { error: resultadoPersistencia.error || 'Erro ao salvar rodadas', etapas });
-            res.end();
-            return;
-        }
-
-        updateEtapa(4, 'completed', `${resultadoRodadas.estatisticas.total_rodadas} rodadas, ${resultadoRodadas.estatisticas.total_missoes} missões`);
-        console.log(`[FromPDF-SSE] Rodadas criadas: ${resultadoRodadas.estatisticas.total_rodadas}`);
-
-        // Salvar raio-x
+        // Salvar raio-x (sem rodadas - serão criadas depois manualmente)
         const raioX = {
             analise_automatica: true,
             data_analise: new Date().toISOString(),
             total_blocos: resultadoEdital.blocos_criados,
             total_materias: resultadoEdital.materias_criadas,
             total_topicos: resultadoEdital.topicos_criados,
-            total_rodadas: resultadoRodadas.estatisticas.total_rodadas,
-            total_missoes: resultadoRodadas.estatisticas.total_missoes,
+            total_rodadas: 0,
+            total_missoes: 0,
         };
         await atualizarRaioX(preparatorioId, raioX);
 
-        // ========== ETAPA 6: CRIAR MENSAGENS DE INCENTIVO ==========
-        updateEtapa(5, 'in_progress');
-        console.log('[FromPDF-SSE] Etapa 6: Criando mensagens de incentivo...');
+        // ========== ETAPA 5: CRIAR MENSAGENS DE INCENTIVO ==========
+        updateEtapa(4, 'in_progress');
+        console.log('[FromPDF-SSE] Etapa 5: Criando mensagens de incentivo...');
 
         const resultadoMensagens = await criarMensagensIncentivoPadrao(preparatorioId);
 
-        updateEtapa(5, 'completed', `${resultadoMensagens.mensagens_criadas} mensagens`);
+        updateEtapa(4, 'completed', `${resultadoMensagens.mensagens_criadas} mensagens`);
         console.log(`[FromPDF-SSE] Mensagens criadas: ${resultadoMensagens.mensagens_criadas}`);
 
-        // ========== ETAPA 7: GERAR CONTEÚDO DAS PRIMEIRAS MISSÕES ==========
-        updateEtapa(6, 'in_progress');
-        console.log('[FromPDF-SSE] Etapa 7: Gerando conteúdo das primeiras missões...');
+        // ========== ETAPA 6: FINALIZAR ==========
+        updateEtapa(5, 'in_progress');
+        console.log('[FromPDF-SSE] Etapa 6: Finalizando...');
 
-        // Gerar conteúdo das primeiras missões ANTES de ativar o preparatório
-        // Apenas missões do tipo 'padrao' têm conteúdo a ser gerado
-        const missoes = await getPrimeirasMissoesPadrao(preparatorioId, 2);
-        console.log(`[FromPDF-SSE] Gerando conteúdo para ${missoes.length} missões do tipo 'padrao'...`);
-        
-        // Iniciar geração de todas as missões
-        for (const missaoId of missoes) {
-            try {
-                await gerarConteudoMissaoBackground(missaoId);
-            } catch (err) {
-                console.error(`[FromPDF-SSE] ❌ Erro ao iniciar geração da missão ${missaoId}:`, err);
-            }
-        }
-
-        // Aguardar até que todas as missões tenham conteúdo com status 'completed'
-        const TIMEOUT_MS = 5 * 60 * 1000;
-        const POLL_INTERVAL_MS = 3000;
-        const pollStartTime = Date.now();
-        let missoesCompletas = 0;
-
-        console.log(`[FromPDF-SSE] Aguardando conclusão das missões (timeout: 5min)...`);
-
-        while (Date.now() - pollStartTime < TIMEOUT_MS) {
-            const { data: conteudos } = await supabase
-                .from('missao_conteudos')
-                .select('missao_id, status')
-                .in('missao_id', missoes);
-
-            const completedCount = conteudos?.filter(c => c.status === 'completed').length || 0;
-            const failedCount = conteudos?.filter(c => c.status === 'failed').length || 0;
-
-            if (completedCount + failedCount >= missoes.length) {
-                missoesCompletas = completedCount;
-                console.log(`[FromPDF-SSE] ✅ Todas as missões processadas: ${completedCount} completas, ${failedCount} falharam`);
-                break;
-            }
-
-            const elapsed = Math.floor((Date.now() - pollStartTime) / 1000);
-            if (elapsed % 15 === 0) {
-                console.log(`[FromPDF-SSE] ⏳ Aguardando... ${completedCount}/${missoes.length} completas (${elapsed}s)`);
-            }
-
-            await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
-        }
-
-        if (Date.now() - pollStartTime >= TIMEOUT_MS) {
-            const { data: conteudos } = await supabase
-                .from('missao_conteudos')
-                .select('missao_id, status')
-                .in('missao_id', missoes);
-            
-            missoesCompletas = conteudos?.filter(c => c.status === 'completed').length || 0;
-            console.warn(`[FromPDF-SSE] ⚠️ Timeout atingido. ${missoesCompletas}/${missoes.length} missões completas`);
-        }
-
-        // Só ativar preparatório DEPOIS que as primeiras missões foram geradas
-        if (missoesCompletas > 0) {
-            await ativarPreparatorio(preparatorioId);
-            console.log(`[FromPDF-SSE] ✅ Preparatório ativado após ${missoesCompletas} missões geradas`);
-            updateEtapa(6, 'completed', `${missoesCompletas} missões geradas, preparatório ativado`);
-        } else {
-            console.warn(`[FromPDF-SSE] ⚠️ Nenhuma missão foi gerada, preparatório permanece inativo`);
-            updateEtapa(6, 'completed', 'Preparatório criado (inativo - sem missões)');
-        }
+        // Preparatório fica inativo até as rodadas serem criadas manualmente
+        console.log(`[FromPDF-SSE] ✅ Preparatório criado (aguardando criação de rodadas)`);
+        updateEtapa(5, 'completed', 'Preparatório criado com sucesso');
 
         const tempoTotal = Date.now() - startTime;
         console.log(`[FromPDF-SSE] Processo concluído em ${(tempoTotal / 1000).toFixed(1)}s`);
@@ -3324,10 +3069,10 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
                 materias: resultadoEdital.materias_criadas,
                 topicos: resultadoEdital.topicos_criados,
                 subtopicos: resultadoEdital.subtopicos_criados,
-                rodadas: resultadoRodadas.estatisticas.total_rodadas,
-                missoes: resultadoRodadas.estatisticas.total_missoes,
+                rodadas: 0,
+                missoes: 0,
                 mensagens_incentivo: resultadoMensagens.mensagens_criadas,
-                tempo_processamento_ms: tempoTotal,
+                tempo_total_ms: tempoTotal,
             },
             etapas,
         });

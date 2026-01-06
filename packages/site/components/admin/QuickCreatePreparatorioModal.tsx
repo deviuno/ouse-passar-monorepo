@@ -11,10 +11,8 @@ import {
   GraduationCap,
   Clock,
   ImageIcon,
-  Book,
   ArrowRight,
   Layers,
-  Target,
   MessageSquare,
   Zap,
 } from 'lucide-react';
@@ -182,15 +180,14 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     setError(null);
     setResultado(null);
 
-    // Inicializar 7 etapas conforme o servidor SSE
+    // Inicializar 6 etapas conforme o servidor SSE
     const etapasBase: EtapaProgresso[] = [
       { etapa: 'Analisando PDF do edital', status: 'in_progress', progress: 0 },
       { etapa: 'Criando preparatório', status: 'pending', progress: 0 },
       { etapa: 'Gerando imagem de capa', status: 'pending', progress: 0 },
       { etapa: 'Criando edital verticalizado', status: 'pending', progress: 0 },
-      { etapa: 'Gerando rodadas e missões', status: 'pending', progress: 0 },
       { etapa: 'Criando mensagens de incentivo', status: 'pending', progress: 0 },
-      { etapa: 'Preparando conteúdo inicial', status: 'pending', progress: 0 },
+      { etapa: 'Finalizando', status: 'pending', progress: 0 },
     ];
 
     setEtapas(etapasBase);
@@ -199,7 +196,7 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     animateProgress(0, 60000);
 
     // Tempos estimados para cada etapa (em ms)
-    const temposEstimados = [60000, 5000, 10000, 15000, 20000, 5000, 120000];
+    const temposEstimados = [60000, 5000, 10000, 15000, 5000, 10000];
 
     try {
       // Usar SSE para progresso em tempo real
@@ -352,8 +349,8 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
   };
 
   const getEtapaIcon = (etapa: EtapaProgresso, index: number) => {
-    // 7 ícones para as 7 etapas
-    const icons = [FileText, GraduationCap, ImageIcon, Layers, Target, MessageSquare, Zap];
+    // 6 ícones para as 6 etapas
+    const icons = [FileText, GraduationCap, ImageIcon, Layers, MessageSquare, Zap];
     const Icon = icons[index] || CheckCircle;
 
     if (etapa.status === 'in_progress') {
