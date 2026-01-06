@@ -142,25 +142,27 @@ export const TrailsPage: React.FC = () => {
                     </p>
                   )}
 
-                  {/* Preço */}
-                  <div className="mt-4 flex items-center justify-between">
-                    <div>
-                      {prep.preco_trilhas_desconto ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 line-through text-sm">
+                  {/* Preço - só mostra se o usuário NÃO tem acesso */}
+                  {!prep.userHasAccess && (
+                    <div className="mt-4 flex items-center justify-between">
+                      <div>
+                        {prep.preco_trilhas_desconto ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 line-through text-sm">
+                              {formatPrice(prep.preco_trilhas)}
+                            </span>
+                            <span className="text-emerald-500 font-bold text-lg">
+                              {formatPrice(prep.preco_trilhas_desconto)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-white font-bold text-lg">
                             {formatPrice(prep.preco_trilhas)}
                           </span>
-                          <span className="text-emerald-500 font-bold text-lg">
-                            {formatPrice(prep.preco_trilhas_desconto)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-white font-bold text-lg">
-                          {formatPrice(prep.preco_trilhas)}
-                        </span>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Botão */}
                   <div className="mt-4">
