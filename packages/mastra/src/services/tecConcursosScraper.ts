@@ -3439,7 +3439,9 @@ async function captureAllAccountsCookies(
   for (const account of accounts) {
     log(`\n========== Processando: ${account.email} ==========`);
 
-    const result = await captureCookiesForAccount(account.id, options);
+    const result = await captureCookiesForAccount(account.id,
+      options?.timeoutMinutesPerAccount ? { timeoutMinutes: options.timeoutMinutesPerAccount } : undefined
+    );
 
     if (result.success) {
       successCount++;
