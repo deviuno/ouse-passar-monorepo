@@ -198,10 +198,11 @@ function findExactMatch(titulo: string, disponiveis: string[]): string | null {
 }
 
 /**
- * Tenta encontrar match parcial (contains, primeiros chars, etc.)
+ * Tenta encontrar match parcial (contains, primeiros chars, palavras-chave, etc.)
  */
 function findPartialMatch(titulo: string, disponiveis: string[]): string | null {
     const tituloNorm = normalizeText(titulo);
+    const tituloWords = tituloNorm.split(/\s+/).filter(w => w.length > 3);
 
     for (const d of disponiveis) {
         const dNorm = normalizeText(d);
@@ -217,9 +218,37 @@ function findPartialMatch(titulo: string, disponiveis: string[]): string | null 
                 return d;
             }
         }
+
+        // Match por palavras-chave (>= 70% das palavras do título)
+        if (tituloWords.length >= 2) {
+            const matchedWords = tituloWords.filter(word => dNorm.includes(word));
+            if (matchedWords.length / tituloWords.length >= 0.7) {
+                return d;
+            }
+        }
     }
 
     return null;
+}
+
+/**
+ * Ordena assuntos por relevância ao título (assuntos com palavras em comum primeiro)
+ */
+function sortByRelevance(titulo: string, disponiveis: string[]): string[] {
+    const tituloNorm = normalizeText(titulo);
+    const tituloWords = tituloNorm.split(/\s+/).filter(w => w.length > 3);
+
+    return [...disponiveis].sort((a, b) => {
+        const aNorm = normalizeText(a);
+        const bNorm = normalizeText(b);
+
+        // Contar palavras em comum
+        const aMatches = tituloWords.filter(word => aNorm.includes(word)).length;
+        const bMatches = tituloWords.filter(word => bNorm.includes(word)).length;
+
+        // Ordenar por mais matches primeiro
+        return bMatches - aMatches;
+    });
 }
 
 /**
@@ -231,8 +260,9 @@ async function findAIMatch(
     tipo: string
 ): Promise<{ termo: string | null; explicacao: string }> {
     try {
-        // Limitar a lista para não sobrecarregar o prompt
-        const listaLimitada = disponiveis.slice(0, 100);
+        // Ordenar por relevância e limitar a lista para não sobrecarregar o prompt
+        const sortedList = sortByRelevance(titulo, disponiveis);
+        const listaLimitada = sortedList.slice(0, 200);
 
         const prompt = `
 Termo do edital (${tipo}): "${titulo}"
