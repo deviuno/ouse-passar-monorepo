@@ -5,26 +5,42 @@ import { ParsedQuestion, Alternative, RawQuestion } from '../types';
 // Helper para retry com backoff exponencial
 const withRetry = async <T>(
   fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
+  maxRetries: number = 4,
+  baseDelay: number = 2000
 ): Promise<T> => {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await fn();
+      const startTime = Date.now();
+      const result = await fn();
+      const elapsed = Date.now() - startTime;
+      if (attempt > 0) {
+        console.log(`[withRetry] ✅ Sucesso na tentativa ${attempt + 1} após ${elapsed}ms`);
+      }
+      return result;
     } catch (error) {
       lastError = error as Error;
-      console.warn(`[withRetry] Tentativa ${attempt + 1}/${maxRetries} falhou:`, error);
+      const errorMessage = lastError?.message || String(error);
+      const isTimeout = errorMessage.includes('abort') || errorMessage.includes('timeout') || errorMessage.includes('57014');
+
+      console.warn(`[withRetry] Tentativa ${attempt + 1}/${maxRetries} falhou:`, {
+        error: errorMessage,
+        isTimeout,
+        attempt: attempt + 1,
+      });
 
       if (attempt < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, attempt);
+        // Delay maior para timeouts
+        const multiplier = isTimeout ? 1.5 : 1;
+        const delay = Math.round(baseDelay * Math.pow(2, attempt) * multiplier);
         console.log(`[withRetry] Aguardando ${delay}ms antes de tentar novamente...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
 
+  console.error(`[withRetry] ❌ Todas as ${maxRetries} tentativas falharam`);
   throw lastError;
 };
 

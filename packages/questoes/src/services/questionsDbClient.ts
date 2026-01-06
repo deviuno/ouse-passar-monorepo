@@ -34,6 +34,21 @@ export const questionsDb = createClient(questionsDbUrl, questionsDbAnonKey, {
     persistSession: false,
     autoRefreshToken: false,
   },
+  global: {
+    headers: {
+      'x-client-info': 'ouse-questoes-app',
+    },
+    fetch: (url, options = {}) => {
+      // Timeout de 30 segundos para evitar conexões pendentes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+    },
+  },
 });
 
 console.log('[questionsDbClient] ✅ Cliente do banco de questões criado com sucesso');
