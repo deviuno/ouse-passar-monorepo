@@ -17,6 +17,9 @@ export const TrailEditalPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
     async function loadData() {
       if (!slug) {
         setError('Preparatório não encontrado');
@@ -27,6 +30,15 @@ export const TrailEditalPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
+      // Timeout de segurança de 10 segundos
+      timeoutId = setTimeout(() => {
+        if (isMounted) {
+          console.warn('[TrailEditalPage] Timeout ao carregar dados');
+          setError('Tempo limite excedido. Tente novamente.');
+          setIsLoading(false);
+        }
+      }, 10000);
+
       try {
         // Buscar preparatório pelo slug
         const { data: prep, error: prepError } = await supabase
@@ -35,6 +47,8 @@ export const TrailEditalPage: React.FC = () => {
           .eq('slug', slug)
           .eq('is_active', true)
           .single();
+
+        if (!isMounted) return;
 
         if (prepError || !prep) {
           setError('Preparatório não encontrado');
@@ -53,19 +67,33 @@ export const TrailEditalPage: React.FC = () => {
             .eq('preparatorio_id', prep.id)
             .limit(1);
 
-          setHasAccess(!!(userTrail && userTrail.length > 0));
+          if (isMounted) {
+            setHasAccess(!!(userTrail && userTrail.length > 0));
+          }
         } else {
-          setHasAccess(false);
+          if (isMounted) {
+            setHasAccess(false);
+          }
         }
       } catch (err) {
         console.error('Erro ao carregar dados:', err);
-        setError('Erro ao carregar dados');
+        if (isMounted) {
+          setError('Erro ao carregar dados');
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          clearTimeout(timeoutId);
+          setIsLoading(false);
+        }
       }
     }
 
     loadData();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [slug, user?.id]);
 
   const handleComprar = () => {

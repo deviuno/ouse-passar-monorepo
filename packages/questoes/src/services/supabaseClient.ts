@@ -29,6 +29,21 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     storageKey: 'sb-avlttxzppcywybiaxxzd-auth-token',
   },
+  global: {
+    headers: {
+      'x-client-info': 'ouse-questoes-app',
+    },
+    fetch: (url, options = {}) => {
+      // Timeout de 15 segundos para evitar conexões pendentes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+    },
+  },
 });
 
 console.log('[supabaseClient] ✅ Cliente criado com sucesso');

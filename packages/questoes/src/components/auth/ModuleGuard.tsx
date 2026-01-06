@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useModuleAccess } from '../../hooks/useModuleAccess';
 import { ModuleName } from '../../stores/useModuleSettingsStore';
@@ -22,25 +22,38 @@ export function ModuleGuard({
 }: ModuleGuardProps) {
   const navigate = useNavigate();
   const { hasFullAccess, isLoading, [module]: config } = useModuleAccess();
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+
+  // Timeout de segurança para evitar loading infinito
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (isLoading) {
+        console.warn('[ModuleGuard] Timeout ao carregar configurações de módulo');
+        setLoadingTimedOut(true);
+      }
+    }, 5000);
+
+    return () => clearTimeout(timeoutId);
+  }, [isLoading]);
 
   useEffect(() => {
-    // Wait for settings to load
-    if (isLoading) return;
+    // Wait for settings to load (or timeout)
+    if (isLoading && !loadingTimedOut) return;
 
     // If user has full access or module is enabled, allow access
-    if (hasFullAccess || config.enabled) return;
+    if (hasFullAccess || config.enabled || loadingTimedOut) return;
 
     // Module is disabled for this user - redirect
     navigate(redirectTo, { replace: true });
-  }, [isLoading, hasFullAccess, config.enabled, navigate, redirectTo]);
+  }, [isLoading, loadingTimedOut, hasFullAccess, config.enabled, navigate, redirectTo]);
 
-  // While loading, show nothing to avoid flash
-  if (isLoading) {
+  // While loading (and not timed out), show nothing to avoid flash
+  if (isLoading && !loadingTimedOut) {
     return null;
   }
 
-  // If user has full access or module is enabled, render children
-  if (hasFullAccess || config.enabled) {
+  // If user has full access or module is enabled (or timed out - allow access as fallback), render children
+  if (hasFullAccess || config.enabled || loadingTimedOut) {
     return <>{children}</>;
   }
 

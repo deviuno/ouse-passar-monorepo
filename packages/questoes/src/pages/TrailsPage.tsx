@@ -11,18 +11,41 @@ export const TrailsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
     async function loadPreparatorios() {
       setIsLoading(true);
+
+      // Timeout de segurança de 10 segundos
+      timeoutId = setTimeout(() => {
+        if (isMounted) {
+          console.warn('[TrailsPage] Timeout ao carregar preparatórios');
+          setIsLoading(false);
+        }
+      }, 10000);
+
       try {
         const data = await getPreparatoriosForTrilhasStore(user?.id);
-        setPreparatorios(data);
+        if (isMounted) {
+          setPreparatorios(data);
+        }
       } catch (error) {
         console.error('Erro ao carregar preparatórios:', error);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          clearTimeout(timeoutId);
+          setIsLoading(false);
+        }
       }
     }
+
     loadPreparatorios();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [user?.id]);
 
   const handleComprar = (prep: TrilhasStoreItem) => {
