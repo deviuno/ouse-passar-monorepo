@@ -107,17 +107,12 @@ const EditalItemNode: React.FC<{
 
         </div>
 
-        {/* Botão Praticar (apenas para tópicos - matérias não devem ter o botão) */}
-        {item.tipo === 'topico' && (
+        {/* Botão Praticar (apenas para tópicos COM filtros configurados) */}
+        {item.tipo === 'topico' && hasFilters && (
           <button
             onClick={handlePraticar}
-            disabled={!hasFilters}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex-shrink-0 ml-2 ${
-              hasFilters
-                ? 'bg-[#FFB800] hover:bg-[#FFC933] text-black transform hover:scale-105'
-                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-            }`}
-            title={!hasFilters ? 'Configure os filtros no painel admin para habilitar a prática' : 'Iniciar prática'}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex-shrink-0 ml-2 bg-[#FFB800] hover:bg-[#FFC933] text-black transform hover:scale-105"
+            title="Iniciar prática"
           >
             <Play size={12} fill="currentColor" />
             Praticar
@@ -205,31 +200,16 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
         const tree = await editalService.getTreeByPreparatorio(preparatorioId);
         setEditalTree(tree);
 
-        // Expandir blocos por padrão
-        const blocosIds = tree
-          .filter((item) => item.tipo === 'bloco')
-          .map((item) => item.id);
-
-        // Encontrar a primeira matéria para expandir
-        let firstMateriaId: string | null = null;
-        for (const item of tree) {
-          if (item.tipo === 'materia') {
-            firstMateriaId = item.id;
-            break;
-          } else if (item.children) {
-            const materia = item.children.find((c) => c.tipo === 'materia');
-            if (materia) {
-              firstMateriaId = materia.id;
-              break;
-            }
-          }
-        }
-
-        const initialExpanded = new Set(blocosIds);
-        if (firstMateriaId) {
-          initialExpanded.add(firstMateriaId);
-        }
-        setExpandedNodes(initialExpanded);
+        // Expandir TODOS os nós por padrão
+        const allIds = new Set<string>();
+        const collectAllIds = (items: EditalItemWithChildren[]) => {
+          items.forEach((item) => {
+            allIds.add(item.id);
+            if (item.children) collectAllIds(item.children);
+          });
+        };
+        collectAllIds(tree);
+        setExpandedNodes(allIds);
       } catch (err) {
         console.error('[TrailsTab] Erro ao carregar edital:', err);
         setError('Erro ao carregar edital. Tente novamente.');
