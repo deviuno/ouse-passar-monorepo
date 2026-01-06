@@ -376,6 +376,24 @@ export async function updateUserSettings(
       return { success: false, error: error.message };
     }
 
+    // Se is_ouse_questoes_subscriber foi alterado, sincronizar com user_trails
+    // Assinantes do Ouse Questões têm bateria ilimitada em TODOS os preparatórios
+    if (updates.is_ouse_questoes_subscriber !== undefined) {
+      const { error: trailsError } = await supabase
+        .from('user_trails' as any)
+        .update({
+          has_unlimited_battery: updates.is_ouse_questoes_subscriber,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      if (trailsError) {
+        console.error('[userDetailsService] Error updating user_trails battery:', trailsError);
+        // Não retornamos erro aqui pois a configuração principal foi salva
+        // mas logamos para debug
+      }
+    }
+
     return { success: true, error: null };
   } catch (err: any) {
     console.error('[userDetailsService] Exception:', err);
