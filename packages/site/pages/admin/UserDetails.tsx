@@ -21,6 +21,7 @@ import {
   Infinity,
   Plus,
   Check,
+  Trash2,
 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import {
@@ -30,6 +31,7 @@ import {
   rechargeBattery,
   getAvailablePreparatorios,
   addUserPreparatorio,
+  removeUserProduct,
   UserDetailsData,
   AvailablePreparatorio,
 } from '../../services/userDetailsService';
@@ -58,6 +60,15 @@ export const UserDetails: React.FC = () => {
   const [selectedPrepId, setSelectedPrepId] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [addingPrep, setAddingPrep] = useState(false);
+
+  // Modal state for removing products
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [productToRemove, setProductToRemove] = useState<{
+    prepId: string;
+    prepNome: string;
+    productType: string;
+  } | null>(null);
+  const [removingProduct, setRemovingProduct] = useState(false);
 
   useEffect(() => {
     if (userId) {
@@ -249,6 +260,34 @@ export const UserDetails: React.FC = () => {
     }
 
     setAddingPrep(false);
+  };
+
+  const handleOpenRemoveModal = (prepId: string, prepNome: string, productType: string) => {
+    setProductToRemove({ prepId, prepNome, productType });
+    setShowRemoveModal(true);
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!userId || !productToRemove) return;
+
+    setRemovingProduct(true);
+
+    const { success, error: err } = await removeUserProduct(
+      userId,
+      productToRemove.prepId,
+      productToRemove.productType
+    );
+
+    if (err) {
+      toast.error(`Erro ao remover produto: ${err}`);
+    } else if (success) {
+      toast.success('Produto removido com sucesso!');
+      setShowRemoveModal(false);
+      setProductToRemove(null);
+      loadUserDetails(); // Reload to update the list
+    }
+
+    setRemovingProduct(false);
   };
 
   const selectedPrep = availablePreps.find((p) => p.id === selectedPrepId);
@@ -537,7 +576,7 @@ export const UserDetails: React.FC = () => {
             <div className="space-y-3">
               {preparatorios.map((prep) => (
                 <div
-                  key={`${prep.id}-${prep.user_trail_id || 'default'}`}
+                  key={`${prep.id}-${prep.product_type}-${prep.user_trail_id || 'default'}`}
                   className="flex items-start justify-between gap-4 p-4 bg-brand-dark/50 rounded-sm"
                 >
                   {/* Left side - Info */}
@@ -566,33 +605,45 @@ export const UserDetails: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Right side - Battery block */}
-                  {prep.user_trail_id && prep.battery_current !== undefined && (
-                    <div className="flex flex-col items-center bg-brand-dark rounded-lg p-3 min-w-[100px]">
-                      {/* Battery amount */}
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Zap className={`w-5 h-5 ${prep.battery_current > 20 ? 'text-yellow-400' : 'text-red-400'}`} />
-                        <span className={`font-bold text-lg ${prep.battery_current > 20 ? 'text-white' : 'text-red-400'}`}>
-                          {prep.battery_current}/100
-                        </span>
-                      </div>
+                  {/* Right side - Actions */}
+                  <div className="flex items-center gap-2">
+                    {/* Battery block - only show for Turma de Elite (not for Trilha de Questões) */}
+                    {prep.user_trail_id && prep.battery_current !== undefined && prep.product_type === 'Turma de Elite' && (
+                      <div className="flex flex-col items-center bg-brand-dark rounded-lg p-3 min-w-[100px]">
+                        {/* Battery amount */}
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Zap className={`w-5 h-5 ${prep.battery_current > 20 ? 'text-yellow-400' : 'text-red-400'}`} />
+                          <span className={`font-bold text-lg ${prep.battery_current > 20 ? 'text-white' : 'text-red-400'}`}>
+                            {prep.battery_current}/100
+                          </span>
+                        </div>
 
-                      {/* Recharge button */}
-                      <button
-                        onClick={() => handleRechargeBattery(prep.user_trail_id!, prep.id)}
-                        disabled={rechargingTrailId === prep.user_trail_id || prep.battery_current === 100}
-                        className="w-full px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs font-bold rounded flex items-center justify-center gap-1.5 transition-colors"
-                        title="Recarregar bateria para o máximo"
-                      >
-                        {rechargingTrailId === prep.user_trail_id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        )}
-                        Recarregar
-                      </button>
-                    </div>
-                  )}
+                        {/* Recharge button */}
+                        <button
+                          onClick={() => handleRechargeBattery(prep.user_trail_id!, prep.id)}
+                          disabled={rechargingTrailId === prep.user_trail_id || prep.battery_current === 100}
+                          className="w-full px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs font-bold rounded flex items-center justify-center gap-1.5 transition-colors"
+                          title="Recarregar bateria para o máximo"
+                        >
+                          {rechargingTrailId === prep.user_trail_id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          )}
+                          Recarregar
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Remove button */}
+                    <button
+                      onClick={() => handleOpenRemoveModal(prep.id, prep.nome, prep.product_type)}
+                      className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                      title="Remover produto"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -828,6 +879,78 @@ export const UserDetails: React.FC = () => {
                   <>
                     <Plus size={16} />
                     Adicionar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirmar Remoção de Produto */}
+      {showRemoveModal && productToRemove && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-card border border-white/10 rounded-lg w-full max-w-md">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="text-white font-bold text-lg">Confirmar Remoção</h2>
+              <button
+                onClick={() => {
+                  setShowRemoveModal(false);
+                  setProductToRemove(null);
+                }}
+                className="p-1 text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-500" />
+                </div>
+              </div>
+              <p className="text-white text-center mb-2">
+                Tem certeza que deseja remover o produto?
+              </p>
+              <p className="text-gray-400 text-center text-sm mb-4">
+                <strong className="text-white">{productToRemove.productType}</strong>
+                <br />
+                do preparatório <strong className="text-white">{productToRemove.prepNome}</strong>
+              </p>
+              <p className="text-red-400 text-center text-xs">
+                O usuário perderá o acesso a este produto imediatamente.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-white/10">
+              <button
+                onClick={() => {
+                  setShowRemoveModal(false);
+                  setProductToRemove(null);
+                }}
+                disabled={removingProduct}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmRemove}
+                disabled={removingProduct}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {removingProduct ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Removendo...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Remover
                   </>
                 )}
               </button>

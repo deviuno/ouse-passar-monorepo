@@ -681,3 +681,73 @@ export async function addUserPreparatorio(
     return { success: false, error: err.message };
   }
 }
+
+/**
+ * Remove a product from a user's preparatorio access
+ * If the user has no more products for that preparatorio, the trail is deleted
+ */
+export async function removeUserProduct(
+  userId: string,
+  preparatorioId: string,
+  productType: string
+): Promise<{ success: boolean; error: string | null }> {
+  try {
+    // Map display names back to product codes
+    const productCodeMap: Record<string, string> = {
+      'Turma de Elite': 'turma_elite',
+      'Trilha de Questões': 'trilha_questoes',
+      'Reta Final': 'reta_final',
+      'Simulado': 'simulado',
+      'Plataforma Completa': 'plataforma_completa',
+    };
+
+    const productCode = productCodeMap[productType] || productType;
+
+    // Get the current trail
+    const { data: trail, error: fetchError } = await supabase
+      .from('user_trails' as any)
+      .select('id, purchased_products')
+      .eq('user_id', userId)
+      .eq('preparatorio_id', preparatorioId)
+      .single();
+
+    if (fetchError || !trail) {
+      return { success: false, error: 'Registro não encontrado' };
+    }
+
+    const currentProducts: string[] = (trail as any).purchased_products || [];
+    const updatedProducts = currentProducts.filter((p: string) => p !== productCode);
+
+    if (updatedProducts.length === 0) {
+      // No more products - delete the entire trail
+      const { error: deleteError } = await supabase
+        .from('user_trails' as any)
+        .delete()
+        .eq('id', (trail as any).id);
+
+      if (deleteError) {
+        console.error('[userDetailsService] Error deleting trail:', deleteError);
+        return { success: false, error: deleteError.message };
+      }
+    } else {
+      // Update the trail with remaining products
+      const { error: updateError } = await supabase
+        .from('user_trails' as any)
+        .update({
+          purchased_products: updatedProducts,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', (trail as any).id);
+
+      if (updateError) {
+        console.error('[userDetailsService] Error updating trail:', updateError);
+        return { success: false, error: updateError.message };
+      }
+    }
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('[userDetailsService] Exception:', err);
+    return { success: false, error: err.message };
+  }
+}
