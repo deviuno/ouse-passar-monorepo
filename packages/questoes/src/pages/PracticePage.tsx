@@ -68,6 +68,7 @@ import {
 import { createPracticeSession } from '../services/practiceSessionService';
 import { SessionResultsScreen } from '../components/practice/SessionResultsScreen';
 import { getGamificationSettings, GamificationSettings } from '../services/gamificationSettingsService';
+import { formatBancaDisplay, sortBancas } from '../utils/bancaFormatter';
 
 interface FilterOptions {
   materia: string[];
@@ -112,6 +113,7 @@ interface MultiSelectDropdownProps {
   placeholder?: string;
   isLoading?: boolean;
   disabled?: boolean;
+  displayFormatter?: (item: string) => string;
 }
 
 function MultiSelectDropdown({
@@ -124,10 +126,14 @@ function MultiSelectDropdown({
   placeholder = 'Selecionar...',
   isLoading = false,
   disabled = false,
+  displayFormatter,
 }: MultiSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Função para formatar item para exibição
+  const formatItem = (item: string) => displayFormatter ? displayFormatter(item) : item;
 
   // Fechar ao clicar fora
   useEffect(() => {
@@ -143,8 +149,12 @@ function MultiSelectDropdown({
   const filteredItems = useMemo(() => {
     if (!search.trim()) return items;
     const searchLower = search.toLowerCase();
-    return items.filter((item) => item.toLowerCase().includes(searchLower));
-  }, [items, search]);
+    // Buscar tanto no valor original quanto no formatado
+    return items.filter((item) =>
+      item.toLowerCase().includes(searchLower) ||
+      formatItem(item).toLowerCase().includes(searchLower)
+    );
+  }, [items, search, displayFormatter]);
 
   return (
     <div ref={dropdownRef} className="relative">
@@ -178,7 +188,7 @@ function MultiSelectDropdown({
           {selected.length === 0
             ? placeholder
             : selected.length === 1
-              ? selected[0]
+              ? formatItem(selected[0])
               : `${selected.length} selecionados`
           }
         </span>
@@ -237,7 +247,7 @@ function MultiSelectDropdown({
                       `}>
                         {isSelected && <Check size={10} className="text-black" />}
                       </div>
-                      <span className="break-words whitespace-normal leading-tight">{item}</span>
+                      <span className="break-words whitespace-normal leading-tight">{formatItem(item)}</span>
                     </button>
                   );
                 })
@@ -1103,28 +1113,33 @@ export default function PracticePage() {
       ? Math.round((Date.now() - questionStartTime) / 1000)
       : null;
 
-    // Consumir bateria por responder a questão
-    const prep = getSelectedPreparatorio();
-    const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
-    if (user?.id && prepIdToUse) {
-      const batteryResult = await consumeBattery(
-        user.id,
-        prepIdToUse,
-        'question',
-        { question_id: question.id.toString(), clickX, clickY }
-      );
-
-      if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
-        console.log('[PracticePage] Bateria insuficiente para responder questão');
-        return; // Modal será aberto automaticamente pelo store
-      }
-    }
-
+    // PRIMEIRO: Atualizar estatísticas (sempre acontece)
     setAnswers(new Map(answers.set(question.id, { letter, correct: isCorrect })));
     setSessionStats((prev) => ({
       correct: prev.correct + (isCorrect ? 1 : 0),
       total: prev.total + 1,
     }));
+
+    // DEPOIS: Consumir bateria por responder a questão (não bloqueia stats)
+    try {
+      const prep = getSelectedPreparatorio();
+      const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
+      if (user?.id && prepIdToUse) {
+        const batteryResult = await consumeBattery(
+          user.id,
+          prepIdToUse,
+          'question',
+          { question_id: question.id.toString(), clickX, clickY }
+        );
+
+        if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
+          console.log('[PracticePage] Bateria insuficiente');
+          // Modal será aberto automaticamente pelo store, mas não bloqueamos mais a resposta
+        }
+      }
+    } catch (error) {
+      console.error('[PracticePage] Erro ao consumir bateria:', error);
+    }
 
     // Calculate rewards based on gamification settings
     const isHardMode = studyMode === 'hard';
@@ -1183,24 +1198,29 @@ export default function PracticePage() {
         : (isHardMode ? 100 : 50);
       const xpEarned = sessionStats.correct * xpPerCorrect;
 
-      // Salvar sessão no banco de dados
-      if (user?.id) {
-        await createPracticeSession({
-          user_id: user.id,
-          study_mode: studyMode,
-          total_questions: sessionStats.total,
-          correct_answers: sessionStats.correct,
-          wrong_answers: sessionStats.total - sessionStats.correct,
-          time_spent_seconds: timeSpent,
-          filters: { ...filters, toggleFilters },
-          xp_earned: xpEarned,
-        });
+      // Salvar sessão no banco de dados (com tratamento de erro)
+      try {
+        if (user?.id) {
+          await createPracticeSession({
+            user_id: user.id,
+            study_mode: studyMode,
+            total_questions: sessionStats.total,
+            correct_answers: sessionStats.correct,
+            wrong_answers: sessionStats.total - sessionStats.correct,
+            time_spent_seconds: timeSpent,
+            filters: { ...filters, toggleFilters },
+            xp_earned: xpEarned,
+          });
 
-        // Refresh profile to sync streak and other stats from database
-        await fetchProfile();
+          // Refresh profile to sync streak and other stats from database
+          await fetchProfile();
+        }
+      } catch (error) {
+        console.error('[PracticePage] Erro ao salvar sessão:', error);
+        // Continua para mostrar resultados mesmo se falhar ao salvar
       }
 
-      // Mostrar tela de resultados
+      // Mostrar tela de resultados (sempre executa)
       setMode('results');
     }
   };
@@ -1306,11 +1326,12 @@ export default function PracticePage() {
                     <MultiSelectDropdown
                       label="Bancas"
                       icon={<Building2 size={16} />}
-                      items={availableBancas}
+                      items={sortBancas(availableBancas)}
                       selected={filters.banca}
                       onToggle={(item) => toggleFilter('banca', item)}
                       onClear={() => setFilters(prev => ({ ...prev, banca: [] }))}
                       placeholder="Selecione bancas..."
+                      displayFormatter={formatBancaDisplay}
                     />
                     <MultiSelectDropdown
                       label="Órgãos"
@@ -1589,9 +1610,9 @@ export default function PracticePage() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-center"
+          className="flex flex-col items-center text-center"
         >
-          <div className="relative mb-6">
+          <div className="mb-6">
             <div className="w-16 h-16 border-4 border-[#3A3A3A] border-t-[#FFB800] rounded-full animate-spin"></div>
           </div>
           <h2 className="text-xl font-bold text-white mb-2">Carregando questões...</h2>
@@ -1802,11 +1823,12 @@ export default function PracticePage() {
                   <MultiSelectDropdown
                     label="Bancas"
                     icon={<Building2 size={16} />}
-                    items={availableBancas}
+                    items={sortBancas(availableBancas)}
                     selected={filters.banca}
                     onToggle={(item) => toggleFilter('banca', item)}
                     onClear={() => setFilters(prev => ({ ...prev, banca: [] }))}
                     placeholder="Selecione bancas..."
+                    displayFormatter={formatBancaDisplay}
                   />
                   <MultiSelectDropdown
                     label="Órgãos"

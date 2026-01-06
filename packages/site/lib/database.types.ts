@@ -128,6 +128,7 @@ export type Database = {
           genero: string | null
           id: string
           is_active: boolean | null
+          is_ouse_questoes_subscriber: boolean | null
           last_login: string | null
           name: string
           password_hash: string
@@ -143,6 +144,7 @@ export type Database = {
           genero?: string | null
           id?: string
           is_active?: boolean | null
+          is_ouse_questoes_subscriber?: boolean | null
           last_login?: string | null
           name: string
           password_hash: string
@@ -158,6 +160,7 @@ export type Database = {
           genero?: string | null
           id?: string
           is_active?: boolean | null
+          is_ouse_questoes_subscriber?: boolean | null
           last_login?: string | null
           name?: string
           password_hash?: string
@@ -404,6 +407,134 @@ export type Database = {
           },
         ]
       }
+      assuntos_mapeamento: {
+        Row: {
+          assunto_original: string
+          confianca: number | null
+          created_at: string | null
+          id: number
+          materia: string | null
+          metodo: string | null
+          processado: boolean | null
+          questoes_count: number | null
+          taxonomia_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          assunto_original: string
+          confianca?: number | null
+          created_at?: string | null
+          id?: number
+          materia?: string | null
+          metodo?: string | null
+          processado?: boolean | null
+          questoes_count?: number | null
+          taxonomia_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          assunto_original?: string
+          confianca?: number | null
+          created_at?: string | null
+          id?: number
+          materia?: string | null
+          metodo?: string | null
+          processado?: boolean | null
+          questoes_count?: number | null
+          taxonomia_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assuntos_mapeamento_taxonomia_id_fkey"
+            columns: ["taxonomia_id"]
+            isOneToOne: false
+            referencedRelation: "assuntos_taxonomia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assuntos_sinonimos: {
+        Row: {
+          created_at: string | null
+          id: number
+          termo: string
+          termo_normalizado: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          termo: string
+          termo_normalizado: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          termo?: string
+          termo_normalizado?: string
+        }
+        Relationships: []
+      }
+      assuntos_taxonomia: {
+        Row: {
+          codigo: string | null
+          created_at: string | null
+          id: number
+          id_pai: number | null
+          materia: string | null
+          materia_id: number | null
+          materia_nome: string | null
+          nivel: number | null
+          nome: string
+          ordem: number | null
+          parent_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          codigo?: string | null
+          created_at?: string | null
+          id?: number
+          id_pai?: number | null
+          materia?: string | null
+          materia_id?: number | null
+          materia_nome?: string | null
+          nivel?: number | null
+          nome: string
+          ordem?: number | null
+          parent_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          codigo?: string | null
+          created_at?: string | null
+          id?: number
+          id_pai?: number | null
+          materia?: string | null
+          materia_id?: number | null
+          materia_nome?: string | null
+          nivel?: number | null
+          nome?: string
+          ordem?: number | null
+          parent_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assuntos_taxonomia_id_pai_fkey"
+            columns: ["id_pai"]
+            isOneToOne: false
+            referencedRelation: "assuntos_taxonomia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assuntos_taxonomia_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "assuntos_taxonomia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       atividade_tipos: {
         Row: {
           cor: string
@@ -481,39 +612,51 @@ export type Database = {
       audio_cache: {
         Row: {
           access_count: number | null
-          assunto: string
-          audio_data: string
-          content_type: string
+          assunto: string | null
+          audio_data: string | null
+          audio_type: string | null
+          audio_url: string | null
+          content_hash: string | null
+          content_type: string | null
           created_at: string | null
           duration_seconds: number | null
           file_size_bytes: number | null
           id: string
           last_accessed_at: string | null
           script_text: string | null
+          title: string | null
         }
         Insert: {
           access_count?: number | null
-          assunto: string
-          audio_data: string
-          content_type: string
+          assunto?: string | null
+          audio_data?: string | null
+          audio_type?: string | null
+          audio_url?: string | null
+          content_hash?: string | null
+          content_type?: string | null
           created_at?: string | null
           duration_seconds?: number | null
           file_size_bytes?: number | null
           id?: string
           last_accessed_at?: string | null
           script_text?: string | null
+          title?: string | null
         }
         Update: {
           access_count?: number | null
-          assunto?: string
-          audio_data?: string
-          content_type?: string
+          assunto?: string | null
+          audio_data?: string | null
+          audio_type?: string | null
+          audio_url?: string | null
+          content_hash?: string | null
+          content_type?: string | null
           created_at?: string | null
           duration_seconds?: number | null
           file_size_bytes?: number | null
           id?: string
           last_accessed_at?: string | null
           script_text?: string | null
+          title?: string | null
         }
         Relationships: []
       }
@@ -687,6 +830,72 @@ export type Database = {
           name?: string
           slug?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          audio_url: string | null
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          message_type: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audio_url?: string | null
+          content: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audio_url?: string | null
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      comentarios_pendentes_formatacao: {
+        Row: {
+          created_at: string | null
+          erro: string | null
+          id: number
+          processed_at: string | null
+          questao_id: number
+          status: string | null
+          tentativas: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          erro?: string | null
+          id?: number
+          processed_at?: string | null
+          questao_id: number
+          status?: string | null
+          tentativas?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          erro?: string | null
+          id?: number
+          processed_at?: string | null
+          questao_id?: number
+          status?: string | null
+          tentativas?: number | null
         }
         Relationships: []
       }
@@ -988,6 +1197,7 @@ export type Database = {
           estimated_duration_hours: number | null
           hotmart_product_id: string | null
           id: string
+          included_in_subscription: boolean | null
           instructor_id: string | null
           is_free: boolean | null
           kiwify_product_id: string | null
@@ -1026,6 +1236,7 @@ export type Database = {
           estimated_duration_hours?: number | null
           hotmart_product_id?: string | null
           id?: string
+          included_in_subscription?: boolean | null
           instructor_id?: string | null
           is_free?: boolean | null
           kiwify_product_id?: string | null
@@ -1064,6 +1275,7 @@ export type Database = {
           estimated_duration_hours?: number | null
           hotmart_product_id?: string | null
           id?: string
+          included_in_subscription?: boolean | null
           instructor_id?: string | null
           is_free?: boolean | null
           kiwify_product_id?: string | null
@@ -1515,6 +1727,8 @@ export type Database = {
       edital_verticalizado_items: {
         Row: {
           created_at: string | null
+          filtro_assuntos: string[] | null
+          filtro_materias: string[] | null
           id: string
           ordem: number
           parent_id: string | null
@@ -1525,6 +1739,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          filtro_assuntos?: string[] | null
+          filtro_materias?: string[] | null
           id?: string
           ordem: number
           parent_id?: string | null
@@ -1535,6 +1751,8 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          filtro_assuntos?: string[] | null
+          filtro_materias?: string[] | null
           id?: string
           ordem?: number
           parent_id?: string | null
@@ -1604,6 +1822,152 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      email_logs: {
+        Row: {
+          assunto: string
+          created_at: string | null
+          destinatario_email: string
+          destinatario_nome: string | null
+          enviado_em: string | null
+          erro: string | null
+          id: string
+          resend_id: string | null
+          status: string
+          template_id: string | null
+        }
+        Insert: {
+          assunto: string
+          created_at?: string | null
+          destinatario_email: string
+          destinatario_nome?: string | null
+          enviado_em?: string | null
+          erro?: string | null
+          id?: string
+          resend_id?: string | null
+          status?: string
+          template_id?: string | null
+        }
+        Update: {
+          assunto?: string
+          created_at?: string | null
+          destinatario_email?: string
+          destinatario_nome?: string | null
+          enviado_em?: string | null
+          erro?: string | null
+          id?: string
+          resend_id?: string | null
+          status?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_settings: {
+        Row: {
+          chave: string
+          created_at: string | null
+          descricao: string | null
+          id: string
+          updated_at: string | null
+          valor: string
+        }
+        Insert: {
+          chave: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          updated_at?: string | null
+          valor: string
+        }
+        Update: {
+          chave?: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          updated_at?: string | null
+          valor?: string
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          assunto: string
+          ativo: boolean | null
+          corpo_html: string
+          corpo_texto: string
+          created_at: string | null
+          id: string
+          nome_produto: string
+          produto: string
+          updated_at: string | null
+          variaveis_disponiveis: Json | null
+        }
+        Insert: {
+          assunto?: string
+          ativo?: boolean | null
+          corpo_html?: string
+          corpo_texto?: string
+          created_at?: string | null
+          id?: string
+          nome_produto: string
+          produto: string
+          updated_at?: string | null
+          variaveis_disponiveis?: Json | null
+        }
+        Update: {
+          assunto?: string
+          ativo?: boolean | null
+          corpo_html?: string
+          corpo_texto?: string
+          created_at?: string | null
+          id?: string
+          nome_produto?: string
+          produto?: string
+          updated_at?: string | null
+          variaveis_disponiveis?: Json | null
+        }
+        Relationships: []
+      }
+      filter_options_cache: {
+        Row: {
+          anos: Json | null
+          bancas: Json | null
+          cargos: Json | null
+          id: number
+          materias: Json | null
+          orgaos: Json | null
+          total_questoes: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          anos?: Json | null
+          bancas?: Json | null
+          cargos?: Json | null
+          id?: number
+          materias?: Json | null
+          orgaos?: Json | null
+          total_questoes?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          anos?: Json | null
+          bancas?: Json | null
+          cargos?: Json | null
+          id?: number
+          materias?: Json | null
+          orgaos?: Json | null
+          total_questoes?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       gamification_settings: {
         Row: {
@@ -2316,26 +2680,35 @@ export type Database = {
       }
       missao_questao_filtros: {
         Row: {
+          adaptacoes_observacoes: string | null
           created_at: string | null
           filtros: Json
+          filtros_originais: Json | null
           id: string
           missao_id: string
+          otimizado_por_ia: boolean | null
           questoes_count: number | null
           updated_at: string | null
         }
         Insert: {
+          adaptacoes_observacoes?: string | null
           created_at?: string | null
           filtros?: Json
+          filtros_originais?: Json | null
           id?: string
           missao_id: string
+          otimizado_por_ia?: boolean | null
           questoes_count?: number | null
           updated_at?: string | null
         }
         Update: {
+          adaptacoes_observacoes?: string | null
           created_at?: string | null
           filtros?: Json
+          filtros_originais?: Json | null
           id?: string
           missao_id?: string
+          otimizado_por_ia?: boolean | null
           questoes_count?: number | null
           updated_at?: string | null
         }
@@ -2344,6 +2717,38 @@ export type Database = {
             foreignKeyName: "missao_questao_filtros_missao_id_fkey"
             columns: ["missao_id"]
             isOneToOne: true
+            referencedRelation: "missoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      missao_questoes: {
+        Row: {
+          created_at: string | null
+          id: string
+          missao_id: string
+          ordem: number
+          questao_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          missao_id: string
+          ordem: number
+          questao_id: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          missao_id?: string
+          ordem?: number
+          questao_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missao_questoes_missao_id_fkey"
+            columns: ["missao_id"]
+            isOneToOne: false
             referencedRelation: "missoes"
             referencedColumns: ["id"]
           },
@@ -3095,6 +3500,7 @@ export type Database = {
           checkout_plataforma_completa: string | null
           checkout_reta_final: string | null
           checkout_simulados: string | null
+          checkout_trilhas: string | null
           checkout_url: string | null
           content_types: string[] | null
           cor: string | null
@@ -3112,6 +3518,7 @@ export type Database = {
           guru_product_id_plataforma_completa: string | null
           guru_product_id_reta_final: string | null
           guru_product_id_simulados: string | null
+          guru_product_id_trilhas: string | null
           icone: string | null
           id: string
           imagem_capa: string | null
@@ -3140,6 +3547,8 @@ export type Database = {
           preco_reta_final_desconto: number | null
           preco_simulados: number | null
           preco_simulados_desconto: number | null
+          preco_trilhas: number | null
+          preco_trilhas_desconto: number | null
           question_filters: Json | null
           raio_x: Json | null
           regiao: string | null
@@ -3162,6 +3571,7 @@ export type Database = {
           checkout_plataforma_completa?: string | null
           checkout_reta_final?: string | null
           checkout_simulados?: string | null
+          checkout_trilhas?: string | null
           checkout_url?: string | null
           content_types?: string[] | null
           cor?: string | null
@@ -3179,6 +3589,7 @@ export type Database = {
           guru_product_id_plataforma_completa?: string | null
           guru_product_id_reta_final?: string | null
           guru_product_id_simulados?: string | null
+          guru_product_id_trilhas?: string | null
           icone?: string | null
           id?: string
           imagem_capa?: string | null
@@ -3207,6 +3618,8 @@ export type Database = {
           preco_reta_final_desconto?: number | null
           preco_simulados?: number | null
           preco_simulados_desconto?: number | null
+          preco_trilhas?: number | null
+          preco_trilhas_desconto?: number | null
           question_filters?: Json | null
           raio_x?: Json | null
           regiao?: string | null
@@ -3229,6 +3642,7 @@ export type Database = {
           checkout_plataforma_completa?: string | null
           checkout_reta_final?: string | null
           checkout_simulados?: string | null
+          checkout_trilhas?: string | null
           checkout_url?: string | null
           content_types?: string[] | null
           cor?: string | null
@@ -3246,6 +3660,7 @@ export type Database = {
           guru_product_id_plataforma_completa?: string | null
           guru_product_id_reta_final?: string | null
           guru_product_id_simulados?: string | null
+          guru_product_id_trilhas?: string | null
           icone?: string | null
           id?: string
           imagem_capa?: string | null
@@ -3274,6 +3689,8 @@ export type Database = {
           preco_reta_final_desconto?: number | null
           preco_simulados?: number | null
           preco_simulados_desconto?: number | null
+          preco_trilhas?: number | null
+          preco_trilhas_desconto?: number | null
           question_filters?: Json | null
           raio_x?: Json | null
           regiao?: string | null
@@ -3447,17 +3864,23 @@ export type Database = {
           alternativas: Json
           ano: number | null
           assunto: string | null
+          ativo: boolean | null
           banca: string | null
           cargo_area_especialidade_edicao: string | null
           comentario: string | null
+          comentario_formatado: boolean | null
+          comentario_formatado_at: string | null
           concurso: string | null
           created_at: string | null
           enunciado: string
           explicacao_pegadinha: string | null
-          gabarito: string
+          gabarito: string | null
+          gabarito_auto_extraido: boolean | null
+          gabarito_metodo: string | null
           id: number
           imagens_comentario: string[] | null
           imagens_enunciado: string | null
+          imagens_enunciado_local: string | null
           is_pegadinha: boolean | null
           materia: string
           orgao: string | null
@@ -3469,17 +3892,23 @@ export type Database = {
           alternativas: Json
           ano?: number | null
           assunto?: string | null
+          ativo?: boolean | null
           banca?: string | null
           cargo_area_especialidade_edicao?: string | null
           comentario?: string | null
+          comentario_formatado?: boolean | null
+          comentario_formatado_at?: string | null
           concurso?: string | null
           created_at?: string | null
           enunciado: string
           explicacao_pegadinha?: string | null
-          gabarito: string
+          gabarito?: string | null
+          gabarito_auto_extraido?: boolean | null
+          gabarito_metodo?: string | null
           id?: number
           imagens_comentario?: string[] | null
           imagens_enunciado?: string | null
+          imagens_enunciado_local?: string | null
           is_pegadinha?: boolean | null
           materia: string
           orgao?: string | null
@@ -3491,23 +3920,59 @@ export type Database = {
           alternativas?: Json
           ano?: number | null
           assunto?: string | null
+          ativo?: boolean | null
           banca?: string | null
           cargo_area_especialidade_edicao?: string | null
           comentario?: string | null
+          comentario_formatado?: boolean | null
+          comentario_formatado_at?: string | null
           concurso?: string | null
           created_at?: string | null
           enunciado?: string
           explicacao_pegadinha?: string | null
-          gabarito?: string
+          gabarito?: string | null
+          gabarito_auto_extraido?: boolean | null
+          gabarito_metodo?: string | null
           id?: number
           imagens_comentario?: string[] | null
           imagens_enunciado?: string | null
+          imagens_enunciado_local?: string | null
           is_pegadinha?: boolean | null
           materia?: string
           orgao?: string | null
           prova?: string | null
           questao_revisada?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      questoes_pendentes_ia: {
+        Row: {
+          created_at: string | null
+          erro: string | null
+          id: number
+          processed_at: string | null
+          questao_id: number
+          status: string | null
+          tentativas: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          erro?: string | null
+          id?: number
+          processed_at?: string | null
+          questao_id: number
+          status?: string | null
+          tentativas?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          erro?: string | null
+          id?: number
+          processed_at?: string | null
+          questao_id?: number
+          status?: string | null
+          tentativas?: number | null
         }
         Relationships: []
       }
@@ -4258,6 +4723,291 @@ export type Database = {
         }
         Relationships: []
       }
+      tec_accounts: {
+        Row: {
+          cookies: Json | null
+          cookies_updated_at: string | null
+          created_at: string | null
+          email: string
+          id: string
+          is_active: boolean | null
+          last_login_check: string | null
+          login_status: string | null
+          password: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cookies?: Json | null
+          cookies_updated_at?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          is_active?: boolean | null
+          last_login_check?: string | null
+          login_status?: string | null
+          password?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cookies?: Json | null
+          cookies_updated_at?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          last_login_check?: string | null
+          login_status?: string | null
+          password?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      tec_cadernos: {
+        Row: {
+          account_id: string | null
+          collected_questions: number | null
+          completed_at: string | null
+          created_at: string | null
+          current_page: number | null
+          id: string
+          last_error: string | null
+          last_question_id: string | null
+          last_question_number: number | null
+          name: string
+          new_questions: number | null
+          priority: number | null
+          started_at: string | null
+          status: string | null
+          total_questions: number | null
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          account_id?: string | null
+          collected_questions?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          current_page?: number | null
+          id?: string
+          last_error?: string | null
+          last_question_id?: string | null
+          last_question_number?: number | null
+          name: string
+          new_questions?: number | null
+          priority?: number | null
+          started_at?: string | null
+          status?: string | null
+          total_questions?: number | null
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          account_id?: string | null
+          collected_questions?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          current_page?: number | null
+          id?: string
+          last_error?: string | null
+          last_question_id?: string | null
+          last_question_number?: number | null
+          name?: string
+          new_questions?: number | null
+          priority?: number | null
+          started_at?: string | null
+          status?: string | null
+          total_questions?: number | null
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tec_cadernos_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "tec_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tec_scraper_commands: {
+        Row: {
+          account_id: string | null
+          caderno_id: string | null
+          command: string
+          created_at: string | null
+          id: string
+          payload: Json | null
+          processed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          caderno_id?: string | null
+          command: string
+          created_at?: string | null
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          caderno_id?: string | null
+          command?: string
+          created_at?: string | null
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tec_scraper_commands_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "tec_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tec_scraper_commands_caderno_id_fkey"
+            columns: ["caderno_id"]
+            isOneToOne: false
+            referencedRelation: "tec_cadernos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tec_scraper_settings: {
+        Row: {
+          auto_start_enabled: boolean | null
+          auto_start_time: string | null
+          auto_stop_time: string | null
+          created_at: string | null
+          id: string
+          max_delay_ms: number | null
+          max_errors_before_pause: number | null
+          max_retries: number | null
+          min_delay_ms: number | null
+          page_delay_ms: number | null
+          questions_per_session: number | null
+          randomize_accounts: boolean | null
+          randomize_cadernos: boolean | null
+          retry_delay_ms: number | null
+          retry_on_error: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_start_enabled?: boolean | null
+          auto_start_time?: string | null
+          auto_stop_time?: string | null
+          created_at?: string | null
+          id?: string
+          max_delay_ms?: number | null
+          max_errors_before_pause?: number | null
+          max_retries?: number | null
+          min_delay_ms?: number | null
+          page_delay_ms?: number | null
+          questions_per_session?: number | null
+          randomize_accounts?: boolean | null
+          randomize_cadernos?: boolean | null
+          retry_delay_ms?: number | null
+          retry_on_error?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_start_enabled?: boolean | null
+          auto_start_time?: string | null
+          auto_stop_time?: string | null
+          created_at?: string | null
+          id?: string
+          max_delay_ms?: number | null
+          max_errors_before_pause?: number | null
+          max_retries?: number | null
+          min_delay_ms?: number | null
+          page_delay_ms?: number | null
+          questions_per_session?: number | null
+          randomize_accounts?: boolean | null
+          randomize_cadernos?: boolean | null
+          retry_delay_ms?: number | null
+          retry_on_error?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      tec_scraper_worker_state: {
+        Row: {
+          created_at: string | null
+          current_caderno_id: string | null
+          id: string
+          last_heartbeat: string | null
+          started_at: string | null
+          status: string | null
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_caderno_id?: string | null
+          id?: string
+          last_heartbeat?: string | null
+          started_at?: string | null
+          status?: string | null
+          worker_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_caderno_id?: string | null
+          id?: string
+          last_heartbeat?: string | null
+          started_at?: string | null
+          status?: string | null
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tec_scraper_worker_state_current_caderno_id_fkey"
+            columns: ["current_caderno_id"]
+            isOneToOne: false
+            referencedRelation: "tec_cadernos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tec_scraping_logs: {
+        Row: {
+          caderno_id: string | null
+          created_at: string | null
+          details: Json | null
+          id: string
+          log_type: string
+          message: string
+        }
+        Insert: {
+          caderno_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          log_type: string
+          message: string
+        }
+        Update: {
+          caderno_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          log_type?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tec_scraping_logs_caderno_id_fkey"
+            columns: ["caderno_id"]
+            isOneToOne: false
+            referencedRelation: "tec_cadernos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_messages: {
         Row: {
           anexos: Json | null
@@ -4676,9 +5426,11 @@ export type Database = {
       }
       user_missao_progress: {
         Row: {
+          answers_json: Json | null
           attempts: number | null
           completed_at: string | null
           created_at: string | null
+          current_question_index: number | null
           id: string
           last_attempt_at: string | null
           massificacao_attempts: number | null
@@ -4687,13 +5439,16 @@ export type Database = {
           score: number | null
           started_at: string | null
           status: string
+          study_mode: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          answers_json?: Json | null
           attempts?: number | null
           completed_at?: string | null
           created_at?: string | null
+          current_question_index?: number | null
           id?: string
           last_attempt_at?: string | null
           massificacao_attempts?: number | null
@@ -4702,13 +5457,16 @@ export type Database = {
           score?: number | null
           started_at?: string | null
           status?: string
+          study_mode?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          answers_json?: Json | null
           attempts?: number | null
           completed_at?: string | null
           created_at?: string | null
+          current_question_index?: number | null
           id?: string
           last_attempt_at?: string | null
           massificacao_attempts?: number | null
@@ -4717,6 +5475,7 @@ export type Database = {
           score?: number | null
           started_at?: string | null
           status?: string
+          study_mode?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -4841,18 +5600,23 @@ export type Database = {
           coins: number | null
           correct_answers: number | null
           created_at: string | null
+          daily_goal_claimed_date: string | null
           email: string | null
           id: string
           last_practice_date: string | null
+          last_questions_date: string | null
           league_tier: string | null
           level: number | null
           main_preparatorio_id: string | null
           name: string | null
           phone: string | null
+          questions_answered_today: number | null
           referral_points: number | null
           role: string | null
           show_answers: boolean | null
           streak: number | null
+          streak_30_bonus_claimed: boolean | null
+          streak_7_bonus_claimed: boolean | null
           total_answered: number | null
           total_commissions: number | null
           total_referrals: number | null
@@ -4866,18 +5630,23 @@ export type Database = {
           coins?: number | null
           correct_answers?: number | null
           created_at?: string | null
+          daily_goal_claimed_date?: string | null
           email?: string | null
           id: string
           last_practice_date?: string | null
+          last_questions_date?: string | null
           league_tier?: string | null
           level?: number | null
           main_preparatorio_id?: string | null
           name?: string | null
           phone?: string | null
+          questions_answered_today?: number | null
           referral_points?: number | null
           role?: string | null
           show_answers?: boolean | null
           streak?: number | null
+          streak_30_bonus_claimed?: boolean | null
+          streak_7_bonus_claimed?: boolean | null
           total_answered?: number | null
           total_commissions?: number | null
           total_referrals?: number | null
@@ -4891,18 +5660,23 @@ export type Database = {
           coins?: number | null
           correct_answers?: number | null
           created_at?: string | null
+          daily_goal_claimed_date?: string | null
           email?: string | null
           id?: string
           last_practice_date?: string | null
+          last_questions_date?: string | null
           league_tier?: string | null
           level?: number | null
           main_preparatorio_id?: string | null
           name?: string | null
           phone?: string | null
+          questions_answered_today?: number | null
           referral_points?: number | null
           role?: string | null
           show_answers?: boolean | null
           streak?: number | null
+          streak_30_bonus_claimed?: boolean | null
+          streak_7_bonus_claimed?: boolean | null
           total_answered?: number | null
           total_commissions?: number | null
           total_referrals?: number | null
@@ -4975,6 +5749,7 @@ export type Database = {
           is_reta_final: boolean | null
           nivel_usuario: string | null
           preparatorio_id: string
+          purchased_products: string[] | null
           questoes_por_missao: number | null
           reta_final_started_at: string | null
           slot_a_materia_id: string | null
@@ -4998,6 +5773,7 @@ export type Database = {
           is_reta_final?: boolean | null
           nivel_usuario?: string | null
           preparatorio_id: string
+          purchased_products?: string[] | null
           questoes_por_missao?: number | null
           reta_final_started_at?: string | null
           slot_a_materia_id?: string | null
@@ -5021,6 +5797,7 @@ export type Database = {
           is_reta_final?: boolean | null
           nivel_usuario?: string | null
           preparatorio_id?: string
+          purchased_products?: string[] | null
           questoes_por_missao?: number | null
           reta_final_started_at?: string | null
           slot_a_materia_id?: string | null
@@ -5492,6 +6269,18 @@ export type Database = {
         Args: { p_amount: number; p_preparatorio_id: string; p_user_id: string }
         Returns: undefined
       }
+      check_and_award_bonuses: {
+        Args: { p_questions_increment?: number; p_user_id: string }
+        Returns: {
+          daily_goal_bonus_awarded: boolean
+          daily_goal_coins: number
+          daily_goal_xp: number
+          streak_30_bonus_awarded: boolean
+          streak_30_xp: number
+          streak_7_bonus_awarded: boolean
+          streak_7_xp: number
+        }[]
+      }
       check_can_add_preparatorio: { Args: { p_user_id: string }; Returns: Json }
       check_unlimited_battery_expired: {
         Args: { p_expires_at: string; p_has_unlimited: boolean }
@@ -5515,6 +6304,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      count_questoes_by_filter: {
+        Args: { p_assuntos?: string[]; p_banca?: string; p_materias?: string[] }
+        Returns: number
       }
       create_affiliate_commission: {
         Args: {
@@ -5551,7 +6344,42 @@ export type Database = {
         Args: { p_name: string; p_user_id: string }
         Returns: string
       }
+      get_all_filter_options: { Args: never; Returns: Json }
+      get_all_taxonomia: {
+        Args: never
+        Returns: {
+          codigo: string
+          created_at: string
+          id: number
+          materia: string
+          nivel: number
+          nome: string
+          ordem: number
+          parent_id: number
+        }[]
+      }
+      get_all_taxonomia_mapeamentos: {
+        Args: never
+        Returns: {
+          assunto_original: string
+          materia: string
+          taxonomia_id: number
+        }[]
+      }
       get_battery_settings: { Args: never; Returns: Json }
+      get_distinct_assuntos: {
+        Args: { p_materias?: string[] }
+        Returns: {
+          assunto: string
+          materia: string
+        }[]
+      }
+      get_distinct_materias: {
+        Args: never
+        Returns: {
+          materia: string
+        }[]
+      }
       get_league_ranking: {
         Args: { p_league_tier: string; p_limit?: number }
         Returns: {
@@ -5570,9 +6398,28 @@ export type Database = {
           materia_id: string
         }[]
       }
+      get_questions_count: {
+        Args: {
+          p_anos?: number[]
+          p_apenas_com_comentario?: boolean
+          p_apenas_revisadas?: boolean
+          p_assuntos?: string[]
+          p_bancas?: string[]
+          p_cargos?: string[]
+          p_materias?: string[]
+          p_orgaos?: string[]
+        }
+        Returns: number
+      }
       get_topicos_usados: {
         Args: { p_preparatorio_id: string }
         Returns: string[]
+      }
+      get_unique_assuntos_by_materias: {
+        Args: { p_materias: string[] }
+        Returns: {
+          assunto: string
+        }[]
       }
       get_user_battery_status: {
         Args: { p_preparatorio_id: string; p_user_id: string }
@@ -5666,6 +6513,7 @@ export type Database = {
         }[]
       }
       recharge_all_batteries: { Args: never; Returns: number }
+      refresh_filter_options_cache: { Args: never; Returns: undefined }
       revoke_product_access: {
         Args: {
           p_preparatorio_id: string
@@ -5891,10 +6739,3 @@ export const Constants = {
     },
   },
 } as const
-
-
-
-// Custom type exports for backward compatibility
-export type AdminUser = Database['public']['Tables']['admin_users']['Row'];
-export type Lead = Database['public']['Tables']['leads']['Row'];
-
