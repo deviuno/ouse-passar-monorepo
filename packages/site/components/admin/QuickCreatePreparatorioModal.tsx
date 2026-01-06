@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X,
@@ -13,6 +13,10 @@ import {
   ImageIcon,
   Book,
   ArrowRight,
+  Layers,
+  Target,
+  MessageSquare,
+  Zap,
 } from 'lucide-react';
 
 interface QuickCreatePreparatorioModalProps {
@@ -25,6 +29,7 @@ interface EtapaProgresso {
   etapa: string;
   status: 'pending' | 'in_progress' | 'completed' | 'error';
   detalhes?: string;
+  progress?: number; // 0-100 para barra de progresso
 }
 
 interface ResultadoCriacao {
@@ -42,6 +47,8 @@ interface ResultadoCriacao {
     materias: number;
     topicos: number;
     subtopicos: number;
+    rodadas?: number;
+    missoes?: number;
     tempo_processamento_ms: number;
   };
   error?: string;
@@ -126,6 +133,48 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     return `${minutos}m ${seg}s`;
   };
 
+  // Ref para controlar animação de progresso
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Limpar intervals ao desmontar
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Animar progresso da etapa atual
+  const animateProgress = useCallback((etapaIndex: number, durationMs: number = 30000) => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+
+    const startTime = Date.now();
+    const updateInterval = 100; // Atualiza a cada 100ms
+
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      // Progresso vai de 0 a 95% (nunca chega a 100% até completar de verdade)
+      const progress = Math.min(95, (elapsed / durationMs) * 100);
+
+      setEtapas(prev => prev.map((e, idx) =>
+        idx === etapaIndex ? { ...e, progress } : e
+      ));
+
+      if (progress >= 95) {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+        }
+      }
+    }, updateInterval);
+  }, []);
+
   const handleProcessar = async () => {
     if (!selectedFile) return;
 
@@ -133,83 +182,154 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
     setError(null);
     setResultado(null);
 
-    // Inicializar etapas
+    // Inicializar 7 etapas conforme o servidor SSE
     const etapasBase: EtapaProgresso[] = [
-      { etapa: 'Analisando PDF do edital', status: 'in_progress' },
-      { etapa: 'Criando preparatório', status: 'pending' },
-      { etapa: 'Gerando imagem de capa', status: 'pending' },
-      { etapa: 'Criando edital verticalizado', status: 'pending' },
+      { etapa: 'Analisando PDF do edital', status: 'in_progress', progress: 0 },
+      { etapa: 'Criando preparatório', status: 'pending', progress: 0 },
+      { etapa: 'Gerando imagem de capa', status: 'pending', progress: 0 },
+      { etapa: 'Criando edital verticalizado', status: 'pending', progress: 0 },
+      { etapa: 'Gerando rodadas e missões', status: 'pending', progress: 0 },
+      { etapa: 'Criando mensagens de incentivo', status: 'pending', progress: 0 },
+      { etapa: 'Preparando conteúdo inicial', status: 'pending', progress: 0 },
     ];
 
     setEtapas(etapasBase);
 
-    // Simular progresso fake enquanto aguarda a resposta
-    const temposEtapas = [8000, 3000, 5000, 4000];
-    let etapaAtual = 0;
-    const maxEtapas = 3;
+    // Iniciar animação da primeira etapa (análise demora mais)
+    animateProgress(0, 60000);
 
-    const progressInterval = setInterval(() => {
-      if (etapaAtual < maxEtapas) {
-        etapaAtual++;
-        setEtapas(prev => prev.map((e, idx) => ({
-          ...e,
-          status: idx < etapaAtual ? 'completed' : idx === etapaAtual ? 'in_progress' : 'pending',
-        })));
-      }
-    }, temposEtapas[etapaAtual] || 4000);
+    // Tempos estimados para cada etapa (em ms)
+    const temposEstimados = [60000, 5000, 10000, 15000, 20000, 5000, 120000];
 
     try {
-      // Processar edital
+      // Usar SSE para progresso em tempo real
       const formData = new FormData();
       formData.append('pdf', selectedFile);
 
-      const response = await fetch(`${MASTRA_SERVER_URL}/api/preparatorio/from-pdf-preview`, {
+      abortControllerRef.current = new AbortController();
+
+      const response = await fetch(`${MASTRA_SERVER_URL}/api/preparatorio/from-pdf-stream`, {
         method: 'POST',
         body: formData,
+        signal: abortControllerRef.current.signal,
       });
 
-      const data = await response.json();
-
-      clearInterval(progressInterval);
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Erro ao processar o PDF');
+      if (!response.ok) {
+        throw new Error('Erro ao conectar com o servidor');
       }
 
-      // Marcar todas as etapas como completas
-      setEtapas(prev => prev.map(e => ({ ...e, status: 'completed' })));
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      // Configurar resultado
-      setResultado({
-        success: true,
-        preparatorio: {
-          id: data.preparatorioId,
-          slug: data.preparatorioInfo.slug,
-          nome: data.preparatorioInfo.nome,
-          banca: data.preparatorioInfo.banca,
-          orgao: data.preparatorioInfo.orgao,
-          cargo: data.preparatorioInfo.cargo,
-        },
-        estatisticas: {
-          blocos: data.estatisticas.blocos,
-          materias: data.estatisticas.materias,
-          topicos: data.estatisticas.topicos,
-          subtopicos: data.estatisticas.subtopicos,
-          tempo_processamento_ms: data.estatisticas.tempo_analise_ms,
-        },
-      });
+      if (!reader) {
+        throw new Error('Não foi possível ler a resposta do servidor');
+      }
 
-      setIsProcessing(false);
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            const eventType = line.slice(6).trim();
+            continue;
+          }
+
+          if (line.startsWith('data:')) {
+            try {
+              const data = JSON.parse(line.slice(5).trim());
+
+              // Atualizar etapas com dados do servidor
+              if (data.etapas) {
+                if (progressIntervalRef.current) {
+                  clearInterval(progressIntervalRef.current);
+                }
+
+                const novasEtapas = data.etapas.map((e: any, idx: number) => ({
+                  etapa: e.etapa,
+                  status: e.status,
+                  detalhes: e.detalhes,
+                  progress: e.status === 'completed' ? 100 : e.status === 'in_progress' ? 50 : 0,
+                }));
+
+                setEtapas(novasEtapas);
+
+                // Encontrar etapa atual e animar
+                const etapaAtualIdx = novasEtapas.findIndex((e: EtapaProgresso) => e.status === 'in_progress');
+                if (etapaAtualIdx >= 0) {
+                  animateProgress(etapaAtualIdx, temposEstimados[etapaAtualIdx] || 15000);
+                }
+              }
+
+              // Processar evento de conclusão
+              if (data.success && data.preparatorio) {
+                if (progressIntervalRef.current) {
+                  clearInterval(progressIntervalRef.current);
+                }
+
+                // Marcar todas como completas
+                setEtapas(prev => prev.map(e => ({ ...e, status: 'completed', progress: 100 })));
+
+                setResultado({
+                  success: true,
+                  preparatorio: {
+                    id: data.preparatorio.id,
+                    slug: data.preparatorio.slug,
+                    nome: data.preparatorio.nome,
+                    banca: data.preparatorio.banca,
+                    orgao: data.preparatorio.orgao,
+                    cargo: data.preparatorio.cargo,
+                  },
+                  estatisticas: {
+                    blocos: data.estatisticas?.blocos || 0,
+                    materias: data.estatisticas?.materias || 0,
+                    topicos: data.estatisticas?.topicos || 0,
+                    subtopicos: data.estatisticas?.subtopicos || 0,
+                    tempo_processamento_ms: data.estatisticas?.tempo_total_ms || 0,
+                  },
+                });
+
+                setIsProcessing(false);
+                return;
+              }
+
+              // Processar erro
+              if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch (parseError) {
+              // Ignorar erros de parse de eventos intermediários
+              if (parseError instanceof SyntaxError) continue;
+              throw parseError;
+            }
+          }
+        }
+      }
 
     } catch (err: any) {
-      clearInterval(progressInterval);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+
+      if (err.name === 'AbortError') {
+        console.log('Requisição cancelada');
+        return;
+      }
+
       console.error('Erro ao processar PDF:', err);
 
       // Marcar etapa atual como erro
-      setEtapas(prev => prev.map((e, idx) => ({
+      setEtapas(prev => prev.map((e) => ({
         ...e,
         status: e.status === 'in_progress' ? 'error' : e.status === 'pending' ? 'pending' : e.status,
         detalhes: e.status === 'in_progress' ? err.message : undefined,
+        progress: e.status === 'in_progress' ? 0 : e.progress,
       })));
 
       setError(err.message || 'Erro de conexão com o servidor');
@@ -232,7 +352,8 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
   };
 
   const getEtapaIcon = (etapa: EtapaProgresso, index: number) => {
-    const icons = [FileText, GraduationCap, ImageIcon, Book];
+    // 7 ícones para as 7 etapas
+    const icons = [FileText, GraduationCap, ImageIcon, Layers, Target, MessageSquare, Zap];
     const Icon = icons[index] || CheckCircle;
 
     if (etapa.status === 'in_progress') {
@@ -245,6 +366,25 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
       return <AlertCircle className="w-5 h-5 text-red-500" />;
     }
     return <Icon className="w-5 h-5 text-gray-600" />;
+  };
+
+  // Componente de barra de progresso
+  const ProgressBar: React.FC<{ progress: number; status: string }> = ({ progress, status }) => {
+    const getBarColor = () => {
+      if (status === 'completed') return 'bg-green-500';
+      if (status === 'error') return 'bg-red-500';
+      if (status === 'in_progress') return 'bg-brand-yellow';
+      return 'bg-gray-600';
+    };
+
+    return (
+      <div className="w-full h-1.5 bg-gray-700/50 rounded-full overflow-hidden mt-2">
+        <div
+          className={`h-full ${getBarColor()} transition-all duration-300 ease-out rounded-full`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    );
   };
 
   if (!isOpen) return null;
@@ -437,47 +577,90 @@ export const QuickCreatePreparatorioModal: React.FC<QuickCreatePreparatorioModal
 
               {/* Progresso */}
               {(isProcessing || etapas.some(e => e.status !== 'pending')) && (
-                <div className="space-y-3">
-                  <h4 className="text-white font-medium flex items-center gap-2">
-                    {isProcessing && <Loader2 className="w-4 h-4 animate-spin text-brand-yellow" />}
-                    Progresso
-                  </h4>
-                  <div className="space-y-2">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-white font-medium flex items-center gap-2">
+                      {isProcessing && <Loader2 className="w-4 h-4 animate-spin text-brand-yellow" />}
+                      Progresso
+                    </h4>
+                    <span className="text-xs text-gray-500">
+                      {etapas.filter(e => e.status === 'completed').length}/{etapas.length} etapas
+                    </span>
+                  </div>
+
+                  {/* Barra de progresso geral */}
+                  <div className="w-full h-2 bg-gray-700/50 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-brand-yellow to-green-500 transition-all duration-500 ease-out rounded-full"
+                      style={{
+                        width: `${
+                          (etapas.filter(e => e.status === 'completed').length / etapas.length) * 100 +
+                          (etapas.find(e => e.status === 'in_progress')?.progress || 0) / etapas.length
+                        }%`
+                      }}
+                    />
+                  </div>
+
+                  {/* Lista de etapas com barras individuais */}
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                     {etapas.map((etapa, index) => (
                       <div
                         key={index}
-                        className={`flex items-center gap-3 p-3 rounded-sm transition-colors ${
+                        className={`p-3 rounded-sm transition-all duration-300 ${
                           etapa.status === 'in_progress'
-                            ? 'bg-brand-yellow/10'
+                            ? 'bg-brand-yellow/10 border border-brand-yellow/30'
                             : etapa.status === 'completed'
                             ? 'bg-green-500/10'
                             : etapa.status === 'error'
-                            ? 'bg-red-500/10'
+                            ? 'bg-red-500/10 border border-red-500/30'
                             : 'bg-brand-dark/30'
                         }`}
                       >
-                        {getEtapaIcon(etapa, index)}
-                        <div className="flex-1">
-                          <p
-                            className={`text-sm font-medium ${
-                              etapa.status === 'in_progress'
-                                ? 'text-brand-yellow'
-                                : etapa.status === 'completed'
-                                ? 'text-green-500'
-                                : etapa.status === 'error'
-                                ? 'text-red-500'
-                                : 'text-gray-500'
-                            }`}
-                          >
-                            {etapa.etapa}
-                          </p>
-                          {etapa.detalhes && (
-                            <p className="text-xs text-gray-500">{etapa.detalhes}</p>
-                          )}
+                        <div className="flex items-center gap-3">
+                          {getEtapaIcon(etapa, index)}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p
+                                className={`text-sm font-medium truncate ${
+                                  etapa.status === 'in_progress'
+                                    ? 'text-brand-yellow'
+                                    : etapa.status === 'completed'
+                                    ? 'text-green-500'
+                                    : etapa.status === 'error'
+                                    ? 'text-red-500'
+                                    : 'text-gray-500'
+                                }`}
+                              >
+                                {etapa.etapa}
+                              </p>
+                              {etapa.status === 'in_progress' && (
+                                <span className="text-xs text-brand-yellow/70 ml-2">
+                                  {Math.round(etapa.progress || 0)}%
+                                </span>
+                              )}
+                            </div>
+                            {etapa.detalhes && (
+                              <p className="text-xs text-gray-500 truncate mt-0.5">{etapa.detalhes}</p>
+                            )}
+                            {/* Barra de progresso individual */}
+                            {(etapa.status === 'in_progress' || etapa.status === 'completed') && (
+                              <ProgressBar progress={etapa.progress || 0} status={etapa.status} />
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
+
+                  {/* Dica durante processamento */}
+                  {isProcessing && (
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-sm p-3">
+                      <p className="text-blue-400/80 text-xs">
+                        <span className="font-medium">Dica:</span> Este processo pode levar alguns minutos.
+                        Não feche esta janela enquanto o preparatório está sendo criado.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
