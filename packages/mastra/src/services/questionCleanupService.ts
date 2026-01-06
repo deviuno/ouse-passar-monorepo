@@ -84,12 +84,26 @@ export class QuestionCleanupService {
    */
   async cleanQuestionWithAI(htmlContent: string): Promise<CleanupResult> {
     try {
+      // Limitar tamanho do HTML para evitar problemas com conteúdo muito grande
+      const maxLength = 50000;
+      const truncatedHtml = htmlContent.length > maxLength
+        ? htmlContent.substring(0, maxLength) + '... [truncado]'
+        : htmlContent;
+
       const response = await questionCleanupAgent.generate(
-        `Extraia o conteúdo limpo desta questão corrompida:\n\n${htmlContent}`
+        `Extraia o conteúdo limpo desta questão corrompida:\n\n${truncatedHtml}`
       );
 
       // Parse the JSON response
       const responseText = response.text.trim();
+
+      // Se resposta vazia, retornar erro
+      if (!responseText) {
+        return {
+          success: false,
+          error: 'Resposta vazia da IA',
+        };
+      }
 
       // Remove markdown code blocks if present
       let jsonText = responseText;
@@ -99,13 +113,24 @@ export class QuestionCleanupService {
         jsonText = jsonText.replace(/^```\n?/, '').replace(/\n?```$/, '');
       }
 
-      const result = JSON.parse(jsonText);
+      // Tentar extrair JSON de qualquer lugar na resposta
+      const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.warn('[QuestionCleanupService] Resposta não contém JSON válido:', responseText.substring(0, 200));
+        return {
+          success: false,
+          error: 'Resposta da IA não contém JSON válido',
+        };
+      }
+
+      const result = JSON.parse(jsonMatch[0]);
       return result as CleanupResult;
     } catch (error) {
-      console.error('[QuestionCleanupService] Erro ao processar com IA:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('[QuestionCleanupService] Erro ao processar com IA:', errorMsg);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Erro desconhecido ao processar com IA',
+        error: `Erro ao processar com IA: ${errorMsg}`,
       };
     }
   }
@@ -143,6 +168,15 @@ export class QuestionCleanupService {
    */
   async reviewCleanedQuestion(enunciado: string, alternativas: { letter: string; text: string }[]): Promise<ReviewResult> {
     try {
+      // Validar entrada
+      if (!enunciado || enunciado.length < 10) {
+        return {
+          aprovada: false,
+          confianca: 1,
+          motivo: 'Enunciado muito curto ou vazio'
+        };
+      }
+
       const alternativasText = alternativas.map(a => `${a.letter}) ${a.text}`).join('\n');
       const prompt = `Revise esta questão de concurso:\n\nEnunciado:\n${enunciado}\n\nAlternativas:\n${alternativasText}`;
 
@@ -150,21 +184,57 @@ export class QuestionCleanupService {
 
       // Parse the JSON response
       let jsonText = response.text.trim();
+
+      // Se resposta vazia, retornar não aprovada
+      if (!jsonText) {
+        return {
+          aprovada: false,
+          confianca: 0,
+          motivo: 'Resposta vazia do agente de revisão'
+        };
+      }
+
       if (jsonText.startsWith('```json')) {
         jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
       } else if (jsonText.startsWith('```')) {
         jsonText = jsonText.replace(/^```\n?/, '').replace(/\n?```$/, '');
       }
 
-      const result = JSON.parse(jsonText) as ReviewResult;
-      return result;
+      // Tentar extrair JSON de qualquer lugar na resposta
+      const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.warn('[QuestionCleanupService] Revisão não contém JSON válido');
+        return {
+          aprovada: false,
+          confianca: 0,
+          motivo: 'Resposta de revisão não contém JSON válido'
+        };
+      }
+
+      const result = JSON.parse(jsonMatch[0]) as ReviewResult;
+
+      // Validar campos obrigatórios
+      if (typeof result.aprovada !== 'boolean') {
+        return {
+          aprovada: false,
+          confianca: 0,
+          motivo: 'Resposta de revisão inválida'
+        };
+      }
+
+      return {
+        aprovada: result.aprovada,
+        confianca: result.confianca || 0,
+        motivo: result.motivo || 'Sem motivo especificado'
+      };
     } catch (error) {
-      console.error('[QuestionCleanupService] Erro ao revisar questão:', error);
+      const errorMsg = error instanceof Error ? error.message : 'desconhecido';
+      console.error('[QuestionCleanupService] Erro ao revisar questão:', errorMsg);
       // Em caso de erro, retornar não aprovada para segurança
       return {
         aprovada: false,
         confianca: 0,
-        motivo: `Erro ao revisar: ${error instanceof Error ? error.message : 'desconhecido'}`
+        motivo: `Erro ao revisar: ${errorMsg}`
       };
     }
   }
@@ -222,9 +292,21 @@ export class QuestionCleanupService {
   }
 
   /**
+   * Wrapper com timeout para operações assíncronas
+   */
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout após ${timeoutMs}ms em ${operation}`)), timeoutMs);
+    });
+    return Promise.race([promise, timeoutPromise]);
+  }
+
+  /**
    * Limpa uma questão específica e atualiza no banco
    */
   async cleanAndUpdateQuestion(questionId: number): Promise<{ success: boolean; action: string; details?: string }> {
+    const TIMEOUT_MS = 60000; // 60 segundos de timeout
+
     try {
       // Buscar questão
       const { data: question, error: fetchError } = await this.db
@@ -237,20 +319,34 @@ export class QuestionCleanupService {
         return { success: false, action: 'error', details: 'Questão não encontrada' };
       }
 
+      // Verificar se tem enunciado
+      if (!question.enunciado) {
+        return { success: false, action: 'skipped', details: 'Questão sem enunciado' };
+      }
+
       // Verificar se está corrompida
-      if (!question.enunciado?.includes('ng-if') && !question.enunciado?.includes('ng-repeat')) {
+      if (!question.enunciado.includes('ng-if') && !question.enunciado.includes('ng-repeat') && !question.enunciado.includes('<!-- ngIf')) {
         return { success: false, action: 'skipped', details: 'Questão não está corrompida' };
       }
 
       // Extrair imagens do HTML original ANTES de limpar
-      const originalImages = this.extractImagesFromHTML(question.enunciado);
-      if (originalImages.length > 0) {
-        console.log(`[QuestionCleanupService] Questão ${questionId} tem ${originalImages.length} imagens no original`);
+      let originalImages: string[] = [];
+      try {
+        originalImages = this.extractImagesFromHTML(question.enunciado);
+        if (originalImages.length > 0) {
+          console.log(`[QuestionCleanupService] Questão ${questionId} tem ${originalImages.length} imagens no original`);
+        }
+      } catch (imgError) {
+        console.warn(`[QuestionCleanupService] Erro ao extrair imagens da questão ${questionId}, continuando sem imagens`);
       }
 
-      // Processar com IA
+      // Processar com IA (com timeout)
       console.log(`[QuestionCleanupService] Processando questão ${questionId}...`);
-      const cleanResult = await this.cleanQuestionWithAI(question.enunciado);
+      const cleanResult = await this.withTimeout(
+        this.cleanQuestionWithAI(question.enunciado),
+        TIMEOUT_MS,
+        'limpeza com IA'
+      );
 
       if (!cleanResult.success) {
         console.log(`[QuestionCleanupService] Falha ao limpar questão ${questionId}: ${cleanResult.error}`);
@@ -298,13 +394,23 @@ export class QuestionCleanupService {
       } else if (cleanupConfianca >= 0.70) {
         // Confiança média - passar pelo agente de revisão
         console.log(`[QuestionCleanupService] Questão ${questionId} com confiança ${cleanupConfianca}, enviando para revisão...`);
-        const reviewResult = await this.reviewCleanedQuestion(finalEnunciado, cleanResult.alternativas || []);
+        try {
+          const reviewResult = await this.withTimeout(
+            this.reviewCleanedQuestion(finalEnunciado, cleanResult.alternativas || []),
+            30000, // 30 segundos para revisão
+            'revisão com IA'
+          );
 
-        if (reviewResult.aprovada && reviewResult.confianca >= 0.80) {
-          shouldReactivate = true;
-          reviewInfo = `Aprovada na revisão: ${reviewResult.motivo}`;
-        } else {
-          reviewInfo = `Reprovada na revisão: ${reviewResult.motivo}`;
+          if (reviewResult.aprovada && reviewResult.confianca >= 0.80) {
+            shouldReactivate = true;
+            reviewInfo = `Aprovada na revisão: ${reviewResult.motivo}`;
+          } else {
+            reviewInfo = `Reprovada na revisão: ${reviewResult.motivo}`;
+          }
+        } catch (reviewError) {
+          // Se a revisão falhar, não reativar mas salvar o conteúdo limpo
+          reviewInfo = `Erro na revisão: ${reviewError instanceof Error ? reviewError.message : 'desconhecido'}`;
+          console.warn(`[QuestionCleanupService] Erro na revisão da questão ${questionId}: ${reviewInfo}`);
         }
       } else {
         reviewInfo = 'Confiança muito baixa na limpeza';
