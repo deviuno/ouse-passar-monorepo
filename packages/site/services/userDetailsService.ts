@@ -192,10 +192,10 @@ export async function getUserDetails(userId: string): Promise<{
       }
     }
 
-    // 4. Turma de Elite (user_trails - matrículas no app de questões)
+    // 4. Turma de Elite / Trilha de Questões (user_trails - matrículas no app de questões)
     const { data: userTrails } = await supabase
       .from('user_trails' as any)
-      .select('id, preparatorio_id, created_at, is_reta_final, battery_current, has_unlimited_battery, bonus_battery')
+      .select('id, preparatorio_id, created_at, is_reta_final, battery_current, has_unlimited_battery, bonus_battery, purchased_products')
       .eq('user_id', userId);
 
     if (userTrails && userTrails.length > 0) {
@@ -210,19 +210,33 @@ export async function getUserDetails(userId: string): Promise<{
         if (trailPreparatorios) {
           trailPreparatorios.forEach((prep: any) => {
             const trail = userTrails.find((ut: any) => ut.preparatorio_id === prep.id);
-            preparatorios.push({
-              id: prep.id,
-              nome: prep.nome,
-              slug: prep.slug,
-              logo_url: prep.logo_url,
-              purchased_at: (trail as any)?.created_at || new Date().toISOString(),
-              status: 'active',
-              product_type: (trail as any)?.is_reta_final ? 'Reta Final' : 'Turma de Elite',
-              user_trail_id: (trail as any)?.id,
-              // Battery info
-              battery_current: (trail as any)?.battery_current,
-              has_unlimited_battery: (trail as any)?.has_unlimited_battery ?? false,
-              bonus_battery: (trail as any)?.bonus_battery ?? 0,
+            const purchasedProducts: string[] = (trail as any)?.purchased_products || ['turma_elite'];
+
+            // Map product type codes to display names
+            const productTypeNames: Record<string, string> = {
+              'turma_elite': 'Turma de Elite',
+              'trilha_questoes': 'Trilha de Questões',
+              'reta_final': 'Reta Final',
+              'simulado': 'Simulado',
+              'plataforma_completa': 'Plataforma Completa',
+            };
+
+            // Create one entry per purchased product
+            purchasedProducts.forEach((productCode: string) => {
+              preparatorios.push({
+                id: prep.id,
+                nome: prep.nome,
+                slug: prep.slug,
+                logo_url: prep.logo_url,
+                purchased_at: (trail as any)?.created_at || new Date().toISOString(),
+                status: 'active',
+                product_type: productTypeNames[productCode] || productCode,
+                user_trail_id: (trail as any)?.id,
+                // Battery info (only show for first product to avoid duplicates)
+                battery_current: (trail as any)?.battery_current,
+                has_unlimited_battery: (trail as any)?.has_unlimited_battery ?? false,
+                bonus_battery: (trail as any)?.bonus_battery ?? 0,
+              });
             });
           });
         }
@@ -493,35 +507,83 @@ export async function addUserPreparatorio(
 
         case 'turma_elite':
         case 'trilha_questoes':
-          // Add to user_trails
-          const { error: trailError } = await supabase
+          // Check if user already has a trail for this preparatorio
+          const { data: existingTrail } = await supabase
             .from('user_trails' as any)
-            .upsert({
-              user_id: userId,
-              preparatorio_id: preparatorioId,
-              is_reta_final: false,
-              battery_current: 100,
-              has_unlimited_battery: false,
-              bonus_battery: 0,
-              created_at: new Date().toISOString(),
-            }, { onConflict: 'user_id,preparatorio_id' });
-          insertError = trailError;
+            .select('id, purchased_products')
+            .eq('user_id', userId)
+            .eq('preparatorio_id', preparatorioId)
+            .single();
+
+          if (existingTrail) {
+            // Update existing trail - add product to array if not already there
+            const currentProducts: string[] = (existingTrail as any).purchased_products || [];
+            if (!currentProducts.includes(productType)) {
+              const { error: updateError } = await supabase
+                .from('user_trails' as any)
+                .update({
+                  purchased_products: [...currentProducts, productType],
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', (existingTrail as any).id);
+              insertError = updateError;
+            }
+          } else {
+            // Create new trail with product
+            const { error: trailError } = await supabase
+              .from('user_trails' as any)
+              .insert({
+                user_id: userId,
+                preparatorio_id: preparatorioId,
+                is_reta_final: false,
+                battery_current: 100,
+                has_unlimited_battery: false,
+                bonus_battery: 0,
+                purchased_products: [productType],
+                created_at: new Date().toISOString(),
+              });
+            insertError = trailError;
+          }
           break;
 
         case 'reta_final':
-          // Add to user_trails with is_reta_final = true
-          const { error: retaError } = await supabase
+          // Check if user already has a trail for this preparatorio
+          const { data: existingRetaTrail } = await supabase
             .from('user_trails' as any)
-            .upsert({
-              user_id: userId,
-              preparatorio_id: preparatorioId,
-              is_reta_final: true,
-              battery_current: 100,
-              has_unlimited_battery: false,
-              bonus_battery: 0,
-              created_at: new Date().toISOString(),
-            }, { onConflict: 'user_id,preparatorio_id' });
-          insertError = retaError;
+            .select('id, purchased_products')
+            .eq('user_id', userId)
+            .eq('preparatorio_id', preparatorioId)
+            .single();
+
+          if (existingRetaTrail) {
+            const currentRetaProducts: string[] = (existingRetaTrail as any).purchased_products || [];
+            if (!currentRetaProducts.includes('reta_final')) {
+              const { error: updateRetaError } = await supabase
+                .from('user_trails' as any)
+                .update({
+                  purchased_products: [...currentRetaProducts, 'reta_final'],
+                  is_reta_final: true,
+                  has_reta_final_access: true,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', (existingRetaTrail as any).id);
+              insertError = updateRetaError;
+            }
+          } else {
+            const { error: retaError } = await supabase
+              .from('user_trails' as any)
+              .insert({
+                user_id: userId,
+                preparatorio_id: preparatorioId,
+                is_reta_final: true,
+                battery_current: 100,
+                has_unlimited_battery: false,
+                bonus_battery: 0,
+                purchased_products: ['reta_final'],
+                created_at: new Date().toISOString(),
+              });
+            insertError = retaError;
+          }
           break;
 
         case 'simulado':
@@ -561,19 +623,42 @@ export async function addUserPreparatorio(
           break;
 
         case 'plataforma_completa':
-          // Plataforma completa gives access to everything - add to user_trails with unlimited battery
-          const { error: plataformaError } = await supabase
+          // Check if user already has a trail for this preparatorio
+          const { data: existingPlataformaTrail } = await supabase
             .from('user_trails' as any)
-            .upsert({
-              user_id: userId,
-              preparatorio_id: preparatorioId,
-              is_reta_final: false,
-              battery_current: 100,
-              has_unlimited_battery: true,
-              bonus_battery: 0,
-              created_at: new Date().toISOString(),
-            }, { onConflict: 'user_id,preparatorio_id' });
-          insertError = plataformaError;
+            .select('id, purchased_products')
+            .eq('user_id', userId)
+            .eq('preparatorio_id', preparatorioId)
+            .single();
+
+          if (existingPlataformaTrail) {
+            const currentPlataformaProducts: string[] = (existingPlataformaTrail as any).purchased_products || [];
+            if (!currentPlataformaProducts.includes('plataforma_completa')) {
+              const { error: updatePlataformaError } = await supabase
+                .from('user_trails' as any)
+                .update({
+                  purchased_products: [...currentPlataformaProducts, 'plataforma_completa'],
+                  has_unlimited_battery: true,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', (existingPlataformaTrail as any).id);
+              insertError = updatePlataformaError;
+            }
+          } else {
+            const { error: plataformaError } = await supabase
+              .from('user_trails' as any)
+              .insert({
+                user_id: userId,
+                preparatorio_id: preparatorioId,
+                is_reta_final: false,
+                battery_current: 100,
+                has_unlimited_battery: true,
+                bonus_battery: 0,
+                purchased_products: ['plataforma_completa'],
+                created_at: new Date().toISOString(),
+              });
+            insertError = plataformaError;
+          }
           break;
 
         default:
