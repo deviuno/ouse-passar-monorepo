@@ -71,8 +71,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             isOpen={showReportModal}
             onClose={() => setShowReportModal(false)}
             questionId={question?.id || 0}
-            userId={userId || undefined}
-            onShowToast={onShowToast}
+            questionInfo={{
+              materia: question?.materia,
+              assunto: question?.assunto,
+              banca: question?.banca,
+              ano: question?.ano
+            }}
           />
         )}
       </>
