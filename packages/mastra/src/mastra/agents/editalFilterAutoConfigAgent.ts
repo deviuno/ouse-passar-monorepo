@@ -198,6 +198,51 @@ function findExactMatch(titulo: string, disponiveis: string[]): string | null {
 }
 
 /**
+ * Palavras-chave que indicam conflito (não devem ser ignoradas no matching)
+ * Se o título tem uma dessas palavras, o match deve ter a mesma ou uma equivalente
+ */
+const CONFLICTING_TERMS: Record<string, string[]> = {
+    // Idiomas - muito importante distinguir!
+    'portuguesa': ['portugues', 'portuguesa'],
+    'portugues': ['portugues', 'portuguesa'],
+    'espanhol': ['espanhol', 'espanhola'],
+    'espanhola': ['espanhol', 'espanhola'],
+    'ingles': ['ingles', 'inglesa'],
+    'inglesa': ['ingles', 'inglesa'],
+    // Áreas do Direito
+    'penal': ['penal'],
+    'civil': ['civil'],
+    'constitucional': ['constitucional'],
+    'administrativo': ['administrativo'],
+    'tributario': ['tributario'],
+    'trabalhista': ['trabalhista', 'trabalho'],
+};
+
+/**
+ * Verifica se há conflito de termos entre título e disponível
+ * Retorna true se há conflito (não devem fazer match)
+ */
+function hasConflictingTerms(tituloNorm: string, disponNorm: string): boolean {
+    for (const [term, validMatches] of Object.entries(CONFLICTING_TERMS)) {
+        // Se o título contém o termo conflitante
+        if (tituloNorm.includes(term)) {
+            // O disponível precisa ter pelo menos um dos termos válidos
+            const hasValidMatch = validMatches.some(valid => disponNorm.includes(valid));
+            if (!hasValidMatch) {
+                // O título tem o termo mas o disponível não tem nenhum equivalente
+                // Verifica se o disponível tem algum termo conflitante diferente
+                const conflictingCategories = Object.entries(CONFLICTING_TERMS)
+                    .filter(([t, _]) => t !== term && disponNorm.includes(t));
+                if (conflictingCategories.length > 0) {
+                    return true; // Conflito detectado!
+                }
+            }
+        }
+    }
+    return false;
+}
+
+/**
  * Tenta encontrar match parcial (contains, primeiros chars, palavras-chave, etc.)
  */
 function findPartialMatch(titulo: string, disponiveis: string[]): string | null {
@@ -207,12 +252,17 @@ function findPartialMatch(titulo: string, disponiveis: string[]): string | null 
     for (const d of disponiveis) {
         const dNorm = normalizeText(d);
 
+        // IMPORTANTE: Verificar conflitos primeiro!
+        if (hasConflictingTerms(tituloNorm, dNorm)) {
+            continue; // Pular este - há conflito de termos
+        }
+
         // Um contém o outro
         if (dNorm.includes(tituloNorm) || tituloNorm.includes(dNorm)) {
             return d;
         }
 
-        // Primeiros 5 caracteres iguais
+        // Primeiros 5 caracteres iguais (mas só se não houver palavras distinguidoras)
         if (tituloNorm.length >= 5 && dNorm.length >= 5) {
             if (tituloNorm.substring(0, 5) === dNorm.substring(0, 5)) {
                 return d;
