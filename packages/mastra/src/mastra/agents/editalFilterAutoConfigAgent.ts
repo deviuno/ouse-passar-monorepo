@@ -232,6 +232,31 @@ function findPartialMatch(titulo: string, disponiveis: string[]): string | null 
 }
 
 /**
+ * Para termos genéricos, encontra TODOS os assuntos relacionados
+ * Retorna múltiplos assuntos se o termo for muito curto/genérico
+ */
+function findMultipleMatches(titulo: string, disponiveis: string[]): string[] {
+    const tituloNorm = normalizeText(titulo);
+    const matches: string[] = [];
+
+    // Se o título é muito curto (1-2 palavras), buscar todos que contêm o termo
+    const wordCount = tituloNorm.split(/\s+/).filter(w => w.length > 2).length;
+
+    if (wordCount <= 2) {
+        for (const d of disponiveis) {
+            const dNorm = normalizeText(d);
+            // O assunto contém o termo do edital
+            if (dNorm.includes(tituloNorm)) {
+                matches.push(d);
+            }
+        }
+    }
+
+    // Limitar a 5 assuntos para não ficar muito amplo
+    return matches.slice(0, 5);
+}
+
+/**
  * Ordena assuntos por relevância ao título (assuntos com palavras em comum primeiro)
  */
 function sortByRelevance(titulo: string, disponiveis: string[]): string[] {
@@ -488,8 +513,19 @@ export async function autoConfigureEditalFilters(
                 }
             }
 
+            // Para termos genéricos sem match, tentar múltiplos assuntos relacionados
+            let filtrosAssuntos: string[] = matchedAssunto ? [matchedAssunto] : [];
+            if (filtrosAssuntos.length === 0) {
+                const multipleMatches = findMultipleMatches(item.titulo, assuntoNames);
+                if (multipleMatches.length > 0) {
+                    filtrosAssuntos = multipleMatches;
+                    matchType = 'partial';
+                    observacao = `Múltiplos assuntos relacionados (${multipleMatches.length})`;
+                    console.log(`[EditalAutoConfig] MULTI: "${item.titulo}" -> [${multipleMatches.slice(0, 2).join(', ')}${multipleMatches.length > 2 ? '...' : ''}]`);
+                }
+            }
+
             // Atualizar filtros no banco
-            const filtrosAssuntos = matchedAssunto ? [matchedAssunto] : [];
             if (filtrosAssuntos.length > 0) {
                 await updateItemFilters(item.id, [], filtrosAssuntos);
                 itemsConfigured++;
@@ -500,7 +536,7 @@ export async function autoConfigureEditalFilters(
                 titulo: item.titulo,
                 tipo: item.tipo,
                 filtrosMaterias: [],
-                filtrosAssuntos,
+                filtrosAssuntos: filtrosAssuntos,
                 matchType,
                 observacao,
             });
