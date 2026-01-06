@@ -105,12 +105,6 @@ const EditalItemNode: React.FC<{
             </span>
           )}
 
-          {/* Badge de filtros configurados */}
-          {hasFilters && (
-            <span className="ml-2 px-2 py-0.5 bg-green-500/20 rounded-full text-xs text-green-400 flex-shrink-0">
-              Filtros OK
-            </span>
-          )}
         </div>
 
         {/* Botão Praticar (apenas para tópicos - matérias não devem ter o botão) */}
@@ -188,6 +182,9 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
     // Banca do preparatório
     if (banca) params.set('banca', banca);
 
+    // Identificador do preparatório (para mostrar sidebar do edital)
+    if (preparatorioId) params.set('preparatorioId', preparatorioId);
+
     params.set('autostart', 'true');
 
     navigate(`/praticar?${params.toString()}`);
@@ -212,7 +209,27 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
         const blocosIds = tree
           .filter((item) => item.tipo === 'bloco')
           .map((item) => item.id);
-        setExpandedNodes(new Set(blocosIds));
+
+        // Encontrar a primeira matéria para expandir
+        let firstMateriaId: string | null = null;
+        for (const item of tree) {
+          if (item.tipo === 'materia') {
+            firstMateriaId = item.id;
+            break;
+          } else if (item.children) {
+            const materia = item.children.find((c) => c.tipo === 'materia');
+            if (materia) {
+              firstMateriaId = materia.id;
+              break;
+            }
+          }
+        }
+
+        const initialExpanded = new Set(blocosIds);
+        if (firstMateriaId) {
+          initialExpanded.add(firstMateriaId);
+        }
+        setExpandedNodes(initialExpanded);
       } catch (err) {
         console.error('[TrailsTab] Erro ao carregar edital:', err);
         setError('Erro ao carregar edital. Tente novamente.');

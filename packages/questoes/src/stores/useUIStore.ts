@@ -56,6 +56,9 @@ interface UIState {
     showFilters: boolean;
     onBack: (() => void) | null;
     onToggleFilters: (() => void) | null;
+    // Trail mode (modo trilha)
+    isTrailMode: boolean;
+    onToggleEdital: (() => void) | null;
   };
   setPracticeMode: (mode: Partial<UIState['practiceMode']>) => void;
   clearPracticeMode: () => void;
@@ -151,6 +154,8 @@ export const useUIStore = create<UIState>()((set, get) => ({
     showFilters: false,
     onBack: null,
     onToggleFilters: null,
+    isTrailMode: false,
+    onToggleEdital: null,
   },
   setPracticeMode: (mode) =>
     set((state) => ({
@@ -165,6 +170,8 @@ export const useUIStore = create<UIState>()((set, get) => ({
         showFilters: false,
         onBack: null,
         onToggleFilters: null,
+        isTrailMode: false,
+        onToggleEdital: null,
       },
     }),
 }));

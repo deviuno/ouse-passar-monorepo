@@ -150,19 +150,29 @@ export function Header() {
             </div>
           </div>
 
-          {/* Right: Filter Button */}
-          <button
-            onClick={() => practiceMode.onToggleFilters?.()}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${
-              practiceMode.showFilters
-                ? 'bg-[#FFB800] text-black'
-                : 'hover:bg-[#252525] text-[#A0A0A0] hover:text-white'
-            }`}
-          >
-            <Filter size={16} />
-            <span>Filtrar</span>
-            <ChevronDown size={14} className={`transition-transform ${practiceMode.showFilters ? 'rotate-180' : ''}`} />
-          </button>
+          {/* Right: Edital Button (trail mode) or Filter Button */}
+          {practiceMode.isTrailMode ? (
+            <button
+              onClick={() => practiceMode.onToggleEdital?.()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium hover:bg-[#252525] text-[#A0A0A0] hover:text-white"
+            >
+              <ChevronLeft size={16} className="text-[#FFB800]" />
+              <span>Edital</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => practiceMode.onToggleFilters?.()}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${
+                practiceMode.showFilters
+                  ? 'bg-[#FFB800] text-black'
+                  : 'hover:bg-[#252525] text-[#A0A0A0] hover:text-white'
+              }`}
+            >
+              <Filter size={16} />
+              <span>Filtrar</span>
+              <ChevronDown size={14} className={`transition-transform ${practiceMode.showFilters ? 'rotate-180' : ''}`} />
+            </button>
+          )}
         </div>
       </header>
     );

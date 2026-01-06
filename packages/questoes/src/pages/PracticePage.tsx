@@ -53,6 +53,7 @@ import {
   OPTIONS_DIFICULDADE,
 } from '../services/questionsService';
 import { HierarchicalAssuntosDropdown } from '../components/practice/HierarchicalAssuntosDropdown';
+import { EditalSidebar } from '../components/practice/EditalSidebar';
 import {
   createNotebook,
   getUserNotebooks,
@@ -380,6 +381,10 @@ export default function PracticePage() {
   // Controle de visibilidade dos filtros no modo practicing
   const [showPracticingFilters, setShowPracticingFilters] = useState(false);
 
+  // Sidebar do edital (para modo trilha)
+  const [showEditalSidebar, setShowEditalSidebar] = useState(false);
+  const trailPreparatorioId = searchParams.get('preparatorioId');
+
   // Auto-iniciar prática com questões aleatórias (true se não houver query params)
   const [shouldAutoStart, setShouldAutoStart] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -420,11 +425,14 @@ export default function PracticePage() {
         showFilters: showPracticingFilters,
         onBack: handleBack,
         onToggleFilters: () => setShowPracticingFilters(prev => !prev),
+        // Trail mode
+        isTrailMode: !!trailPreparatorioId,
+        onToggleEdital: () => setShowEditalSidebar(prev => !prev),
       });
     } else {
       clearPracticeMode();
     }
-  }, [mode, sessionStats, showPracticingFilters]);
+  }, [mode, sessionStats, showPracticingFilters, trailPreparatorioId]);
 
   // Clean up practice mode when unmounting
   useEffect(() => {
@@ -1050,11 +1058,13 @@ export default function PracticePage() {
         const shuffled = filtered.sort(() => Math.random() - 0.5);
         questionsToUse = shuffled.slice(0, Math.min(questionCount, shuffled.length)).map(parseRawQuestion);
       } else {
+        // No modo trilha, buscar todas as questões (sem limit)
+        const isTrailMode = !!trailPreparatorioId;
         console.log('[PracticePage] Buscando questões do banco. Filtros:', {
           materias: filters.materia,
           assuntos: filters.assunto,
           bancas: filters.banca,
-          questionCount
+          questionCount: isTrailMode ? 'todas (modo trilha)' : questionCount
         });
         const dbQuestions = await fetchQuestions({
           materias: filters.materia.length > 0 ? filters.materia : undefined,
@@ -1068,7 +1078,7 @@ export default function PracticePage() {
           dificuldade: filters.dificuldade.length > 0 ? filters.dificuldade : undefined,
           apenasRevisadas: toggleFilters.apenasRevisadas || undefined,
           apenasComComentario: toggleFilters.apenasComComentario || undefined,
-          limit: questionCount,
+          limit: isTrailMode ? 500 : questionCount, // Modo trilha: buscar até 500 questões
           shuffle: true,
         });
         console.log('[PracticePage] Questões recebidas:', dbQuestions.length);
@@ -1579,6 +1589,17 @@ export default function PracticePage() {
           variant="danger"
           icon="exit"
         />
+
+        {/* Edital Sidebar (modo trilha) */}
+        {trailPreparatorioId && (
+          <EditalSidebar
+            isOpen={showEditalSidebar}
+            onClose={() => setShowEditalSidebar(false)}
+            preparatorioId={trailPreparatorioId}
+            banca={filters.banca[0]}
+            currentAssuntos={filters.assunto}
+          />
+        )}
       </div>
     );
   }
@@ -1687,46 +1708,69 @@ export default function PracticePage() {
             </div>
           </div>
 
-          {/* Filter Toggle Button - same height as stats */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all backdrop-blur-sm ${
-              showFilters
-                ? 'bg-[#FFB800] border-[#FFB800] text-black'
-                : 'bg-[#1E1E1E]/50 border-[#3A3A3A] text-white hover:border-[#FFB800] hover:text-[#FFB800]'
-            }`}
-          >
-            <div className={`p-2 rounded-lg ${showFilters ? 'bg-black/10' : 'bg-[#FFB800]/10'}`}>
-              <Filter size={20} className={showFilters ? 'text-black' : 'text-[#FFB800]'} />
-            </div>
-            <div className="text-left">
-              <p className="text-xs uppercase font-bold tracking-wider opacity-70">{showFilters ? 'Ocultar' : 'Exibir'}</p>
-              <p className="font-bold text-lg leading-none">Filtros</p>
-            </div>
-            {totalFilters > 0 && (
-              <span className={`px-2 py-1 text-xs font-bold rounded-lg ${showFilters ? 'bg-black/20 text-black' : 'bg-[#FFB800] text-black'}`}>
-                {totalFilters}
-              </span>
-            )}
-            {showFilters ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-          </button>
+          {/* Filter Toggle Button OR Edital Button - same height as stats */}
+          {trailPreparatorioId ? (
+            <button
+              onClick={() => setShowEditalSidebar(true)}
+              className="flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all backdrop-blur-sm bg-[#1E1E1E]/50 border-[#3A3A3A] text-white hover:border-[#FFB800] hover:text-[#FFB800]"
+            >
+              <ChevronLeft size={18} className="text-[#FFB800]" />
+              <div className="text-left">
+                <p className="text-xs uppercase font-bold tracking-wider opacity-70">Ver</p>
+                <p className="font-bold text-lg leading-none">Edital</p>
+              </div>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all backdrop-blur-sm ${
+                showFilters
+                  ? 'bg-[#FFB800] border-[#FFB800] text-black'
+                  : 'bg-[#1E1E1E]/50 border-[#3A3A3A] text-white hover:border-[#FFB800] hover:text-[#FFB800]'
+              }`}
+            >
+              <div className={`p-2 rounded-lg ${showFilters ? 'bg-black/10' : 'bg-[#FFB800]/10'}`}>
+                <Filter size={20} className={showFilters ? 'text-black' : 'text-[#FFB800]'} />
+              </div>
+              <div className="text-left">
+                <p className="text-xs uppercase font-bold tracking-wider opacity-70">{showFilters ? 'Ocultar' : 'Exibir'}</p>
+                <p className="font-bold text-lg leading-none">Filtros</p>
+              </div>
+              {totalFilters > 0 && (
+                <span className={`px-2 py-1 text-xs font-bold rounded-lg ${showFilters ? 'bg-black/20 text-black' : 'bg-[#FFB800] text-black'}`}>
+                  {totalFilters}
+                </span>
+              )}
+              {showFilters ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            </button>
+          )}
         </motion.div>
 
-        {/* Mobile Filter Toggle */}
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all ${
-            showFilters
-              ? 'bg-[#FFB800] border-[#FFB800] text-black'
-              : 'bg-[#1E1E1E] border-[#3A3A3A] text-white'
-          }`}
-        >
-          <Filter size={16} />
-          <span className="font-bold text-sm">{showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}</span>
-          {totalFilters > 0 && !showFilters && (
-            <span className="px-1.5 py-0.5 bg-[#FFB800] text-black text-xs font-bold rounded">{totalFilters}</span>
-          )}
-        </button>
+        {/* Mobile Filter Toggle OR Edital Button */}
+        {trailPreparatorioId ? (
+          <button
+            onClick={() => setShowEditalSidebar(true)}
+            className="md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all bg-[#1E1E1E] border-[#3A3A3A] text-white"
+          >
+            <ChevronLeft size={16} className="text-[#FFB800]" />
+            <span className="font-bold text-sm">Ver Edital</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all ${
+              showFilters
+                ? 'bg-[#FFB800] border-[#FFB800] text-black'
+                : 'bg-[#1E1E1E] border-[#3A3A3A] text-white'
+            }`}
+          >
+            <Filter size={16} />
+            <span className="font-bold text-sm">{showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}</span>
+            {totalFilters > 0 && !showFilters && (
+              <span className="px-1.5 py-0.5 bg-[#FFB800] text-black text-xs font-bold rounded">{totalFilters}</span>
+            )}
+          </button>
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto space-y-6">
@@ -2347,6 +2391,17 @@ export default function PracticePage() {
         variant="danger"
         icon="delete"
       />
+
+      {/* Edital Sidebar (modo trilha) */}
+      {trailPreparatorioId && (
+        <EditalSidebar
+          isOpen={showEditalSidebar}
+          onClose={() => setShowEditalSidebar(false)}
+          preparatorioId={trailPreparatorioId}
+          banca={filters.banca[0]}
+          currentAssuntos={filters.assunto}
+        />
+      )}
     </div>
   );
 }
