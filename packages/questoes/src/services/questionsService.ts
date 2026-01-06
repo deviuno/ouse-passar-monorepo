@@ -52,6 +52,30 @@ let filterOptionsCache: {
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
+// Mapeamento de nomes curtos de bancas para nomes completos no banco
+const BANCA_NAME_MAP: Record<string, string> = {
+  'CEBRASPE': 'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos',
+  'Cebraspe': 'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos',
+  'CESPE': 'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos',
+  'CESPE/CEBRASPE': 'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos',
+  'FCC': 'Fundação Carlos Chagas',
+  'FGV': 'Fundação Getúlio Vargas',
+  'VUNESP': 'Fundação para o Vestibular da Universidade Estadual Paulista',
+  'IDECAN': 'Instituto de Desenvolvimento Educacional, Cultural e Assistencial Nacional',
+  'AOCP': 'Instituto AOCP',
+  'IBFC': 'Instituto Brasileiro de Formação e Capacitação',
+  'IADES': 'Instituto Brasileiro de Apoio e Desenvolvimento Executivo',
+  'FUNIVERSA': 'Fundação Universa',
+  'FUMARC': 'Fundação Mariana Resende Costa',
+  'UFG': 'Instituto Verbena da Universidade Federal de Goiás',
+  'IBADE': 'IBADE', // Já é o nome correto
+};
+
+// Normaliza nome de banca para o formato do banco de dados
+const normalizeBancaName = (banca: string): string => {
+  return BANCA_NAME_MAP[banca] || banca;
+};
+
 // Tipo para questão do banco de dados
 export interface DbQuestion {
   id: number;
@@ -192,7 +216,10 @@ export const fetchQuestions = async (filters?: QuestionFilters): Promise<ParsedQ
     }
 
     if (filters?.bancas && filters.bancas.length > 0) {
-      query = query.in('banca', filters.bancas);
+      // Normalizar nomes de bancas para o formato do banco
+      const normalizedBancas = filters.bancas.map(normalizeBancaName);
+      console.log('[fetchQuestions] Bancas normalizadas:', filters.bancas, '->', normalizedBancas);
+      query = query.in('banca', normalizedBancas);
     }
 
     if (filters?.orgaos && filters.orgaos.length > 0) {
@@ -533,7 +560,8 @@ export const getQuestionsCount = async (filters?: Omit<QuestionFilters, 'limit' 
     }
 
     if (filters?.bancas && filters.bancas.length > 0) {
-      params.p_bancas = filters.bancas;
+      // Normalizar nomes de bancas para o formato do banco
+      params.p_bancas = filters.bancas.map(normalizeBancaName);
     }
 
     if (filters?.orgaos && filters.orgaos.length > 0) {
