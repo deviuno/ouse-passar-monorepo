@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronDown, Flame, Eye, BookOpen, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Flame, Eye, BookOpen, Filter, Map } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTrailStore, useAuthStore, useUIStore } from '../../stores';
 import { LOGO_URL } from '../../constants';
@@ -14,7 +14,7 @@ export function Header() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
-  const { practiceMode } = useUIStore();
+  const { practiceMode, headerOverride } = useUIStore();
   const [showAssuntosPopover, setShowAssuntosPopover] = useState(false);
   const eyeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -173,6 +173,47 @@ export function Header() {
               <ChevronDown size={14} className={`transition-transform ${practiceMode.showFilters ? 'rotate-180' : ''}`} />
             </button>
           )}
+        </div>
+      </header>
+    );
+  }
+
+  // Header Override Mode - quando uma página define header customizado
+  if (headerOverride) {
+    return (
+      <header className="sticky top-0 h-14 bg-[#1A1A1A]/95 backdrop-blur-md border-b border-[#3A3A3A] z-30">
+        <div className="flex items-center justify-between h-full px-4">
+          <div className="flex items-center gap-3">
+            {headerOverride.showBackButton && (
+              <button
+                onClick={() => navigate(headerOverride.backPath)}
+                className="p-2 hover:bg-[#2A2A2A] rounded-lg transition-colors"
+              >
+                <ChevronLeft size={24} className="text-gray-400" />
+              </button>
+            )}
+            <div className="flex items-center gap-3">
+              {headerOverride.logoUrl ? (
+                <div className="w-10 h-10 bg-white rounded-lg p-1">
+                  <img
+                    src={headerOverride.logoUrl}
+                    alt=""
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="p-2 bg-emerald-500/10 rounded-lg">
+                  <Map size={24} className="text-emerald-500" />
+                </div>
+              )}
+              <div>
+                <h1 className="text-lg font-bold text-white">{headerOverride.title}</h1>
+                {headerOverride.subtitle && (
+                  <p className="text-sm text-[#FFB800]">{headerOverride.subtitle}</p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </header>
     );

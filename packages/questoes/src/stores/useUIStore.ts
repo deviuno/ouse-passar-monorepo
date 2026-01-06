@@ -62,6 +62,17 @@ interface UIState {
   };
   setPracticeMode: (mode: Partial<UIState['practiceMode']>) => void;
   clearPracticeMode: () => void;
+
+  // Header Override (for custom page headers)
+  headerOverride: {
+    title: string;
+    subtitle?: string;
+    logoUrl?: string;
+    showBackButton: boolean;
+    backPath: string;
+  } | null;
+  setHeaderOverride: (override: UIState['headerOverride']) => void;
+  clearHeaderOverride: () => void;
 }
 
 let toastIdCounter = 0;
@@ -174,6 +185,11 @@ export const useUIStore = create<UIState>()((set, get) => ({
         onToggleEdital: null,
       },
     }),
+
+  // Header Override
+  headerOverride: null,
+  setHeaderOverride: (headerOverride) => set({ headerOverride }),
+  clearHeaderOverride: () => set({ headerOverride: null }),
 }));
 
 // Helper hooks for common toast patterns
