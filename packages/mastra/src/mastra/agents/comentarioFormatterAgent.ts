@@ -130,7 +130,7 @@ Retorne APENAS um JSON válido (sem markdown extra, sem explicações):
 4. Preserve emojis se existirem no original
 
 5. Não adicione emojis se não existirem no original`,
-    model: google("gemini-2.0-flash"),
+    model: google("gemini-3-flash-preview"),
 });
 
 export default comentarioFormatterAgent;

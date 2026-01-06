@@ -155,6 +155,27 @@ export const UserDetails: React.FC = () => {
     }
   };
 
+  const handleToggleOuseQuestoesSubscriber = async (newValue: boolean) => {
+    if (!userId || !data) return;
+
+    const { success, error: err } = await updateUserSettings(userId, {
+      is_ouse_questoes_subscriber: newValue,
+    });
+
+    if (err) {
+      toast.error(`Erro ao atualizar assinatura: ${err}`);
+    } else if (success) {
+      toast.success(`Assinatura Ouse Questões ${newValue ? 'ativada' : 'desativada'} com sucesso!`);
+      setData({
+        ...data,
+        profile: {
+          ...data.profile,
+          is_ouse_questoes_subscriber: newValue,
+        },
+      });
+    }
+  };
+
   const handleRechargeBattery = async (userTrailId: string, prepId: string) => {
     if (!data) return;
 
@@ -316,42 +337,67 @@ export const UserDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-2">
-            {isEditing ? (
-              <>
-                <button
-                  onClick={handleSaveProfile}
-                  disabled={saving}
-                  className="px-4 py-2 bg-brand-yellow text-brand-darker rounded-sm font-bold uppercase text-sm flex items-center gap-2 hover:bg-white transition-colors disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Salvar
-                </button>
-                <button
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditForm({
-                      name: profile.name,
-                      email: profile.email,
-                    });
-                  }}
-                  disabled={saving}
-                  className="px-4 py-2 border border-white/10 text-gray-400 rounded-sm font-bold uppercase text-sm flex items-center gap-2 hover:text-white hover:border-white/20 transition-colors disabled:opacity-50"
-                >
-                  <X className="w-4 h-4" />
-                  Cancelar
-                </button>
-              </>
-            ) : (
+          {/* Right side - Subscriber toggle + Actions */}
+          <div className="flex items-center gap-6">
+            {/* Ouse Questões Subscriber Toggle */}
+            <div className="flex items-center gap-3 px-4 py-3 bg-brand-dark/50 rounded-sm border border-white/10">
+              <div className="text-right">
+                <p className="text-white font-bold text-sm">Assinante Ouse Questões</p>
+                <p className="text-gray-500 text-xs">
+                  {profile.is_ouse_questoes_subscriber ? 'Acesso ilimitado à prática' : 'Sem assinatura'}
+                </p>
+              </div>
               <button
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2 border border-white/10 text-gray-400 rounded-sm font-bold uppercase text-sm flex items-center gap-2 hover:text-white hover:border-white/20 transition-colors"
+                onClick={() => handleToggleOuseQuestoesSubscriber(!profile.is_ouse_questoes_subscriber)}
+                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                  profile.is_ouse_questoes_subscriber ? 'bg-brand-yellow' : 'bg-gray-600'
+                }`}
               >
-                <Edit className="w-4 h-4" />
-                Editar
+                <span
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                    profile.is_ouse_questoes_subscriber ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
               </button>
-            )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="px-4 py-2 bg-brand-yellow text-brand-darker rounded-sm font-bold uppercase text-sm flex items-center gap-2 hover:bg-white transition-colors disabled:opacity-50"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Salvar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditForm({
+                        name: profile.name,
+                        email: profile.email,
+                      });
+                    }}
+                    disabled={saving}
+                    className="px-4 py-2 border border-white/10 text-gray-400 rounded-sm font-bold uppercase text-sm flex items-center gap-2 hover:text-white hover:border-white/20 transition-colors disabled:opacity-50"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-4 py-2 border border-white/10 text-gray-400 rounded-sm font-bold uppercase text-sm flex items-center gap-2 hover:text-white hover:border-white/20 transition-colors"
+                >
+                  <Edit className="w-4 h-4" />
+                  Editar
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

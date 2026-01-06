@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 380px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #e0e0e0;
+    }
+    h1 {
+      font-size: 16px;
+      margin: 0 0 12px 0;
+      color: #FFB800;
+    }
+    .info {
+      font-size: 12px;
+      color: #a0a0a0;
+      margin-bottom: 12px;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .tab {
+      flex: 1;
+      padding: 8px;
+      font-size: 12px;
+      font-weight: bold;
+      background: #2a2a2a;
+      color: #a0a0a0;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: #FFB800;
+      color: #1a1a1a;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: bold;
+      background: #FFB800;
+      color: #1a1a1a;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    button:hover {
+      background: #FFC933;
+    }
+    button:disabled {
+      background: #4a4a4a;
+      color: #6e6e6e;
+      cursor: not-allowed;
+    }
+    button.danger {
+      background: #dc2626;
+      color: white;
+    }
+    button.danger:hover {
+      background: #ef4444;
+    }
+    .progress {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .progress-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .progress-row:last-child {
+      margin-bottom: 0;
+    }
+    .progress-label {
+      color: #a0a0a0;
+    }
+    .progress-value {
+      color: #FFB800;
+      font-weight: bold;
+    }
+    .progress-bar {
+      height: 6px;
+      background: #3a3a3a;
+      border-radius: 3px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #FFB800;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    #status {
+      font-size: 12px;
+      padding: 8px;
+      border-radius: 4px;
+      margin-top: 8px;
+      display: none;
+    }
+    #status.success {
+      display: block;
+      background: #1a3a1a;
+      color: #4ade80;
+    }
+    #status.error {
+      display: block;
+      background: #3a1a1a;
+      color: #f87171;
+    }
+    #status.info {
+      display: block;
+      background: #1a2a3a;
+      color: #60a5fa;
+    }
+    #result {
+      margin-top: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 11px;
+      background: #121212;
+      padding: 8px;
+      border-radius: 4px;
+      display: none;
+    }
+    #result.show {
+      display: block;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .results-list {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #121212;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+    .result-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 12px;
+    }
+    .result-item:last-child {
+      border-bottom: none;
+    }
+    .result-item .name {
+      color: #e0e0e0;
+    }
+    .result-item .count {
+      color: #a0a0a0;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <h1>TecConcursos Taxonomy</h1>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="auto">Automatico</button>
+    <button class="tab" data-tab="manual">Manual</button>
+  </div>
+
+  <!-- Modo Automatico -->
+  <div id="tab-auto" class="tab-content active">
+    <p class="info">Extrai automaticamente TODAS as materias do TecConcursos, navegando por cada pagina.</p>
+
+    <div class="progress" id="progressSection" style="display: none;">
+      <div class="progress-row">
+        <span class="progress-label">Pagina:</span>
+        <span class="progress-value" id="currentPage">1</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Materia:</span>
+        <span class="progress-value" id="currentMateria">-</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Progresso:</span>
+        <span class="progress-value"><span id="currentIndex">0</span> / <span id="totalMaterias">0</span></span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Extraidas:</span>
+        <span class="progress-value" id="resultsCount">0</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <button id="startAutoBtn">Iniciar Extracao Automatica</button>
+    <button id="stopAutoBtn" class="danger" style="display: none;">Parar</button>
+    <button id="downloadAllBtn" disabled>Baixar Todos (.zip)</button>
+    <button id="clearResultsBtn" disabled>Limpar Resultados</button>
+
+    <div class="results-list" id="resultsList" style="display: none;"></div>
+  </div>
+
+  <!-- Modo Manual -->
+  <div id="tab-manual" class="tab-content">
+    <p class="info">Navegue para uma pagina de materia e clique em extrair.</p>
+
+    <button id="expandBtn">Expandir Todos</button>
+    <button id="extractBtn">Extrair Taxonomia</button>
+    <button id="copyBtn" disabled>Copiar Markdown</button>
+    <button id="downloadBtn" disabled>Baixar .md</button>
+
+    <div id="result"><pre id="preview"></pre></div>
+  </div>
+
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

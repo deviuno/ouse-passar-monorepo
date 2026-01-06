@@ -192,7 +192,7 @@ Extraia o gabarito correto baseado no comentário acima.`;
 
     // Chamar IA
     const response = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3-flash-preview',
       contents: userPrompt,
       config: {
         systemInstruction: SYSTEM_PROMPT,

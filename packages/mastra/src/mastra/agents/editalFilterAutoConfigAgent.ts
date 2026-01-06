@@ -90,7 +90,7 @@ Responda APENAS em JSON no formato:
   "confianca": "alta" | "media" | "baixa",
   "explicacao": "breve explicacao"
 }`,
-    model: google("gemini-2.0-flash"),
+    model: google("gemini-3-flash-preview"),
 });
 
 // ==================== HELPER FUNCTIONS ====================

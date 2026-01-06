@@ -923,7 +923,7 @@ app.post('/api/audio/explanation', async (req, res) => {
 
         // First, generate a concise explanation text
         const textResponse = await client.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Você é um professor didático. Crie uma explicação ORAL concisa (máximo 2 minutos de fala) sobre o seguinte tema para um aluno de concurso público:
 
 Tema: ${title}
@@ -1016,7 +1016,7 @@ app.post('/api/audio/podcast', async (req, res) => {
 
         // First, generate a podcast script with two speakers
         const scriptResponse = await client.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Crie um script de podcast CURTO (máximo 2-3 minutos) com dois apresentadores discutindo o seguinte tema de concurso público:
 
 Tema: ${title}
@@ -1696,7 +1696,7 @@ async function gerarConteudoMissaoBackground(missaoId: string): Promise<boolean>
                 missao_id: missaoId,
                 texto_content: '',
                 status: 'generating',
-                modelo_texto: 'gemini-3-pro-preview',
+                modelo_texto: 'gemini-3-flash-preview',
             })
             .select('id')
             .single();
@@ -2760,6 +2760,20 @@ app.post('/api/preparatorio/from-pdf', upload.single('pdf'), async (req, res) =>
         etapas[3].detalhes = `${resultadoEdital.blocos_criados} blocos, ${resultadoEdital.materias_criadas} matérias, ${resultadoEdital.topicos_criados} tópicos`;
         console.log(`[FromPDF] Edital criado: ${resultadoEdital.topicos_criados} tópicos`);
 
+        // Auto-configurar filtros do edital via IA
+        console.log('[FromPDF] Auto-configurando filtros do edital...');
+        try {
+            const autoConfigResult = await autoConfigureEditalFilters(preparatorioId);
+            if (autoConfigResult.success) {
+                console.log(`[FromPDF] Filtros auto-configurados: ${autoConfigResult.itemsConfigured}/${autoConfigResult.itemsProcessed} itens`);
+            } else {
+                console.error('[FromPDF] Erro na auto-configuração:', autoConfigResult.error);
+            }
+        } catch (autoConfigError) {
+            console.error('[FromPDF] Erro ao auto-configurar filtros:', autoConfigError);
+            // Non-blocking - continua mesmo se falhar
+        }
+
         // ========== ETAPA 5: GERAR RODADAS E MISSÕES ==========
         etapas[4].status = 'in_progress';
         console.log('[FromPDF] Etapa 4: Gerando rodadas e missões...');
@@ -3132,6 +3146,20 @@ app.post('/api/preparatorio/from-pdf-stream', upload.single('pdf'), async (req, 
         const totalItems = resultadoEdital.blocos_criados + resultadoEdital.materias_criadas + resultadoEdital.topicos_criados + resultadoEdital.subtopicos_criados;
         console.log(`[FromPDF-SSE] Edital criado: ${totalItems} itens`);
 
+        // Auto-configurar filtros do edital via IA
+        console.log('[FromPDF-SSE] Auto-configurando filtros do edital...');
+        try {
+            const autoConfigResult = await autoConfigureEditalFilters(preparatorioId);
+            if (autoConfigResult.success) {
+                console.log(`[FromPDF-SSE] Filtros auto-configurados: ${autoConfigResult.itemsConfigured}/${autoConfigResult.itemsProcessed} itens`);
+            } else {
+                console.error('[FromPDF-SSE] Erro na auto-configuração:', autoConfigResult.error);
+            }
+        } catch (autoConfigError) {
+            console.error('[FromPDF-SSE] Erro ao auto-configurar filtros:', autoConfigError);
+            // Non-blocking - continua mesmo se falhar
+        }
+
         // ========== ETAPA 5: GERAR RODADAS E MISSÕES ==========
         updateEtapa(4, 'in_progress');
         console.log('[FromPDF-SSE] Etapa 5: Gerando rodadas e missões...');
@@ -3452,6 +3480,20 @@ app.post('/api/preparatorio/from-pdf-preview', upload.single('pdf'), async (req,
         }
 
         console.log(`[FromPDF-Preview] Edital criado`);
+
+        // Auto-configurar filtros do edital via IA
+        console.log('[FromPDF-Preview] Auto-configurando filtros do edital...');
+        try {
+            const autoConfigResult = await autoConfigureEditalFilters(preparatorioId);
+            if (autoConfigResult.success) {
+                console.log(`[FromPDF-Preview] Filtros auto-configurados: ${autoConfigResult.itemsConfigured}/${autoConfigResult.itemsProcessed} itens`);
+            } else {
+                console.error('[FromPDF-Preview] Erro na auto-configuração:', autoConfigResult.error);
+            }
+        } catch (autoConfigError) {
+            console.error('[FromPDF-Preview] Erro ao auto-configurar filtros:', autoConfigError);
+            // Non-blocking - continua mesmo se falhar
+        }
 
         // ========== ETAPA 5: GERAR PRÉVIA DAS RODADAS ==========
         console.log('[FromPDF-Preview] Etapa 5: Gerando prévia das rodadas...');
@@ -5107,7 +5149,7 @@ app.post('/api/missao/gerar-conteudo', async (req, res) => {
                 missao_id: missaoId,
                 texto_content: '',
                 status: 'generating',
-                modelo_texto: 'gemini-3-pro-preview',
+                modelo_texto: 'gemini-3-flash-preview',
             })
             .select('id')
             .single();

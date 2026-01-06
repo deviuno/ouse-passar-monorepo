@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      width: 100%;
+      min-height: 100vh;
+      padding: 16px;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #e0e0e0;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 16px 0;
+      color: #FFB800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h1::before {
+      content: '';
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      background: #FFB800;
+      border-radius: 4px;
+    }
+    .info {
+      font-size: 13px;
+      color: #a0a0a0;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: bold;
+      background: #2a2a2a;
+      color: #a0a0a0;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab:hover {
+      background: #3a3a3a;
+    }
+    .tab.active {
+      background: #FFB800;
+      color: #1a1a1a;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 14px;
+      font-weight: bold;
+      background: #FFB800;
+      color: #1a1a1a;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #FFC933;
+      transform: translateY(-1px);
+    }
+    button:disabled {
+      background: #4a4a4a;
+      color: #6e6e6e;
+      cursor: not-allowed;
+      transform: none;
+    }
+    button.danger {
+      background: #dc2626;
+      color: white;
+    }
+    button.danger:hover {
+      background: #ef4444;
+    }
+    button.secondary {
+      background: #3a3a3a;
+      color: #e0e0e0;
+    }
+    button.secondary:hover {
+      background: #4a4a4a;
+    }
+    .progress {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .progress-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .progress-row:last-child {
+      margin-bottom: 0;
+    }
+    .progress-label {
+      color: #a0a0a0;
+    }
+    .progress-value {
+      color: #FFB800;
+      font-weight: bold;
+    }
+    .progress-bar {
+      height: 8px;
+      background: #3a3a3a;
+      border-radius: 4px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #FFB800, #FFC933);
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+    #status {
+      font-size: 13px;
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 12px;
+      display: none;
+    }
+    #status.success {
+      display: block;
+      background: #1a3a1a;
+      color: #4ade80;
+      border: 1px solid #22c55e33;
+    }
+    #status.error {
+      display: block;
+      background: #3a1a1a;
+      color: #f87171;
+      border: 1px solid #ef444433;
+    }
+    #status.info {
+      display: block;
+      background: #1a2a3a;
+      color: #60a5fa;
+      border: 1px solid #3b82f633;
+    }
+    #result {
+      margin-top: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 12px;
+      background: #121212;
+      padding: 12px;
+      border-radius: 6px;
+      display: none;
+      border: 1px solid #2a2a2a;
+    }
+    #result.show {
+      display: block;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .results-list {
+      max-height: 400px;
+      overflow-y: auto;
+      background: #121212;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      border: 1px solid #2a2a2a;
+    }
+    .result-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    .result-item:hover {
+      background: #1a1a1a;
+    }
+    .result-item:last-child {
+      border-bottom: none;
+    }
+    .result-item .name {
+      color: #e0e0e0;
+      font-weight: 500;
+    }
+    .result-item .count {
+      color: #a0a0a0;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #6e6e6e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      margin-top: 20px;
+    }
+    .button-group {
+      display: flex;
+      gap: 8px;
+    }
+    .button-group button {
+      flex: 1;
+    }
+    .errors-section {
+      margin-top: 16px;
+      padding: 12px;
+      background: #2a1a1a;
+      border-radius: 6px;
+      display: none;
+    }
+    .errors-section.show {
+      display: block;
+    }
+    .errors-section h3 {
+      font-size: 12px;
+      color: #f87171;
+      margin: 0 0 8px 0;
+    }
+    .error-item {
+      font-size: 11px;
+      color: #a0a0a0;
+      padding: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>TecConcursos Taxonomy</h1>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="auto">Automatico</button>
+    <button class="tab" data-tab="manual">Manual</button>
+  </div>
+
+  <!-- Modo Automatico -->
+  <div id="tab-auto" class="tab-content active">
+    <p class="info">Extrai automaticamente TODAS as materias do TecConcursos, navegando por cada pagina e coletando a estrutura completa de assuntos.</p>
+
+    <div class="progress" id="progressSection" style="display: none;">
+      <div class="progress-row">
+        <span class="progress-label">Pagina</span>
+        <span class="progress-value" id="currentPage">1</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Materia atual</span>
+        <span class="progress-value" id="currentMateria">-</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Progresso</span>
+        <span class="progress-value"><span id="currentIndex">0</span> / <span id="totalMaterias">0</span></span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Materias extraidas</span>
+        <span class="progress-value" id="resultsCount">0</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <button id="startAutoBtn">Iniciar Extracao Automatica</button>
+    <button id="stopAutoBtn" class="danger" style="display: none;">Parar Extracao</button>
+
+    <div class="section-title" id="resultsTitle" style="display: none;">Materias Extraidas</div>
+    <div class="results-list" id="resultsList" style="display: none;"></div>
+
+    <div class="button-group">
+      <button id="downloadAllBtn" class="secondary" disabled>Baixar .md</button>
+      <button id="clearResultsBtn" class="secondary" disabled>Limpar</button>
+    </div>
+
+    <div class="errors-section" id="errorsSection">
+      <h3>Erros encontrados</h3>
+      <div id="errorsList"></div>
+    </div>
+  </div>
+
+  <!-- Modo Manual -->
+  <div id="tab-manual" class="tab-content">
+    <p class="info">Navegue para uma pagina de materia especifica no TecConcursos e clique em "Extrair" para capturar a taxonomia usando IA.</p>
+
+    <button id="extractBtn">Extrair Taxonomia</button>
+
+    <div class="section-title">Resultado</div>
+
+    <div class="button-group">
+      <button id="copyBtn" class="secondary" disabled>Copiar</button>
+      <button id="downloadBtn" class="secondary" disabled>Baixar .md</button>
+    </div>
+
+    <div id="result"><pre id="preview"></pre></div>
+  </div>
+
+  <div id="status"></div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

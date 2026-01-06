@@ -33,12 +33,12 @@ Os agentes são configurados em `src/mastra/index.ts`:
 
 | Agente | Modelo | Função |
 |--------|--------|--------|
-| `contentGeneratorAgent` | gemini-3-pro-preview | Gera aulas didáticas completas (~2000 palavras) |
-| `audioScriptAgent` | gemini-3-pro-preview | Adapta texto para narração de áudio |
-| `tutorAgent` | gemini-2.0-flash | Mentor virtual que tira dúvidas |
-| `editalFullAnalyzerAgent` | gemini-2.0-flash | Analisa PDF do edital e extrai estrutura |
-| `editalParserAgent` | gemini-2.0-flash | Parseia texto do edital |
-| `materiaPriorityAgent` | gemini-2.0-flash | Sugere ordem de estudo das matérias |
+| `contentGeneratorAgent` | gemini-3-flash-preview | Gera aulas didáticas completas (~2000 palavras) |
+| `audioScriptAgent` | gemini-3-flash-preview | Adapta texto para narração de áudio |
+| `tutorAgent` | gemini-3-flash-preview | Mentor virtual que tira dúvidas |
+| `editalFullAnalyzerAgent` | gemini-3-flash-preview | Analisa PDF do edital e extrai estrutura |
+| `editalParserAgent` | gemini-3-flash-preview | Parseia texto do edital |
+| `materiaPriorityAgent` | gemini-3-flash-preview | Sugere ordem de estudo das matérias |
 
 ---
 
@@ -196,7 +196,7 @@ Armazena o conteúdo gerado para cada missão.
 | audio_url | text | URL do áudio (Storage) |
 | audio_script | text | Script usado para narração |
 | status | text | generating, completed, failed |
-| modelo_texto | text | Ex: gemini-3-pro-preview |
+| modelo_texto | text | Ex: gemini-3-flash-preview |
 | created_at | timestamp | Data de criação |
 
 ### `missoes`

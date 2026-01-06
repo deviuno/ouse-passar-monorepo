@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "TecConcursos Taxonomy Extractor",
+  "version": "1.0",
+  "description": "Extrai automaticamente a estrutura de assuntos de todas as materias do TecConcursos",
+  "permissions": ["activeTab", "storage", "scripting", "tabs", "sidePanel"],
+  "host_permissions": ["https://www.tecconcursos.com.br/*"],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Abrir TecConcursos Taxonomy"
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

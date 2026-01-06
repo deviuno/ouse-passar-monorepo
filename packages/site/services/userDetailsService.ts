@@ -9,6 +9,7 @@ export interface UserProfile {
   role: string;
   is_active: boolean;
   show_answers: boolean;
+  is_ouse_questoes_subscriber: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -76,7 +77,7 @@ export async function getUserDetails(userId: string): Promise<{
     // Fetch user profile from admin_users
     const { data: profile, error: profileError } = await supabase
       .from('admin_users' as any)
-      .select('id, email, name, role, is_active, show_answers, avatar_url, created_at, updated_at, created_by, last_login, password_hash')
+      .select('id, email, name, role, is_active, show_answers, is_ouse_questoes_subscriber, avatar_url, created_at, updated_at, created_by, last_login, password_hash')
       .eq('id', userId)
       .single();
 
@@ -288,9 +289,15 @@ export async function getUserDetails(userId: string): Promise<{
       lastActivity: recentActivity.length > 0 ? recentActivity[0].timestamp : (profile as any).updated_at,
     };
 
+    // Ensure is_ouse_questoes_subscriber defaults to false if null
+    const normalizedProfile: UserProfile = {
+      ...(profile as any),
+      is_ouse_questoes_subscriber: (profile as any).is_ouse_questoes_subscriber ?? false,
+    };
+
     return {
       data: {
-        profile: profile as unknown as UserProfile,
+        profile: normalizedProfile,
         stats,
         preparatorios,
         recentActivity: recentActivity.slice(0, 20),
@@ -334,13 +341,14 @@ export async function updateUserProfile(
 }
 
 /**
- * Update user settings (is_active and show_answers)
+ * Update user settings (is_active, show_answers, is_ouse_questoes_subscriber)
  */
 export async function updateUserSettings(
   userId: string,
   updates: {
     is_active?: boolean;
     show_answers?: boolean;
+    is_ouse_questoes_subscriber?: boolean;
   }
 ): Promise<{ success: boolean; error: string | null }> {
   try {

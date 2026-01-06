@@ -6,6 +6,8 @@
 import { Router, Request, Response } from 'express';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import TecConcursosScraper from '../services/tecConcursosScraper.js';
+import TaxonomyScraper from '../services/taxonomyScraper.js';
+import { taxonomyExtractorAgent } from '../mastra/agents/taxonomyExtractorAgent.js';
 
 // ==================== INTERFACES ====================
 
@@ -1967,6 +1969,281 @@ export function createTecConcursosScraperRoutes(): Router {
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Erro ao atualizar configurações',
+      });
+    }
+  });
+
+  // ==================== TAXONOMY ENDPOINTS ====================
+
+  /**
+   * GET /api/tec-scraper/taxonomia/materias
+   * Lista todas as matérias disponíveis no TecConcursos
+   */
+  router.get('/taxonomia/materias', async (req: Request, res: Response) => {
+    try {
+      if (TaxonomyScraper.isRunning()) {
+        return res.status(409).json({
+          success: false,
+          error: 'Uma coleta de taxonomia já está em andamento',
+        });
+      }
+
+      const result = await TaxonomyScraper.listarNomesMaterias();
+
+      return res.json(result);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao listar matérias',
+      });
+    }
+  });
+
+  /**
+   * GET /api/tec-scraper/taxonomia/materia/:slug
+   * Coleta a taxonomia de uma matéria específica
+   * Retorna estrutura hierárquica de assuntos em JSON e Markdown
+   */
+  router.get('/taxonomia/materia/:slug', async (req: Request, res: Response) => {
+    const { slug } = req.params;
+
+    try {
+      if (TaxonomyScraper.isRunning()) {
+        return res.status(409).json({
+          success: false,
+          error: 'Uma coleta de taxonomia já está em andamento',
+        });
+      }
+
+      const result = await TaxonomyScraper.coletarTaxonomiaMateria(slug);
+
+      return res.json(result);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao coletar taxonomia',
+      });
+    }
+  });
+
+  /**
+   * GET /api/tec-scraper/taxonomia/materia/:slug/markdown
+   * Coleta a taxonomia de uma matéria e retorna apenas o Markdown
+   */
+  router.get('/taxonomia/materia/:slug/markdown', async (req: Request, res: Response) => {
+    const { slug } = req.params;
+
+    try {
+      if (TaxonomyScraper.isRunning()) {
+        return res.status(409).json({
+          success: false,
+          error: 'Uma coleta de taxonomia já está em andamento',
+        });
+      }
+
+      const result = await TaxonomyScraper.coletarTaxonomiaMateria(slug);
+
+      if (!result.success) {
+        return res.status(500).json(result);
+      }
+
+      // Retornar como texto/markdown
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+      return res.send(result.markdown);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao coletar taxonomia',
+      });
+    }
+  });
+
+  /**
+   * POST /api/tec-scraper/taxonomia/completa
+   * Coleta a taxonomia de TODAS as matérias (processo longo)
+   * ATENÇÃO: Pode levar vários minutos
+   */
+  router.post('/taxonomia/completa', async (req: Request, res: Response) => {
+    try {
+      if (TaxonomyScraper.isRunning()) {
+        return res.status(409).json({
+          success: false,
+          error: 'Uma coleta de taxonomia já está em andamento',
+        });
+      }
+
+      // Iniciar coleta em background
+      TaxonomyScraper.coletarTaxonomiaCompleta().then(result => {
+        console.log(`[TaxonomyScraper] Coleta completa finalizada: ${result.success ? 'sucesso' : 'erro'}`);
+        if (result.materias) {
+          console.log(`[TaxonomyScraper] ${result.materias.length} matérias coletadas`);
+        }
+      }).catch(err => {
+        console.error('[TaxonomyScraper] Erro na coleta completa:', err);
+      });
+
+      return res.json({
+        success: true,
+        message: 'Coleta de taxonomia completa iniciada em background',
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao iniciar coleta',
+      });
+    }
+  });
+
+  /**
+   * GET /api/tec-scraper/taxonomia/status
+   * Verifica se uma coleta de taxonomia está em andamento
+   */
+  router.get('/taxonomia/status', async (req: Request, res: Response) => {
+    return res.json({
+      success: true,
+      isRunning: TaxonomyScraper.isRunning(),
+    });
+  });
+
+  /**
+   * POST /api/tec-scraper/taxonomia/parar
+   * Para a coleta de taxonomia em andamento
+   */
+  router.post('/taxonomia/parar', async (req: Request, res: Response) => {
+    try {
+      await TaxonomyScraper.parar();
+
+      return res.json({
+        success: true,
+        message: 'Coleta de taxonomia parada',
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao parar coleta',
+      });
+    }
+  });
+
+  /**
+   * POST /api/tec-scraper/taxonomia/materia/:slug/salvar
+   * Coleta a taxonomia de uma matéria e salva no banco de dados
+   */
+  router.post('/taxonomia/materia/:slug/salvar', async (req: Request, res: Response) => {
+    const { slug } = req.params;
+
+    try {
+      if (TaxonomyScraper.isRunning()) {
+        return res.status(409).json({
+          success: false,
+          error: 'Uma coleta de taxonomia já está em andamento',
+        });
+      }
+
+      // Coletar taxonomia
+      const coletaResult = await TaxonomyScraper.coletarTaxonomiaMateria(slug);
+
+      if (!coletaResult.success || !coletaResult.materia) {
+        return res.status(500).json({
+          success: false,
+          error: coletaResult.error || 'Erro ao coletar taxonomia',
+        });
+      }
+
+      // Salvar no banco
+      const saveResult = await TaxonomyScraper.salvarTaxonomiaNoDb(coletaResult.materia);
+
+      if (!saveResult.success) {
+        return res.status(500).json({
+          success: false,
+          error: saveResult.error || 'Erro ao salvar no banco',
+          materia: coletaResult.materia,
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: `Taxonomia de ${coletaResult.materia.nome} salva com sucesso`,
+        materia: coletaResult.materia,
+        assuntosCount: coletaResult.materia.assuntos.length,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao salvar taxonomia',
+      });
+    }
+  });
+
+  /**
+   * POST /api/tec-scraper/taxonomia/extract-from-html
+   * Extrai taxonomia de HTML usando IA (Gemini)
+   * Body: { html: string, materiaName: string, url?: string }
+   *
+   * Uso: A extensão do Chrome captura o HTML da página e envia para cá
+   */
+  router.post('/taxonomia/extract-from-html', async (req: Request, res: Response) => {
+    const { html, materiaName, url } = req.body;
+
+    if (!html) {
+      return res.status(400).json({
+        success: false,
+        error: 'HTML não fornecido. Envie o campo "html" no body.',
+      });
+    }
+
+    if (!materiaName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nome da matéria não fornecido. Envie o campo "materiaName" no body.',
+      });
+    }
+
+    try {
+      console.log(`[TaxonomyAI] Processando HTML de ${materiaName} (${html.length} chars)`);
+
+      // Limitar o tamanho do HTML para não exceder limites do modelo
+      const maxHtmlLength = 100000; // ~100KB
+      const truncatedHtml = html.length > maxHtmlLength
+        ? html.substring(0, maxHtmlLength) + '\n<!-- HTML truncado -->'
+        : html;
+
+      const prompt = `Extraia a taxonomia de assuntos do seguinte HTML de uma página de matéria do TecConcursos.
+
+Nome da matéria: ${materiaName}
+${url ? `URL: ${url}` : ''}
+
+HTML:
+\`\`\`html
+${truncatedHtml}
+\`\`\`
+
+Retorne APENAS o Markdown formatado com a estrutura hierárquica de assuntos, sem explicações adicionais.`;
+
+      const response = await taxonomyExtractorAgent.generate(prompt);
+
+      // Extrair o texto da resposta
+      const markdown = typeof response.text === 'string'
+        ? response.text
+        : JSON.stringify(response.text);
+
+      // Contar número de assuntos (linhas que começam com ## ou *)
+      const assuntosCount = (markdown.match(/^(##|\*)/gm) || []).length;
+
+      console.log(`[TaxonomyAI] Extração concluída: ${assuntosCount} assuntos encontrados`);
+
+      return res.json({
+        success: true,
+        markdown,
+        materiaName,
+        url,
+        assuntosCount,
+      });
+    } catch (error) {
+      console.error('[TaxonomyAI] Erro ao extrair taxonomia:', error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao extrair taxonomia com IA',
       });
     }
   });
