@@ -22,8 +22,10 @@ let _supabase: SupabaseClient | null = null;
 
 function getSupabaseClient(): SupabaseClient {
     if (!_supabase) {
-        const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+        const supabaseUrl = process.env.VITE_SUPABASE_URL?.trim() || '';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY?.trim() || '';
+
+        console.log(`[EditalAutoConfig] Inicializando Supabase client com URL: "${supabaseUrl.substring(0, 50)}..."`);
 
         if (!supabaseUrl || !supabaseKey) {
             throw new Error('Supabase URL and Key are required. Check your .env file.');
@@ -166,17 +168,29 @@ async function updateItemFilters(
     assuntos: string[]
 ): Promise<void> {
     const supabase = getSupabaseClient();
-    const { error } = await supabase
+
+    const updateData = {
+        filtro_materias: materias.length > 0 ? materias : null,
+        filtro_assuntos: assuntos.length > 0 ? assuntos : null,
+    };
+
+    console.log(`[EditalAutoConfig] Atualizando item ${itemId}:`, JSON.stringify(updateData));
+
+    const { data, error, count } = await supabase
         .from('edital_verticalizado_items')
-        .update({
-            filtro_materias: materias.length > 0 ? materias : null,
-            filtro_assuntos: assuntos.length > 0 ? assuntos : null,
-        })
-        .eq('id', itemId);
+        .update(updateData)
+        .eq('id', itemId)
+        .select();
 
     if (error) {
         console.error('[EditalAutoConfig] Erro ao atualizar filtros:', error);
         throw error;
+    }
+
+    console.log(`[EditalAutoConfig] Update result - rows affected: ${data?.length ?? 0}, data:`, JSON.stringify(data));
+
+    if (!data || data.length === 0) {
+        console.warn(`[EditalAutoConfig] AVISO: Nenhuma linha atualizada para item ${itemId}`);
     }
 }
 
