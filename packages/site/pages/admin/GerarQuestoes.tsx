@@ -23,6 +23,7 @@ import {
   QuestionGenerationParams,
   GeneratedQuestion,
 } from '../../services/questionGeneratorService';
+import { formatBancaDisplay, sortBancas } from '../../utils/bancaFormatter';
 
 // ==================== COMPONENTES ====================
 
@@ -35,6 +36,7 @@ interface SearchableSelectProps {
   placeholder?: string;
   isLoading?: boolean;
   disabled?: boolean;
+  displayFormatter?: (item: string) => string;
 }
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -45,10 +47,14 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   placeholder = 'Selecionar...',
   isLoading = false,
   disabled = false,
+  displayFormatter,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Função para formatar item para exibição
+  const formatItem = (item: string) => displayFormatter ? displayFormatter(item) : item;
 
   // Fechar ao clicar fora
   useEffect(() => {
@@ -64,8 +70,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const filteredItems = useMemo(() => {
     if (!search.trim()) return items;
     const searchLower = search.toLowerCase();
-    return items.filter((item) => item.toLowerCase().includes(searchLower));
-  }, [items, search]);
+    // Buscar tanto no valor original quanto no formatado
+    return items.filter((item) =>
+      item.toLowerCase().includes(searchLower) ||
+      formatItem(item).toLowerCase().includes(searchLower)
+    );
+  }, [items, search, displayFormatter]);
 
   const handleSelect = (item: string) => {
     onChange(item);
@@ -94,7 +104,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
         `}
       >
         <span className={!value ? 'text-[#6E6E6E]' : 'text-white truncate'}>
-          {value || placeholder}
+          {value ? formatItem(value) : placeholder}
         </span>
         {isLoading ? (
           <Loader2 size={16} className="animate-spin text-[#A0A0A0]" />
@@ -156,7 +166,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                       `}>
                         {isSelected && <Check size={10} className="text-black" />}
                       </div>
-                      <span className="truncate">{item}</span>
+                      <span className="truncate">{formatItem(item)}</span>
                     </button>
                   );
                 })
@@ -554,7 +564,7 @@ export const GerarQuestoes: React.FC = () => {
   const loadFilters = async () => {
     try {
       const result = await questionGeneratorService.getFilters();
-      setBancas(result.bancas);
+      setBancas(sortBancas(result.bancas));
       setMaterias(result.materias);
     } catch (err) {
       console.error('Erro ao carregar filtros:', err);
@@ -755,6 +765,7 @@ export const GerarQuestoes: React.FC = () => {
               value={formData.banca}
               onChange={(value) => setFormData({ ...formData, banca: value })}
               placeholder="Selecione a banca..."
+              displayFormatter={formatBancaDisplay}
             />
 
             {/* Materia */}
