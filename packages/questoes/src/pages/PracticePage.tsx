@@ -33,6 +33,7 @@ import {
 import { Button, Card, Progress, ConfirmModal } from '../components/ui';
 import { BatteryEmptyModal } from '../components/battery';
 import { QuestionCard } from '../components/question';
+import QuestionErrorBoundary from '../components/question/QuestionErrorBoundary';
 import { MentorChat } from '../components/question/MentorChat';
 import { FloatingChatButton } from '../components/ui';
 import { ParsedQuestion, RawQuestion, PracticeMode, Alternative } from '../types';
@@ -1557,22 +1558,28 @@ export default function PracticePage() {
 
         <div className="flex-1 overflow-hidden">
           <div className="max-w-[1000px] mx-auto h-full">
-          <QuestionCard
-            question={currentQuestion}
-            isLastQuestion={currentIndex === questions.length - 1}
-            onNext={handleNext}
-            onPrevious={currentIndex > 0 ? handlePrevious : undefined}
-            onOpenTutor={() => setShowMentorChat(true)}
-            onAnswer={handleAnswer}
-            onRateDifficulty={handleRateDifficulty}
-            onTimeout={studyMode === 'hard' ? handleTimeout : undefined}
-            studyMode={studyMode}
-            initialTime={studyMode === 'hard' ? 3 : undefined}
-            userId={user?.id}
-            userRole={profile?.role}
-            showCorrectAnswers={profile?.show_answers || false}
-            onShowToast={handleShowToast}
-          />
+          <QuestionErrorBoundary
+            questionId={currentQuestion?.id}
+            onSkip={handleNext}
+            onRetry={() => {/* Force re-render */}}
+          >
+            <QuestionCard
+              question={currentQuestion}
+              isLastQuestion={currentIndex === questions.length - 1}
+              onNext={handleNext}
+              onPrevious={currentIndex > 0 ? handlePrevious : undefined}
+              onOpenTutor={() => setShowMentorChat(true)}
+              onAnswer={handleAnswer}
+              onRateDifficulty={handleRateDifficulty}
+              onTimeout={studyMode === 'hard' ? handleTimeout : undefined}
+              studyMode={studyMode}
+              initialTime={studyMode === 'hard' ? 3 : undefined}
+              userId={user?.id}
+              userRole={profile?.role}
+              showCorrectAnswers={profile?.show_answers || false}
+              onShowToast={handleShowToast}
+            />
+          </QuestionErrorBoundary>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ParsedQuestion, CommunityStats, PracticeMode } from '../../types';
@@ -11,6 +11,8 @@ import CommentsSection from './CommentsSection';
 import { ReportQuestionModal } from './ReportQuestionModal';
 import { useHorizontalSwipe } from '../../hooks/useSwipe';
 import RippleEffect from '../ui/RippleEffect';
+import { validateQuestion } from '../../utils/questionValidator';
+import CorruptedQuestionCard from './CorruptedQuestionCard';
 
 interface QuestionCardProps {
   question: ParsedQuestion;
@@ -32,6 +34,51 @@ interface QuestionCardProps {
 }
 
 const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, onNext, onPrevious, onOpenTutor, onAnswer, onRateDifficulty, onTimeout, studyMode = 'zen', initialTime = 120, userId, onShowToast, savedDifficultyRating, userRole, showCorrectAnswers = false, previousAnswer = null }) => {
+  // Estado do modal de report (definido primeiro para usar no card de erro)
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  // Validar questão antes de renderizar
+  const questionValidation = useMemo(() => {
+    try {
+      return validateQuestion({
+        enunciado: question?.enunciado,
+        parsedAlternativas: question?.parsedAlternativas,
+        gabarito: question?.gabarito
+      });
+    } catch (error) {
+      console.error('[QuestionCard] Erro ao validar questão:', error);
+      return {
+        isValid: false,
+        isCorrupted: true,
+        errors: ['Erro ao validar questão'],
+        warnings: []
+      };
+    }
+  }, [question?.id, question?.enunciado]);
+
+  // Se a questão está corrompida ou inválida, mostrar card de erro
+  if (!questionValidation.isValid || questionValidation.isCorrupted) {
+    return (
+      <>
+        <CorruptedQuestionCard
+          questionId={question?.id || 0}
+          onSkip={onNext}
+          onReport={() => setShowReportModal(true)}
+          errors={questionValidation.errors}
+        />
+        {showReportModal && (
+          <ReportQuestionModal
+            isOpen={showReportModal}
+            onClose={() => setShowReportModal(false)}
+            questionId={question?.id || 0}
+            userId={userId || undefined}
+            onShowToast={onShowToast}
+          />
+        )}
+      </>
+    );
+  }
+
   // Se tem resposta anterior, inicia com ela selecionada e submetida (modo read-only)
   const [selectedAlt, setSelectedAlt] = useState<string | null>(previousAnswer?.letter || null);
   const [isSubmitted, setIsSubmitted] = useState(!!previousAnswer);
@@ -43,7 +90,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
   const [difficultyRating, setDifficultyRating] = useState<'easy' | 'medium' | 'hard' | null>(savedDifficultyRating || null);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showPegadinhaModal, setShowPegadinhaModal] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
+  // showReportModal já foi definido acima para uso no card de erro
 
   // Statistics state
   const [questionStats, setQuestionStats] = useState<QuestionStatistics | null>(null);
