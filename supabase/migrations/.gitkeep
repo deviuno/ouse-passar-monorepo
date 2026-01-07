@@ -1,0 +1,18 @@
+# Migrations Folder
+
+Este diretório contém as migrations do Supabase.
+
+## Estado Atual
+
+As migrations existentes estão aplicadas diretamente no banco de produção.
+Novas migrations devem ser criadas aqui para serem aplicadas via Supabase Branching.
+
+## Como criar uma nova migration
+
+```bash
+# Gerar migration a partir de mudanças no schema
+supabase db diff -f nome_da_migration
+
+# Ou criar manualmente
+# supabase/migrations/YYYYMMDDHHMMSS_nome_da_migration.sql
+```
