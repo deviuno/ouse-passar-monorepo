@@ -7157,27 +7157,29 @@ app.get('/api/questions/filters', async (req, res) => {
     try {
         const supabase = createClient(questionsDbUrl, questionsDbKey);
 
-        // Buscar bancas únicas
-        const { data: bancasData } = await supabase
-            .from('questoes_concurso')
-            .select('banca')
-            .eq('ativo', true)
-            .not('banca', 'is', null);
+        // Usar RPC com cache para obter todas as opções de filtro
+        const { data, error } = await supabase.rpc('get_all_filter_options');
 
-        const bancas = [...new Set((bancasData || []).map(q => q.banca))].filter(Boolean).sort();
+        if (error) {
+            throw error;
+        }
 
-        // Buscar matérias únicas
-        const { data: materiasData } = await supabase
-            .from('questoes_concurso')
-            .select('materia')
-            .eq('ativo', true);
-
-        const materias = [...new Set((materiasData || []).map(q => q.materia))].filter(Boolean).sort();
+        // O RPC retorna: { materias, bancas, orgaos, anos, cargos }
+        const result = data as {
+            materias: string[];
+            bancas: string[];
+            orgaos: string[];
+            anos: number[];
+            cargos: string[];
+        };
 
         res.json({
             success: true,
-            bancas,
-            materias
+            bancas: result.bancas || [],
+            materias: result.materias || [],
+            orgaos: result.orgaos || [],
+            anos: result.anos || [],
+            cargos: result.cargos || []
         });
 
     } catch (error) {
@@ -7192,7 +7194,7 @@ app.get('/api/questions/filters', async (req, res) => {
 // GET /api/questions/assuntos - Buscar assuntos por matéria
 app.get('/api/questions/assuntos', async (req, res) => {
     try {
-        const { materia, banca } = req.query;
+        const { materia } = req.query;
 
         if (!materia) {
             res.status(400).json({
@@ -7204,20 +7206,16 @@ app.get('/api/questions/assuntos', async (req, res) => {
 
         const supabase = createClient(questionsDbUrl, questionsDbKey);
 
-        let query = supabase
-            .from('questoes_concurso')
-            .select('assunto')
-            .eq('materia', materia)
-            .eq('ativo', true)
-            .not('assunto', 'is', null);
+        // Usar RPC para buscar todos os assuntos mapeados por matéria
+        const { data, error } = await supabase.rpc('get_all_assuntos_by_materia', {
+            p_materia: materia as string
+        });
 
-        if (banca) {
-            query = query.eq('banca', banca);
+        if (error) {
+            throw error;
         }
 
-        const { data } = await query;
-
-        const assuntos = [...new Set((data || []).map(q => q.assunto))].filter(Boolean).sort();
+        const assuntos = (data || []).map((row: { assunto: string }) => row.assunto);
 
         res.json({
             success: true,

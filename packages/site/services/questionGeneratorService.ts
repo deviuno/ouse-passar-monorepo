@@ -56,6 +56,9 @@ export interface FiltersResult {
   success: boolean;
   bancas: string[];
   materias: string[];
+  orgaos: string[];
+  anos: number[];
+  cargos: string[];
   error?: string;
 }
 
@@ -203,10 +206,9 @@ export const questionGeneratorService = {
   /**
    * Busca assuntos por matéria
    */
-  async getAssuntos(materia: string, banca?: string): Promise<AssuntosResult> {
+  async getAssuntos(materia: string): Promise<AssuntosResult> {
     const params = new URLSearchParams();
     params.set('materia', materia);
-    if (banca) params.set('banca', banca);
 
     const response = await fetch(`${MASTRA_API_URL}/api/questions/assuntos?${params.toString()}`);
     const result = await response.json();
