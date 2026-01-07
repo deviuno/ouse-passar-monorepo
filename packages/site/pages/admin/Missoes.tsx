@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, Copy, BookOpen, RotateCcw, Zap, GripVertical, FileText, X, Filter, ArrowRight, ArrowLeft, Check, Sparkles, Loader2, Volume2, ListChecks, Play, Pause, ChevronDown } from 'lucide-react';
-import { preparatoriosService, rodadasService, missoesService, QuestaoFiltrosData, MissaoQuestaoFiltros } from '../../services/preparatoriosService';
+import { preparatoriosService, rodadasService, missoesService, QuestaoFiltrosData, MissaoQuestaoFiltros, PreparatorioWithRodadas, MultiTurmaTarget } from '../../services/preparatoriosService';
+import { MultiTurmaSelector } from '../../components/admin/MultiTurmaSelector';
 import { editalService, EditalItem } from '../../services/editalService';
 import { Preparatorio, Rodada, Missao, MissaoTipo } from '../../lib/database.types';
 import { EditalTopicSelector } from '../../components/admin/EditalTopicSelector';
@@ -1177,14 +1178,27 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
   // Estado para filtros herdados dos itens do edital
   const [filtrosHerdados, setFiltrosHerdados] = useState<FiltrosSugeridos | null>(null);
 
+  // Estado para multi-turma
+  const [multiTurmaMode, setMultiTurmaMode] = useState(false);
+  const [allPreparatorios, setAllPreparatorios] = useState<PreparatorioWithRodadas[]>([]);
+  const [selectedTargets, setSelectedTargets] = useState<MultiTurmaTarget[]>([]);
+  const [loadingPreparatorios, setLoadingPreparatorios] = useState(false);
+  const [cloningResults, setCloningResults] = useState<{
+    success: number;
+    errors: string[];
+    editalWarnings: { preparatorio: string; items: string[] }[];
+  } | null>(null);
+
   // Função para agregar filtros de múltiplos itens do edital
   const agregarFiltrosEdital = (items: EditalItem[]): FiltrosSugeridos | null => {
+    console.log('[agregarFiltrosEdital] Items recebidos:', items.length);
     if (items.length === 0) return null;
 
     const materias = new Set<string>();
     const assuntos = new Set<string>();
 
     items.forEach(item => {
+      console.log('[agregarFiltrosEdital] Item:', item.titulo, '| filtro_materias:', item.filtro_materias, '| filtro_assuntos:', item.filtro_assuntos);
       // Adicionar filtros de matérias
       if (item.filtro_materias && item.filtro_materias.length > 0) {
         item.filtro_materias.forEach(m => materias.add(m));
@@ -1195,14 +1209,22 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
       }
     });
 
-    // Se não há filtros configurados, retornar null
-    if (materias.size === 0 && assuntos.size === 0) return null;
+    console.log('[agregarFiltrosEdital] Materias agregadas:', Array.from(materias));
+    console.log('[agregarFiltrosEdital] Assuntos agregados:', Array.from(assuntos));
 
-    return {
+    // Se não há filtros configurados, retornar null
+    if (materias.size === 0 && assuntos.size === 0) {
+      console.log('[agregarFiltrosEdital] Retornando null - sem filtros');
+      return null;
+    }
+
+    const result = {
       materias: Array.from(materias),
       assuntos: Array.from(assuntos),
       bancas: [], // Pode ser preenchido pelo preparatório depois
     };
+    console.log('[agregarFiltrosEdital] Retornando filtros:', result);
+    return result;
   };
 
   // Carregar topicos ja vinculados a esta missao e topicos ja usados
@@ -1254,6 +1276,25 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
 
     loadTopics();
   }, [preparatorioId, missao]);
+
+  // Carregar todos os preparatórios quando multi-turma é ativado
+  useEffect(() => {
+    const loadAllPreparatorios = async () => {
+      if (!multiTurmaMode || allPreparatorios.length > 0) return;
+
+      setLoadingPreparatorios(true);
+      try {
+        const preps = await missoesService.getAllPreparatoriosWithRodadas();
+        setAllPreparatorios(preps);
+      } catch (error) {
+        console.error('Erro ao carregar preparatórios:', error);
+      } finally {
+        setLoadingPreparatorios(false);
+      }
+    };
+
+    loadAllPreparatorios();
+  }, [multiTurmaMode]);
 
   const handleTopicsConfirm = async (ids: string[]) => {
     setSelectedEditalItemIds(ids);
@@ -1336,56 +1377,43 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
 
         // Se há filtros herdados dos itens do edital, usar eles diretamente
         if (filtrosDoEdital && (filtrosDoEdital.materias.length > 0 || filtrosDoEdital.assuntos.length > 0)) {
-          // Se há assuntos mas não há matérias, buscar as matérias correspondentes
-          if (filtrosDoEdital.materias.length === 0 && filtrosDoEdital.assuntos.length > 0) {
-            try {
-              const { materias } = await getMateriasByAssuntos(filtrosDoEdital.assuntos);
-              if (materias.length > 0) {
-                filtrosDoEdital.materias = materias;
-              }
-            } catch (err) {
-              console.error('Erro ao buscar matérias correspondentes:', err);
-            }
-          }
-
-          // Adicionar banca do preparatório aos filtros herdados se disponível
-          const bancaPreparatorio = (preparatorio as any).banca;
-          if (bancaPreparatorio) {
-            filtrosDoEdital.bancas = [bancaPreparatorio];
-          }
+          // Nota: Removido auto-add de matérias e bancas pois tornava a query muito restritiva
+          // O usuário pode adicionar esses filtros manualmente se desejar
 
           setFiltrosSugeridos(filtrosDoEdital);
           setObservacoesSugestao(['Filtros herdados dos itens do edital selecionados']);
           setQuestoesDisponiveisSugestao(0); // Será calculado pelo QuestionFilterSelector
           setStep(2);
         } else {
-          // Se não há filtros herdados, buscar sugestão via IA
-          setLoadingSugestao(true);
-          try {
-            const response = await fetch(`${MASTRA_SERVER_URL}/api/missao/sugerir-filtros`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                materiaEdital: formData.materia,
-                assuntoEdital: formData.assunto || undefined,
-                banca: (preparatorio as any).banca || undefined,
-                cargo: (preparatorio as any).cargo || undefined,
-                escolaridade: (preparatorio as any).escolaridade || undefined,
-              }),
-            });
+          // Se não há filtros herdados, buscar sugestão via IA (apenas se tiver matéria)
+          if (formData.materia && formData.materia.trim()) {
+            setLoadingSugestao(true);
+            try {
+              const response = await fetch(`${MASTRA_SERVER_URL}/api/missao/sugerir-filtros`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  materiaEdital: formData.materia,
+                  assuntoEdital: formData.assunto || undefined,
+                  banca: (preparatorio as any).banca || undefined,
+                  cargo: (preparatorio as any).cargo || undefined,
+                  escolaridade: (preparatorio as any).escolaridade || undefined,
+                }),
+              });
 
-            const result = await response.json();
+              const result = await response.json();
 
-            if (result.success) {
-              setFiltrosSugeridos(result.filtrosSugeridos);
-              setObservacoesSugestao(result.observacoes || []);
-              setQuestoesDisponiveisSugestao(result.questoesDisponiveis || 0);
+              if (result.success) {
+                setFiltrosSugeridos(result.filtrosSugeridos);
+                setObservacoesSugestao(result.observacoes || []);
+                setQuestoesDisponiveisSugestao(result.questoesDisponiveis || 0);
+              }
+            } catch (err) {
+              console.error('Erro ao buscar sugestao de filtros:', err);
+              // Continua mesmo se falhar - usuario pode configurar manualmente
+            } finally {
+              setLoadingSugestao(false);
             }
-          } catch (err) {
-            console.error('Erro ao buscar sugestao de filtros:', err);
-            // Continua mesmo se falhar - usuario pode configurar manualmente
-          } finally {
-            setLoadingSugestao(false);
           }
 
           setStep(2);
@@ -1418,6 +1446,62 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
       };
 
       await missoesService.setQuestaoFiltros(savedMissaoId, filtrosData, count);
+
+      // Se multi-turma estiver ativado, clonar para os targets selecionados
+      if (multiTurmaMode && selectedTargets.length > 0) {
+        const isTipoEstudo = formData.tipo === 'padrao' || formData.tipo === 'estudo';
+        const missaoData = {
+          numero: formData.numero,
+          tipo: formData.tipo,
+          materia: isTipoEstudo ? formData.materia || null : null,
+          assunto: isTipoEstudo ? formData.assunto || null : null,
+          instrucoes: isTipoEstudo ? formData.instrucoes || null : null,
+          tema: formData.tipo === 'revisao' || isTipoEstudo ? formData.tema || null : null,
+          acao: formData.tipo === 'acao' ? formData.acao || null : null,
+          extra: formData.extra.length > 0 ? formData.extra : null,
+          obs: formData.obs || null,
+          ordem: formData.ordem
+        };
+
+        // Obter títulos dos itens do edital selecionados
+        const editalItemTitulos = selectedEditalItems.map(item => item.titulo);
+
+        const result = await missoesService.cloneToMultipleRodadas(
+          missaoData,
+          filtrosData,
+          count,
+          selectedTargets,
+          editalItemTitulos
+        );
+
+        // Coletar avisos sobre itens do edital não encontrados
+        const editalWarnings: { preparatorio: string; items: string[] }[] = [];
+        for (const successResult of result.success) {
+          if (successResult.unmatchedEditalItems && successResult.unmatchedEditalItems.length > 0) {
+            editalWarnings.push({
+              preparatorio: successResult.preparatorioNome,
+              items: successResult.unmatchedEditalItems
+            });
+          }
+        }
+
+        // Se houver erros ou avisos, mostrar popup
+        if (result.errors.length > 0 || editalWarnings.length > 0) {
+          setCloningResults({
+            success: result.success.length,
+            errors: result.errors.map(e => `${e.preparatorioNome}: ${e.error}`),
+            editalWarnings
+          });
+          // Mostrar resultado (não fechar modal se houver erros críticos)
+          if (result.errors.length > 0) {
+            return;
+          }
+        } else {
+          // Sucesso total sem avisos
+          alert(`Missão criada com sucesso em ${result.success.length + 1} preparatórios!`);
+        }
+      }
+
       onSave();
     } catch (error) {
       console.error('Erro ao salvar filtros:', error);
@@ -1426,7 +1510,66 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
   };
 
   // Pular etapa de filtros
-  const handleSkipFilters = () => {
+  const handleSkipFilters = async () => {
+    // Se multi-turma estiver ativado, clonar para os targets (sem filtros)
+    if (multiTurmaMode && selectedTargets.length > 0) {
+      const isTipoEstudo = formData.tipo === 'padrao' || formData.tipo === 'estudo';
+      const missaoData = {
+        numero: formData.numero,
+        tipo: formData.tipo,
+        materia: isTipoEstudo ? formData.materia || null : null,
+        assunto: isTipoEstudo ? formData.assunto || null : null,
+        instrucoes: isTipoEstudo ? formData.instrucoes || null : null,
+        tema: formData.tipo === 'revisao' || isTipoEstudo ? formData.tema || null : null,
+        acao: formData.tipo === 'acao' ? formData.acao || null : null,
+        extra: formData.extra.length > 0 ? formData.extra : null,
+        obs: formData.obs || null,
+        ordem: formData.ordem
+      };
+
+      // Obter títulos dos itens do edital selecionados
+      const editalItemTitulos = selectedEditalItems.map(item => item.titulo);
+
+      try {
+        const result = await missoesService.cloneToMultipleRodadas(
+          missaoData,
+          null,
+          0,
+          selectedTargets,
+          editalItemTitulos
+        );
+
+        // Coletar avisos sobre itens do edital não encontrados
+        const editalWarnings: { preparatorio: string; items: string[] }[] = [];
+        for (const successResult of result.success) {
+          if (successResult.unmatchedEditalItems && successResult.unmatchedEditalItems.length > 0) {
+            editalWarnings.push({
+              preparatorio: successResult.preparatorioNome,
+              items: successResult.unmatchedEditalItems
+            });
+          }
+        }
+
+        // Se houver erros ou avisos, mostrar popup
+        if (result.errors.length > 0 || editalWarnings.length > 0) {
+          setCloningResults({
+            success: result.success.length,
+            errors: result.errors.map(e => `${e.preparatorioNome}: ${e.error}`),
+            editalWarnings
+          });
+          if (result.errors.length > 0) {
+            return;
+          }
+        } else {
+          alert(`Missão criada com sucesso em ${result.success.length + 1} preparatórios!`);
+        }
+      } catch (error) {
+        console.error('Erro ao clonar missões:', error);
+        alert('Erro ao clonar missões');
+        return;
+      }
+    }
+
     onSave();
   };
 
@@ -1656,6 +1799,112 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
                 placeholder="Ex: o aluno deve escolher entre Ingles ou Espanhol."
               />
             </div>
+
+            {/* Toggle Multi-Turma (apenas para novas missões) */}
+            {!missao && (
+              <div className="border border-white/10 rounded-sm overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setMultiTurmaMode(!multiTurmaMode)}
+                  className={`w-full flex items-center justify-between p-3 transition-colors ${
+                    multiTurmaMode ? 'bg-[#FFB800]/10' : 'bg-brand-dark hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-5 rounded-full relative transition-colors ${
+                      multiTurmaMode ? 'bg-[#FFB800]' : 'bg-gray-600'
+                    }`}>
+                      <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
+                        multiTurmaMode ? 'right-0.5' : 'left-0.5'
+                      }`} />
+                    </div>
+                    <div className="text-left">
+                      <span className="text-white font-medium">Criar em múltiplos preparatórios</span>
+                      <p className="text-gray-500 text-xs mt-0.5">
+                        Aplica esta missão em outros preparatórios simultaneamente
+                      </p>
+                    </div>
+                  </div>
+                  <Copy className={`w-5 h-5 ${multiTurmaMode ? 'text-[#FFB800]' : 'text-gray-500'}`} />
+                </button>
+
+                {/* Multi-Turma Selector */}
+                {multiTurmaMode && (
+                  <div className="p-4 border-t border-white/10 bg-[#1A1A1A]">
+                    <MultiTurmaSelector
+                      currentPreparatorioId={preparatorioId}
+                      preparatorios={allPreparatorios}
+                      selectedTargets={selectedTargets}
+                      onTargetsChange={setSelectedTargets}
+                      loading={loadingPreparatorios}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Resultado do clonamento (se houver erros ou avisos) */}
+            {cloningResults && (
+              <div className="space-y-3">
+                {/* Erros críticos */}
+                {cloningResults.errors.length > 0 && (
+                  <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-sm">
+                    <p className="text-red-400 font-medium mb-2">
+                      Erros ao criar em alguns preparatórios:
+                    </p>
+                    <ul className="text-red-300 text-sm space-y-1">
+                      {cloningResults.errors.map((err, i) => (
+                        <li key={i}>• {err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Avisos sobre edital não encontrado */}
+                {cloningResults.editalWarnings.length > 0 && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-sm">
+                    <p className="text-yellow-400 font-medium mb-2">
+                      Assuntos do edital não encontrados:
+                    </p>
+                    <p className="text-yellow-300/70 text-xs mb-3">
+                      Os seguintes itens do edital não foram encontrados nos preparatórios de destino e precisam ser configurados manualmente:
+                    </p>
+                    <div className="space-y-3">
+                      {cloningResults.editalWarnings.map((warning, i) => (
+                        <div key={i} className="bg-yellow-500/5 p-2 rounded">
+                          <p className="text-yellow-400 text-sm font-medium mb-1">
+                            {warning.preparatorio}:
+                          </p>
+                          <ul className="text-yellow-300/80 text-xs space-y-0.5 pl-3">
+                            {warning.items.map((item, j) => (
+                              <li key={j}>• {item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sucesso parcial ou total */}
+                {cloningResults.success > 0 && (
+                  <p className="text-green-400 text-sm">
+                    ✓ Missão criada com sucesso em {cloningResults.success} preparatório(s)
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCloningResults(null);
+                    onSave();
+                  }}
+                  className="mt-2 px-4 py-1.5 bg-white/10 text-white text-sm hover:bg-white/20 transition-colors"
+                >
+                  {cloningResults.errors.length > 0 ? 'Fechar' : 'Continuar'}
+                </button>
+              </div>
+            )}
 
             {/* Indicador de filtros existentes */}
             {existingFiltros && questoesCount > 0 && (

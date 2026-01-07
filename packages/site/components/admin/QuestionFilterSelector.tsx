@@ -55,6 +55,24 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   const [selectedEscolaridade, setSelectedEscolaridade] = useState<string[]>(initialFilters?.escolaridade || []);
   const [selectedModalidade, setSelectedModalidade] = useState<string[]>(initialFilters?.modalidade || []);
 
+  // Sincronizar estados quando initialFilters mudar
+  useEffect(() => {
+    console.log('[QuestionFilterSelector] initialFilters recebido:', initialFilters);
+    if (initialFilters) {
+      if (initialFilters.materias) setSelectedMaterias(initialFilters.materias);
+      if (initialFilters.bancas) setSelectedBancas(initialFilters.bancas);
+      if (initialFilters.anos) setSelectedAnos(initialFilters.anos);
+      if (initialFilters.orgaos) setSelectedOrgaos(initialFilters.orgaos);
+      if (initialFilters.cargos) setSelectedCargos(initialFilters.cargos);
+      if (initialFilters.assuntos) {
+        console.log('[QuestionFilterSelector] Setando assuntos:', initialFilters.assuntos);
+        setSelectedAssuntos(initialFilters.assuntos);
+      }
+      if (initialFilters.escolaridade) setSelectedEscolaridade(initialFilters.escolaridade);
+      if (initialFilters.modalidade) setSelectedModalidade(initialFilters.modalidade);
+    }
+  }, [initialFilters]);
+
   // Contagem de questoes
   const [questionsCount, setQuestionsCount] = useState<number>(0);
 
@@ -184,7 +202,10 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
 
   // Atualizar contagem quando filtros mudam
   const updateCount = useCallback(async () => {
-    if (!dbConfigured) return;
+    if (!dbConfigured) {
+      console.log('[updateCount] DB não configurado, pulando...');
+      return;
+    }
 
     setLoadingCount(true);
     try {
@@ -199,7 +220,9 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
         modalidade: selectedModalidade.length > 0 ? selectedModalidade : undefined,
       };
 
+      console.log('[updateCount] Filtros para contagem:', filters);
       const result = await countQuestionsForFilters(filters);
+      console.log('[updateCount] Resultado:', result);
       setQuestionsCount(result.count);
     } catch (error) {
       console.error('Erro ao contar questoes:', error);
@@ -208,12 +231,25 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     }
   }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos, selectedEscolaridade, selectedModalidade]);
 
+  // Atualizar quando loading terminar
   useEffect(() => {
     if (!loading) {
       updateDynamicOptions();
       updateCount();
     }
-  }, [loading, updateDynamicOptions, updateCount]);
+  }, [loading]);
+
+  // Atualizar contagem quando qualquer filtro mudar
+  useEffect(() => {
+    if (!loading && dbConfigured) {
+      console.log('[QuestionFilterSelector] Filtros mudaram, atualizando contagem...', {
+        materias: selectedMaterias,
+        assuntos: selectedAssuntos,
+        bancas: selectedBancas
+      });
+      updateCount();
+    }
+  }, [selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos, selectedEscolaridade, selectedModalidade]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {

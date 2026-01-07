@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   X, ChevronRight, ChevronDown, FolderOpen, Folder, Book, FileText,
-  Check, Search, Loader2
+  Check, Search, Loader2, AlertTriangle
 } from 'lucide-react';
 import { editalService, EditalItemWithChildren } from '../../services/editalService';
 
@@ -119,13 +119,24 @@ export const EditalTopicSelector: React.FC<EditalTopicSelectorProps> = ({
     return item.children.reduce((sum, child) => sum + countSelectedTopics(child), 0);
   };
 
-  const getItemIcon = (tipo: string, isExpanded: boolean) => {
-    switch (tipo) {
+  // Verifica se um tópico tem filtros configurados
+  const hasFiltersConfigured = (item: EditalItemWithChildren): boolean => {
+    const hasMaterias = item.filtro_materias && item.filtro_materias.length > 0;
+    const hasAssuntos = item.filtro_assuntos && item.filtro_assuntos.length > 0;
+    return hasMaterias || hasAssuntos;
+  };
+
+  const getItemIcon = (item: EditalItemWithChildren, isExpanded: boolean) => {
+    switch (item.tipo) {
       case 'bloco':
         return isExpanded ? <FolderOpen className="w-4 h-4 text-purple-400" /> : <Folder className="w-4 h-4 text-purple-400" />;
       case 'materia':
         return <Book className="w-4 h-4 text-brand-yellow" />;
       case 'topico':
+        // Tópico sem filtros configurados: ícone vermelho de alerta
+        if (!hasFiltersConfigured(item)) {
+          return <AlertTriangle className="w-4 h-4 text-red-400" />;
+        }
         return <FileText className="w-4 h-4 text-blue-400" />;
       default:
         return <FileText className="w-4 h-4 text-gray-400" />;
@@ -182,7 +193,7 @@ export const EditalTopicSelector: React.FC<EditalTopicSelectorProps> = ({
           )}
 
           {/* Icon */}
-          {getItemIcon(item.tipo, isExpanded)}
+          {getItemIcon(item, isExpanded)}
 
           {/* Titulo */}
           <span
