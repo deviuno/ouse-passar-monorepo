@@ -374,20 +374,28 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     return banca;
   };
 
+  // Função para normalizar texto removendo acentos e convertendo para minúsculo
+  const normalizeText = (text: string): string => {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  };
+
   // Função para verificar se banca corresponde à busca (sigla ou nome)
   const bancaMatchesSearch = (banca: string, search: string): boolean => {
-    const searchLower = search.toLowerCase();
-    const bancaLower = banca.toLowerCase();
-    const displayLower = formatBancaDisplay(banca).toLowerCase();
+    const searchNormalized = normalizeText(search);
+    const bancaNormalized = normalizeText(banca);
+    const displayNormalized = normalizeText(formatBancaDisplay(banca));
 
-    return bancaLower.includes(searchLower) || displayLower.includes(searchLower);
+    return bancaNormalized.includes(searchNormalized) || displayNormalized.includes(searchNormalized);
   };
 
   // Filtrar opcoes por busca e ordenar com selecionados primeiro
   // Para matérias, combinar as disponíveis com as selecionadas (para mostrar herdadas que podem não estar na lista)
   const allMateriasToShow = [...new Set([...selectedMaterias, ...dynamicMaterias])];
   const filteredMaterias = sortWithSelectedFirst(
-    allMateriasToShow.filter(m => m.toLowerCase().includes(searchMaterias.toLowerCase())),
+    allMateriasToShow.filter(m => normalizeText(m).includes(normalizeText(searchMaterias))),
     selectedMaterias
   );
   // Para bancas, combinar as disponíveis com as selecionadas (para mostrar herdadas)
@@ -400,19 +408,19 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   // Para órgãos, combinar os disponíveis com os selecionados
   const allOrgaosToShow = [...new Set([...selectedOrgaos, ...dynamicOrgaos])];
   const filteredOrgaos = sortWithSelectedFirst(
-    allOrgaosToShow.filter(o => o.toLowerCase().includes(searchOrgaos.toLowerCase())),
+    allOrgaosToShow.filter(o => normalizeText(o).includes(normalizeText(searchOrgaos))),
     selectedOrgaos
   );
   // Para cargos, combinar os disponíveis com os selecionados
   const allCargosToShow = [...new Set([...selectedCargos, ...dynamicCargos])];
   const filteredCargos = sortWithSelectedFirst(
-    allCargosToShow.filter(c => c.toLowerCase().includes(searchCargos.toLowerCase())),
+    allCargosToShow.filter(c => normalizeText(c).includes(normalizeText(searchCargos))),
     selectedCargos
   );
   // Para assuntos, combinar os disponíveis com os selecionados (para mostrar herdados que podem não estar na lista)
   const allAssuntosToShow = [...new Set([...selectedAssuntos, ...availableAssuntos])];
   const filteredAssuntos = sortWithSelectedFirst(
-    allAssuntosToShow.filter(a => a.toLowerCase().includes(searchAssuntos.toLowerCase())),
+    allAssuntosToShow.filter(a => normalizeText(a).includes(normalizeText(searchAssuntos))),
     selectedAssuntos
   );
   // Para anos, combinar os disponíveis com os selecionados
