@@ -6,12 +6,12 @@
     },
     "supabase": {
       "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=avlttxzppcywybiaxxzd",
+      "url": "https://mcp.supabase.com/mcp?project_ref=dtkkyhtyiilnomfxihvx",
       "headers": {
         "Authorization": "Bearer sbp_194a2141ca8405a6d3252eedad2a02ea70aecc4e"
       }
     },
-    "supabase-questoes": {
+    "supabase-prod": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=avlttxzppcywybiaxxzd",
       "headers": {

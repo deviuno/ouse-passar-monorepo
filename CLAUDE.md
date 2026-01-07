@@ -1,17 +1,41 @@
 # Instruções do Projeto - Ouse Passar Monorepo
 
-## Projeto Supabase (Banco Unificado)
+## Projetos Supabase
 
+### Produção (Principal)
 - **Project ID:** `avlttxzppcywybiaxxzd`
 - **URL:** https://avlttxzppcywybiaxxzd.supabase.co
-- **Uso:** Banco de dados unificado contendo:
-  - Tabelas do sistema (users, battery, audio_cache, preparatorios, etc.)
-  - Banco de questões (questoes_concurso, assuntos_taxonomia, etc.)
-  - Autenticação e storage
-- **SEMPRE usar este projeto para migrations e queries MCP**
+- **Branch Git:** `main`
+- **Uso:** Banco de dados de produção
 
-> **Nota:** O projeto secundário de questões (swzosaapqtyhmwdiwdje) foi descontinuado.
-> Todos os dados foram migrados para o projeto principal.
+### Staging (Desenvolvimento)
+- **Project ID:** `dtkkyhtyiilnomfxihvx`
+- **URL:** https://dtkkyhtyiilnomfxihvx.supabase.co
+- **Branch Git:** `develop`
+- **Uso:** Banco de dados para testes e desenvolvimento
+- **MCP conectado aqui para desenvolvimento**
+
+> **IMPORTANTE:** O MCP deve estar conectado ao projeto de **STAGING** para desenvolvimento.
+> Migrations testadas em staging devem ser aplicadas manualmente em produção.
+
+## Fluxo de Trabalho (Teste → Produção)
+
+```
+1. DESENVOLVER    → MCP cria migration em STAGING (dtkkyhtyiilnomfxihvx)
+2. TESTAR         → Verificar funcionamento em staging
+3. COMMIT         → git add + git commit na branch develop
+4. MERGE          → PR de develop → main
+5. DEPLOY PROD    → Aplicar migration em PRODUÇÃO (avlttxzppcywybiaxxzd)
+```
+
+### Para aplicar migrations em produção:
+```bash
+# Via Supabase CLI
+supabase link --project-ref avlttxzppcywybiaxxzd
+supabase db push
+
+# Ou via Dashboard: SQL Editor → colar migration → executar
+```
 
 ## Estrutura do Monorepo
 
