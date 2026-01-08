@@ -1,93 +1,174 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/webp" href="https://ousepassar.com/wp-content/uploads/2025/02/favicon-100x100.webp" />
-    <title>Ouse Passar</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              brand: '#FFB800',
-              bgMain: '#1A1A1A',
-              bgCard: '#252525',
-              textMain: '#FFFFFF',
-              textSec: '#6E6E6E',
-              success: '#2ECC71',
-              error: '#E74C3C',
-              accentBlue: '#003A7C'
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/webp" href="https://ousepassar.com/wp-content/uploads/2025/02/favicon-100x100.webp" />
+  <title>Ouse Passar</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: '#FFB800',
+            bgMain: '#1A1A1A',
+            bgCard: '#252525',
+            textMain: '#FFFFFF',
+            textSec: '#6E6E6E',
+            success: '#2ECC71',
+            error: '#E74C3C',
+            accentBlue: '#003A7C'
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          animation: {
+            'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'fade-in': 'fadeIn 0.5s ease-out',
+            'fade-in-up': 'fadeInUp 0.5s ease-out',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
             },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-            animation: {
-              'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'fade-in': 'fadeIn 0.5s ease-out',
-              'fade-in-up': 'fadeInUp 0.5s ease-out',
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              fadeInUp: {
-                '0%': { opacity: '0', transform: 'translateY(10px)' },
-                '100%': { opacity: '1' },
-              }
+            fadeInUp: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1' },
             }
           }
         }
       }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-      body {
-        background-color: #1A1A1A;
-        color: #FFFFFF;
-        font-family: 'Inter', sans-serif;
-      }
-      /* Hide scrollbar for clean mobile look */
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #1A1A1A;
+      color: #FFFFFF;
+      font-family: 'Inter', sans-serif;
+    }
 
-      /* 3D Flip Utilities */
-      .perspective-1000 { perspective: 1000px; }
-      .preserve-3d { transform-style: preserve-3d; }
-      .backface-hidden { backface-visibility: hidden; }
-      .rotate-y-180 { transform: rotateY(180deg); }
+    /* Hide scrollbar for clean mobile look */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
 
-      /* Simple Confetti Animation */
-      .confetti-piece {
-        position: absolute;
-        width: 10px;
-        height: 10px;
-        background-color: #FFB800;
-        top: 0;
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* 3D Flip Utilities */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+
+    .preserve-3d {
+      transform-style: preserve-3d;
+    }
+
+    .backface-hidden {
+      backface-visibility: hidden;
+    }
+
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+
+    /* Simple Confetti Animation */
+    .confetti-piece {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: #FFB800;
+      top: 0;
+      opacity: 0;
+    }
+
+    .confetti-piece:nth-child(1) {
+      left: 7%;
+      transform: rotate(-40deg);
+      animation: drop 4s infinite ease-out;
+      animation-delay: 0s;
+      background-color: #FFB800;
+    }
+
+    .confetti-piece:nth-child(2) {
+      left: 14%;
+      transform: rotate(4deg);
+      animation: drop 4s infinite ease-out;
+      animation-delay: 0.2s;
+      background-color: #2ECC71;
+    }
+
+    .confetti-piece:nth-child(3) {
+      left: 23%;
+      transform: rotate(-12deg);
+      animation: drop 4s infinite ease-out;
+      animation-delay: 0.4s;
+      background-color: #E74C3C;
+    }
+
+    .confetti-piece:nth-child(4) {
+      left: 33%;
+      transform: rotate(10deg);
+      animation: drop 4s infinite ease-out;
+      animation-delay: 0.6s;
+      background-color: #3498DB;
+    }
+
+    .confetti-piece:nth-child(5) {
+      left: 43%;
+      transform: rotate(-18deg);
+      animation: drop 4s infinite ease-out;
+      animation-delay: 0.8s;
+      background-color: #FFB800;
+    }
+
+    .confetti-piece:nth-child(6) {
+      left: 53%;
+      transform: rotate(15deg);
+      animation: drop 4s infinite ease-out;
+      animation-delay: 1s;
+      background-color: #9B59B6;
+    }
+
+    .confetti-piece:nth-child(7) {
+      left: 65%;
+      transform: rotate(-25deg);
+      animation: drop 4s infinite ease-out;
+      animation-delay: 1.2s;
+      background-color: #2ECC71;
+    }
+
+    .confetti-piece:nth-child(8) {
+      left: 78%;
+      transform: rotate(20deg);
+      animation: drop 4s infinite ease-out;
+      animation-delay: 1.4s;
+      background-color: #E74C3C;
+    }
+
+    @keyframes drop {
+      0% {
+        top: -10%;
         opacity: 0;
       }
-      .confetti-piece:nth-child(1) { left: 7%; transform: rotate(-40deg); animation: drop 4s infinite ease-out; animation-delay: 0s; background-color: #FFB800; }
-      .confetti-piece:nth-child(2) { left: 14%; transform: rotate(4deg); animation: drop 4s infinite ease-out; animation-delay: 0.2s; background-color: #2ECC71; }
-      .confetti-piece:nth-child(3) { left: 23%; transform: rotate(-12deg); animation: drop 4s infinite ease-out; animation-delay: 0.4s; background-color: #E74C3C; }
-      .confetti-piece:nth-child(4) { left: 33%; transform: rotate(10deg); animation: drop 4s infinite ease-out; animation-delay: 0.6s; background-color: #3498DB; }
-      .confetti-piece:nth-child(5) { left: 43%; transform: rotate(-18deg); animation: drop 4s infinite ease-out; animation-delay: 0.8s; background-color: #FFB800; }
-      .confetti-piece:nth-child(6) { left: 53%; transform: rotate(15deg); animation: drop 4s infinite ease-out; animation-delay: 1s; background-color: #9B59B6; }
-      .confetti-piece:nth-child(7) { left: 65%; transform: rotate(-25deg); animation: drop 4s infinite ease-out; animation-delay: 1.2s; background-color: #2ECC71; }
-      .confetti-piece:nth-child(8) { left: 78%; transform: rotate(20deg); animation: drop 4s infinite ease-out; animation-delay: 1.4s; background-color: #E74C3C; }
-      
-      @keyframes drop {
-        0% { top: -10%; opacity: 0; }
-        20% { opacity: 1; }
-        100% { top: 110%; opacity: 0; transform: rotate(120deg); }
+
+      20% {
+        opacity: 1;
       }
-    </style>
+
+      100% {
+        top: 110%;
+        opacity: 0;
+        transform: rotate(120deg);
+      }
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -102,8 +183,10 @@
 }
 </script>
 </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/index.tsx"></script>
-  </body>
+
+<body class="bg-bgMain text-textMain antialiased selection:bg-brand selection:text-bgMain">
+  <div id="root"></div>
+  <script type="module" src="/src/index.tsx"></script>
+</body>
+
 </html>

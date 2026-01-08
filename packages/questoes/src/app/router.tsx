@@ -26,6 +26,8 @@ import PrivacySettingsPage from '../pages/PrivacySettingsPage';
 import HelpPage from '../pages/HelpPage';
 import TermsPage from '../pages/TermsPage';
 import PrivacyPage from '../pages/PrivacyPage';
+import CoursesPage from '../pages/CoursesPage';
+import CourseViewPage from '../pages/CourseViewPage';
 
 // Auth pages (will redirect from existing components)
 import AuthPage from '../pages/AuthPage';
@@ -84,6 +86,18 @@ export const router = createBrowserRouter([
     ),
   },
 
+  // Course viewing (protected, full-screen without MainLayout)
+  {
+    path: '/cursos/:slug',
+    element: (
+      <ProtectedRoute>
+        <OnboardingGuard>
+          <CourseViewPage />
+        </OnboardingGuard>
+      </ProtectedRoute>
+    ),
+  },
+
   // Main app routes (requires auth + onboarding)
   {
     path: '/',
@@ -135,6 +149,11 @@ export const router = createBrowserRouter([
       {
         path: 'trilhas/:slug',
         element: <ModuleGuard module="praticar"><TrailEditalPage /></ModuleGuard>,
+      },
+      // Cursos
+      {
+        path: 'cursos',
+        element: <CoursesPage />,
       },
       // Simulados - protected by ModuleGuard
       {

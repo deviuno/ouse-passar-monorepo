@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Bell,
   Lock,
+  BookOpen,
 } from 'lucide-react';
 import { useAuthStore, useUserStore, useUIStore, useNotificationStore, useTrailStore, useBatteryStore } from '../../stores';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -32,6 +33,7 @@ const mainNavItems = [
   { path: '/', icon: Map, label: 'Minhas Trilhas', tourId: 'sidebar-trilha' },
   { path: '/questoes', icon: Target, label: 'Ouse Questões', tourId: 'sidebar-praticar' },
   { path: '/simulados', icon: FileText, label: 'Meus Simulados', tourId: 'sidebar-simulados' },
+  { path: '/cursos', icon: BookOpen, label: 'Meus Cursos', tourId: 'sidebar-cursos' },
   { path: '/estatisticas', icon: BarChart2, label: 'Estatísticas', tourId: 'sidebar-raiox' },
   { path: '/loja', icon: ShoppingBag, label: 'Loja', tourId: 'sidebar-loja' },
 ];

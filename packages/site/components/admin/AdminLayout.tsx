@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag, Sparkles, PlayCircle, FolderOpen, Layers } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -12,6 +12,7 @@ export const AdminLayout: React.FC = () => {
     const [lojaOpen, setLojaOpen] = useState(false);
     const [planejamentosOpen, setPlanejamentosOpen] = useState(false);
     const [suporteOpen, setSuporteOpen] = useState(false);
+    const [academyOpen, setAcademyOpen] = useState(false);
     const [pendingReportsCount, setPendingReportsCount] = useState(0);
     const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
 
@@ -60,10 +61,13 @@ export const AdminLayout: React.FC = () => {
         };
     }, [isAdmin]);
 
-    // Abrir automaticamente o menu suporte se estiver em uma subpágina
+    // Abrir automaticamente os menus se estiver em uma subpágina
     useEffect(() => {
         if (location.pathname.includes('/admin/suporte')) {
             setSuporteOpen(true);
+        }
+        if (location.pathname.includes('/admin/academy')) {
+            setAcademyOpen(true);
         }
     }, [location.pathname]);
 
@@ -232,6 +236,48 @@ export const AdminLayout: React.FC = () => {
                                 <Sparkles className="w-5 h-5 mr-3" />
                                 Gerar Questões
                             </Link>
+
+                            {/* Academy Accordion */}
+                            <div className="space-y-1">
+                                <button
+                                    onClick={() => setAcademyOpen(!academyOpen)}
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/academy') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                >
+                                    <div className="flex items-center">
+                                        <PlayCircle className="w-5 h-5 mr-3" />
+                                        Academy
+                                    </div>
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${academyOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {academyOpen && (
+                                    <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
+                                        <Link
+                                            to="/admin/academy"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/academy')}`}
+                                        >
+                                            <LayoutDashboard className="w-4 h-4 mr-3" />
+                                            Dashboard
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/academy/categorias"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/academy/categorias')}`}
+                                        >
+                                            <FolderOpen className="w-4 h-4 mr-3" />
+                                            Categorias
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/academy/cursos"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/academy/cursos')}`}
+                                        >
+                                            <Layers className="w-4 h-4 mr-3" />
+                                            Cursos
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Loja Accordion */}
                             <div className="space-y-1">

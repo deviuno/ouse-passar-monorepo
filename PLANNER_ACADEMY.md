@@ -581,17 +581,43 @@ packages/site/
 
 | Fase | Descrição | Status |
 |------|-----------|--------|
-| 1 | Banco de Dados | Pendente |
-| 2 | Types TypeScript | Pendente |
-| 3 | Admin Services/Hooks | Pendente |
-| 4 | Admin Interface | Pendente |
+| 1 | Banco de Dados | Concluído |
+| 2 | Types TypeScript | Concluído |
+| 3 | Admin Services/Hooks | Concluído |
+| 4 | Admin Interface | Concluído |
 | 5 | Aluno Services/Hooks | Pendente |
 | 6 | Aluno Componentes | Pendente |
 | 7 | Aluno Páginas | Pendente |
-| 8 | Rotas | Pendente |
+| 8 | Rotas | Concluído |
 | 9 | Integrações | Pendente |
 | 10 | Polish/UX | Pendente |
 | 11 | Testes/Deploy | Pendente |
+
+---
+
+## Arquivos Criados
+
+### Fase 1-3 (Concluídas)
+- [x] Migration: `update_ead_academy_add_fields_tables` (aplicada via MCP Supabase)
+- [x] Types: `packages/site/types/ead.ts`
+- [x] Service: `packages/site/services/eadService.ts`
+
+### Fase 4 (Admin Interface - Concluída)
+- [x] `packages/site/pages/admin/academy/Dashboard.tsx` - Dashboard com estatísticas e cursos recentes
+- [x] `packages/site/pages/admin/academy/Categories.tsx` - CRUD de categorias com modal
+- [x] `packages/site/pages/admin/academy/Courses.tsx` - Lista de cursos com filtros e paginação
+- [x] `packages/site/pages/admin/academy/CourseForm.tsx` - Formulário criar/editar curso
+- [x] `packages/site/pages/admin/academy/CourseContent.tsx` - Gerenciamento de módulos e aulas
+
+### Fase 8 (Rotas e Menu - Concluída)
+- [x] Adicionado menu "Academy" no `AdminLayout.tsx` com submenus (Dashboard, Categorias, Cursos)
+- [x] Adicionadas rotas admin no `App.tsx`:
+  - `/admin/academy` - Dashboard
+  - `/admin/academy/categorias` - Categorias
+  - `/admin/academy/cursos` - Lista de cursos
+  - `/admin/academy/cursos/novo` - Novo curso
+  - `/admin/academy/cursos/:id/editar` - Editar curso
+  - `/admin/academy/cursos/:id/conteudo` - Módulos e aulas
 
 ---
 
