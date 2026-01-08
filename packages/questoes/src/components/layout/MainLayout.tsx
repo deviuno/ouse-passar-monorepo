@@ -28,7 +28,7 @@ export function MainLayout() {
   }, [isTourCompleted, location.pathname, startTour]);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-main)] text-[var(--color-text-main)] theme-transition bg-premium-light dark:bg-premium-dark scrollbar-hide">
+    <div className="min-h-screen bg-[var(--color-bg-main)] text-[var(--color-text-main)] theme-transition scrollbar-hide">
       {/* Scroll to top on route change */}
       <ScrollToTop />
 

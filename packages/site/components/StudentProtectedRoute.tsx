@@ -40,7 +40,7 @@ export const StudentProtectedRoute: React.FC<StudentProtectedRouteProps> = ({ ch
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center theme-transition">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-brand-yellow animate-spin mx-auto mb-4" />
           <p className="text-gray-400 font-mono uppercase text-sm">Verificando acesso...</p>

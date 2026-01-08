@@ -101,6 +101,13 @@ import { StoreProducts } from './pages/admin/StoreProducts';
 import { StorePurchases } from './pages/admin/StorePurchases';
 import { StoreDocumentation } from './pages/admin/StoreDocumentation';
 
+// Academy Admin
+import { AcademyDashboard } from './pages/admin/academy/Dashboard';
+import { AcademyCategories } from './pages/admin/academy/Categories';
+import { AcademyCourses } from './pages/admin/academy/Courses';
+import { CourseForm } from './pages/admin/academy/CourseForm';
+import { CourseContent } from './pages/admin/academy/CourseContent';
+
 // Wrapper for Home Page components
 const Home = () => {
   const navigate = useNavigate();
@@ -291,6 +298,14 @@ const App: React.FC = () => {
                 <Route path="loja/produtos" element={<AdminOnlyRoute><StoreProducts /></AdminOnlyRoute>} />
                 <Route path="loja/pedidos" element={<AdminOnlyRoute><StorePurchases /></AdminOnlyRoute>} />
                 <Route path="loja/documentacao" element={<AdminOnlyRoute><StoreDocumentation /></AdminOnlyRoute>} />
+
+                {/* Academy Admin */}
+                <Route path="academy" element={<AdminOnlyRoute><AcademyDashboard /></AdminOnlyRoute>} />
+                <Route path="academy/categorias" element={<AdminOnlyRoute><AcademyCategories /></AdminOnlyRoute>} />
+                <Route path="academy/cursos" element={<AdminOnlyRoute><AcademyCourses /></AdminOnlyRoute>} />
+                <Route path="academy/cursos/novo" element={<AdminOnlyRoute><CourseForm /></AdminOnlyRoute>} />
+                <Route path="academy/cursos/:id/editar" element={<AdminOnlyRoute><CourseForm /></AdminOnlyRoute>} />
+                <Route path="academy/cursos/:id/conteudo" element={<AdminOnlyRoute><CourseContent /></AdminOnlyRoute>} />
 
                 {/* Suporte - Tickets e Reportes */}
                 <Route path="suporte/tickets" element={<AdminOnlyRoute><Tickets /></AdminOnlyRoute>} />
