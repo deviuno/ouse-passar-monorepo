@@ -1,41 +1,41 @@
 # Instruções do Projeto - Ouse Passar Monorepo
 
-## Projetos Supabase
+## Supabase Branching (Ambiente Único com Branches)
 
-### Produção (Principal)
+O projeto usa **Supabase Branching** para gerenciar ambientes de desenvolvimento e produção dentro do mesmo projeto.
+
+### Branch Principal (Produção)
 - **Project ID:** `avlttxzppcywybiaxxzd`
 - **URL:** https://avlttxzppcywybiaxxzd.supabase.co
 - **Branch Git:** `main`
 - **Uso:** Banco de dados de produção
 
-### Staging (Desenvolvimento)
-- **Project ID:** `dtkkyhtyiilnomfxihvx`
-- **URL:** https://dtkkyhtyiilnomfxihvx.supabase.co
+### Branch Develop (Desenvolvimento)
+- **Project ID:** `dzfjjpdwvotmcpwntprh`
+- **URL:** https://dzfjjpdwvotmcpwntprh.supabase.co
 - **Branch Git:** `develop`
-- **Uso:** Banco de dados para testes e desenvolvimento
-- **MCP conectado aqui para desenvolvimento**
+- **Uso:** Testes e desenvolvimento
+- **Parent:** Produção (herda todas as migrations)
 
-> **IMPORTANTE:** O MCP deve estar conectado ao projeto de **STAGING** para desenvolvimento.
-> Migrations testadas em staging devem ser aplicadas manualmente em produção.
+> **IMPORTANTE:** O MCP `supabase-prod` está conectado ao projeto principal.
+> Ao criar migrations, elas são aplicadas na branch atual e sincronizadas via Git.
 
-## Fluxo de Trabalho (Teste → Produção)
+## Fluxo de Trabalho com Branching
 
 ```
-1. DESENVOLVER    → MCP cria migration em STAGING (dtkkyhtyiilnomfxihvx)
-2. TESTAR         → Verificar funcionamento em staging
-3. COMMIT         → git add + git commit na branch develop
-4. MERGE          → PR de develop → main
-5. DEPLOY PROD    → Aplicar migration em PRODUÇÃO (avlttxzppcywybiaxxzd)
+1. DESENVOLVER    → Trabalhar na branch Git `develop`
+2. MIGRATION      → Criar migration via MCP (aplica em develop automaticamente)
+3. TESTAR         → Testar no ambiente develop (dzfjjpdwvotmcpwntprh)
+4. COMMIT/PUSH    → git add + git commit + git push origin develop
+5. PR + MERGE     → Criar PR de develop → main
+6. AUTO-DEPLOY    → Supabase aplica migrations automaticamente em produção
 ```
 
-### Para aplicar migrations em produção:
-```bash
-# Via Supabase CLI
-supabase link --project-ref avlttxzppcywybiaxxzd
-supabase db push
-
-# Ou via Dashboard: SQL Editor → colar migration → executar
-```
+### Vantagens do Branching:
+- ✅ Schema sincronizado automaticamente
+- ✅ Sem necessidade de aplicar migrations manualmente
+- ✅ Ambientes isolados para teste
+- ✅ Merge automático ao fazer PR no Git
 
 ## Estrutura do Monorepo
 

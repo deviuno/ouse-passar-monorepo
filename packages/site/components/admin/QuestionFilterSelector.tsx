@@ -5,7 +5,9 @@ import {
   getDynamicFilterOptions,
   countQuestionsForFilters,
   getAssuntosByMaterias,
+  getBancasWithDetails,
   QuestionFilters,
+  BancaWithDetails,
   isExternalDbAvailable,
   OPTIONS_ESCOLARIDADE,
   OPTIONS_MODALIDADE
@@ -30,6 +32,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   // Opcoes disponiveis
   const [allMaterias, setAllMaterias] = useState<string[]>([]);
   const [allBancas, setAllBancas] = useState<string[]>([]);
+  const [allBancasWithDetails, setAllBancasWithDetails] = useState<BancaWithDetails[]>([]);
   const [allAnos, setAllAnos] = useState<number[]>([]);
   const [allOrgaos, setAllOrgaos] = useState<string[]>([]);
   const [allCargos, setAllCargos] = useState<string[]>([]);
@@ -99,13 +102,19 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
           return;
         }
 
-        const options = await getFilterOptions();
+        // Carregar opções básicas e bancas com detalhes em paralelo
+        const [options, bancasDetails] = await Promise.all([
+          getFilterOptions(),
+          getBancasWithDetails()
+        ]);
+
         if (options.error) {
           console.error('Erro ao carregar opcoes:', options.error);
         }
 
         setAllMaterias(options.materias);
         setAllBancas(options.bancas);
+        setAllBancasWithDetails(bancasDetails.bancas);
         setAllAnos(options.anos);
         setAllOrgaos(options.orgaos);
         setAllCargos(options.cargos);
@@ -209,9 +218,18 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
 
     setLoadingCount(true);
     try {
+      // Converter nomes de bancas para IDs quando disponíveis (mais eficiente)
+      const bancaIds = selectedBancas
+        .map(nome => {
+          const bancaDetails = allBancasWithDetails.find(b => b.nome === nome);
+          return bancaDetails?.id;
+        })
+        .filter((id): id is string => id !== undefined);
+
       const filters: QuestionFilters = {
         materias: selectedMaterias.length > 0 ? selectedMaterias : undefined,
         bancas: selectedBancas.length > 0 ? selectedBancas : undefined,
+        banca_ids: bancaIds.length > 0 ? bancaIds : undefined, // Usar IDs para filtragem eficiente
         anos: selectedAnos.length > 0 ? selectedAnos : undefined,
         orgaos: selectedOrgaos.length > 0 ? selectedOrgaos : undefined,
         cargos: selectedCargos.length > 0 ? selectedCargos : undefined,
@@ -229,7 +247,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     } finally {
       setLoadingCount(false);
     }
-  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos, selectedEscolaridade, selectedModalidade]);
+  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos, selectedEscolaridade, selectedModalidade, allBancasWithDetails]);
 
   // Atualizar quando loading terminar
   useEffect(() => {
@@ -341,10 +359,16 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Converter nomes de bancas para IDs quando disponíveis
+      const bancaIds = selectedBancas
+        .map(nome => getBancaId(nome))
+        .filter((id): id is string => id !== undefined);
+
       const filters: QuestionFilters = {
         materias: selectedMaterias.length > 0 ? selectedMaterias : undefined,
         assuntos: selectedAssuntos.length > 0 ? selectedAssuntos : undefined,
         bancas: selectedBancas.length > 0 ? selectedBancas : undefined,
+        banca_ids: bancaIds.length > 0 ? bancaIds : undefined, // IDs para filtragem eficiente
         anos: selectedAnos.length > 0 ? selectedAnos : undefined,
         orgaos: selectedOrgaos.length > 0 ? selectedOrgaos : undefined,
         cargos: selectedCargos.length > 0 ? selectedCargos : undefined,
@@ -368,46 +392,20 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     return [...selectedItems, ...unselectedItems];
   };
 
-  // Mapeamento de bancas: sigla → nome completo (para exibição)
-  const BANCA_DISPLAY_MAP: Record<string, string> = {
-    // Siglas conhecidas
-    'CEBRASPE': 'CEBRASPE - Centro Brasileiro de Pesquisa em Avaliação e Seleção',
-    'CESPE': 'CESPE - Centro de Seleção e de Promoção de Eventos',
-    'CESPE/CEBRASPE': 'CESPE/CEBRASPE',
-    'FGV': 'FGV - Fundação Getúlio Vargas',
-    'FCC': 'FCC - Fundação Carlos Chagas',
-    'CESGRANRIO': 'CESGRANRIO - Fundação Cesgranrio',
-    'VUNESP': 'VUNESP - Fundação para o Vestibular da UNESP',
-    'IBFC': 'IBFC - Instituto Brasileiro de Formação e Capacitação',
-    'QUADRIX': 'QUADRIX - Instituto Quadrix',
-    'IADES': 'IADES - Instituto Americano de Desenvolvimento',
-    'IDECAN': 'IDECAN - Instituto de Desenvolvimento Educacional',
-    'FUNCAB': 'FUNCAB - Fundação Prof. Carlos Augusto Bittencourt',
-    'AOCP': 'AOCP - Assessoria em Organização de Concursos',
-    'CONSULPLAN': 'CONSULPLAN',
-    'INSTITUTO ACESSO': 'Instituto Acesso',
-    // Nomes por extenso mapeados para sigla primeiro
-    'Fundação Getúlio Vargas': 'FGV - Fundação Getúlio Vargas',
-    'Fundação Getulio Vargas': 'FGV - Fundação Getúlio Vargas',
-    'Fundação Carlos Chagas': 'FCC - Fundação Carlos Chagas',
-    'Fundação Cesgranrio': 'CESGRANRIO - Fundação Cesgranrio',
-    'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos': 'CEBRASPE',
-  };
-
-  // Função para formatar nome da banca (sigla primeiro)
+  // Função para formatar nome da banca usando sigla do banco de dados
   const formatBancaDisplay = (banca: string): string => {
-    // Se já está no mapeamento, usar o formato definido
-    if (BANCA_DISPLAY_MAP[banca]) {
-      return BANCA_DISPLAY_MAP[banca];
-    }
-    // Verificar se o nome contém alguma sigla conhecida
-    const upperBanca = banca.toUpperCase();
-    for (const sigla of ['CEBRASPE', 'CESPE', 'FGV', 'FCC', 'CESGRANRIO', 'VUNESP', 'IBFC', 'QUADRIX', 'IADES', 'IDECAN', 'FUNCAB', 'AOCP']) {
-      if (upperBanca.includes(sigla)) {
-        return banca; // Já contém sigla, manter como está
-      }
+    // Buscar nos detalhes das bancas (vindos do banco de dados)
+    const bancaDetails = allBancasWithDetails.find(b => b.nome === banca);
+    if (bancaDetails?.sigla) {
+      return `${bancaDetails.sigla} - ${banca}`;
     }
     return banca;
+  };
+
+  // Função para obter o ID da banca pelo nome
+  const getBancaId = (bancaNome: string): string | undefined => {
+    const bancaDetails = allBancasWithDetails.find(b => b.nome === bancaNome);
+    return bancaDetails?.id;
   };
 
   // Função para normalizar texto removendo acentos e convertendo para minúsculo

@@ -83,22 +83,22 @@ export const TrailsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#121212]">
+    <div className="min-h-screen bg-[var(--color-bg-main)] theme-transition">
       {/* Content */}
       <div className="max-w-6xl mx-auto p-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+            <Loader2 className="w-8 h-8 text-[var(--color-success)] animate-spin" />
           </div>
         ) : preparatorios.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="p-4 bg-[#2A2A2A] rounded-full mb-4">
-              <ShoppingBag size={48} className="text-gray-500" />
+            <div className="p-4 bg-[var(--color-bg-elevated)] rounded-full mb-4">
+              <ShoppingBag size={48} className="text-[var(--color-text-muted)]" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">
+            <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2">
               Nenhuma trilha disponível
             </h2>
-            <p className="text-gray-400 max-w-md">
+            <p className="text-[var(--color-text-sec)] max-w-md">
               No momento não há trilhas de questões disponíveis para compra.
               Volte em breve para conferir as novidades!
             </p>
@@ -108,10 +108,10 @@ export const TrailsPage: React.FC = () => {
             {preparatorios.map((prep) => (
               <div
                 key={prep.id}
-                className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl overflow-hidden hover:border-[#3A3A3A] transition-all group"
+                className="bg-[var(--color-bg-card)] border border-[var(--color-bg-elevated)] rounded-xl overflow-hidden hover:border-[var(--color-border)] transition-all group theme-transition"
               >
                 {/* Imagem de Capa */}
-                <div className="relative h-40 bg-[#2A2A2A] overflow-hidden">
+                <div className="relative h-40 bg-[var(--color-bg-elevated)] overflow-hidden">
                   {prep.imagem_capa ? (
                     <img
                       src={getOptimizedImageUrl(prep.imagem_capa, 400, 80)}
@@ -121,12 +121,12 @@ export const TrailsPage: React.FC = () => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Map size={48} className="text-gray-600" />
+                      <Map size={48} className="text-[var(--color-text-muted)]" />
                     </div>
                   )}
                   {/* Badge de acesso */}
                   {prep.userHasAccess && (
-                    <div className="absolute top-2 right-2 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                    <div className="absolute top-2 right-2 bg-[var(--color-success)] text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
                       <CheckCircle size={12} />
                       Liberado
                     </div>
@@ -148,17 +148,17 @@ export const TrailsPage: React.FC = () => {
                 <div className="p-4">
                   {/* Banca badge */}
                   {prep.banca && (
-                    <span className="text-xs font-bold text-[#FFB800] uppercase tracking-wide">
+                    <span className="text-xs font-bold text-[var(--color-brand)] uppercase tracking-wide">
                       {prep.banca}
                     </span>
                   )}
 
-                  <h3 className="text-lg font-bold text-white mt-1 line-clamp-2">
+                  <h3 className="text-lg font-bold text-[var(--color-text-main)] mt-1 line-clamp-2">
                     {prep.nome}
                   </h3>
 
                   {prep.descricao_curta && (
-                    <p className="text-sm text-gray-400 mt-1 line-clamp-2">
+                    <p className="text-sm text-[var(--color-text-sec)] mt-1 line-clamp-2">
                       {prep.descricao_curta}
                     </p>
                   )}
@@ -169,15 +169,15 @@ export const TrailsPage: React.FC = () => {
                       <div>
                         {prep.preco_trilhas_desconto ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-gray-500 line-through text-sm">
+                            <span className="text-[var(--color-text-muted)] line-through text-sm">
                               {formatPrice(prep.preco_trilhas)}
                             </span>
-                            <span className="text-emerald-500 font-bold text-lg">
+                            <span className="text-[var(--color-success)] font-bold text-lg">
                               {formatPrice(prep.preco_trilhas_desconto)}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-white font-bold text-lg">
+                          <span className="text-[var(--color-text-main)] font-bold text-lg">
                             {formatPrice(prep.preco_trilhas)}
                           </span>
                         )}
@@ -190,7 +190,7 @@ export const TrailsPage: React.FC = () => {
                     {prep.userHasAccess ? (
                       <button
                         onClick={() => handleAcessar(prep)}
-                        className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                        className="w-full bg-[var(--color-success)] hover:brightness-110 text-white font-bold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
                       >
                         Acessar Trilha
                       </button>
@@ -198,7 +198,7 @@ export const TrailsPage: React.FC = () => {
                       <button
                         onClick={() => handleComprar(prep)}
                         disabled={!prep.checkout_trilhas}
-                        className="w-full bg-[#FFB800] hover:bg-[#FFC933] text-[#121212] font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-black font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ExternalLink size={18} />
                         Comprar Acesso

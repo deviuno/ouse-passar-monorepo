@@ -36,7 +36,7 @@ function MassificacaoModal({
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.9, opacity: 0, y: 20 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="bg-[#1A1A1A] border border-[#E74C3C]/30 rounded-2xl max-w-md w-full p-6 shadow-2xl"
+                    className="bg-[var(--color-bg-card)] border border-[#E74C3C]/30 rounded-2xl max-w-md w-full p-6 shadow-2xl theme-transition"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Header */}
@@ -46,46 +46,46 @@ function MassificacaoModal({
                                 <RefreshCw className="w-6 h-6 text-[#E74C3C]" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-white">Massificação</h2>
+                                <h2 className="text-xl font-bold text-[var(--color-text-main)]">Massificação</h2>
                                 <p className="text-sm text-[#E74C3C]">{missionLabel}</p>
                             </div>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors"
+                            className="p-2 rounded-lg hover:bg-[var(--color-bg-elevated)] transition-colors"
                         >
-                            <X className="w-5 h-5 text-[#6E6E6E]" />
+                            <X className="w-5 h-5 text-[var(--color-text-muted)]" />
                         </button>
                     </div>
 
                     {/* Content */}
                     <div className="space-y-4 mb-6">
-                        <p className="text-[#A0A0A0] text-sm leading-relaxed">
+                        <p className="text-[var(--color-text-sec)] text-sm leading-relaxed">
                             Você não atingiu a pontuação mínima nesta missão. A <span className="text-[#E74C3C] font-semibold">Massificação</span> é uma oportunidade de reforçar seu aprendizado!
                         </p>
 
                         <div className="space-y-3">
-                            <div className="flex items-start gap-3 p-3 bg-[#2A2A2A] rounded-lg">
+                            <div className="flex items-start gap-3 p-3 bg-[var(--color-bg-elevated)] rounded-lg">
                                 <Target className="w-5 h-5 text-[#E74C3C] mt-0.5 flex-shrink-0" />
                                 <div>
-                                    <p className="text-white text-sm font-medium">Mesmas questões</p>
-                                    <p className="text-[#6E6E6E] text-xs">Você refará exatamente as mesmas questões para fixar o conteúdo.</p>
+                                    <p className="text-[var(--color-text-main)] text-sm font-medium">Mesmas questões</p>
+                                    <p className="text-[var(--color-text-muted)] text-xs">Você refará exatamente as mesmas questões para fixar o conteúdo.</p>
                                 </div>
                             </div>
 
-                            <div className="flex items-start gap-3 p-3 bg-[#2A2A2A] rounded-lg">
+                            <div className="flex items-start gap-3 p-3 bg-[var(--color-bg-elevated)] rounded-lg">
                                 <BookOpen className="w-5 h-5 text-[#E74C3C] mt-0.5 flex-shrink-0" />
                                 <div>
-                                    <p className="text-white text-sm font-medium">Conteúdo disponível</p>
-                                    <p className="text-[#6E6E6E] text-xs">Acesso ao material teórico para revisar antes de responder.</p>
+                                    <p className="text-[var(--color-text-main)] text-sm font-medium">Conteúdo disponível</p>
+                                    <p className="text-[var(--color-text-muted)] text-xs">Acesso ao material teórico para revisar antes de responder.</p>
                                 </div>
                             </div>
 
-                            <div className="flex items-start gap-3 p-3 bg-[#2A2A2A] rounded-lg">
-                                <Zap className="w-5 h-5 text-[#6E6E6E] mt-0.5 flex-shrink-0" />
+                            <div className="flex items-start gap-3 p-3 bg-[var(--color-bg-elevated)] rounded-lg">
+                                <Zap className="w-5 h-5 text-[var(--color-text-muted)] mt-0.5 flex-shrink-0" />
                                 <div>
-                                    <p className="text-white text-sm font-medium">Sem recompensas</p>
-                                    <p className="text-[#6E6E6E] text-xs">Não ganha XP ou moedas, mas desbloqueia a próxima missão.</p>
+                                    <p className="text-[var(--color-text-main)] text-sm font-medium">Sem recompensas</p>
+                                    <p className="text-[var(--color-text-muted)] text-xs">Não ganha XP ou moedas, mas desbloqueia a próxima missão.</p>
                                 </div>
                             </div>
                         </div>
@@ -95,7 +95,7 @@ function MassificacaoModal({
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="flex-1 py-3 px-4 rounded-xl border border-[#3A3A3A] text-[#A0A0A0] font-medium hover:bg-[#2A2A2A] transition-colors"
+                            className="flex-1 py-3 px-4 rounded-xl border border-[var(--color-border)] text-[var(--color-text-sec)] font-medium hover:bg-[var(--color-bg-elevated)] transition-colors"
                         >
                             Voltar
                         </button>
@@ -212,23 +212,23 @@ function MissionHoverCard({
             transition={{ duration: 0.2 }}
             onMouseEnter={onMouseEnter}
             onMouseLeave={onMouseLeave}
-            className={`absolute w-64 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-[100] overflow-hidden pointer-events-auto ${horizontalClasses} ${isTop ? 'bottom-full mb-3' : 'top-full mt-3'}`}
+            className={`absolute w-64 glass border border-[var(--color-border)] rounded-xl shadow-2xl z-[100] overflow-hidden pointer-events-auto theme-transition ${horizontalClasses} ${isTop ? 'bottom-full mb-3' : 'top-full mt-3'}`}
         >
             {/* Header */}
-            <div className={`p-3 border-b border-zinc-800 ${isLocked ? 'bg-zinc-800/50' : 'bg-gradient-to-r from-zinc-800 to-zinc-900'}`}>
+            <div className={`p-3 border-b border-[var(--color-border)] ${isLocked ? 'bg-[var(--color-bg-elevated)]/50' : 'bg-[var(--color-bg-elevated)]'}`}>
                 <div className="flex items-center justify-end mb-1">
                 </div>
                 <div className="flex items-center gap-2 mb-0.5">
                     <config.icon size={14} className={config.color} />
-                    <h3 className={`font-bold text-sm leading-tight text-white`}>{title}</h3>
+                    <h3 className={`font-bold text-sm leading-tight text-[var(--color-text-main)]`}>{title}</h3>
                 </div>
-                <p className="text-xs text-zinc-400 line-clamp-1">{materiaName}</p>
+                <p className="text-xs text-[var(--color-text-muted)] line-clamp-1">{materiaName}</p>
             </div>
 
             {/* Body */}
-            <div className="p-3 bg-zinc-900">
+            <div className="p-3 bg-transparent backdrop-blur-md">
                 <div className="mb-3">
-                    <p className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Assuntos Abordados:</p>
+                    <p className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] mb-1">Assuntos Abordados:</p>
                     {(() => {
                         // Simple parser to split topics based on numeric patterns (e.g. "5.1 ", "5.2 ")
                         // Looks for patterns like "1. ", "10. ", "5.1 ", "5.1. "
@@ -245,7 +245,7 @@ function MissionHoverCard({
                                 {items.map((subject, idx) => (
                                     <div key={idx} className="flex items-start gap-2">
                                         <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${config.dotColor}`} />
-                                        <p className="text-xs text-zinc-300 font-medium leading-snug">
+                                        <p className="text-xs text-[var(--color-text-sec)] font-medium leading-snug">
                                             {subject}
                                         </p>
                                     </div>
@@ -256,17 +256,17 @@ function MissionHoverCard({
                 </div>
 
                 {!isLocked && (
-                    <div className="mt-3 pt-3 border-t border-zinc-800">
+                    <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={(e) => { e.stopPropagation(); onStudy('teoria'); }}
-                                className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 font-medium flex items-center justify-center gap-1.5 transition-colors"
+                                className="py-2 px-3 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-border)] border border-[var(--color-border)] rounded-lg text-xs text-[var(--color-text-sec)] font-medium flex items-center justify-center gap-1.5 transition-colors"
                             >
                                 <BookOpen size={12} /> Teoria
                             </button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); onStudy('questoes'); }}
-                                className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs text-zinc-300 font-medium flex items-center justify-center gap-1.5 transition-colors"
+                                className="py-2 px-3 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-border)] border border-[var(--color-border)] rounded-lg text-xs text-[var(--color-text-sec)] font-medium flex items-center justify-center gap-1.5 transition-colors"
                             >
                                 <Target size={12} /> Questões
                             </button>
@@ -275,14 +275,14 @@ function MissionHoverCard({
                 )}
 
                 {isLocked && (
-                    <div className="w-full py-2 bg-zinc-800 border border-dashed border-zinc-700 text-zinc-500 font-medium text-xs rounded-lg flex items-center justify-center gap-2 cursor-not-allowed">
+                    <div className="w-full py-2 bg-[var(--color-bg-elevated)] border border-dashed border-[var(--color-border)] text-[var(--color-text-muted)] font-medium text-xs rounded-lg flex items-center justify-center gap-2 cursor-not-allowed">
                         <Lock size={12} /> Bloqueado
                     </div>
                 )}
             </div>
 
             {/* Arrow */}
-            <div className={`absolute w-3 h-3 bg-zinc-900 border-zinc-700 rotate-45 transform ${arrowHorizontalClasses} ${isTop
+            <div className={`absolute w-3 h-3 glass rotate-45 transform ${arrowHorizontalClasses} ${isTop
                 ? 'bottom-[-6px] border-r border-b'
                 : 'top-[-6px] border-l border-t'
                 }`}></div>
@@ -622,7 +622,7 @@ export function TrailMap({
 
     if (rounds.length === 0) {
         return (
-            <div className="flex items-center justify-center p-8 text-[#A0A0A0]">
+            <div className="flex items-center justify-center p-8 text-[var(--color-text-sec)]">
                 Nenhuma rodada disponível
             </div>
         );
@@ -632,8 +632,8 @@ export function TrailMap({
         <div className="relative w-full">
             {/* Future Round Warning - Minimal banner */}
             {isViewingFutureRound && (
-                <div className="bg-[#2A2A2A] border-b border-[#3A3A3A] px-4 py-2 text-center">
-                    <p className="text-[#6E6E6E] text-xs flex items-center justify-center gap-1.5">
+                <div className="bg-[var(--color-bg-elevated)] border-b border-[var(--color-border)] px-4 py-2 text-center theme-transition">
+                    <p className="text-[var(--color-text-muted)] text-xs flex items-center justify-center gap-1.5">
                         <Lock size={12} />
                         Complete a rodada atual para desbloquear
                     </p>
@@ -659,7 +659,7 @@ export function TrailMap({
                         <path
                             d={svgPath}
                             fill="none"
-                            stroke={isViewingFutureRound ? "#2A2A2A" : "#52525b"}
+                            stroke={isViewingFutureRound ? "var(--color-text-muted)" : (document.documentElement.classList.contains('dark') ? '#3f3f46' : '#cbd5e1')} // slate-300 / zinc-700
                             strokeWidth="3"
                             strokeDasharray="12 8"
                             strokeLinecap="round"
@@ -708,7 +708,7 @@ export function TrailMap({
                                 />
                             ) : (
                                 <motion.div
-                                    className="w-8 h-8 rounded-full border-2 border-[#e7cb00] shadow-lg bg-zinc-800 flex items-center justify-center text-[#e7cb00]"
+                                    className="w-8 h-8 rounded-full border-2 border-[#e7cb00] shadow-lg bg-[var(--color-bg-elevated)] flex items-center justify-center text-[#e7cb00]"
                                     animate={{ rotate: [0, -5, 5, -5, 0] }}
                                     transition={{ duration: 0.3, repeat: 10 }}
                                 >
@@ -897,26 +897,15 @@ export function TrailMap({
                                         ${/* ACTIVE STATE - Subtle Glow */ ''}
                                         ${isActive && !isMassificacaoMission
                                             ? mission.tipo === 'revisao'
-                                                ? 'border-white bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.35)]'
+                                                ? 'border-white bg-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.5)] scale-105'
                                                 : mission.tipo === 'simulado_rodada'
-                                                    ? 'border-white bg-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.35)]'
+                                                    ? 'border-white bg-purple-600 shadow-[0_0_20px_rgba(147,51,234,0.5)] scale-105'
                                                     : mission.tipo === 'tecnica'
-                                                        ? 'border-white bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.35)]'
-                                                        : 'border-[#e7cb00] bg-[#d59a01] shadow-[0_0_15px_rgba(213,154,1,0.35)]'
+                                                        ? 'border-white bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)] scale-105'
+                                                        : 'border-[#e7cb00] bg-[#FFB800] ring-4 ring-[#FFB800]/20 shadow-[0_0_25px_rgba(255,184,0,0.6)] scale-110'
                                             : ''}
-                                        ${isActive && isMassificacaoMission ? 'border-white bg-[#E74C3C] shadow-[0_0_15px_rgba(231,76,60,0.35)]' : ''}
 
-                                        ${/* LOCKED STATE - Solid Colors (No Opacity) */ ''}
-                                        ${status === 'locked' && !isMassificacaoMission && !needsMassificacaoFlag
-                                            ? mission.tipo === 'revisao'
-                                                ? 'border-amber-900 bg-amber-950 ring-2 ring-amber-900/20'
-                                                : mission.tipo === 'simulado_rodada'
-                                                    ? 'border-purple-900 bg-purple-950 ring-2 ring-purple-900/20'
-                                                    : mission.tipo === 'tecnica'
-                                                        ? 'border-blue-900 bg-blue-950 ring-2 ring-blue-900/20'
-                                                        : 'border-zinc-700 bg-zinc-900' /* Normal Locked */
-                                            : ''}
-                                        ${status === 'locked' && (isMassificacaoMission || needsMassificacaoFlag) ? 'border-red-900 bg-red-950 ring-2 ring-red-900/20' : ''}
+                                        ${status === 'locked' ? 'border-slate-300 dark:border-zinc-700 bg-[var(--color-bg-main)] opacity-100' : ''}
                                     `}
                                 >
                                     <div className="-rotate-45 text-white flex items-center justify-center">
@@ -932,7 +921,7 @@ export function TrailMap({
                                             ) : mission.tipo === 'tecnica' ? (
                                                 <Cpu size={32} className={`${status === 'locked' ? 'text-blue-300' : 'text-white'}`} strokeWidth={2} />
                                             ) : (
-                                                <GraduationCap size={32} className={`${status === 'locked' ? 'text-zinc-400' : 'text-white'}`} strokeWidth={2} />
+                                                <GraduationCap size={32} className={`${status === 'locked' ? 'text-slate-300 dark:text-zinc-600' : 'text-white'}`} strokeWidth={2} />
                                             )
                                         )}
                                     </div>
@@ -999,7 +988,7 @@ export function TrailMap({
                 onMissionClick={handleTecnicaMissionSelect}
                 onProceedToTecnica={handleProceedToTecnica}
             />
-        </div>
+        </div >
     );
 }
 

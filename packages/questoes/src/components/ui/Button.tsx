@@ -11,10 +11,10 @@ interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'onDrag' | 'onDrag
 }
 
 const variants = {
-  primary: 'bg-[#FFB800] hover:bg-[#E6A500] text-black font-semibold',
-  secondary: 'bg-[#252525] hover:bg-[#2D2D2D] text-white border border-[#3A3A3A]',
-  ghost: 'bg-transparent hover:bg-[#252525] text-white',
-  danger: 'bg-[#E74C3C] hover:bg-[#C0392B] text-white font-semibold',
+  primary: 'bg-[var(--color-brand)] hover:bg-[var(--color-brand-dark)] text-black font-semibold',
+  secondary: 'bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] border border-[var(--color-border)]',
+  ghost: 'bg-transparent hover:bg-[var(--color-bg-card)] text-[var(--color-text-main)]',
+  danger: 'bg-[var(--color-error)] hover:opacity-90 text-white font-semibold',
 };
 
 const sizes = {

@@ -14,19 +14,19 @@ export function RoundSelector({ currentRoundIndex, totalRounds, onRoundChange, c
 
     if (compact) {
         return (
-            <div className="flex items-center gap-1 bg-[#2A2A2A] border border-[#3A3A3A] rounded-lg px-2 py-1 shadow-sm">
+            <div className="flex items-center gap-1 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg px-2 py-1 shadow-sm">
                 <button
                     onClick={() => canGoPrev && onRoundChange(currentRoundIndex - 1)}
                     disabled={!canGoPrev}
                     className={`p-0.5 rounded transition-all ${canGoPrev
-                        ? 'hover:bg-[#3A3A3A] text-white active:scale-95'
-                        : 'text-zinc-600 cursor-not-allowed'
+                        ? 'hover:bg-[var(--color-bg-card)] text-[var(--color-text-main)] active:scale-95'
+                        : 'text-[var(--color-text-muted)] cursor-not-allowed'
                         }`}
                 >
                     <ChevronLeft size={14} strokeWidth={2.5} />
                 </button>
 
-                <span className="text-xs font-semibold text-white px-0.5 whitespace-nowrap">
+                <span className="text-xs font-semibold text-[var(--color-text-main)] px-0.5 whitespace-nowrap">
                     Rodada {currentRoundIndex + 1}
                 </span>
 
@@ -34,8 +34,8 @@ export function RoundSelector({ currentRoundIndex, totalRounds, onRoundChange, c
                     onClick={() => canGoNext && onRoundChange(currentRoundIndex + 1)}
                     disabled={!canGoNext}
                     className={`p-0.5 rounded transition-all ${canGoNext
-                        ? 'hover:bg-[#3A3A3A] text-white active:scale-95'
-                        : 'text-zinc-600 cursor-not-allowed'
+                        ? 'hover:bg-[var(--color-bg-card)] text-[var(--color-text-main)] active:scale-95'
+                        : 'text-[var(--color-text-muted)] cursor-not-allowed'
                         }`}
                 >
                     <ChevronRight size={14} strokeWidth={2.5} />
@@ -45,20 +45,20 @@ export function RoundSelector({ currentRoundIndex, totalRounds, onRoundChange, c
     }
 
     return (
-        <div className="flex items-center gap-2 bg-[#2A2A2A] border border-[#3A3A3A] rounded-xl px-3 py-1.5 shadow-sm">
+        <div className="flex items-center gap-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl px-3 py-1.5 shadow-sm">
             <button
                 onClick={() => canGoPrev && onRoundChange(currentRoundIndex - 1)}
                 disabled={!canGoPrev}
                 className={`p-1.5 rounded-lg transition-all ${canGoPrev
-                    ? 'hover:bg-[#3A3A3A] text-white bg-zinc-800 hover:scale-105 active:scale-95'
-                    : 'text-zinc-600 bg-transparent cursor-not-allowed'
+                    ? 'hover:bg-[var(--color-bg-card)] text-[var(--color-text-main)] bg-[var(--color-bg-main)] hover:scale-105 active:scale-95'
+                    : 'text-[var(--color-text-muted)] bg-transparent cursor-not-allowed'
                     }`}
                 title="Rodada anterior"
             >
                 <ChevronLeft size={16} strokeWidth={2.5} />
             </button>
 
-            <span className="text-sm font-bold text-white px-2 min-w-[70px] text-center tracking-wide">
+            <span className="text-sm font-bold text-[var(--color-text-main)] px-2 min-w-[70px] text-center tracking-wide">
                 Rodada {currentRoundIndex + 1}
             </span>
 
@@ -66,8 +66,8 @@ export function RoundSelector({ currentRoundIndex, totalRounds, onRoundChange, c
                 onClick={() => canGoNext && onRoundChange(currentRoundIndex + 1)}
                 disabled={!canGoNext}
                 className={`p-1.5 rounded-lg transition-all ${canGoNext
-                    ? 'hover:bg-[#3A3A3A] text-white bg-zinc-800 hover:scale-105 active:scale-95'
-                    : 'text-zinc-600 bg-transparent cursor-not-allowed'
+                    ? 'hover:bg-[var(--color-bg-card)] text-[var(--color-text-main)] bg-[var(--color-bg-main)] hover:scale-105 active:scale-95'
+                    : 'text-[var(--color-text-muted)] bg-transparent cursor-not-allowed'
                     }`}
                 title="Próxima rodada"
             >

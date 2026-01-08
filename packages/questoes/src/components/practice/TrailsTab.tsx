@@ -29,11 +29,11 @@ const EditalItemNode: React.FC<{
   const getIcon = () => {
     switch (item.tipo) {
       case 'bloco':
-        return <FolderOpen size={18} className="text-[#FFB800]" />;
+        return <FolderOpen size={18} className="text-[var(--color-brand)]" />;
       case 'materia':
         return <BookOpen size={18} className="text-blue-400" />;
       case 'topico':
-        return <FileText size={16} className="text-gray-400" />;
+        return <FileText size={16} className="text-[var(--color-text-muted)]" />;
       default:
         return null;
     }
@@ -56,9 +56,9 @@ const EditalItemNode: React.FC<{
 
   // Cor de fundo baseada no tipo
   const getBgColor = () => {
-    if (item.tipo === 'bloco') return 'bg-[#1E1E1E]';
-    if (item.tipo === 'materia') return 'hover:bg-[#252525]';
-    return 'hover:bg-[#252525]';
+    if (item.tipo === 'bloco') return 'bg-[var(--color-bg-elevated)]';
+    if (item.tipo === 'materia') return 'hover:bg-[var(--color-bg-elevated)]';
+    return 'hover:bg-[var(--color-bg-elevated)]';
   };
 
   // Handler para clique na linha
@@ -73,7 +73,7 @@ const EditalItemNode: React.FC<{
   return (
     <div>
       <div
-        className={`flex items-start justify-between py-3 px-2 md:px-4 cursor-pointer transition-colors ${getBgColor()} border-b border-[#2A2A2A]`}
+        className={`flex items-start justify-between py-3 px-2 md:px-4 cursor-pointer transition-colors ${getBgColor()} border-b border-[var(--color-border)]`}
         style={{ paddingLeft }}
         onClick={handleRowClick}
       >
@@ -85,12 +85,12 @@ const EditalItemNode: React.FC<{
                 e.stopPropagation();
                 toggleExpanded(item.id);
               }}
-              className="p-1 hover:bg-[#3A3A3A] rounded transition-colors flex-shrink-0 mt-0.5"
+              className="p-1 hover:bg-[var(--color-bg-elevated)] rounded transition-colors flex-shrink-0 mt-0.5"
             >
               {isExpanded ? (
-                <ChevronDown size={16} className="text-gray-400" />
+                <ChevronDown size={16} className="text-[var(--color-text-muted)]" />
               ) : (
-                <ChevronRight size={16} className="text-gray-400" />
+                <ChevronRight size={16} className="text-[var(--color-text-muted)]" />
               )}
             </button>
           ) : (
@@ -102,20 +102,19 @@ const EditalItemNode: React.FC<{
 
           {/* Título - no mobile sem truncate para permitir wrap */}
           <span
-            className={`${isMobile ? '' : 'truncate'} ${
-              item.tipo === 'bloco'
-                ? 'font-bold text-white text-sm uppercase tracking-wide'
+            className={`${isMobile ? '' : 'truncate'} ${item.tipo === 'bloco'
+                ? 'font-bold text-[var(--color-text-main)] text-sm uppercase tracking-wide'
                 : item.tipo === 'materia'
-                ? 'font-semibold text-white text-sm'
-                : 'text-gray-300 text-sm'
-            }`}
+                  ? 'font-semibold text-[var(--color-text-main)] text-sm'
+                  : 'text-[var(--color-text-sec)] text-sm'
+              }`}
           >
             {item.titulo}
           </span>
 
           {/* Badge com contagem de filhos */}
           {hasChildren && (
-            <span className="ml-2 px-2 py-0.5 bg-[#3A3A3A] rounded-full text-xs text-gray-400 flex-shrink-0">
+            <span className="ml-2 px-2 py-0.5 bg-[var(--color-bg-elevated)] rounded-full text-xs text-[var(--color-text-muted)] flex-shrink-0">
               {item.children.length}
             </span>
           )}
@@ -126,7 +125,7 @@ const EditalItemNode: React.FC<{
         {item.tipo === 'topico' && hasFilters && (
           <button
             onClick={handlePraticar}
-            className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex-shrink-0 ml-2 bg-[#FFB800] hover:bg-[#FFC933] text-black transform hover:scale-105"
+            className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex-shrink-0 ml-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black transform hover:scale-105"
             title="Iniciar prática"
           >
             <Play size={12} fill="currentColor" />
@@ -330,11 +329,11 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
   if (editalTree.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4">
-        <BookOpen size={48} className="text-gray-500 mb-4" />
-        <h3 className="text-lg font-semibold text-white mb-2">
+        <BookOpen size={48} className="text-[var(--color-text-muted)] mb-4" />
+        <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-2">
           Edital não cadastrado
         </h3>
-        <p className="text-gray-400 text-sm text-center max-w-md">
+        <p className="text-[var(--color-text-sec)] text-sm text-center max-w-md">
           O edital verticalizado para este preparatório ainda não foi cadastrado.
           Em breve estará disponível!
         </p>
@@ -362,14 +361,14 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-2 md:px-4 py-3 bg-[#1A1A1A] border-b border-[#2A2A2A]">
+      <div className="flex items-center justify-between px-2 md:px-4 py-3 bg-[var(--color-bg-card)] border-b border-[var(--color-border)]">
         <div className="min-w-0 flex-1">
-          <h3 className="text-white font-semibold text-sm truncate">
+          <h3 className="text-[var(--color-text-main)] font-semibold text-sm truncate">
             {/* Mobile: apenas nome do preparatório / Desktop: título completo */}
             <span className="md:hidden">{preparatorioNome || 'Edital Verticalizado'}</span>
             <span className="hidden md:inline">Edital Verticalizado {preparatorioNome && `- ${preparatorioNome}`}</span>
           </h3>
-          <p className="text-gray-400 text-xs mt-0.5">
+          <p className="text-[var(--color-text-sec)] text-xs mt-0.5">
             {counts.blocos} blocos, {counts.materias} matérias, {counts.topicos} tópicos
             {/* Banca apenas no desktop */}
             <span className="hidden md:inline">{banca && ` | Banca: ${banca}`}</span>
@@ -379,13 +378,13 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
         <div className="hidden md:flex gap-2 flex-shrink-0">
           <button
             onClick={expandAll}
-            className="px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-[#2A2A2A] rounded transition-colors"
+            className="px-3 py-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] rounded transition-colors"
           >
             Expandir tudo
           </button>
           <button
             onClick={collapseAll}
-            className="px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-[#2A2A2A] rounded transition-colors"
+            className="px-3 py-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] rounded transition-colors"
           >
             Recolher tudo
           </button>

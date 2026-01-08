@@ -1,10 +1,29 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft, ChevronRight, ChevronDown, Plus, Edit, Trash2,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Edit, Trash2,
   MoreVertical, Book, FileText, List, GripVertical, Copy, FolderOpen, Folder, Sparkles,
-  Search, Check, X, Loader2, ArrowRight
+  Search, Check, X, Loader2, ArrowRight, ArrowLeftRight
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { editalService, EditalItem, EditalItemWithChildren, EditalItemTipo } from '../../services/editalService';
 import { Preparatorio } from '../../lib/database.types';
@@ -201,6 +220,298 @@ const InlineDropdown: React.FC<InlineDropdownProps> = ({
   );
 };
 
+// Componente dropdown de assuntos com opção de trocar matéria
+interface AssuntoDropdownProps {
+  value: string[];
+  parentMaterias: string[];
+  allMaterias: string[];
+  loadAssuntos: (materias: string[]) => Promise<string[]>;
+  onChange: (values: string[]) => void;
+  disabled?: boolean;
+}
+
+const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
+  value,
+  parentMaterias,
+  allMaterias,
+  loadAssuntos,
+  onChange,
+  disabled = false
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSelectingMateria, setIsSelectingMateria] = useState(false);
+  const [customMateria, setCustomMateria] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [assuntos, setAssuntos] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Matéria efetiva (custom ou parent)
+  const effectiveMateria = customMateria || (parentMaterias.length > 0 ? parentMaterias[0] : null);
+  const isUsingDifferentMateria = customMateria !== null && !parentMaterias.includes(customMateria);
+
+  // Fechar ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setIsSelectingMateria(false);
+        setSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Carregar assuntos quando abrir ou trocar matéria
+  useEffect(() => {
+    if (isOpen && !isSelectingMateria && effectiveMateria) {
+      setIsLoading(true);
+      loadAssuntos([effectiveMateria])
+        .then(data => setAssuntos(data))
+        .catch(err => console.error('Erro ao carregar assuntos:', err))
+        .finally(() => setIsLoading(false));
+    }
+  }, [isOpen, isSelectingMateria, effectiveMateria]);
+
+  const normalizeText = (text: string): string => {
+    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  };
+
+  const filteredAssuntos = useMemo(() => {
+    if (!search.trim()) return assuntos;
+    const searchNorm = normalizeText(search.trim());
+    return assuntos.filter(opt => normalizeText(opt).includes(searchNorm));
+  }, [assuntos, search]);
+
+  const filteredMaterias = useMemo(() => {
+    if (!search.trim()) return allMaterias;
+    const searchNorm = normalizeText(search.trim());
+    return allMaterias.filter(opt => normalizeText(opt).includes(searchNorm));
+  }, [allMaterias, search]);
+
+  const toggleAssunto = (assunto: string) => {
+    onChange(value.includes(assunto) ? value.filter(v => v !== assunto) : [...value, assunto]);
+  };
+
+  const selectMateria = (materia: string) => {
+    setCustomMateria(materia);
+    setIsSelectingMateria(false);
+    setSearch('');
+    onChange([]); // Limpar assuntos selecionados ao trocar matéria
+  };
+
+  const displayValue = value.length === 0
+    ? (effectiveMateria ? "Selecionar assuntos..." : "Configure a matéria pai")
+    : value.length === 1
+      ? (value[0].length > 20 ? value[0].substring(0, 20) + '...' : value[0])
+      : `${value.length} selecionados`;
+
+  return (
+    <div ref={dropdownRef} className="relative min-w-[200px]">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!disabled && effectiveMateria) setIsOpen(!isOpen);
+        }}
+        disabled={disabled || !effectiveMateria}
+        className={`
+          w-full flex items-center justify-between gap-2 px-2 py-1 rounded text-xs transition-colors
+          ${disabled || !effectiveMateria
+            ? 'bg-transparent text-gray-600 cursor-not-allowed'
+            : isOpen
+              ? 'bg-brand-dark border border-brand-yellow text-white'
+              : value.length > 0
+                ? isUsingDifferentMateria
+                  ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:border-yellow-500/50'
+                  : 'bg-green-500/10 border border-green-500/30 text-green-400 hover:border-green-500/50'
+                : 'bg-white/5 border border-white/10 text-gray-400 hover:border-white/20'
+          }
+        `}
+      >
+        <span className="truncate flex items-center gap-1">
+          {isUsingDifferentMateria && <ArrowLeftRight size={10} className="text-yellow-400" />}
+          {displayValue}
+        </span>
+        {!disabled && effectiveMateria && (
+          <ChevronDown size={12} className={`flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        )}
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute right-0 z-50 w-96 mt-1 bg-brand-dark border border-white/10 rounded shadow-xl overflow-hidden"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header: Toggle entre assuntos e matérias */}
+          <button
+            onClick={() => {
+              setIsSelectingMateria(!isSelectingMateria);
+              setSearch('');
+            }}
+            className={`
+              w-full flex items-center gap-2 px-3 py-2 text-xs border-b transition-colors
+              ${isSelectingMateria
+                ? 'bg-brand-yellow/10 text-brand-yellow border-brand-yellow/30'
+                : 'bg-purple-500/10 text-purple-400 border-white/10 hover:bg-purple-500/20'
+              }
+            `}
+          >
+            {isSelectingMateria ? (
+              <>
+                <ChevronDown size={12} />
+                <span>Voltar aos Assuntos</span>
+              </>
+            ) : (
+              <>
+                <ChevronUp size={12} />
+                <span>Trocar Matéria</span>
+                {isUsingDifferentMateria && (
+                  <span className="ml-auto text-yellow-400 text-[10px]">
+                    ({customMateria?.substring(0, 15)}...)
+                  </span>
+                )}
+              </>
+            )}
+          </button>
+
+          {/* Search */}
+          <div className="p-2 border-b border-white/10">
+            <div className="relative">
+              <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={isSelectingMateria ? "Buscar matéria..." : "Buscar assunto..."}
+                autoFocus
+                className="w-full bg-white/5 border border-white/10 rounded pl-7 pr-2 py-1.5 text-white text-xs placeholder-gray-500 focus:outline-none focus:border-brand-yellow"
+              />
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="max-h-[250px] overflow-y-auto">
+            {isSelectingMateria ? (
+              // Lista de matérias
+              filteredMaterias.length === 0 ? (
+                <p className="text-gray-500 text-xs text-center py-4">Nenhuma matéria encontrada</p>
+              ) : (
+                filteredMaterias.map(materia => {
+                  const isParent = parentMaterias.includes(materia);
+                  const isSelected = customMateria === materia;
+                  return (
+                    <button
+                      key={materia}
+                      onClick={() => selectMateria(materia)}
+                      className={`
+                        w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors
+                        ${isSelected ? 'bg-purple-500/20 text-purple-400' : 'text-gray-300 hover:bg-white/5'}
+                      `}
+                    >
+                      <Book size={12} className={isParent ? 'text-brand-yellow' : 'text-gray-500'} />
+                      <span className="flex-1">{materia}</span>
+                      {isParent && <span className="text-[10px] text-gray-500">(pai)</span>}
+                      {isSelected && <Check size={12} className="text-purple-400" />}
+                    </button>
+                  );
+                })
+              )
+            ) : (
+              // Lista de assuntos
+              isLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 size={14} className="animate-spin text-brand-yellow" />
+                  <span className="ml-2 text-xs text-gray-400">Carregando...</span>
+                </div>
+              ) : filteredAssuntos.length === 0 ? (
+                <p className="text-gray-500 text-xs text-center py-4">
+                  {assuntos.length === 0 ? 'Nenhum assunto disponível' : 'Nenhum resultado'}
+                </p>
+              ) : (
+                filteredAssuntos.map(assunto => {
+                  const isSelected = value.includes(assunto);
+                  return (
+                    <button
+                      key={assunto}
+                      onClick={() => toggleAssunto(assunto)}
+                      className={`
+                        w-full flex items-start gap-2 px-3 py-2 text-left text-xs transition-colors
+                        ${isSelected ? 'bg-brand-yellow/10 text-brand-yellow' : 'text-gray-300 hover:bg-white/5'}
+                      `}
+                    >
+                      <div className={`
+                        w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 mt-0.5
+                        ${isSelected ? 'bg-brand-yellow border-brand-yellow' : 'border-gray-600'}
+                      `}>
+                        {isSelected && <Check size={8} className="text-black" />}
+                      </div>
+                      <span className="break-words whitespace-normal leading-relaxed">{assunto}</span>
+                    </button>
+                  );
+                })
+              )
+            )}
+          </div>
+
+          {/* Footer */}
+          {!isSelectingMateria && value.length > 0 && (
+            <div className="p-2 border-t border-white/10 flex justify-between items-center">
+              <span className="text-gray-500 text-xs">{value.length} selecionado(s)</span>
+              <button
+                onClick={() => onChange([])}
+                className="text-red-400 text-xs hover:underline"
+              >
+                Limpar
+              </button>
+            </div>
+          )}
+
+          {/* Indicator de matéria diferente */}
+          {isUsingDifferentMateria && !isSelectingMateria && (
+            <div className="px-3 py-2 bg-yellow-500/10 border-t border-yellow-500/30 text-yellow-400 text-[10px] flex items-center gap-1">
+              <ArrowLeftRight size={10} />
+              <span>Usando matéria diferente: {customMateria}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Componente wrapper sortable para cada item do edital
+interface SortableItemWrapperProps {
+  id: string;
+  children: (dragListeners: any) => React.ReactNode;
+  disabled?: boolean;
+}
+
+const SortableItemWrapper: React.FC<SortableItemWrapperProps> = ({ id, children, disabled }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : 'auto',
+    position: 'relative' as const,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {children(listeners)}
+    </div>
+  );
+};
+
 export const EditalAdmin: React.FC = () => {
   const { preparatorioId } = useParams<{ preparatorioId: string }>();
   const navigate = useNavigate();
@@ -230,6 +541,22 @@ export const EditalAdmin: React.FC = () => {
 
   // Auto-configuring filters state
   const [autoConfiguring, setAutoConfiguring] = useState(false);
+
+  // Drag and drop state
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeItem, setActiveItem] = useState<EditalItemWithChildren | null>(null);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Precisa arrastar 8px para ativar
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const loadData = async () => {
     if (!preparatorioId) return;
@@ -407,6 +734,90 @@ export const EditalAdmin: React.FC = () => {
     }
   };
 
+  // Funções auxiliares para drag-and-drop
+  const findItemById = (nodes: EditalItemWithChildren[], id: string): EditalItemWithChildren | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      const found = findItemById(node.children, id);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const findParentAndSiblings = (nodes: EditalItemWithChildren[], id: string, parent: EditalItemWithChildren | null = null): { parent: EditalItemWithChildren | null; siblings: EditalItemWithChildren[] } | null => {
+    for (let i = 0; i < nodes.length; i++) {
+      if (nodes[i].id === id) {
+        return { parent, siblings: nodes };
+      }
+      const found = findParentAndSiblings(nodes[i].children, id, nodes[i]);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveId(active.id as string);
+    const item = findItemById(items, active.id as string);
+    setActiveItem(item);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    setActiveId(null);
+    setActiveItem(null);
+
+    if (!over || active.id === over.id) return;
+
+    const activeItemInfo = findParentAndSiblings(items, active.id as string);
+    const overItemInfo = findParentAndSiblings(items, over.id as string);
+
+    if (!activeItemInfo || !overItemInfo) return;
+
+    // Só permite reordenar itens no mesmo nível (mesmo parent)
+    const sameParent = (activeItemInfo.parent?.id || null) === (overItemInfo.parent?.id || null);
+    if (!sameParent) return;
+
+    const siblings = activeItemInfo.siblings;
+    const oldIndex = siblings.findIndex(s => s.id === active.id);
+    const newIndex = siblings.findIndex(s => s.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Reordenar array localmente
+    const reordered = arrayMove(siblings, oldIndex, newIndex);
+
+    // Atualizar estado local otimisticamente
+    const updateSiblings = (nodes: EditalItemWithChildren[], parentId: string | null): EditalItemWithChildren[] => {
+      if ((activeItemInfo.parent?.id || null) === parentId) {
+        return reordered.map((item, idx) => ({ ...item, ordem: idx }));
+      }
+      return nodes.map(node => ({
+        ...node,
+        children: updateSiblings(node.children, node.id)
+      }));
+    };
+
+    const parentId = activeItemInfo.parent?.id || null;
+    if (parentId === null) {
+      // Itens no root
+      setItems(reordered.map((item, idx) => ({ ...item, ordem: idx })));
+    } else {
+      setItems(prev => updateSiblings(prev, null));
+    }
+
+    // Persistir no banco
+    try {
+      const updates = reordered.map((item, idx) => ({ id: item.id, ordem: idx }));
+      await editalService.reorder(updates);
+    } catch (error) {
+      console.error('Erro ao reordenar:', error);
+      // Recarregar dados em caso de erro
+      await loadData();
+    }
+  };
+
   // Funcao para salvar edital importado via IA
   const handleImportEdital = async (parsed: ParsedEdital, action: EditalExistsAction) => {
     if (!preparatorioId) return;
@@ -526,11 +937,12 @@ export const EditalAdmin: React.FC = () => {
     return { materias, topicos };
   };
 
-  const renderItem = (item: EditalItemWithChildren, level: number = 0, parentMaterias: string[] = []) => {
+  const renderItem = (item: EditalItemWithChildren, level: number = 0, parentMaterias: string[] = [], dragListeners?: any) => {
     const isExpanded = expandedItems.has(item.id);
     const hasChildren = item.children.length > 0;
     const indent = level * 24;
     const isSaving = savingItems.has(item.id);
+    const isDragging = activeId === item.id;
 
     // Para os filhos, passar as matérias selecionadas deste item (se for matéria) ou manter o que veio do parent
     const materiasParaFilhos = item.tipo === 'materia' && item.filtro_materias && item.filtro_materias.length > 0
@@ -540,7 +952,9 @@ export const EditalAdmin: React.FC = () => {
     return (
       <div key={item.id}>
         <div
-          className={`flex items-center gap-2 py-2 px-3 hover:bg-white/[0.02] border-b border-white/5 group transition-colors`}
+          className={`flex items-center gap-2 py-2 px-3 hover:bg-white/[0.02] border-b border-white/5 group transition-colors ${
+            isDragging ? 'bg-brand-yellow/10 border-brand-yellow/30' : ''
+          }`}
           style={{ paddingLeft: `${indent + 12}px` }}
         >
           {/* Expand/Collapse */}
@@ -556,7 +970,12 @@ export const EditalAdmin: React.FC = () => {
           </button>
 
           {/* Drag Handle */}
-          <GripVertical className="w-4 h-4 text-gray-600 cursor-move opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div
+            {...dragListeners}
+            className="cursor-grab active:cursor-grabbing touch-none"
+          >
+            <GripVertical className="w-4 h-4 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-brand-yellow transition-all" />
+          </div>
 
           {/* Icon */}
           <span className={getTipoColor(item.tipo)}>
@@ -584,11 +1003,12 @@ export const EditalAdmin: React.FC = () => {
             )}
 
             {item.tipo === 'topico' && (
-              <InlineDropdown
+              <AssuntoDropdownWithMateriaSelector
                 value={item.filtro_assuntos || []}
-                loadOptions={() => loadAssuntosForMaterias(parentMaterias)}
+                parentMaterias={parentMaterias}
+                allMaterias={availableMaterias}
+                loadAssuntos={loadAssuntosForMaterias}
                 onChange={(values) => handleFilterChange(item.id, 'assuntos', values)}
-                placeholder={parentMaterias.length === 0 ? "Configure a matéria pai" : "Selecionar assuntos..."}
                 disabled={parentMaterias.length === 0}
               />
             )}
@@ -660,9 +1080,18 @@ export const EditalAdmin: React.FC = () => {
 
         {/* Children */}
         {isExpanded && hasChildren && (
-          <div>
-            {item.children.map(child => renderItem(child, level + 1, materiasParaFilhos))}
-          </div>
+          <SortableContext
+            items={item.children.map(c => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div>
+              {item.children.map(child => (
+                <SortableItemWrapper key={child.id} id={child.id}>
+                  {(childDragListeners) => renderItem(child, level + 1, materiasParaFilhos, childDragListeners)}
+                </SortableItemWrapper>
+              ))}
+            </div>
+          </SortableContext>
         )}
       </div>
     );
@@ -824,9 +1253,40 @@ export const EditalAdmin: React.FC = () => {
           </div>
 
           {/* Tree */}
-          <div className="divide-y divide-white/5">
-            {items.map(item => renderItem(item))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={items.map(i => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="divide-y divide-white/5">
+                {items.map(item => (
+                  <SortableItemWrapper key={item.id} id={item.id}>
+                    {(dragListeners) => renderItem(item, 0, [], dragListeners)}
+                  </SortableItemWrapper>
+                ))}
+              </div>
+            </SortableContext>
+
+            {/* Drag Overlay */}
+            <DragOverlay>
+              {activeItem ? (
+                <div className="bg-brand-card border border-brand-yellow/50 shadow-xl px-4 py-2 rounded">
+                  <div className="flex items-center gap-2">
+                    <GripVertical className="w-4 h-4 text-brand-yellow" />
+                    <span className={getTipoColor(activeItem.tipo)}>
+                      {getItemIcon(activeItem.tipo, false)}
+                    </span>
+                    <span className="text-white text-sm">{activeItem.titulo}</span>
+                  </div>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </div>
       )}
 

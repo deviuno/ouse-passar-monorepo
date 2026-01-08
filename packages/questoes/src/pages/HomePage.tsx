@@ -39,7 +39,7 @@ function TrailSkeleton() {
     <div className="relative w-full pt-20" style={{ height: getPosition(skeletonNodes.length - 1).y + 150 }}>
       {/* Skeleton path line */}
       <div className="absolute left-1/2 top-0 w-1 h-full">
-        <div className="w-full h-full bg-gradient-to-b from-[#2A2A2A] via-[#3A3A3A] to-[#2A2A2A] opacity-30 rounded-full" />
+        <div className="w-full h-full bg-gradient-to-b from-[var(--color-bg-elevated)] via-[var(--color-border)] to-[var(--color-bg-elevated)] opacity-30 rounded-full" />
       </div>
 
       {/* Skeleton nodes */}
@@ -64,7 +64,7 @@ function TrailSkeleton() {
                 repeat: Infinity,
                 delay: index * 0.1,
               }}
-              className="w-16 h-16 rounded-2xl bg-[#2A2A2A] border-2 border-[#3A3A3A] rotate-45"
+              className="w-16 h-16 rounded-2xl bg-[var(--color-bg-elevated)] border-2 border-[var(--color-border)] rotate-45"
             />
             {/* Skeleton label */}
             <motion.div
@@ -76,14 +76,14 @@ function TrailSkeleton() {
                 repeat: Infinity,
                 delay: index * 0.1 + 0.2,
               }}
-              className="mt-8 w-20 h-6 rounded-lg bg-[#2A2A2A]"
+              className="mt-8 w-20 h-6 rounded-lg bg-[var(--color-bg-elevated)]"
             />
           </div>
         );
       })}
 
       {/* Loading text */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[#6E6E6E] text-sm">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[var(--color-text-muted)] text-sm">
         <span>Carregando trilha...</span>
       </div>
     </div>
@@ -104,10 +104,10 @@ function EmptyTrailState() {
       >
         🗺️
       </motion.div>
-      <h2 className="text-xl font-bold text-white mb-2">
+      <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2">
         Sua trilha está vazia
       </h2>
-      <p className="text-[#A0A0A0] mb-6 max-w-xs">
+      <p className="text-[var(--color-text-sec)] mb-6 max-w-xs">
         Parece que você ainda não tem uma trilha de estudos configurada.
         Vamos criar uma agora!
       </p>
@@ -130,10 +130,10 @@ function NoPreparatoriosState({ onAddNew }: { onAddNew: () => void }) {
       >
         📚
       </motion.div>
-      <h2 className="text-xl font-bold text-white mb-2">
+      <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2">
         Nenhum preparatório ainda
       </h2>
-      <p className="text-[#A0A0A0] mb-6 max-w-xs">
+      <p className="text-[var(--color-text-sec)] mb-6 max-w-xs">
         Adicione seu primeiro preparatório para começar sua jornada de estudos!
       </p>
       <Button onClick={onAddNew}>
@@ -524,7 +524,7 @@ export default function HomePage() {
       {/* Continue Button - centralizado na região de conteúdo */}
       {allMissions.length > 0 && (
         <div
-          className={`fixed bottom-20 lg:bottom-4 left-0 right-0 p-4 bg-gradient-to-t from-[#121212] via-[#121212] to-transparent z-40 transition-all duration-300 ${isSidebarOpen ? 'lg:left-64' : 'lg:left-0'}`}
+          className={`fixed bottom-20 lg:bottom-4 left-0 right-0 p-4 bg-gradient-to-t from-[var(--color-bg-main)] via-[var(--color-bg-main)] to-transparent z-40 transition-all duration-300 theme-transition ${isSidebarOpen ? 'lg:left-64' : 'lg:left-0'}`}
           data-tour="continue-button"
         >
           <div className="max-w-md mx-auto">

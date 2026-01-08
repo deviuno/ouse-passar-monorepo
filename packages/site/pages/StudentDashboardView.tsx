@@ -189,16 +189,16 @@ export const StudentDashboardView: React.FC = () => {
     const studentName = studentData?.name || "Aluno";
 
     return (
-        <div className="min-h-screen bg-brand-darker text-white pb-20 font-sans selection:bg-brand-yellow/30">
+        <div className="min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] pb-20 font-sans selection:bg-[var(--color-accent)]/30 theme-transition">
             {/* --- HEADER --- */}
-            <header className="fixed top-0 left-0 right-0 bg-brand-darker/80 backdrop-blur-xl border-b border-white/5 z-50 h-20 flex items-center px-4 md:px-8 justify-between">
+            <header className="fixed top-0 left-0 right-0 bg-[var(--color-bg-primary)]/80 backdrop-blur-xl border-b border-[var(--color-border-light)] z-50 h-20 flex items-center px-4 md:px-8 justify-between theme-transition">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate(`/planejamento/prf/${planejamentoId}`)} className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors">
+                    <button onClick={() => navigate(`/planejamento/prf/${planejamentoId}`)} className="p-2 hover:bg-[var(--color-bg-hover)] rounded-full text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
                     <div>
-                        <h1 className="text-xl font-bold tracking-tight text-white mb-0.5">Meu Desempenho</h1>
-                        <p className="text-xs text-brand-yellow font-bold uppercase tracking-widest">Dashboard do Aluno</p>
+                        <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] mb-0.5">Meu Desempenho</h1>
+                        <p className="text-xs text-[var(--color-accent)] font-bold uppercase tracking-widest">Dashboard do Aluno</p>
                     </div>
                 </div>
 
@@ -212,12 +212,12 @@ export const StudentDashboardView: React.FC = () => {
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                             disabled={!studentData} // Apenas o aluno pode trocar sua foto
                         />
-                        <div className="w-full h-full rounded-full bg-gradient-to-tr from-brand-yellow to-brand-primary p-[2px]">
-                            <div className="w-full h-full rounded-full bg-brand-dark overflow-hidden relative">
+                        <div className="w-full h-full rounded-full bg-gradient-to-tr from-[var(--color-accent)] to-[var(--color-accent-hover)] p-[2px]">
+                            <div className="w-full h-full rounded-full bg-[var(--color-bg-secondary)] overflow-hidden relative">
                                 {avatarUrl ? (
                                     <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                                 ) : (
-                                    <User className="w-full h-full p-2 text-gray-400" />
+                                    <User className="w-full h-full p-2 text-[var(--color-text-secondary)]" />
                                 )}
                                 {/* Overlay Upload */}
                                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
@@ -232,7 +232,7 @@ export const StudentDashboardView: React.FC = () => {
                             localStorage.removeItem('ouse_student_user');
                             navigate('/login');
                         }}
-                        className="p-2 hover:bg-red-500/10 hover:text-red-400 text-gray-400 rounded-lg transition-colors"
+                        className="p-2 hover:bg-[var(--color-error-light)] hover:text-[var(--color-error)] text-[var(--color-text-secondary)] rounded-lg transition-colors"
                         title="Sair"
                     >
                         <LogOut className="w-5 h-5" />
@@ -245,8 +245,8 @@ export const StudentDashboardView: React.FC = () => {
                 {/* --- WELCOME BANNER --- */}
                 <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-8">
                     <div>
-                        <h2 className="text-3xl font-black text-white mb-2">Olá, {studentName} <span className="text-2xl animate-pulse">👋</span></h2>
-                        <p className="text-gray-400">Você está indo bem! Continue firme nos seus objetivos.</p>
+                        <h2 className="text-3xl font-black text-[var(--color-text-primary)] mb-2">Olá, {studentName} <span className="text-2xl animate-pulse">👋</span></h2>
+                        <p className="text-[var(--color-text-secondary)]">Você está indo bem! Continue firme nos seus objetivos.</p>
                     </div>
                     <div className="flex gap-2">
                         {/* Quick Actions (if needed) */}
@@ -260,10 +260,10 @@ export const StudentDashboardView: React.FC = () => {
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="md:col-span-1 md:row-span-2 bg-brand-card border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden group"
+                        className="md:col-span-1 md:row-span-2 bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden group theme-transition"
                     >
-                        <div className="absolute inset-0 bg-brand-yellow/5 radial-gradient opacity-50 pointer-events-none" />
-                        <h3 className="text-gray-400 text-sm font-bold uppercase tracking-widest mb-4">Progresso Geral</h3>
+                        <div className="absolute inset-0 bg-[var(--color-accent-light)] radial-gradient opacity-50 pointer-events-none" />
+                        <h3 className="text-[var(--color-text-secondary)] text-sm font-bold uppercase tracking-widest mb-4">Progresso Geral</h3>
 
                         <div className="relative w-48 h-48 flex items-center justify-center">
                             {/* Recharts Radial Bar - Using it as a gauge */}
@@ -305,16 +305,16 @@ export const StudentDashboardView: React.FC = () => {
                             )}
 
                             <div className="absolute inset-0 flex flex-col items-center justify-center pb-8">
-                                <span className="text-5xl font-black text-white tracking-tighter">{stats.progressPercent}%</span>
-                                <span className="text-xs text-gray-500 font-bold uppercase mt-1">Concluído</span>
+                                <span className="text-5xl font-black text-[var(--color-text-primary)] tracking-tighter">{stats.progressPercent}%</span>
+                                <span className="text-xs text-[var(--color-text-muted)] font-bold uppercase mt-1">Concluído</span>
                             </div>
                         </div>
 
                         <div className="text-center mt-[-40px]">
-                            <p className="text-sm text-gray-400">Total de <strong className="text-white">{stats.totalMissions}</strong> missões concluídas</p>
-                            <div className="mt-4 px-4 py-2 bg-white/5 rounded-lg border border-white/5 inline-flex items-center gap-2">
-                                <Target className="w-4 h-4 text-brand-yellow" />
-                                <span className="text-xs font-bold text-gray-300">Meta: 100% até Dezembro</span>
+                            <p className="text-sm text-[var(--color-text-secondary)]">Total de <strong className="text-[var(--color-text-primary)]">{stats.totalMissions}</strong> missões concluídas</p>
+                            <div className="mt-4 px-4 py-2 bg-[var(--color-bg-hover)] rounded-lg border border-[var(--color-border-light)] inline-flex items-center gap-2">
+                                <Target className="w-4 h-4 text-[var(--color-accent)]" />
+                                <span className="text-xs font-bold text-[var(--color-text-secondary)]">Meta: 100% até Dezembro</span>
                             </div>
                         </div>
                     </motion.div>
@@ -324,17 +324,17 @@ export const StudentDashboardView: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="md:col-span-1 bg-brand-card border border-white/5 rounded-2xl p-5 flex flex-col justify-between hover:border-brand-yellow/30 transition-colors"
+                        className="md:col-span-1 bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-2xl p-5 flex flex-col justify-between hover:border-[var(--color-accent)]/30 transition-colors theme-transition"
                     >
                         <div className="flex justify-between items-start">
                             <div className="p-2 bg-orange-500/10 rounded-lg text-orange-500">
                                 <Flame className="w-6 h-6" />
                             </div>
-                            <span className="text-xs font-bold text-green-500">+1 dia</span>
+                            <span className="text-xs font-bold text-[var(--color-success)]">+1 dia</span>
                         </div>
                         <div>
-                            <span className="text-3xl font-black text-white">{stats.streak}</span>
-                            <p className="text-xs text-gray-500 font-bold uppercase mt-1">Dias de Ofensiva (Streak)</p>
+                            <span className="text-3xl font-black text-[var(--color-text-primary)]">{stats.streak}</span>
+                            <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase mt-1">Dias de Ofensiva (Streak)</p>
                         </div>
                     </motion.div>
 
@@ -342,7 +342,7 @@ export const StudentDashboardView: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="md:col-span-1 bg-brand-card border border-white/5 rounded-2xl p-5 flex flex-col justify-between hover:border-brand-yellow/30 transition-colors"
+                        className="md:col-span-1 bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-2xl p-5 flex flex-col justify-between hover:border-[var(--color-accent)]/30 transition-colors theme-transition"
                     >
                         <div className="flex justify-between items-start">
                             <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
@@ -350,8 +350,8 @@ export const StudentDashboardView: React.FC = () => {
                             </div>
                         </div>
                         <div>
-                            <span className="text-3xl font-black text-white">{stats.totalMissions}</span>
-                            <p className="text-xs text-gray-500 font-bold uppercase mt-1">Missões Executadas</p>
+                            <span className="text-3xl font-black text-[var(--color-text-primary)]">{stats.totalMissions}</span>
+                            <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase mt-1">Missões Executadas</p>
                         </div>
                     </motion.div>
 
@@ -359,7 +359,7 @@ export const StudentDashboardView: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 }}
-                        className="md:col-span-1 bg-brand-card border border-white/5 rounded-2xl p-5 flex flex-col justify-between hover:border-brand-yellow/30 transition-colors"
+                        className="md:col-span-1 bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-2xl p-5 flex flex-col justify-between hover:border-[var(--color-accent)]/30 transition-colors theme-transition"
                     >
                         <div className="flex justify-between items-start">
                             <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500">
@@ -367,8 +367,8 @@ export const StudentDashboardView: React.FC = () => {
                             </div>
                         </div>
                         <div>
-                            <span className="text-3xl font-black text-white">{stats.hoursEstimated}h</span>
-                            <p className="text-xs text-gray-500 font-bold uppercase mt-1">Tempo de Estudo Est.</p>
+                            <span className="text-3xl font-black text-[var(--color-text-primary)]">{stats.hoursEstimated}h</span>
+                            <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase mt-1">Tempo de Estudo Est.</p>
                         </div>
                     </motion.div>
 
@@ -377,10 +377,10 @@ export const StudentDashboardView: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4 }}
-                        className="md:col-span-2 bg-brand-card border border-white/5 rounded-2xl p-6 min-h-[300px]"
+                        className="md:col-span-2 bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-2xl p-6 min-h-[300px] theme-transition"
                     >
-                        <h3 className="text-gray-400 text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-brand-yellow" />
+                        <h3 className="text-[var(--color-text-secondary)] text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-[var(--color-accent)]" />
                             Ritmo de Estudos (Últimos 7 dias)
                         </h3>
                         <div className="h-[220px] w-full">
@@ -408,9 +408,9 @@ export const StudentDashboardView: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5 }}
-                        className="md:col-span-1 bg-brand-card border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center"
+                        className="md:col-span-1 bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-2xl p-4 flex flex-col items-center justify-center theme-transition"
                     >
-                        <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Equilíbrio</h3>
+                        <h3 className="text-[var(--color-text-secondary)] text-xs font-bold uppercase tracking-widest mb-2">Equilíbrio</h3>
                         <div className="w-full h-[250px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={stats.radarData}>
@@ -432,20 +432,20 @@ export const StudentDashboardView: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6 }}
                         onClick={() => navigate(`/planejamento/prf/${planejamentoId}`)}
-                        className="bg-brand-card border border-white/5 rounded-2xl p-6 cursor-pointer group hover:border-brand-yellow/30 transition-all duration-300 hover:-translate-y-1"
+                        className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-2xl p-6 cursor-pointer group hover:border-[var(--color-accent)]/30 transition-all duration-300 hover:-translate-y-1 theme-transition"
                     >
                         <div className="flex items-start gap-4">
-                            <div className="p-4 bg-brand-yellow/10 rounded-xl border border-brand-yellow/20 group-hover:bg-brand-yellow/20 transition-colors">
-                                <Calendar className="w-8 h-8 text-brand-yellow" />
+                            <div className="p-4 bg-[var(--color-accent-light)] rounded-xl border border-[var(--color-accent)]/20 group-hover:bg-[var(--color-accent)]/20 transition-colors">
+                                <Calendar className="w-8 h-8 text-[var(--color-accent)]" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-brand-yellow transition-colors">
+                                <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-2 group-hover:text-[var(--color-accent)] transition-colors">
                                     Meu Planejamento
                                 </h3>
-                                <p className="text-gray-400 text-sm leading-relaxed mb-4">
+                                <p className="text-[var(--color-text-secondary)] text-sm leading-relaxed mb-4">
                                     Acesse seu cronograma tático de estudos com todas as missões organizadas por rodadas. Marque as missões concluídas e acompanhe seu progresso.
                                 </p>
-                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                                     <span className="flex items-center gap-1.5">
                                         <Target className="w-3.5 h-3.5" />
                                         Missões por rodada
@@ -456,7 +456,7 @@ export const StudentDashboardView: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
-                            <ChevronRight className="w-6 h-6 text-gray-600 group-hover:text-brand-yellow group-hover:translate-x-1 transition-all" />
+                            <ChevronRight className="w-6 h-6 text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] group-hover:translate-x-1 transition-all" />
                         </div>
                     </motion.div>
 
@@ -466,20 +466,20 @@ export const StudentDashboardView: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.7 }}
                         onClick={() => navigate(`/edital-verticalizado/prf/${planejamentoId}`)}
-                        className="bg-brand-card border border-white/5 rounded-2xl p-6 cursor-pointer group hover:border-purple-500/30 transition-all duration-300 hover:-translate-y-1"
+                        className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-2xl p-6 cursor-pointer group hover:border-purple-500/30 transition-all duration-300 hover:-translate-y-1 theme-transition"
                     >
                         <div className="flex items-start gap-4">
                             <div className="p-4 bg-purple-500/10 rounded-xl border border-purple-500/20 group-hover:bg-purple-500/20 transition-colors">
                                 <FileText className="w-8 h-8 text-purple-400" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">
+                                <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-2 group-hover:text-purple-400 transition-colors">
                                     Edital Verticalizado
                                 </h3>
-                                <p className="text-gray-400 text-sm leading-relaxed mb-4">
+                                <p className="text-[var(--color-text-secondary)] text-sm leading-relaxed mb-4">
                                     Visualize todo o conteúdo programático do edital organizado por matéria e tópico. Ideal para revisar o que estudar e não deixar nada de fora.
                                 </p>
-                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                <div className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                                     <span className="flex items-center gap-1.5">
                                         <BookOpen className="w-3.5 h-3.5" />
                                         Conteúdo completo
@@ -490,7 +490,7 @@ export const StudentDashboardView: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
-                            <ChevronRight className="w-6 h-6 text-gray-600 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
+                            <ChevronRight className="w-6 h-6 text-[var(--color-text-muted)] group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
                         </div>
                     </motion.div>
                 </div>

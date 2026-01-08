@@ -34,10 +34,12 @@ export function Card({
       {...motionProps}
       onClick={onClick}
       className={`
-        bg-[#252525] rounded-2xl
+        bg-[var(--color-bg-card)] rounded-2xl theme-transition
         ${paddingSizes[padding]}
+        border border-[var(--color-border)]
+        shadow-[var(--shadow-card)]
         ${onClick ? 'cursor-pointer' : ''}
-        ${hoverable ? 'hover:bg-[#2D2D2D] transition-colors' : ''}
+        ${hoverable ? 'hover:bg-[var(--color-bg-elevated)] hover:shadow-[var(--shadow-elevated)] transition-all duration-200' : ''}
         ${className}
       `}
     >

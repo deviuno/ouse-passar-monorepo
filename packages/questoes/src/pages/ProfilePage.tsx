@@ -18,6 +18,8 @@ import {
   Users,
   Gift,
   DollarSign,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { Card, Button, Modal, Progress, CircularProgress } from '../components/ui';
 import { useAuthStore, useUserStore } from '../stores';
@@ -31,6 +33,7 @@ import {
 import type { ReferralStats, ReferralLinkInfo } from '../types/referral';
 import { RewardsModal } from '../components/referral/RewardsModal';
 import { ReferralsListModal } from '../components/referral/ReferralsListModal';
+import { useTheme } from '../contexts/ThemeContext';
 
 function StatCard({
   icon: Icon,
@@ -46,8 +49,8 @@ function StatCard({
   return (
     <Card className="text-center" padding="sm">
       <Icon size={20} className={`mx-auto mb-1`} style={{ color }} />
-      <p className="text-white font-bold">{value}</p>
-      <p className="text-[#6E6E6E] text-xs">{label}</p>
+      <p className="text-[var(--color-text-main)] font-bold">{value}</p>
+      <p className="text-[var(--color-text-muted)] text-xs">{label}</p>
     </Card>
   );
 }
@@ -69,14 +72,14 @@ function MenuButton({
       className={`
         w-full flex items-center justify-between p-4 rounded-xl
         transition-colors
-        ${danger ? 'hover:bg-[#E74C3C]/10' : 'hover:bg-[#3A3A3A]'}
+        ${danger ? 'hover:bg-[var(--color-error)]/10' : 'hover:bg-[var(--color-border)]'}
       `}
     >
       <div className="flex items-center gap-3">
-        <Icon size={20} className={danger ? 'text-[#E74C3C]' : 'text-[#A0A0A0]'} />
-        <span className={danger ? 'text-[#E74C3C]' : 'text-white'}>{label}</span>
+        <Icon size={20} className={danger ? 'text-[var(--color-error)]' : 'text-[var(--color-text-sec)]'} />
+        <span className={danger ? 'text-[var(--color-error)]' : 'text-[var(--color-text-main)]'}>{label}</span>
       </div>
-      <ChevronRight size={18} className="text-[#6E6E6E]" />
+      <ChevronRight size={18} className="text-[var(--color-text-muted)]" />
     </button>
   );
 }
@@ -85,6 +88,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { profile, logout, updateProfile } = useAuthStore();
   const { stats } = useUserStore();
+  const { theme, toggleTheme } = useTheme();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showRewardsModal, setShowRewardsModal] = useState(false);
@@ -204,10 +208,10 @@ export default function ProfilePage() {
         <div className="flex items-center gap-4">
           {/* Avatar */}
           <div className="relative">
-            <div className={`w-20 h-20 rounded-full bg-[#3A3A3A] flex items-center justify-center overflow-hidden border-2 ${isUploading ? 'border-[#FFB800] animate-pulse' : 'border-[#2A2A2A]'}`}>
+            <div className={`w-20 h-20 rounded-full bg-[var(--color-border)] flex items-center justify-center overflow-hidden border-2 ${isUploading ? 'border-[var(--color-brand)] animate-pulse' : 'border-[var(--color-bg-elevated)]'}`}>
               {isUploading ? (
                 <div className="flex flex-col items-center gap-1">
-                  <div className="w-5 h-5 border-2 border-[#FFB800] border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-[var(--color-brand)] border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : profile?.avatar_url ? (
                 <img
@@ -217,13 +221,13 @@ export default function ProfilePage() {
                   loading="lazy"
                 />
               ) : (
-                <User size={32} className="text-[#6E6E6E]" />
+                <User size={32} className="text-[var(--color-text-muted)]" />
               )}
             </div>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className={`absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#FFB800] flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[var(--color-brand)] flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Camera size={14} className="text-black" />
             </button>
@@ -232,14 +236,14 @@ export default function ProfilePage() {
           {/* Info */}
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-white">
+              <h2 className="text-xl font-bold text-[var(--color-text-main)]">
                 {profile?.name || 'Estudante'}
               </h2>
-              <button className="p-1 hover:bg-[#3A3A3A] rounded-full transition-colors">
-                <Edit2 size={14} className="text-[#A0A0A0]" />
+              <button className="p-1 hover:bg-[var(--color-border)] rounded-full transition-colors">
+                <Edit2 size={14} className="text-[var(--color-text-sec)]" />
               </button>
             </div>
-            <p className="text-[#6E6E6E] text-sm">{profile?.email}</p>
+            <p className="text-[var(--color-text-muted)] text-sm">{profile?.email}</p>
 
             {/* League Badge */}
             <div className="flex items-center gap-2 mt-2">
@@ -252,15 +256,15 @@ export default function ProfilePage() {
         </div>
 
         {/* Level Progress */}
-        <div className="mt-4 pt-4 border-t border-[#3A3A3A]">
+        <div className="mt-4 pt-4 border-t border-[var(--color-border)]">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#FFB800]/20 flex items-center justify-center">
-                <span className="text-[#FFB800] font-bold text-sm">{level}</span>
+              <div className="w-8 h-8 rounded-full bg-[var(--color-brand)]/20 flex items-center justify-center">
+                <span className="text-[var(--color-brand)] font-bold text-sm">{level}</span>
               </div>
-              <span className="text-white font-medium">Nível {level}</span>
+              <span className="text-[var(--color-text-main)] font-medium">Nível {level}</span>
             </div>
-            <span className="text-[#6E6E6E] text-sm">
+            <span className="text-[var(--color-text-muted)] text-sm">
               {xpProgress.current}/{xpProgress.needed} XP
             </span>
           </div>
@@ -285,30 +289,30 @@ export default function ProfilePage() {
       {referralLoaded && (
         <Card className="mb-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-[#2ECC71]/20 flex items-center justify-center">
-              <Users size={20} className="text-[#2ECC71]" />
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-success)]/20 flex items-center justify-center">
+              <Users size={20} className="text-[var(--color-success)]" />
             </div>
             <div>
-              <h3 className="text-white font-semibold">Indique e Ganhe</h3>
-              <p className="text-[#6E6E6E] text-xs">Convide amigos e ganhe recompensas</p>
+              <h3 className="text-[var(--color-text-main)] font-semibold">Indique e Ganhe</h3>
+              <p className="text-[var(--color-text-muted)] text-xs">Convide amigos e ganhe recompensas</p>
             </div>
           </div>
 
           {referralLink ? (
             <>
               {/* Link de Indicação */}
-              <div className="bg-[#1A1A1A] rounded-xl p-3 mb-4">
-                <p className="text-[#6E6E6E] text-xs mb-1">Seu link de indicação:</p>
+              <div className="bg-[var(--color-bg-main)] rounded-xl p-3 mb-4">
+                <p className="text-[var(--color-text-muted)] text-xs mb-1">Seu link de indicação:</p>
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-[#2A2A2A] rounded-lg px-3 py-2 overflow-hidden">
-                    <p className="text-white text-sm truncate">{referralLink.referral_url}</p>
+                  <div className="flex-1 bg-[var(--color-bg-elevated)] rounded-lg px-3 py-2 overflow-hidden">
+                    <p className="text-[var(--color-text-main)] text-sm truncate">{referralLink.referral_url}</p>
                   </div>
                   <button
                     onClick={handleCopyLink}
                     className={`p-2 rounded-lg transition-all ${
                       copied
-                        ? 'bg-[#2ECC71] text-white'
-                        : 'bg-[#FFB800] text-black hover:bg-[#E5A600]'
+                        ? 'bg-[var(--color-success)] text-white'
+                        : 'bg-[var(--color-brand)] text-black hover:bg-[var(--color-brand-dark)]'
                     }`}
                   >
                     {copied ? <Check size={18} /> : <Copy size={18} />}
@@ -319,22 +323,22 @@ export default function ProfilePage() {
               {/* Stats de Indicação */}
               {referralStats && (
                 <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="bg-[#1A1A1A] rounded-xl p-3 text-center">
-                    <Users size={16} className="mx-auto mb-1 text-[#3498DB]" />
-                    <p className="text-white font-bold">{referralStats.total_referrals}</p>
-                    <p className="text-[#6E6E6E] text-[10px]">Indicados</p>
+                  <div className="bg-[var(--color-bg-main)] rounded-xl p-3 text-center">
+                    <Users size={16} className="mx-auto mb-1 text-[var(--color-info)]" />
+                    <p className="text-[var(--color-text-main)] font-bold">{referralStats.total_referrals}</p>
+                    <p className="text-[var(--color-text-muted)] text-[10px]">Indicados</p>
                   </div>
-                  <div className="bg-[#1A1A1A] rounded-xl p-3 text-center">
+                  <div className="bg-[var(--color-bg-main)] rounded-xl p-3 text-center">
                     <Gift size={16} className="mx-auto mb-1 text-[#9B59B6]" />
-                    <p className="text-white font-bold">{referralStats.available_points}</p>
-                    <p className="text-[#6E6E6E] text-[10px]">Pontos</p>
+                    <p className="text-[var(--color-text-main)] font-bold">{referralStats.available_points}</p>
+                    <p className="text-[var(--color-text-muted)] text-[10px]">Pontos</p>
                   </div>
-                  <div className="bg-[#1A1A1A] rounded-xl p-3 text-center">
-                    <DollarSign size={16} className="mx-auto mb-1 text-[#2ECC71]" />
-                    <p className="text-white font-bold">
+                  <div className="bg-[var(--color-bg-main)] rounded-xl p-3 text-center">
+                    <DollarSign size={16} className="mx-auto mb-1 text-[var(--color-success)]" />
+                    <p className="text-[var(--color-text-main)] font-bold">
                       R$ {(referralStats.total_commissions || 0).toFixed(0)}
                     </p>
-                    <p className="text-[#6E6E6E] text-[10px]">Comissões</p>
+                    <p className="text-[var(--color-text-muted)] text-[10px]">Comissões</p>
                   </div>
                 </div>
               )}
@@ -362,7 +366,7 @@ export default function ProfilePage() {
           ) : (
             /* Usuário sem username - mostrar botão para ativar */
             <div className="text-center">
-              <p className="text-[#A0A0A0] text-sm mb-4">
+              <p className="text-[var(--color-text-sec)] text-sm mb-4">
                 Ative seu link de indicação para convidar amigos e ganhar recompensas!
               </p>
               <Button
@@ -386,6 +390,44 @@ export default function ProfilePage() {
           )}
         </Card>
       )}
+
+      {/* Configurações - Toggle de Tema */}
+      <Card className="mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {theme === 'dark' ? (
+              <Moon size={20} className="text-indigo-400" />
+            ) : (
+              <Sun size={20} className="text-yellow-500" />
+            )}
+            <div>
+              <p className="text-[var(--color-text-main)] font-medium">Aparência</p>
+              <p className="text-[var(--color-text-muted)] text-xs">
+                {theme === 'dark' ? 'Modo Escuro' : 'Modo Claro'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={toggleTheme}
+            className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${
+              theme === 'dark' ? 'bg-indigo-500' : 'bg-yellow-400'
+            }`}
+          >
+            <div
+              className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 flex items-center justify-center ${
+                theme === 'dark' ? 'left-1' : 'left-7'
+              }`}
+            >
+              {theme === 'dark' ? (
+                <Moon size={14} className="text-indigo-500" />
+              ) : (
+                <Sun size={14} className="text-yellow-500" />
+              )}
+            </div>
+          </button>
+        </div>
+      </Card>
 
       {/* Menu Options */}
       <Card padding="none" className="mb-6">
@@ -423,11 +465,11 @@ export default function ProfilePage() {
         title="Sair da Conta"
       >
         <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-[#E74C3C]/20 flex items-center justify-center mx-auto mb-4">
-            <LogOut size={28} className="text-[#E74C3C]" />
+          <div className="w-16 h-16 rounded-full bg-[var(--color-error)]/20 flex items-center justify-center mx-auto mb-4">
+            <LogOut size={28} className="text-[var(--color-error)]" />
           </div>
-          <p className="text-white mb-2">Tem certeza que deseja sair?</p>
-          <p className="text-[#6E6E6E] text-sm mb-6">
+          <p className="text-[var(--color-text-main)] mb-2">Tem certeza que deseja sair?</p>
+          <p className="text-[var(--color-text-muted)] text-sm mb-6">
             Você pode voltar a qualquer momento.
           </p>
 

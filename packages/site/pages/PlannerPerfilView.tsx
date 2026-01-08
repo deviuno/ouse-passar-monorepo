@@ -25,6 +25,7 @@ import { supabase } from '../lib/supabase';
 import { SEOHead } from '../components/SEOHead';
 import { plannerService } from '../services/plannerService';
 import { Planejamento } from '../lib/database.types';
+import { useTheme } from '../lib/ThemeContext';
 
 // Tipo do contexto do layout
 interface PlannerContext {
@@ -38,6 +39,7 @@ export const PlannerPerfilView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const context = useOutletContext<PlannerContext>();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { theme, toggleTheme } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [planejamento, setPlanejamento] = useState<Planejamento | null>(null);
@@ -271,23 +273,23 @@ export const PlannerPerfilView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-brand-yellow animate-spin" />
+      <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center theme-transition">
+        <Loader2 className="w-10 h-10 text-[var(--color-accent)] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-brand-darker text-white pb-8">
+    <div className="min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] pb-8 theme-transition">
       <SEOHead title="Perfil | Ouse Passar" />
 
       <main className="pt-20 px-4 max-w-4xl mx-auto space-y-6">
         {/* Seção do Avatar */}
-        <div className="bg-brand-card border border-white/5 rounded-xl p-6">
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 theme-transition">
           <div className="flex flex-col items-center">
             {/* Avatar */}
             <div className="relative">
-              <div className="w-32 h-32 rounded-full bg-brand-dark border-4 border-brand-yellow/30 overflow-hidden flex items-center justify-center">
+              <div className="w-32 h-32 rounded-full bg-[var(--color-bg-secondary)] border-4 border-[var(--color-accent)]/30 overflow-hidden flex items-center justify-center">
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
@@ -295,7 +297,7 @@ export const PlannerPerfilView: React.FC = () => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <User className="w-16 h-16 text-gray-600" />
+                  <User className="w-16 h-16 text-[var(--color-text-muted)]" />
                 )}
               </div>
 
@@ -303,12 +305,12 @@ export const PlannerPerfilView: React.FC = () => {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="absolute bottom-0 right-0 w-10 h-10 bg-brand-yellow rounded-full flex items-center justify-center hover:bg-yellow-400 transition-colors disabled:opacity-50"
+                className="absolute bottom-0 right-0 w-10 h-10 bg-[var(--color-accent)] rounded-full flex items-center justify-center hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50"
               >
                 {uploading ? (
-                  <Loader2 className="w-5 h-5 text-brand-darker animate-spin" />
+                  <Loader2 className="w-5 h-5 text-[var(--color-text-inverse)] animate-spin" />
                 ) : (
-                  <Camera className="w-5 h-5 text-brand-darker" />
+                  <Camera className="w-5 h-5 text-[var(--color-text-inverse)]" />
                 )}
               </button>
 
@@ -322,10 +324,10 @@ export const PlannerPerfilView: React.FC = () => {
             </div>
 
             {/* Nome */}
-            <h1 className="mt-4 text-2xl font-black text-white">
+            <h1 className="mt-4 text-2xl font-black text-[var(--color-text-primary)]">
               {planejamento?.nome_aluno}
             </h1>
-            <p className="text-gray-500 text-sm">
+            <p className="text-[var(--color-text-muted)] text-sm">
               {planejamento?.email}
             </p>
 
@@ -349,16 +351,16 @@ export const PlannerPerfilView: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-brand-card border border-white/10 rounded-xl p-6 w-full max-w-sm shadow-2xl"
+                className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 w-full max-w-sm shadow-2xl theme-transition"
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-[var(--color-text-primary)] flex items-center gap-2">
                     <Moon className="w-5 h-5 text-indigo-400" />
                     Horários de Sono
                   </h3>
                   <button
                     onClick={() => setShowSleepModal(false)}
-                    className="text-gray-500 hover:text-white transition-colors"
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -367,7 +369,7 @@ export const PlannerPerfilView: React.FC = () => {
                 <div className="space-y-4">
                   {/* Hora de Dormir */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                    <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] mb-2">
                       <Moon className="w-4 h-4 text-indigo-400" />
                       Hora de dormir
                     </label>
@@ -375,13 +377,13 @@ export const PlannerPerfilView: React.FC = () => {
                       type="time"
                       value={horaDormir}
                       onChange={(e) => setHoraDormir(e.target.value)}
-                      className="w-full bg-brand-dark border border-white/10 rounded-lg px-4 py-3 text-white text-center text-lg font-mono focus:outline-none focus:border-indigo-500/50"
+                      className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-4 py-3 text-[var(--color-text-primary)] text-center text-lg font-mono focus:outline-none focus:border-indigo-500/50"
                     />
                   </div>
 
                   {/* Hora de Acordar */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                    <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] mb-2">
                       <Sunrise className="w-4 h-4 text-yellow-400" />
                       Hora de acordar
                     </label>
@@ -389,14 +391,14 @@ export const PlannerPerfilView: React.FC = () => {
                       type="time"
                       value={horaAcordar}
                       onChange={(e) => setHoraAcordar(e.target.value)}
-                      className="w-full bg-brand-dark border border-white/10 rounded-lg px-4 py-3 text-white text-center text-lg font-mono focus:outline-none focus:border-yellow-500/50"
+                      className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-4 py-3 text-[var(--color-text-primary)] text-center text-lg font-mono focus:outline-none focus:border-yellow-500/50"
                     />
                   </div>
 
                   {/* Preview das horas de sono */}
                   <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4 text-center">
                     <p className="text-xs text-indigo-400 uppercase font-bold mb-1">Horas de sono</p>
-                    <p className="text-3xl font-black text-white">
+                    <p className="text-3xl font-black text-[var(--color-text-primary)]">
                       {calcularHorasSono(horaAcordar, horaDormir)}h
                     </p>
                   </div>
@@ -405,7 +407,7 @@ export const PlannerPerfilView: React.FC = () => {
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={() => setShowSleepModal(false)}
-                      className="flex-1 py-3 border border-white/20 text-gray-400 font-bold uppercase text-sm rounded-lg hover:bg-white/5 transition-colors"
+                      className="flex-1 py-3 border border-[var(--color-border-light)] text-[var(--color-text-secondary)] font-bold uppercase text-sm rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
                     >
                       Cancelar
                     </button>
@@ -435,7 +437,7 @@ export const PlannerPerfilView: React.FC = () => {
               <Flame className="w-8 h-8 text-orange-400" />
               <div>
                 <p className="text-xs text-orange-400 uppercase font-bold">Sequência Atual</p>
-                <p className="text-3xl font-black text-white">{stats.sequenciaDias} <span className="text-lg text-gray-400">dias</span></p>
+                <p className="text-3xl font-black text-[var(--color-text-primary)]">{stats.sequenciaDias} <span className="text-lg text-[var(--color-text-secondary)]">dias</span></p>
               </div>
             </div>
           </div>
@@ -445,50 +447,50 @@ export const PlannerPerfilView: React.FC = () => {
               <Award className="w-8 h-8 text-purple-400" />
               <div>
                 <p className="text-xs text-purple-400 uppercase font-bold">Melhor Sequência</p>
-                <p className="text-3xl font-black text-white">{stats.melhorSequencia} <span className="text-lg text-gray-400">dias</span></p>
+                <p className="text-3xl font-black text-[var(--color-text-primary)]">{stats.melhorSequencia} <span className="text-lg text-[var(--color-text-secondary)]">dias</span></p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Estatísticas Gerais */}
-        <div className="bg-brand-card border border-white/5 rounded-xl p-6">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-brand-yellow" />
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 theme-transition">
+          <h2 className="text-lg font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-[var(--color-accent)]" />
             Estatísticas Gerais
           </h2>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-brand-dark/50 rounded-lg p-4 text-center">
+            <div className="bg-[var(--color-bg-secondary)]/50 rounded-lg p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <span className="w-3 h-3 rounded-full bg-green-500" />
-                <p className="text-xs text-gray-500 uppercase font-bold">Dias Verdes</p>
+                <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Dias Verdes</p>
               </div>
-              <p className="text-3xl font-black text-white">{stats.diasVerdes}</p>
+              <p className="text-3xl font-black text-[var(--color-text-primary)]">{stats.diasVerdes}</p>
             </div>
 
-            <div className="bg-brand-dark/50 rounded-lg p-4 text-center">
+            <div className="bg-[var(--color-bg-secondary)]/50 rounded-lg p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <Clock className="w-3 h-3 text-blue-400" />
-                <p className="text-xs text-gray-500 uppercase font-bold">Horas</p>
+                <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Horas</p>
               </div>
-              <p className="text-3xl font-black text-white">{stats.horasEstudadas}h</p>
+              <p className="text-3xl font-black text-[var(--color-text-primary)]">{stats.horasEstudadas}h</p>
             </div>
 
-            <div className="bg-brand-dark/50 rounded-lg p-4 text-center">
+            <div className="bg-[var(--color-bg-secondary)]/50 rounded-lg p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <Target className="w-3 h-3 text-purple-400" />
-                <p className="text-xs text-gray-500 uppercase font-bold">Missões</p>
+                <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Missões</p>
               </div>
-              <p className="text-3xl font-black text-white">{stats.missoesTotal}</p>
+              <p className="text-3xl font-black text-[var(--color-text-primary)]">{stats.missoesTotal}</p>
             </div>
 
-            <div className="bg-brand-dark/50 rounded-lg p-4 text-center">
+            <div className="bg-[var(--color-bg-secondary)]/50 rounded-lg p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <BookOpen className="w-3 h-3 text-cyan-400" />
-                <p className="text-xs text-gray-500 uppercase font-bold">Questões</p>
+                <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Questões</p>
               </div>
-              <p className="text-3xl font-black text-white">{stats.questoesTotal}</p>
+              <p className="text-3xl font-black text-[var(--color-text-primary)]">{stats.questoesTotal}</p>
             </div>
           </div>
 
@@ -498,7 +500,7 @@ export const PlannerPerfilView: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-400" />
-                  <span className="text-sm text-gray-400">Média de Acertos</span>
+                  <span className="text-sm text-[var(--color-text-secondary)]">Média de Acertos</span>
                 </div>
                 <span className="text-2xl font-black text-green-400">{stats.mediaAcertos}%</span>
               </div>
@@ -507,8 +509,8 @@ export const PlannerPerfilView: React.FC = () => {
         </div>
 
         {/* Conquistas (placeholder para futuro) */}
-        <div className="bg-brand-card border border-white/5 rounded-xl p-6">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 theme-transition">
+          <h2 className="text-lg font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
             <Zap className="w-5 h-5 text-yellow-400" />
             Conquistas
           </h2>
@@ -516,51 +518,95 @@ export const PlannerPerfilView: React.FC = () => {
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
             {/* Conquista: Primeiro Dia Verde */}
             <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.diasVerdes >= 1 ? 'bg-green-500/20 border border-green-500/30' : 'bg-white/5 border border-white/10 opacity-40'
+              stats.diasVerdes >= 1 ? 'bg-green-500/20 border border-green-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
             }`}>
               <span className="text-2xl mb-1">🌱</span>
-              <span className="text-[10px] text-center text-gray-400 font-medium">Primeiro Passo</span>
+              <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">Primeiro Passo</span>
             </div>
 
             {/* Conquista: 7 Dias Verdes */}
             <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.diasVerdes >= 7 ? 'bg-green-500/20 border border-green-500/30' : 'bg-white/5 border border-white/10 opacity-40'
+              stats.diasVerdes >= 7 ? 'bg-green-500/20 border border-green-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
             }`}>
               <span className="text-2xl mb-1">🔥</span>
-              <span className="text-[10px] text-center text-gray-400 font-medium">Semana Verde</span>
+              <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">Semana Verde</span>
             </div>
 
             {/* Conquista: 30 Dias Verdes */}
             <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.diasVerdes >= 30 ? 'bg-green-500/20 border border-green-500/30' : 'bg-white/5 border border-white/10 opacity-40'
+              stats.diasVerdes >= 30 ? 'bg-green-500/20 border border-green-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
             }`}>
               <span className="text-2xl mb-1">⭐</span>
-              <span className="text-[10px] text-center text-gray-400 font-medium">Mês Verde</span>
+              <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">Mês Verde</span>
             </div>
 
             {/* Conquista: 10 horas de estudo */}
             <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.horasEstudadas >= 10 ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-white/5 border border-white/10 opacity-40'
+              stats.horasEstudadas >= 10 ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
             }`}>
               <span className="text-2xl mb-1">📚</span>
-              <span className="text-[10px] text-center text-gray-400 font-medium">10 Horas</span>
+              <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">10 Horas</span>
             </div>
 
             {/* Conquista: 50 horas de estudo */}
             <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.horasEstudadas >= 50 ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-white/5 border border-white/10 opacity-40'
+              stats.horasEstudadas >= 50 ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
             }`}>
               <span className="text-2xl mb-1">🎓</span>
-              <span className="text-[10px] text-center text-gray-400 font-medium">50 Horas</span>
+              <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">50 Horas</span>
             </div>
 
             {/* Conquista: 100 questões */}
             <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.questoesTotal >= 100 ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-white/5 border border-white/10 opacity-40'
+              stats.questoesTotal >= 100 ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
             }`}>
               <span className="text-2xl mb-1">💯</span>
-              <span className="text-[10px] text-center text-gray-400 font-medium">100 Questões</span>
+              <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">100 Questões</span>
             </div>
+          </div>
+        </div>
+
+        {/* Configurações */}
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 theme-transition">
+          <h2 className="text-lg font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
+            <Sun className="w-5 h-5 text-[var(--color-accent)]" />
+            Configurações
+          </h2>
+
+          {/* Toggle de Tema */}
+          <div className="flex items-center justify-between p-4 bg-[var(--color-bg-secondary)]/50 rounded-lg">
+            <div className="flex items-center gap-3">
+              {theme === 'dark' ? (
+                <Moon className="w-5 h-5 text-indigo-400" />
+              ) : (
+                <Sun className="w-5 h-5 text-yellow-500" />
+              )}
+              <div>
+                <p className="text-sm font-bold text-[var(--color-text-primary)]">Aparência</p>
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  {theme === 'dark' ? 'Modo Escuro ativado' : 'Modo Claro ativado'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={toggleTheme}
+              className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${
+                theme === 'dark' ? 'bg-indigo-500' : 'bg-yellow-400'
+              }`}
+            >
+              <div
+                className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 flex items-center justify-center ${
+                  theme === 'dark' ? 'left-1' : 'left-7'
+                }`}
+              >
+                {theme === 'dark' ? (
+                  <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                ) : (
+                  <Sun className="w-3.5 h-3.5 text-yellow-500" />
+                )}
+              </div>
+            </button>
           </div>
         </div>
 

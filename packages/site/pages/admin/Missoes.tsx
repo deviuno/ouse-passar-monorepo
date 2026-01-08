@@ -506,6 +506,7 @@ const ContentPreviewModal: React.FC<ContentPreviewModalProps> = ({ missao, hasCo
         materias: filtros.filtros.materias || [],
         assuntos: filtros.filtros.assuntos || [],
         bancas: filtros.filtros.bancas || [],
+        banca_ids: filtros.filtros.banca_ids || [], // IDs para filtragem eficiente
         orgaos: filtros.filtros.orgaos || [],
         anos: filtros.filtros.anos || [],
         escolaridade: filtros.filtros.escolaridade || [],
@@ -1439,6 +1440,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
         materias: filters.materias,
         assuntos: filters.assuntos,
         bancas: filters.bancas,
+        banca_ids: filters.banca_ids, // IDs para filtragem eficiente
         orgaos: filters.orgaos,
         anos: filters.anos,
         escolaridade: filters.escolaridade,

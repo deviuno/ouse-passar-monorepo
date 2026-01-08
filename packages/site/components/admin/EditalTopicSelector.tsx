@@ -87,12 +87,19 @@ export const EditalTopicSelector: React.FC<EditalTopicSelectorProps> = ({
     return !usedIds.includes(id);
   };
 
-  // Verifica se um bloco/materia tem filhos disponiveis
+  // Verifica se um item tem filhos disponiveis (recursivo)
   const hasAvailableChildren = (item: EditalItemWithChildren): boolean => {
-    if (item.tipo === 'topico') {
-      return isItemAvailable(item.id);
-    }
+    // Se o proprio item esta disponivel, tem conteudo disponivel
+    if (isItemAvailable(item.id)) return true;
+    // Mesmo que o item esteja usado, verifica se tem filhos disponiveis
     return item.children.some(child => hasAvailableChildren(child));
+  };
+
+  // Verifica se um topico esta usado mas tem filhos disponiveis (deve aparecer desabilitado)
+  const isUsedButHasAvailableChildren = (item: EditalItemWithChildren): boolean => {
+    if (item.tipo !== 'topico') return false;
+    // O item esta nos usedIds (nao disponivel) mas tem filhos disponiveis?
+    return !isItemAvailable(item.id) && item.children.some(child => hasAvailableChildren(child));
   };
 
   // Filtra items baseado no termo de busca
@@ -158,16 +165,22 @@ export const EditalTopicSelector: React.FC<EditalTopicSelectorProps> = ({
     const availableCount = countAvailableTopics(item);
     const selectedCount = countSelectedTopics(item);
 
+    // Verifica se o topico esta usado mas tem filhos disponiveis (deve mostrar desabilitado)
+    const isDisabledParent = isUsedButHasAvailableChildren(item);
+    const canSelect = isTopico && !isDisabledParent && isItemAvailable(item.id);
+
     return (
       <div key={item.id}>
         <div
-          className={`flex items-center gap-2 py-2 px-2 hover:bg-white/[0.03] transition-colors ${
-            isTopico && isSelected ? 'bg-brand-yellow/10' : ''
-          }`}
+          className={`flex items-center gap-2 py-2 px-2 transition-colors ${
+            isDisabledParent
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-white/[0.03]'
+          } ${isTopico && isSelected ? 'bg-brand-yellow/10' : ''}`}
           style={{ paddingLeft: `${indent + 8}px` }}
         >
-          {/* Expand/Collapse para nao-topicos */}
-          {!isTopico ? (
+          {/* Expand/Collapse para nao-topicos OU topicos com filhos disponiveis */}
+          {(!isTopico || (isTopico && hasChildren)) ? (
             <button
               onClick={() => toggleExpand(item.id)}
               className={`p-0.5 ${hasChildren ? '' : 'opacity-0 pointer-events-none'}`}
@@ -178,14 +191,19 @@ export const EditalTopicSelector: React.FC<EditalTopicSelectorProps> = ({
                 <ChevronRight className="w-4 h-4 text-gray-500" />
               )}
             </button>
-          ) : (
-            // Checkbox para topicos
+          ) : null}
+
+          {/* Checkbox para topicos selecionaveis */}
+          {isTopico && !hasChildren && (
             <button
-              onClick={() => toggleSelect(item.id)}
+              onClick={() => canSelect && toggleSelect(item.id)}
+              disabled={!canSelect}
               className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
                 isSelected
                   ? 'bg-brand-yellow border-brand-yellow'
-                  : 'border-gray-600 hover:border-gray-400'
+                  : isDisabledParent
+                    ? 'border-gray-700 bg-gray-800 cursor-not-allowed'
+                    : 'border-gray-600 hover:border-gray-400'
               }`}
             >
               {isSelected && <Check className="w-3 h-3 text-brand-darker" />}
@@ -197,17 +215,34 @@ export const EditalTopicSelector: React.FC<EditalTopicSelectorProps> = ({
 
           {/* Titulo */}
           <span
-            className={`flex-1 text-sm ${isTopico ? 'text-white' : 'text-gray-300 font-medium'} ${
-              isTopico && isSelected ? 'text-brand-yellow' : ''
-            }`}
-            onClick={() => isTopico && toggleSelect(item.id)}
-            style={{ cursor: isTopico ? 'pointer' : 'default' }}
+            className={`flex-1 text-sm ${
+              isTopico
+                ? isDisabledParent
+                  ? 'text-gray-500 line-through'
+                  : 'text-white'
+                : 'text-gray-300 font-medium'
+            } ${isTopico && isSelected ? 'text-brand-yellow' : ''}`}
+            onClick={() => canSelect && toggleSelect(item.id)}
+            style={{ cursor: canSelect ? 'pointer' : 'default' }}
           >
             {item.titulo}
+            {isDisabledParent && (
+              <span className="ml-2 text-xs text-gray-600">(já usado)</span>
+            )}
           </span>
 
           {/* Contador para blocos/materias */}
           {!isTopico && (
+            <span className="text-xs text-gray-500">
+              {selectedCount > 0 && (
+                <span className="text-brand-yellow mr-1">{selectedCount}/</span>
+              )}
+              {availableCount} disponíveis
+            </span>
+          )}
+
+          {/* Contador para topicos-pai com filhos disponiveis */}
+          {isTopico && hasChildren && (
             <span className="text-xs text-gray-500">
               {selectedCount > 0 && (
                 <span className="text-brand-yellow mr-1">{selectedCount}/</span>

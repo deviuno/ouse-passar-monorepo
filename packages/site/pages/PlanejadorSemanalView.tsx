@@ -145,10 +145,10 @@ const Tooltip: React.FC<{
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-brand-dark border border-white/10 rounded-lg shadow-xl max-w-xs"
+            className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg shadow-xl max-w-xs"
           >
-            <p className="text-xs text-gray-300 whitespace-nowrap">{content}</p>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-brand-dark" />
+            <p className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap">{content}</p>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-[var(--color-bg-secondary)]" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -191,7 +191,7 @@ const ActivityButton: React.FC<{
               e.stopPropagation();
               onEditClick();
             }}
-            className="absolute -top-1 -right-1 w-5 h-5 bg-brand-dark border border-white/20 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+            className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-full flex items-center justify-center hover:bg-[var(--color-bg-hover)] transition-colors"
             title="Editar atividade"
           >
             <Pencil className="w-2.5 h-2.5 text-gray-400" />
@@ -234,18 +234,18 @@ const NewActivityModal: React.FC<{
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-brand-card border border-white/10 rounded-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col theme-transition"
       >
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <h3 className="text-lg font-bold text-white">Nova Atividade</h3>
-          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-gray-400" />
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-light)]">
+          <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Nova Atividade</h3>
+          <button onClick={onClose} className="p-1 hover:bg-[var(--color-bg-hover)] rounded-lg transition-colors">
+            <X className="w-5 h-5 text-[var(--color-text-secondary)]" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto flex-1">
           {/* Preview */}
-          <div className="flex items-center justify-center p-4 bg-brand-dark/50 rounded-xl">
+          <div className="flex items-center justify-center p-4 bg-[var(--color-bg-secondary)]/50 rounded-xl">
             <div
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg border-2"
               style={{ borderColor: cor, backgroundColor: `${cor}20` }}
@@ -258,7 +258,7 @@ const NewActivityModal: React.FC<{
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 uppercase font-bold mb-2">
+            <label className="block text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">
               Nome da Atividade *
             </label>
             <input
@@ -266,13 +266,13 @@ const NewActivityModal: React.FC<{
               value={nome}
               onChange={e => setNome(e.target.value)}
               placeholder="Ex: Alimentação, Transporte..."
-              className="w-full bg-brand-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-yellow/50"
+              className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/50"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 uppercase font-bold mb-2">
+            <label className="block text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">
               Descrição (opcional)
             </label>
             <input
@@ -280,16 +280,16 @@ const NewActivityModal: React.FC<{
               value={descricao}
               onChange={e => setDescricao(e.target.value)}
               placeholder="Breve descrição da atividade"
-              className="w-full bg-brand-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-yellow/50"
+              className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/50"
             />
           </div>
 
           {/* Seleção de Ícone */}
           <div>
-            <label className="block text-xs text-gray-500 uppercase font-bold mb-2">
+            <label className="block text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">
               Ícone
             </label>
-            <div className="grid grid-cols-6 gap-2 p-3 bg-brand-dark/30 rounded-lg max-h-32 overflow-y-auto">
+            <div className="grid grid-cols-6 gap-2 p-3 bg-[var(--color-bg-secondary)]/30 rounded-lg max-h-32 overflow-y-auto">
               {ICONES_DISPONIVEIS.map(item => {
                 const IconComponent = item.icon;
                 const isSelected = icone === item.id;
@@ -317,7 +317,7 @@ const NewActivityModal: React.FC<{
 
           {/* Seleção de Cor */}
           <div>
-            <label className="block text-xs text-gray-500 uppercase font-bold mb-2">
+            <label className="block text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">
               <Palette className="w-3 h-3 inline mr-1" />
               Cor
             </label>
@@ -341,14 +341,14 @@ const NewActivityModal: React.FC<{
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 border border-white/20 text-gray-400 font-bold uppercase text-sm rounded-lg hover:bg-white/5 transition-colors"
+              className="flex-1 py-3 border border-[var(--color-border-light)] text-[var(--color-text-secondary)] font-bold uppercase text-sm rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={!nome.trim()}
-              className="flex-1 py-3 bg-brand-yellow text-brand-darker font-bold uppercase text-sm rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-3 bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-bold uppercase text-sm rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Criar
             </button>
@@ -398,27 +398,27 @@ const EditActivityModal: React.FC<{
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-brand-card border border-white/10 rounded-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col theme-transition"
       >
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <h3 className="text-lg font-bold text-white">Editar Atividade</h3>
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border-light)]">
+          <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Editar Atividade</h3>
           <div className="flex items-center gap-2">
             <button
               onClick={onDelete}
-              className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors group"
+              className="p-1.5 hover:bg-[var(--color-error-light)] rounded-lg transition-colors group"
               title="Excluir atividade"
             >
-              <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-400" />
+              <Trash2 className="w-4 h-4 text-[var(--color-text-secondary)] group-hover:text-[var(--color-error)]" />
             </button>
-            <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-              <X className="w-5 h-5 text-gray-400" />
+            <button onClick={onClose} className="p-1 hover:bg-[var(--color-bg-hover)] rounded-lg transition-colors">
+              <X className="w-5 h-5 text-[var(--color-text-secondary)]" />
             </button>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto flex-1">
           {/* Preview */}
-          <div className="flex items-center justify-center p-4 bg-brand-dark/50 rounded-xl">
+          <div className="flex items-center justify-center p-4 bg-[var(--color-bg-secondary)]/50 rounded-xl">
             <div
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg border-2"
               style={{ borderColor: cor, backgroundColor: `${cor}20` }}
@@ -431,7 +431,7 @@ const EditActivityModal: React.FC<{
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 uppercase font-bold mb-2">
+            <label className="block text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">
               Nome da Atividade *
             </label>
             <input
@@ -439,13 +439,13 @@ const EditActivityModal: React.FC<{
               value={nome}
               onChange={e => setNome(e.target.value)}
               placeholder="Ex: Alimentação, Transporte..."
-              className="w-full bg-brand-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-yellow/50"
+              className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/50"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 uppercase font-bold mb-2">
+            <label className="block text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">
               Descrição (opcional)
             </label>
             <input
@@ -453,16 +453,16 @@ const EditActivityModal: React.FC<{
               value={descricao}
               onChange={e => setDescricao(e.target.value)}
               placeholder="Breve descrição da atividade"
-              className="w-full bg-brand-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-yellow/50"
+              className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-4 py-3 text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]/50"
             />
           </div>
 
           {/* Seleção de Ícone */}
           <div>
-            <label className="block text-xs text-gray-500 uppercase font-bold mb-2">
+            <label className="block text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">
               Ícone
             </label>
-            <div className="grid grid-cols-6 gap-2 p-3 bg-brand-dark/30 rounded-lg max-h-32 overflow-y-auto">
+            <div className="grid grid-cols-6 gap-2 p-3 bg-[var(--color-bg-secondary)]/30 rounded-lg max-h-32 overflow-y-auto">
               {ICONES_DISPONIVEIS.map(item => {
                 const IconComponent = item.icon;
                 const isSelected = icone === item.id;
@@ -490,7 +490,7 @@ const EditActivityModal: React.FC<{
 
           {/* Seleção de Cor */}
           <div>
-            <label className="block text-xs text-gray-500 uppercase font-bold mb-2">
+            <label className="block text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">
               <Palette className="w-3 h-3 inline mr-1" />
               Cor
             </label>
@@ -514,14 +514,14 @@ const EditActivityModal: React.FC<{
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 border border-white/20 text-gray-400 font-bold uppercase text-sm rounded-lg hover:bg-white/5 transition-colors"
+              className="flex-1 py-3 border border-[var(--color-border-light)] text-[var(--color-text-secondary)] font-bold uppercase text-sm rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={!nome.trim()}
-              className="flex-1 py-3 bg-brand-yellow text-brand-darker font-bold uppercase text-sm rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-3 bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-bold uppercase text-sm rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Salvar
             </button>
@@ -547,28 +547,28 @@ const DeleteConfirmationModal: React.FC<{
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-brand-card border border-white/10 rounded-xl w-full max-w-sm overflow-hidden"
+        className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl w-full max-w-sm overflow-hidden theme-transition"
       >
         <div className="p-6 text-center">
-          <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Trash2 className="w-6 h-6 text-red-400" />
+          <div className="w-12 h-12 bg-[var(--color-error-light)] rounded-full flex items-center justify-center mx-auto mb-4">
+            <Trash2 className="w-6 h-6 text-[var(--color-error)]" />
           </div>
-          <h3 className="text-lg font-bold text-white mb-2">Excluir Atividade</h3>
-          <p className="text-gray-400 text-sm mb-6">
-            Tem certeza que deseja excluir <span className="text-white font-medium">"{atividadeNome}"</span>?
+          <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-2">Excluir Atividade</h3>
+          <p className="text-[var(--color-text-secondary)] text-sm mb-6">
+            Tem certeza que deseja excluir <span className="text-[var(--color-text-primary)] font-medium">"{atividadeNome}"</span>?
             <br />
-            <span className="text-red-400/80 text-xs">Esta ação não pode ser desfeita.</span>
+            <span className="text-[var(--color-error)]/80 text-xs">Esta ação não pode ser desfeita.</span>
           </p>
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 py-3 border border-white/20 text-gray-400 font-bold uppercase text-sm rounded-lg hover:bg-white/5 transition-colors"
+              className="flex-1 py-3 border border-[var(--color-border-light)] text-[var(--color-text-secondary)] font-bold uppercase text-sm rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
             >
               Cancelar
             </button>
             <button
               onClick={onConfirm}
-              className="flex-1 py-3 bg-red-500 text-white font-bold uppercase text-sm rounded-lg hover:bg-red-600 transition-colors"
+              className="flex-1 py-3 bg-[var(--color-error)] text-white font-bold uppercase text-sm rounded-lg hover:bg-red-600 transition-colors"
             >
               Excluir
             </button>
@@ -601,16 +601,16 @@ const SelectionActiveModal: React.FC<{
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className="bg-brand-card border-2 rounded-xl px-6 py-4 shadow-2xl pointer-events-auto"
+        className="bg-[var(--color-bg-card)] border-2 rounded-xl px-6 py-4 shadow-2xl pointer-events-auto theme-transition"
         style={{ borderColor: atividadeCor }}
       >
-        <p className="text-white text-center">
+        <p className="text-[var(--color-text-primary)] text-center">
           Agora, selecione os horários para{' '}
           <span className="font-bold" style={{ color: atividadeCor }}>
             {atividadeNome}
           </span>
         </p>
-        <p className="text-gray-500 text-xs text-center mt-1">
+        <p className="text-[var(--color-text-muted)] text-xs text-center mt-1">
           Clique nos slots para marcar • Clique novamente para desmarcar
         </p>
       </motion.div>
@@ -1080,35 +1080,35 @@ export const PlanejadorSemanalView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-brand-yellow animate-spin" />
+      <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center theme-transition">
+        <Loader2 className="w-10 h-10 text-[var(--color-accent)] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-brand-darker text-white pb-20">
+    <div className="min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] pb-20 theme-transition">
       <SEOHead title="Planejador Semanal | Ouse Passar" />
 
       <main className="pt-20 px-4 max-w-7xl mx-auto">
         {/* Resumo - Cards no topo */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <div className="bg-brand-card border border-white/5 rounded-lg p-4">
-            <p className="text-xs text-gray-500 uppercase font-bold">Total Semanal</p>
-            <p className="text-2xl font-black text-white">{resumo.totalHoras}h</p>
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-lg p-4 theme-transition">
+            <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">Total Semanal</p>
+            <p className="text-2xl font-black text-[var(--color-text-primary)]">{resumo.totalHoras}h</p>
           </div>
           {Object.entries(resumo.horasPorAtividade).slice(0, 3).map(([atId, data]) => (
-            <div key={atId} className="bg-brand-card border border-white/5 rounded-lg p-4">
+            <div key={atId} className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-lg p-4 theme-transition">
               <p className="text-xs uppercase font-bold" style={{ color: data.cor }}>
                 {data.nome}
               </p>
-              <p className="text-2xl font-black text-white">{data.horas}h</p>
+              <p className="text-2xl font-black text-[var(--color-text-primary)]">{data.horas}h</p>
             </div>
           ))}
         </div>
 
         {/* Barra de Atividades - Abaixo dos cards */}
-        <div ref={buttonsContainerRef} className={`sticky top-16 z-40 bg-brand-darker/95 backdrop-blur-md py-4 border-b border-white/5 -mx-4 px-4 mb-4 transition-transform ${isShaking ? 'animate-shake' : ''}`}>
+        <div ref={buttonsContainerRef} className={`sticky top-16 z-40 bg-[var(--color-bg-primary)]/95 backdrop-blur-md py-4 border-b border-[var(--color-border-light)] -mx-4 px-4 mb-4 transition-transform theme-transition ${isShaking ? 'animate-shake' : ''}`}>
           <div className="flex flex-wrap items-center gap-2 justify-center">
             {/* Botão Borracha - Fixo, sempre visível */}
             <Tooltip content="Remover marcações">
@@ -1150,7 +1150,7 @@ export const PlanejadorSemanalView: React.FC = () => {
 
             <button
               onClick={() => setShowNewModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed border-white/20 text-gray-500 hover:border-white/40 hover:text-gray-300 transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed border-[var(--color-border-light)] text-[var(--color-text-muted)] hover:border-[var(--color-border)] hover:text-[var(--color-text-secondary)] transition-all"
             >
               <Plus className="w-4 h-4" />
               <span className="font-bold text-sm uppercase tracking-wide">Novo</span>
@@ -1158,10 +1158,10 @@ export const PlanejadorSemanalView: React.FC = () => {
           </div>
 
           {(selectedActivity || eraserMode) && (
-            <p className="text-xs text-gray-500 mt-2 text-center">
+            <p className="text-xs text-[var(--color-text-muted)] mt-2 text-center">
               {eraserMode ? (
                 <>
-                  <span className="font-bold text-white">Modo Borracha</span>
+                  <span className="font-bold text-[var(--color-text-primary)]">Modo Borracha</span>
                   {' '}• Clique ou arraste para remover marcações
                 </>
               ) : (
@@ -1178,20 +1178,20 @@ export const PlanejadorSemanalView: React.FC = () => {
         </div>
 
         {/* Calendário */}
-        <div className="bg-brand-card border border-white/5 rounded-xl overflow-hidden">
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl overflow-hidden theme-transition">
           {/* Header do calendário - com padding-right compensando o scrollbar */}
-          <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-white/10 pr-[9px]">
-            <div className="p-2 bg-brand-dark/50 border-r border-white/5">
-              <span className="text-[10px] text-gray-500 font-bold uppercase">Hora</span>
+          <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-[var(--color-border-light)] pr-[9px]">
+            <div className="p-2 bg-[var(--color-bg-secondary)]/50 border-r border-[var(--color-border-light)]">
+              <span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase">Hora</span>
             </div>
             {DIAS_SEMANA.map((dia, index) => {
               const isToday = currentDay === index;
               return (
                 <div
                   key={dia}
-                  className={`p-2 text-center border-r border-white/5 last:border-r-0 ${isToday ? 'bg-black/60' : 'bg-brand-dark/50'}`}
+                  className={`p-2 text-center border-r border-[var(--color-border-light)] last:border-r-0 ${isToday ? 'bg-black/40' : 'bg-[var(--color-bg-secondary)]/50'}`}
                 >
-                  <span className={`text-[10px] font-bold uppercase ${isToday ? 'text-brand-yellow' : 'text-gray-400'}`}>
+                  <span className={`text-[10px] font-bold uppercase ${isToday ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-secondary)]'}`}>
                     <span className="md:hidden">{dia}</span>
                     <span className="hidden md:inline">{DIAS_SEMANA_FULL[index]}</span>
                   </span>
@@ -1210,20 +1210,20 @@ export const PlanejadorSemanalView: React.FC = () => {
                 key={grupo.inicio}
                 className={`grid grid-cols-[60px_repeat(7,1fr)] ${
                   isCurrentTime
-                    ? 'border-y-2 border-brand-yellow'
+                    ? 'border-y-2 border-[var(--color-accent)]'
                     : isFullHour(grupo.inicio)
-                      ? 'border-t-2 border-white/20'
-                      : 'border-t border-white/10'
+                      ? 'border-t-2 border-[var(--color-border)]'
+                      : 'border-t border-[var(--color-border-light)]'
                 }`}
               >
                 {/* Coluna de hora - Mostra :00 e :30 */}
                 <div className={`border-r flex items-center justify-center ${
                   isCurrentTime
-                    ? 'bg-brand-yellow/10 border-brand-yellow/30'
-                    : 'bg-brand-dark/20 border-white/5'
+                    ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)]/30'
+                    : 'bg-[var(--color-bg-secondary)]/20 border-[var(--color-border-light)]'
                 }`}>
                   <span className={`text-[10px] font-mono font-bold ${
-                    isCurrentTime ? 'text-brand-yellow' : 'text-gray-500'
+                    isCurrentTime ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'
                   }`}>{grupo.inicio}</span>
                 </div>
 
@@ -1233,7 +1233,7 @@ export const PlanejadorSemanalView: React.FC = () => {
                   return (
                     <div
                       key={colIdx}
-                      className={`flex flex-col border-r border-white/5 last:border-r-0 ${colIdx === currentDay ? 'bg-black/40' : ''}`}
+                      className={`flex flex-col border-r border-[var(--color-border-light)] last:border-r-0 ${colIdx === currentDay ? 'bg-black/30' : ''}`}
                     >
                       {grupo.slots.map((hora, slotIdx) => {
                         const slotColor = getSlotColor(dbDayIndex, hora);
@@ -1246,10 +1246,10 @@ export const PlanejadorSemanalView: React.FC = () => {
                         // Determinar classes do slot
                         const slotClasses = [
                           'h-5 relative select-none',
-                          slotIdx !== 0 && 'border-t border-white/5',
+                          slotIdx !== 0 && 'border-t border-[var(--color-border-light)]',
                           isSelected && `cursor-pointer slot-hover-${selectedActivity.id}`,
                           eraserMode && marked && 'cursor-pointer eraser-mode-slot',
-                          !isSelected && !eraserMode && 'cursor-default transition-all duration-150 active:bg-red-500/10',
+                          !isSelected && !eraserMode && 'cursor-default transition-all duration-150 active:bg-[var(--color-error)]/10',
                         ].filter(Boolean).join(' ');
 
                         const slotElement = (
@@ -1299,7 +1299,7 @@ export const PlanejadorSemanalView: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="fixed z-50 pointer-events-none bg-brand-yellow text-brand-darker font-bold text-xs px-3 py-1.5 rounded shadow-lg uppercase"
+                className="fixed z-50 pointer-events-none bg-[var(--color-accent)] text-[var(--color-text-inverse)] font-bold text-xs px-3 py-1.5 rounded shadow-lg uppercase"
                 style={{
                   left: interactionTooltip.x,
                   top: interactionTooltip.y - 40,
@@ -1307,7 +1307,7 @@ export const PlanejadorSemanalView: React.FC = () => {
                 }}
               >
                 Selecione uma atividade
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-brand-yellow" />
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--color-accent)]" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -1323,8 +1323,8 @@ export const PlanejadorSemanalView: React.FC = () => {
                   className="w-4 h-4 rounded"
                   style={{ backgroundColor: atividade.cor }}
                 />
-                <span className="text-sm text-gray-400">
-                  {atividade.nome}: <span className="text-white font-bold">{horas}h</span>
+                <span className="text-sm text-[var(--color-text-secondary)]">
+                  {atividade.nome}: <span className="text-[var(--color-text-primary)] font-bold">{horas}h</span>
                 </span>
               </div>
             );

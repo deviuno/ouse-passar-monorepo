@@ -69,10 +69,10 @@ function renderMarkdown(text: string): React.ReactNode {
         const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
         return parts.map((part, i) => {
             if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={i} className="font-semibold text-[#FFB800]">{part.slice(2, -2)}</strong>;
+                return <strong key={i} className="font-semibold text-[var(--color-brand)]">{part.slice(2, -2)}</strong>;
             }
             if (part.startsWith('`') && part.endsWith('`')) {
-                return <code key={i} className="bg-[#3A3A3A] px-1 rounded text-[#E0E0E0]">{part.slice(1, -1)}</code>;
+                return <code key={i} className="bg-[var(--color-bg-elevated)] px-1 rounded text-[var(--color-text-main)] border border-[var(--color-border)]">{part.slice(1, -1)}</code>;
             }
             return part;
         });
@@ -85,13 +85,13 @@ function renderMarkdown(text: string): React.ReactNode {
         // Headings
         if (trimmed.startsWith('### ')) {
             flushList();
-            elements.push(<h4 key={lineKey} className="font-bold text-[#FFB800] mt-3 mb-1 text-sm">{renderInline(trimmed.slice(4))}</h4>);
+            elements.push(<h4 key={lineKey} className="font-bold text-[var(--color-brand)] mt-3 mb-1 text-sm">{renderInline(trimmed.slice(4))}</h4>);
         } else if (trimmed.startsWith('## ')) {
             flushList();
-            elements.push(<h3 key={lineKey} className="font-bold text-[#FFB800] mt-3 mb-1">{renderInline(trimmed.slice(3))}</h3>);
+            elements.push(<h3 key={lineKey} className="font-bold text-[var(--color-brand)] mt-3 mb-1">{renderInline(trimmed.slice(3))}</h3>);
         } else if (trimmed.startsWith('# ')) {
             flushList();
-            elements.push(<h2 key={lineKey} className="font-bold text-[#FFB800] mt-3 mb-2 text-lg">{renderInline(trimmed.slice(2))}</h2>);
+            elements.push(<h2 key={lineKey} className="font-bold text-[var(--color-brand)] mt-3 mb-2 text-lg">{renderInline(trimmed.slice(2))}</h2>);
         }
         // Unordered list
         else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
@@ -108,7 +108,7 @@ function renderMarkdown(text: string): React.ReactNode {
         // Horizontal rule
         else if (trimmed === '---' || trimmed === '***') {
             flushList();
-            elements.push(<hr key={lineKey} className="border-[#3A3A3A] my-3" />);
+            elements.push(<hr key={lineKey} className="border-[var(--color-border)] my-3" />);
         }
         // Empty line (paragraph break)
         else if (trimmed === '') {
@@ -671,7 +671,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
             icon: <Video size={18} />,
             label: 'Gerar Vídeo',
             description: 'Em breve: cria um vídeo explicativo',
-            action: () => {},
+            action: () => { },
             disabled: true,
         },
     ];
@@ -755,15 +755,15 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 100, opacity: 0 }}
                         onClick={() => setIsExpanded(true)}
-                        className="w-full max-w-[850px] bg-[#1A1A1A] border border-[#3A3A3A] rounded-t-xl rounded-b-xl shadow-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-[#252525] transition-colors pointer-events-auto"
+                        className="w-full max-w-[850px] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-t-xl rounded-b-xl shadow-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-[var(--color-bg-elevated)] transition-colors pointer-events-auto"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="bg-[#FFB800] p-1.5 rounded-lg">
+                            <div className="bg-[var(--color-brand)] p-1.5 rounded-lg">
                                 <Zap size={20} className="text-black fill-black" />
                             </div>
-                            <span className="font-bold text-white">Seu Mentor IA</span>
+                            <span className="font-bold text-[var(--color-text-main)]">Seu Mentor IA</span>
                         </div>
-                        <div className="flex items-center gap-2 text-[#A0A0A0] text-sm">
+                        <div className="flex items-center gap-2 text-[var(--color-text-sec)] text-sm">
                             <span>Tirar duvidas</span>
                             <MessageSquare size={18} />
                         </div>
@@ -776,7 +776,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 100, opacity: 0 }}
                         style={{ height: isCollapsed ? COLLAPSED_HEIGHT : chatHeight }}
-                        className="w-full max-w-[900px] bg-[#1A1A1A] border border-[#3A3A3A] rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-200"
+                        className="w-full max-w-[900px] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-200"
                     >
                         {/* Header with Close Button (Mobile) / Resize Handle (Desktop) */}
                         {!isCollapsed && (
@@ -785,14 +785,14 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                 onTouchStart={handleResizeStart}
                                 className={`
                                     flex items-center justify-center h-6 cursor-ns-resize
-                                    bg-[#1A1A1A] rounded-t-2xl
-                                    hover:bg-[#252525] transition-colors group relative
-                                    ${isResizing ? 'bg-[#252525]' : ''}
+                                    bg-[var(--color-bg-card)] rounded-t-2xl
+                                    hover:bg-[var(--color-bg-elevated)] transition-colors group relative
+                                    ${isResizing ? 'bg-[var(--color-bg-elevated)]' : ''}
                                 `}
                             >
                                 <GripHorizontal
                                     size={20}
-                                    className={`text-[#4A4A4A] group-hover:text-[#6E6E6E] transition-colors ${isResizing ? 'text-[#FFB800]' : ''}`}
+                                    className={`text-[var(--color-text-muted)] group-hover:text-[var(--color-text-sec)] transition-colors ${isResizing ? 'text-[var(--color-brand)]' : ''}`}
                                 />
                                 {/* Close button - Mobile only */}
                                 <button
@@ -810,20 +810,20 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
 
                         {/* Messages - only show when not collapsed */}
                         {!isCollapsed && (
-                            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-[#121212]">
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-[var(--color-bg-main)]">
                                 {messages.map((msg, idx) => (
                                     <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         <div
                                             className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                                                ? 'bg-[#FFB800] text-black font-medium rounded-tr-none'
-                                                : 'bg-[#252525] text-[#E0E0E0] rounded-tl-none border border-[#3A3A3A]'
+                                                ? 'bg-[var(--color-brand)] text-black font-medium rounded-tr-none'
+                                                : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] rounded-tl-none border border-[var(--color-border)]'
                                                 }`}
                                         >
                                             {msg.role === 'model' ? renderMarkdown(msg.text) : msg.text}
 
                                             {/* Audio Player inline - shows when message has audio */}
                                             {msg.audio && (
-                                                <div className="mt-3 pt-3 border-t border-[#3A3A3A]">
+                                                <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
                                                     <AudioPlayer
                                                         src={msg.audio.audioUrl}
                                                         type={msg.audio.type}
@@ -835,11 +835,11 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                 ))}
                                 {isLoading && (
                                     <div className="flex justify-start">
-                                        <div className="bg-[#252525] p-3 rounded-2xl rounded-tl-none border border-[#3A3A3A]">
+                                        <div className="bg-[var(--color-bg-elevated)] p-3 rounded-2xl rounded-tl-none border border-[var(--color-border)]">
                                             <div className="flex space-x-1">
-                                                <div className="w-1.5 h-1.5 bg-[#A0A0A0] rounded-full animate-bounce"></div>
-                                                <div className="w-1.5 h-1.5 bg-[#A0A0A0] rounded-full animate-bounce delay-75"></div>
-                                                <div className="w-1.5 h-1.5 bg-[#A0A0A0] rounded-full animate-bounce delay-150"></div>
+                                                <div className="w-1.5 h-1.5 bg-[var(--color-text-muted)] rounded-full animate-bounce"></div>
+                                                <div className="w-1.5 h-1.5 bg-[var(--color-text-muted)] rounded-full animate-bounce delay-75"></div>
+                                                <div className="w-1.5 h-1.5 bg-[var(--color-text-muted)] rounded-full animate-bounce delay-150"></div>
                                             </div>
                                         </div>
                                     </div>
@@ -850,7 +850,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
 
                         {/* Footer Input */}
                         <div
-                            className={`p-4 bg-[#1A1A1A] ${isCollapsed ? 'rounded-t-2xl' : 'border-t border-[#3A3A3A]'}`}
+                            className={`p-4 bg-[var(--color-bg-card)] ${isCollapsed ? 'rounded-t-2xl' : 'border-t border-[var(--color-border)]'}`}
                             onClick={() => isCollapsed && setIsCollapsed(false)}
                         >
                             <div className="relative" ref={shortcutsRef}>
@@ -862,7 +862,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
                                             transition={{ duration: 0.15 }}
-                                            className="absolute bottom-full left-0 mb-2 w-72 bg-[#1A1A1A] border border-[#3A3A3A] rounded-xl shadow-2xl overflow-hidden z-50"
+                                            className="absolute bottom-full left-0 mb-2 w-72 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl shadow-2xl overflow-hidden z-50"
                                         >
                                             <div className="p-2">
                                                 <p className="text-[#6E6E6E] text-xs font-medium px-2 py-1.5">Atalhos de IA</p>
@@ -871,18 +871,17 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                                         key={option.id}
                                                         onClick={(e) => option.action(e)}
                                                         disabled={option.disabled || isGeneratingAudio}
-                                                        className={`w-full flex items-start gap-3 p-2.5 rounded-lg transition-colors text-left ${
-                                                            option.disabled
+                                                        className={`w-full flex items-start gap-3 p-2.5 rounded-lg transition-colors text-left ${option.disabled
                                                                 ? 'opacity-50 cursor-not-allowed'
-                                                                : 'hover:bg-[#252525]'
-                                                        }`}
+                                                                : 'hover:bg-[var(--color-bg-elevated)]'
+                                                            }`}
                                                     >
-                                                        <div className={`p-1.5 rounded-lg ${option.disabled ? 'bg-[#3A3A3A]' : 'bg-[#FFB800]/10 text-[#FFB800]'}`}>
+                                                        <div className={`p-1.5 rounded-lg ${option.disabled ? 'bg-[var(--color-bg-elevated)]' : 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]'}`}>
                                                             {option.icon}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-white text-sm font-medium">{option.label}</p>
-                                                            <p className="text-[#6E6E6E] text-xs truncate">{option.description}</p>
+                                                            <p className="text-[var(--color-text-main)] text-sm font-medium">{option.label}</p>
+                                                            <p className="text-[var(--color-text-muted)] text-xs truncate">{option.description}</p>
                                                         </div>
                                                     </button>
                                                 ))}
@@ -898,11 +897,10 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                         if (!isCollapsed) setShowShortcuts(!showShortcuts);
                                     }}
                                     disabled={isGeneratingAudio || isCollapsed}
-                                    className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${
-                                        showShortcuts
-                                            ? 'bg-[#FFB800] text-black'
-                                            : 'text-[#A0A0A0] hover:text-[#FFB800] hover:bg-[#3A3A3A]'
-                                    } ${(isGeneratingAudio || isCollapsed) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${showShortcuts
+                                            ? 'bg-[var(--color-brand)] text-black'
+                                            : 'text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-bg-elevated)]'
+                                        } ${(isGeneratingAudio || isCollapsed) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     title="Atalhos de IA"
                                 >
                                     {isGeneratingAudio ? (
@@ -920,7 +918,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                     onKeyDown={(e) => e.key === 'Enter' && handleSend(e)}
                                     onFocus={() => isCollapsed && setIsCollapsed(false)}
                                     placeholder={isCollapsed ? "Clique para expandir o chat..." : "Digite sua duvida..."}
-                                    className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl pl-12 pr-24 py-3 text-white placeholder-[#6E6E6E] focus:outline-none focus:border-[#FFB800] transition-colors"
+                                    className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl pl-12 pr-24 py-3 text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand)] transition-colors"
                                 />
                                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                                     <button
@@ -930,7 +928,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                         }}
                                         className={`p-2 rounded-lg transition-colors ${isRecording
                                             ? 'text-[#FF4444] bg-[#FF4444]/10 animate-pulse'
-                                            : 'text-[#A0A0A0] hover:text-[#FFB800] hover:bg-[#3A3A3A]'
+                                            : 'text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-bg-elevated)]'
                                             }`}
                                         title="Gravar audio"
                                     >
@@ -940,7 +938,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                         data-send-button
                                         onClick={(e) => handleSend(e)}
                                         disabled={!inputValue.trim() || isLoading}
-                                        className="p-2 bg-[#FFB800] hover:bg-[#FFC933] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        className="p-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
                                         <Send size={18} />
                                     </button>

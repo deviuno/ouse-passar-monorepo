@@ -47,14 +47,14 @@ export const QuestoesHubPage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#121212] px-4 py-8 md:py-12">
+    <div className="min-h-screen bg-[var(--color-bg-main)] px-4 py-8 md:py-12 theme-transition">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
-            Ouse <span className="text-[#FFB800]">Questões</span>
+          <h1 className="text-3xl md:text-4xl font-bold text-[var(--color-text-main)] mb-3">
+            Ouse <span className="text-[var(--color-brand)]">Questões</span>
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-[var(--color-text-sec)] text-lg">
             Escolha como deseja praticar hoje
           </p>
         </div>
@@ -71,9 +71,9 @@ export const QuestoesHubPage: React.FC = () => {
               className={`
                 relative overflow-hidden rounded-2xl cursor-pointer
                 bg-gradient-to-br ${card.bgGradient}
-                border border-[#2A2A2A] hover:border-[#3A3A3A]
+                border border-[var(--color-border)] hover:border-[var(--color-bg-elevated)]
                 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl
-                group
+                group theme-transition
               `}
             >
               {/* Background Glow */}
@@ -92,12 +92,12 @@ export const QuestoesHubPage: React.FC = () => {
                 </div>
 
                 {/* Title */}
-                <h2 className="text-xl font-bold text-white mb-2 group-hover:text-[#FFB800] transition-colors">
+                <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2 group-hover:text-[var(--color-brand)] transition-colors">
                   {card.title}
                 </h2>
 
                 {/* Description */}
-                <p className="text-gray-400 text-sm leading-relaxed mb-4">
+                <p className="text-[var(--color-text-sec)] text-sm leading-relaxed mb-4">
                   {card.description}
                 </p>
 
@@ -116,8 +116,8 @@ export const QuestoesHubPage: React.FC = () => {
 
         {/* Stats or Tips Section (optional future enhancement) */}
         <div className="mt-12 text-center">
-          <p className="text-gray-500 text-sm">
-            Dica: Use as <span className="text-[#FFB800]">Trilhas</span> para seguir o edital do seu concurso
+          <p className="text-[var(--color-text-muted)] text-sm">
+            Dica: Use as <span className="text-[var(--color-brand)]">Trilhas</span> para seguir o edital do seu concurso
           </p>
         </div>
       </div>

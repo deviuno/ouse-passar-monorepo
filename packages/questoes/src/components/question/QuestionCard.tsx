@@ -291,8 +291,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
     // Basic Selection Style
     if (!isSubmitted) {
       return selectedAlt === letter
-        ? `border-[#FFB800] bg-[#FFB800] bg-opacity-20 text-white`
-        : `border-[#6E6E6E] hover:bg-[#2A2A2A]`;
+        ? `border-[var(--color-brand)] bg-[var(--color-brand)] bg-opacity-20 text-[var(--color-text-main)]`
+        : `border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-main)]`;
     }
 
     // Feedback Style (Only for Zen/Reta Final)
@@ -416,7 +416,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
 
           {/* Countdown Timer (Only for Simulado Mode) */}
           {studyMode === 'hard' && (
-            <div className="flex items-center bg-[#1A1A1A] border border-red-900/50 rounded-lg px-2 py-1 ml-2 shadow-[0_0_10px_rgba(220,38,38,0.2)]">
+            <div className="flex items-center bg-[var(--color-bg-card)] border border-red-900/50 rounded-lg px-2 py-1 ml-2 shadow-[0_0_10px_rgba(220,38,38,0.2)]">
               <Timer size={14} className="text-red-500 mr-1 animate-pulse" />
               <span className="font-mono font-bold text-red-500 text-sm">
                 {formatTime(timeLeft)}
@@ -427,22 +427,22 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       </div>
 
       {/* Enunciado */}
-      <div className="text-sm md:text-base leading-relaxed mb-4 md:mb-6 font-medium text-gray-100 prose prose-invert prose-sm max-w-none">
+      <div className="text-sm md:text-base leading-relaxed mb-4 md:mb-6 font-medium text-[var(--color-text-main)] prose prose-sm max-w-none [&_strong]:text-[var(--color-text-main)] [&_p]:text-[var(--color-text-main)] [&_li]:text-[var(--color-text-main)]">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
-            p: ({ children }) => <p className="mb-3 leading-relaxed">{children}</p>,
-            strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+            p: ({ children }) => <p className="mb-3 leading-relaxed text-[var(--color-text-main)]">{children}</p>,
+            strong: ({ children }) => <strong className="font-bold text-[var(--color-text-main)]">{children}</strong>,
             img: ({ src, alt }) => (
               <img
                 src={getOptimizedImageUrl(src, 800, 85)}
                 alt={alt || 'Imagem da questão'}
-                className="max-w-full h-auto rounded-lg my-3 border border-gray-700"
+                className="max-w-full h-auto rounded-lg my-3 border border-[var(--color-border)]"
                 loading="lazy"
               />
             ),
             a: ({ href, children }) => (
-              <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#FFB800] underline hover:text-[#FFC933]">
+              <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand)] underline hover:text-[var(--color-brand-light)]">
                 {children}
               </a>
             ),
@@ -481,7 +481,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             <button
               onClick={(e) => handleSubmit(e)}
               disabled={!selectedAlt}
-              className={`w-full py-4 rounded-full font-bold text-black uppercase tracking-wide transition-all touch-feedback ${selectedAlt ? 'bg-[#FFB800] shadow-[0_0_15px_rgba(255,184,0,0.4)]' : 'bg-gray-700 cursor-not-allowed opacity-50'
+              className={`w-full py-4 rounded-full font-bold uppercase tracking-wide transition-all touch-feedback ${selectedAlt ? 'bg-[#FFB800] text-black shadow-[0_0_15px_rgba(255,184,0,0.4)]' : 'bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed opacity-70'
                 }`}
             >
               {studyMode === 'hard'
@@ -528,8 +528,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                   onClick={onPrevious}
                   disabled={!onPrevious}
                   className={`w-full flex items-center justify-center py-3 rounded-xl border-2 font-bold transition-all touch-feedback ${onPrevious
-                      ? 'border-gray-600 text-white hover:bg-gray-800'
-                      : 'border-transparent text-gray-600 cursor-not-allowed bg-gray-900/50'
+                    ? 'border-gray-600 text-white hover:bg-gray-800'
+                    : 'border-transparent text-gray-600 cursor-not-allowed bg-gray-900/50'
                     }`}
                 >
                   <ChevronLeft size={20} className="mr-1" /> Anterior
@@ -579,7 +579,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                 </button>
               )}
 
-              <div className="text-sm text-gray-300 leading-relaxed">
+              <div className="text-sm text-[var(--color-text-main)] leading-relaxed">
                 {loadingExplanation ? (
                   <div className="space-y-2">
                     <div className="h-4 bg-gray-700 rounded animate-pulse w-3/4"></div>
@@ -594,26 +594,26 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        h2: ({ children }) => <h2 className="text-lg font-bold text-[#FFB800] mt-4 mb-2">{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-base font-bold text-white mt-3 mb-1">{children}</h3>,
-                        h4: ({ children }) => <h4 className="text-sm font-semibold text-gray-200 mt-2 mb-1">{children}</h4>,
-                        p: ({ children }) => <p className="mb-3 leading-relaxed">{children}</p>,
-                        strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
-                        ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
-                        ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
-                        li: ({ children }) => <li className="text-gray-300">{children}</li>,
-                        blockquote: ({ children }) => <blockquote className="border-l-4 border-[#FFB800] pl-4 my-3 italic text-gray-400">{children}</blockquote>,
-                        code: ({ children }) => <code className="bg-gray-800 px-1.5 py-0.5 rounded text-[#FFB800] text-sm">{children}</code>,
+                        h2: ({ children }) => <h2 className="text-lg font-bold text-[var(--color-brand)] mt-4 mb-2">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-base font-bold text-[var(--color-text-main)] mt-3 mb-1">{children}</h3>,
+                        h4: ({ children }) => <h4 className="text-sm font-semibold text-[var(--color-text-sec)] mt-2 mb-1">{children}</h4>,
+                        p: ({ children }) => <p className="mb-3 leading-relaxed text-[var(--color-text-main)]">{children}</p>,
+                        strong: ({ children }) => <strong className="font-bold text-[var(--color-text-main)]">{children}</strong>,
+                        ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1 text-[var(--color-text-main)]">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1 text-[var(--color-text-main)]">{children}</ol>,
+                        li: ({ children }) => <li className="text-[var(--color-text-main)]">{children}</li>,
+                        blockquote: ({ children }) => <blockquote className="border-l-4 border-[var(--color-brand)] pl-4 my-3 italic text-[var(--color-text-muted)]">{children}</blockquote>,
+                        code: ({ children }) => <code className="bg-[var(--color-bg-elevated)] px-1.5 py-0.5 rounded text-[var(--color-brand)] text-sm">{children}</code>,
                         img: ({ src, alt }) => (
                           <img
                             src={getOptimizedImageUrl(src, 800, 85)}
                             alt={alt || 'Imagem da questão'}
-                            className="max-w-full h-auto rounded-lg my-3 border border-gray-700"
+                            className="max-w-full h-auto rounded-lg my-3 border border-[var(--color-border)]"
                             loading="lazy"
                           />
                         ),
                         a: ({ href, children }) => (
-                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#FFB800] underline hover:text-[#FFC933]">
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand)] underline hover:text-[var(--color-brand-light)]">
                             {children}
                           </a>
                         ),
@@ -649,7 +649,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
               {/* Botão Próxima Questão - estilo primário */}
               <button
                 onClick={onNext}
-                className="flex-1 py-3 bg-[#FFB800] text-black rounded-full font-bold hover:bg-[#FFC933] transition-colors"
+                className="flex-1 py-3 bg-[var(--color-brand)] text-black rounded-full font-bold hover:bg-[var(--color-brand-light)] transition-colors"
               >
                 {isLastQuestion ? 'Finalizar' : 'Próxima Questão'}
               </button>
@@ -669,7 +669,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       {/* Stats Modal Popup */}
       {showStatsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-[#1A1A1A] w-full max-w-xs rounded-2xl border border-gray-700 p-6 shadow-2xl">
+          <div className="bg-[var(--color-bg-card)] w-full max-w-xs rounded-2xl border border-[var(--color-border)] p-6 shadow-2xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-white flex items-center">
                 <BarChart2 size={20} className="mr-2 text-[#FFB800]" />
@@ -730,7 +730,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       {/* Pegadinha Explanation Modal */}
       {showPegadinhaModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-[#1A1A1A] w-full max-w-sm rounded-2xl border border-orange-500 p-0 shadow-2xl overflow-hidden">
+          <div className="bg-[var(--color-bg-card)] w-full max-w-sm rounded-2xl border border-orange-500 p-0 shadow-2xl overflow-hidden">
             <div className="bg-orange-500/10 p-4 border-b border-orange-500/30 flex justify-between items-center">
               <h3 className="font-bold text-orange-400 flex items-center">
                 <AlertTriangle size={20} className="mr-2" />
@@ -740,7 +740,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             </div>
 
             <div className="p-6">
-              <p className="text-gray-300 leading-relaxed text-sm">
+              <p className="text-[var(--color-text-main)] leading-relaxed text-sm">
                 {question.explicacaoPegadinha || "Esta questão contém elementos projetados para induzir o candidato ao erro comum. Fique atento aos detalhes do enunciado!"}
               </p>
 

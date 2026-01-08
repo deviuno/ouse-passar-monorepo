@@ -111,7 +111,7 @@ const MissaoCard: React.FC<MissaoCardProps> = ({
         onClick={onClick}
       >
         {/* Header da Célula */}
-        <div className={`bg-brand-darker border-b ${borderColor} py-1 px-2 text-center flex items-center justify-center gap-2`}>
+        <div className={`bg-[var(--color-bg-secondary)] border-b ${borderColor} py-1 px-2 text-center flex items-center justify-center gap-2`}>
           {isCompleted && (
             <Check className="w-4 h-4 text-green-500" />
           )}
@@ -121,9 +121,9 @@ const MissaoCard: React.FC<MissaoCardProps> = ({
         </div>
 
         {/* Corpo da Célula */}
-        <div className={`flex-1 bg-brand-card flex items-center justify-center p-4 text-center ${isRevisao ? 'bg-gradient-to-br from-brand-card to-red-900/20' : ''}`}>
+        <div className={`flex-1 bg-[var(--color-bg-card)] flex items-center justify-center p-4 text-center ${isRevisao ? 'bg-gradient-to-br from-[var(--color-bg-card)] to-red-900/20' : ''}`}>
           {missao.tema && (
-            <p className={`font-black uppercase tracking-tight ${isRevisao ? 'text-red-500 text-xl' : 'text-white text-lg'}`}>
+            <p className={`font-black uppercase tracking-tight ${isRevisao ? 'text-red-500 text-xl' : 'text-[var(--color-text-primary)] text-lg'}`}>
               {missao.tema}
             </p>
           )}
@@ -140,11 +140,11 @@ const MissaoCard: React.FC<MissaoCardProps> = ({
   // Layout Padrão (Matéria/Assunto)
   return (
     <div
-      className={`h-full flex flex-col border ${borderColor} bg-brand-card ${compact ? 'text-xs' : ''} ${hoverClasses} ${completedHoverClasses}`}
+      className={`h-full flex flex-col border ${borderColor} bg-[var(--color-bg-card)] ${compact ? 'text-xs' : ''} ${hoverClasses} ${completedHoverClasses}`}
       onClick={onClick}
     >
       {/* Header da Célula */}
-      <div className={`bg-black border-b ${borderColor} py-1.5 px-2 text-center relative overflow-hidden flex items-center justify-center gap-2`}>
+      <div className={`bg-[var(--color-bg-tertiary)] border-b ${borderColor} py-1.5 px-2 text-center relative overflow-hidden flex items-center justify-center gap-2`}>
         {isCompleted && (
           <Check className="w-4 h-4 text-green-500" />
         )}
@@ -157,37 +157,37 @@ const MissaoCard: React.FC<MissaoCardProps> = ({
       <div className={`flex-1 p-4 flex flex-col gap-3 ${compact ? 'p-2 gap-1' : ''}`}>
 
         {/* Matéria */}
-        <div className="border-b border-white/5 pb-2">
-          <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 opacity-80 ${isCompleted ? 'text-green-500' : 'text-brand-yellow'}`}>Matéria</p>
-          <p className="text-white font-bold leading-tight">{missao.materia}</p>
+        <div className="border-b border-[var(--color-border-light)] pb-2">
+          <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 opacity-80 ${isCompleted ? 'text-green-500' : 'text-[var(--color-accent)]'}`}>Matéria</p>
+          <p className="text-[var(--color-text-primary)] font-bold leading-tight">{missao.materia}</p>
         </div>
 
         {/* Tópicos do Edital / Assunto */}
         <div className="flex-1">
-          <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 opacity-80 ${isCompleted ? 'text-green-500' : 'text-brand-yellow'}`}>
+          <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 opacity-80 ${isCompleted ? 'text-green-500' : 'text-[var(--color-accent)]'}`}>
             {missao.edital_topicos && missao.edital_topicos.length > 0 ? 'Tópicos do Edital' : 'Assunto'}
           </p>
           {missao.edital_topicos && missao.edital_topicos.length > 0 ? (
-            <ul className="text-gray-300 text-sm leading-snug font-medium list-disc list-inside space-y-0.5">
+            <ul className="text-[var(--color-text-secondary)] text-sm leading-snug font-medium list-disc list-inside space-y-0.5">
               {missao.edital_topicos.map((topico, idx) => (
-                <li key={idx} className="text-gray-300">{topico}</li>
+                <li key={idx} className="text-[var(--color-text-secondary)]">{topico}</li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-300 text-sm leading-snug font-medium">{missao.assunto}</p>
+            <p className="text-[var(--color-text-secondary)] text-sm leading-snug font-medium">{missao.assunto}</p>
           )}
         </div>
 
         {/* Instruções */}
         {!compact && (
-          <div className="mt-auto pt-2 border-t border-white/5 bg-black/20 -mx-4 -mb-4 p-3">
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Instruções</p>
-            <p className="text-gray-400 text-xs italic leading-relaxed">{missao.instrucoes}</p>
+          <div className="mt-auto pt-2 border-t border-[var(--color-border-light)] bg-black/5 -mx-4 -mb-4 p-3 theme-bg-tertiary">
+            <p className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-widest mb-1">Instruções</p>
+            <p className="text-[var(--color-text-secondary)] text-xs italic leading-relaxed">{missao.instrucoes}</p>
 
             {missao.extra && missao.extra.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-white/5">
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Extra</p>
-                <ul className="text-gray-400 text-xs list-disc list-inside">
+              <div className="mt-2 pt-2 border-t border-[var(--color-border-light)]">
+                <p className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-widest mb-1">Extra</p>
+                <ul className="text-[var(--color-text-secondary)] text-xs list-disc list-inside">
                   {missao.extra.map((item, idx) => (
                     <li key={idx}>{item}</li>
                   ))}
@@ -228,14 +228,14 @@ const RodadaSection: React.FC<RodadaSectionProps> = ({
       <div className="mb-16 relative print:hidden">
         {/* Header da Rodada */}
         <div className="flex flex-col items-center justify-center mb-8 relative">
-          <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-yellow/50 to-transparent top-1/2 -z-10"></div>
-          <div className="bg-brand-darker px-8 py-2 border border-brand-yellow/30 rounded-full shadow-[0_0_30px_rgba(255,184,0,0.15)]">
-            <h3 className="text-3xl font-black text-brand-yellow uppercase tracking-tighter font-display">
+          <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--color-accent)]/50 to-transparent top-1/2 -z-10"></div>
+          <div className="bg-[var(--color-bg-secondary)] px-8 py-2 border border-[var(--color-accent)]/30 rounded-full shadow-[0_0_30px_rgba(255,184,0,0.15)]">
+            <h3 className="text-3xl font-black text-[var(--color-accent)] uppercase tracking-tighter font-display">
               {rodada.numero}ª RODADA
             </h3>
           </div>
           {rodada.titulo.replace(/^\d+a RODADA /, '') && (
-            <p className="mt-2 text-gray-500 text-sm uppercase tracking-widest font-bold">
+            <p className="mt-2 text-[var(--color-text-muted)] text-sm uppercase tracking-widest font-bold">
               {rodada.titulo.replace(/^\d+a RODADA /, '').replace(/[()]/g, '')}
             </p>
           )}
@@ -268,14 +268,14 @@ const RodadaSection: React.FC<RodadaSectionProps> = ({
         <div key={index} className="hidden print:block mb-16 page-break-inside-avoid relative print:h-screen print:flex print:flex-col print:justify-start print:pt-12 print:pb-8">
           {/* Header da Rodada (Repetido em todas as paginas de impressao) */}
           <div className="flex flex-col items-center justify-center mb-8 relative">
-            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-yellow/50 to-transparent top-1/2 -z-10"></div>
-            <div className="bg-brand-darker px-8 py-2 border border-brand-yellow/30 rounded-full shadow-[0_0_30px_rgba(255,184,0,0.15)]">
-              <h3 className="text-3xl font-black text-brand-yellow uppercase tracking-tighter font-display">
+            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--color-accent)]/50 to-transparent top-1/2 -z-10"></div>
+            <div className="bg-[var(--color-bg-secondary)] px-8 py-2 border border-[var(--color-accent)]/30 rounded-full shadow-[0_0_30px_rgba(255,184,0,0.15)]">
+              <h3 className="text-3xl font-black text-[var(--color-accent)] uppercase tracking-tighter font-display">
                 {rodada.numero}ª RODADA
               </h3>
             </div>
             {rodada.titulo.replace(/^\d+a RODADA /, '') && (
-              <p className="mt-2 text-gray-500 text-sm uppercase tracking-widest font-bold">
+              <p className="mt-2 text-[var(--color-text-muted)] text-sm uppercase tracking-widest font-bold">
                 {rodada.titulo.replace(/^\d+a RODADA /, '').replace(/[()]/g, '')}
               </p>
             )}
@@ -319,20 +319,20 @@ const SlideView: React.FC<{
   const linha2 = missoes.slice(4, 8);
 
   return (
-    <div className="w-full h-full bg-brand-darker flex flex-col p-8 overflow-hidden">
+    <div className="w-full h-full bg-[var(--color-bg-primary)] flex flex-col p-8 overflow-hidden">
       {/* Header do Slide */}
-      <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
+      <div className="flex items-center justify-between mb-8 pb-4 border-b border-[var(--color-border-light)]">
         <div className="flex items-center gap-6">
-          <div className="bg-brand-yellow text-brand-darker px-6 py-2 font-black text-2xl rounded-sm shadow-lg shadow-yellow-500/20">
+          <div className="bg-[var(--color-accent)] text-[var(--color-text-inverse)] px-6 py-2 font-black text-2xl rounded-sm shadow-lg shadow-yellow-500/20">
             {rodada.numero}ª RODADA
           </div>
-          <span className="text-gray-500 text-sm font-medium uppercase tracking-widest">
+          <span className="text-[var(--color-text-muted)] text-sm font-medium uppercase tracking-widest">
             Slide {slideIndex + 1} / {totalSlides}
           </span>
         </div>
         <div className="text-right">
-          <p className="text-gray-500 text-xs uppercase tracking-widest mb-1">Cadete</p>
-          <p className="text-white font-bold text-lg">{nomeAluno}</p>
+          <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-widest mb-1">Cadete</p>
+          <p className="text-[var(--color-text-primary)] font-bold text-lg">{nomeAluno}</p>
         </div>
       </div>
 
@@ -345,7 +345,7 @@ const SlideView: React.FC<{
           ))}
           {/* Preencher espacos vazios */}
           {linha1.length < 4 && Array(4 - linha1.length).fill(null).map((_, i) => (
-            <div key={`empty1-${i}`} className="bg-brand-card/10 border border-white/5 rounded-sm border-dashed" />
+            <div key={`empty1-${i}`} className="bg-[var(--color-bg-card)]/10 border border-[var(--color-border-light)] rounded-sm border-dashed" />
           ))}
         </div>
 
@@ -357,14 +357,14 @@ const SlideView: React.FC<{
             ))}
             {/* Preencher espacos vazios */}
             {linha2.length < 4 && Array(4 - linha2.length).fill(null).map((_, i) => (
-              <div key={`empty2-${i}`} className="bg-brand-card/10 border border-white/5 rounded-sm border-dashed" />
+              <div key={`empty2-${i}`} className="bg-[var(--color-bg-card)]/10 border border-[var(--color-border-light)] rounded-sm border-dashed" />
             ))}
           </div>
         )}
       </div>
 
       {/* Footer */}
-      <div className="mt-6 flex items-center justify-between text-gray-600 text-xs uppercase tracking-widest font-bold">
+      <div className="mt-6 flex items-center justify-between text-[var(--color-text-muted)] text-xs uppercase tracking-widest font-bold">
         <span>OUSE PASSAR - A Elite dos Concursos</span>
         <span>Missões {missoes[0]?.numero} - {missoes[missoes.length - 1]?.numero}</span>
       </div>
@@ -379,7 +379,7 @@ const CoverSlideView: React.FC<{
   totalSlides: number;
 }> = ({ nomeAluno, concurso, mensagem, totalSlides }) => {
   return (
-    <div className="w-full h-full bg-brand-darker flex flex-col p-8 overflow-hidden relative">
+    <div className="w-full h-full bg-[var(--color-bg-primary)] flex flex-col p-8 overflow-hidden relative">
       {/* Background Image */}
       <div className="absolute bottom-0 right-0 opacity-20 pointer-events-none">
         <img
@@ -395,9 +395,10 @@ const CoverSlideView: React.FC<{
           src="https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp"
           alt="Ouse Passar"
           className="h-16 object-contain"
+          style={{ filter: 'var(--logo-filter, none)' }}
         />
         <div className="text-right">
-          <span className="text-brand-yellow font-black text-xl uppercase tracking-widest">
+          <span className="text-[var(--color-accent)] font-black text-xl uppercase tracking-widest">
             Slide 01 / {String(totalSlides).padStart(2, '0')}
           </span>
         </div>
@@ -405,20 +406,20 @@ const CoverSlideView: React.FC<{
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col justify-center items-center text-center z-10">
-        <h1 className="text-4xl md:text-6xl font-black text-brand-yellow uppercase tracking-tighter mb-4 shadow-yellow-500/20 drop-shadow-2xl">
+        <h1 className="text-4xl md:text-6xl font-black text-[var(--color-accent)] uppercase tracking-tighter mb-4 shadow-yellow-500/20 drop-shadow-2xl">
           CRONOGRAMA TÁTICO
         </h1>
-        <p className="text-white text-2xl md:text-3xl font-bold uppercase tracking-widest mb-12">
+        <p className="text-[var(--color-text-primary)] text-2xl md:text-3xl font-bold uppercase tracking-widest mb-12">
           {concurso}
         </p>
 
-        <div className="bg-brand-card/50 backdrop-blur-sm border border-brand-yellow/30 p-8 rounded-2xl shadow-2xl max-w-4xl w-full">
-          <p className="text-brand-yellow text-sm font-bold uppercase tracking-widest mb-2">Cadete</p>
-          <h2 className="text-3xl md:text-5xl font-black text-white uppercase mb-6">{nomeAluno}</h2>
+        <div className="bg-[var(--color-bg-card)]/50 backdrop-blur-sm border border-[var(--color-accent)]/30 p-8 rounded-2xl shadow-2xl max-w-4xl w-full">
+          <p className="text-[var(--color-accent)] text-sm font-bold uppercase tracking-widest mb-2">Cadete</p>
+          <h2 className="text-3xl md:text-5xl font-black text-[var(--color-text-primary)] uppercase mb-6">{nomeAluno}</h2>
 
           {mensagem && (
-            <div className="border-t border-white/10 pt-6 mt-6">
-              <p className="text-xl text-gray-300 italic font-medium">"{mensagem}"</p>
+            <div className="border-t border-[var(--color-border-light)] pt-6 mt-6">
+              <p className="text-xl text-[var(--color-text-secondary)] italic font-medium">"{mensagem}"</p>
             </div>
           )}
         </div>
@@ -751,10 +752,10 @@ export const PlanejamentoPRFView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center theme-transition">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-brand-yellow border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-[0_0_30px_rgba(255,184,0,0.2)]" />
-          <p className="text-gray-400 font-medium uppercase tracking-widest text-sm">Carregando Missão...</p>
+          <div className="w-16 h-16 border-4 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-[0_0_30px_rgba(255,184,0,0.2)]" />
+          <p className="text-[var(--color-text-secondary)] font-medium uppercase tracking-widest text-sm">Carregando Missão...</p>
         </div>
       </div>
     );
@@ -762,15 +763,15 @@ export const PlanejamentoPRFView: React.FC = () => {
 
   if (error || !planejamento) {
     return (
-      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center theme-transition">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-8 backdrop-blur-sm">
             <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
-            <h2 className="text-2xl font-black text-white mb-2 uppercase">Acesso Negado</h2>
-            <p className="text-gray-400 mb-6">{error}</p>
+            <h2 className="text-2xl font-black text-[var(--color-text-primary)] mb-2 uppercase">Acesso Negado</h2>
+            <p className="text-[var(--color-text-secondary)] mb-6">{error}</p>
             <button
               onClick={() => navigate('/planejamento-prf')}
-              className="bg-brand-yellow text-brand-darker px-8 py-3 font-black uppercase text-sm hover:bg-yellow-400 transition-all shadow-lg shadow-yellow-500/20"
+              className="bg-[var(--color-accent)] text-[var(--color-text-inverse)] px-8 py-3 font-black uppercase text-sm hover:bg-[var(--color-accent-hover)] transition-all shadow-lg shadow-yellow-500/20"
             >
               Criar Novo Planejamento
             </button>
@@ -783,7 +784,7 @@ export const PlanejamentoPRFView: React.FC = () => {
   // Modal de Apresentacao
   if (apresentacaoAtiva) {
     return (
-      <div className="fixed inset-0 bg-brand-darker z-50 flex flex-col">
+      <div className="fixed inset-0 bg-[var(--color-bg-primary)] z-50 flex flex-col">
         {/* Controles */}
         <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
           <button
@@ -833,7 +834,7 @@ export const PlanejamentoPRFView: React.FC = () => {
         </div>
 
         {/* Instrucoes */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-gray-600 text-[10px] uppercase tracking-widest font-bold">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[var(--color-text-muted)] text-[10px] uppercase tracking-widest font-bold">
           Use as setas do teclado para navegar | ESC para sair
         </div>
       </div>
@@ -841,7 +842,7 @@ export const PlanejamentoPRFView: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-brand-darker text-white">
+    <div className="min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] theme-transition">
       <SEOHead
         title={`Planejamento PRF - ${planejamento.nome_aluno} | Ouse Passar`}
         description="Seu planejamento personalizado para o concurso da PRF"
@@ -1055,26 +1056,26 @@ export const PlanejamentoPRFView: React.FC = () => {
 
 
 
-          <div className="inline-flex flex-col md:flex-row items-center gap-4 bg-brand-card border border-brand-yellow/20 rounded-xl p-6 shadow-2xl relative overflow-hidden z-10 max-w-3xl w-full mx-auto">
+          <div className="inline-flex flex-col md:flex-row items-center gap-4 bg-[var(--color-bg-card)] border border-[var(--color-accent)]/20 rounded-xl p-6 shadow-2xl relative overflow-hidden z-10 max-w-3xl w-full mx-auto">
 
 
-            <div className="p-3 bg-brand-yellow/10 rounded-lg border border-brand-yellow/20">
-              <Target className="w-10 h-10 text-brand-yellow" />
+            <div className="p-3 bg-[var(--color-accent)]/10 rounded-lg border border-[var(--color-accent)]/20">
+              <Target className="w-10 h-10 text-[var(--color-accent)]" />
             </div>
 
             <div className="text-center md:text-left z-10 flex-1">
-              <p className="text-brand-yellow font-bold uppercase tracking-widest text-[10px] mb-1">Plano de Estudos Tático</p>
-              <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter mb-2">
+              <p className="text-[var(--color-accent)] font-bold uppercase tracking-widest text-[10px] mb-1">Plano de Estudos Tático</p>
+              <h1 className="text-2xl md:text-3xl font-black text-[var(--color-text-primary)] uppercase tracking-tighter mb-2">
                 {planejamento.nome_aluno}
               </h1>
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3">
-                <div className="flex items-center gap-1.5 bg-black/30 border border-white/10 rounded px-2.5 py-1">
-                  <FileText className="w-3 h-3 text-gray-400" />
-                  <span className="text-gray-300 text-[10px] font-bold uppercase">{planejamento.concurso}</span>
+                <div className="flex items-center gap-1.5 bg-[var(--color-bg-secondary)]/30 border border-[var(--color-border-light)] rounded px-2.5 py-1">
+                  <FileText className="w-3 h-3 text-[var(--color-text-secondary)]" />
+                  <span className="text-[var(--color-text-secondary)] text-[10px] font-bold uppercase">{planejamento.concurso}</span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-black/30 border border-white/10 rounded px-2.5 py-1">
-                  <BookOpen className="w-3 h-3 text-gray-400" />
-                  <span className="text-gray-300 text-[10px] font-bold uppercase">{totalRodadas} Rodadas | {totalMissoes} Missões</span>
+                <div className="flex items-center gap-1.5 bg-[var(--color-bg-secondary)]/30 border border-[var(--color-border-light)] rounded px-2.5 py-1">
+                  <BookOpen className="w-3 h-3 text-[var(--color-text-secondary)]" />
+                  <span className="text-[var(--color-text-secondary)] text-[10px] font-bold uppercase">{totalRodadas} Rodadas | {totalMissoes} Missões</span>
                 </div>
               </div>
             </div>
@@ -1083,11 +1084,11 @@ export const PlanejamentoPRFView: React.FC = () => {
           {planejamento.mensagem_incentivo && (
             <div className="mt-6 max-w-2xl mx-auto">
               <div className="relative py-4 px-6">
-                <span className="absolute top-0 left-0 text-4xl text-brand-yellow/20 font-serif">"</span>
-                <p className="text-lg text-gray-300 font-medium italic relative z-10">
+                <span className="absolute top-0 left-0 text-4xl text-[var(--color-accent)]/20 font-serif">"</span>
+                <p className="text-lg text-[var(--color-text-secondary)] font-medium italic relative z-10">
                   {planejamento.mensagem_incentivo}
                 </p>
-                <span className="absolute bottom-0 right-0 text-4xl text-brand-yellow/20 font-serif leading-[0] h-3">"</span>
+                <span className="absolute bottom-0 right-0 text-4xl text-[var(--color-accent)]/20 font-serif leading-[0] h-3">"</span>
               </div>
             </div>
           )}
@@ -1109,8 +1110,8 @@ export const PlanejamentoPRFView: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="mt-24 pt-12 border-t border-white/5 text-center">
-          <p className="text-gray-600 text-xs uppercase tracking-widest font-bold">
+        <div className="mt-24 pt-12 border-t border-[var(--color-border-light)] text-center">
+          <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-widest font-bold">
             Planejamento gerado em {new Date(planejamento.created_at).toLocaleDateString('pt-BR')} | OUSE PASSAR - A Elite dos Concursos
           </p>
         </div>
@@ -1131,49 +1132,49 @@ export const PlanejamentoPRFView: React.FC = () => {
           {/* Modal */}
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
             <div
-              className="bg-brand-card border border-white/10 rounded-sm w-full max-w-md shadow-2xl pointer-events-auto"
+              className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-sm w-full max-w-md shadow-2xl pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="p-6 border-b border-white/10 text-center">
-                <div className="w-16 h-16 bg-brand-yellow/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Target className="w-8 h-8 text-brand-yellow" />
+              <div className="p-6 border-b border-[var(--color-border-light)] text-center">
+                <div className="w-16 h-16 bg-[var(--color-accent)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Target className="w-8 h-8 text-[var(--color-accent)]" />
                 </div>
-                <h3 className="text-xl font-bold text-white uppercase tracking-tight">
+                <h3 className="text-xl font-bold text-[var(--color-text-primary)] uppercase tracking-tight">
                   Missão {selectedMission.missao.numero}
                 </h3>
-                <p className="text-gray-400 text-sm mt-1">
+                <p className="text-[var(--color-text-secondary)] text-sm mt-1">
                   {selectedMission.rodadaNumero}ª Rodada
                 </p>
               </div>
 
               {/* Content */}
               <div className="p-6">
-                <p className="text-white text-center text-lg font-medium mb-2">
+                <p className="text-[var(--color-text-primary)] text-center text-lg font-medium mb-2">
                   Você já executou esta missão?
                 </p>
                 {selectedMission.missao.materia && (
-                  <p className="text-gray-400 text-center text-sm">
+                  <p className="text-[var(--color-text-secondary)] text-center text-sm">
                     {selectedMission.missao.materia}
                     {selectedMission.missao.assunto && ` - ${selectedMission.missao.assunto}`}
                   </p>
                 )}
                 {selectedMission.missao.tema && (
-                  <p className="text-gray-400 text-center text-sm">
+                  <p className="text-[var(--color-text-secondary)] text-center text-sm">
                     {selectedMission.missao.tema}
                   </p>
                 )}
               </div>
 
               {/* Footer com botões */}
-              <div className="p-6 border-t border-white/10 flex gap-3">
+              <div className="p-6 border-t border-[var(--color-border-light)] flex gap-3">
                 <button
                   onClick={() => {
                     setShowMissionPopup(false);
                     setSelectedMission(null);
                   }}
                   disabled={loadingMission}
-                  className="flex-1 px-6 py-3 border border-white/20 text-gray-400 hover:text-white hover:border-white/40 transition-colors font-bold uppercase text-sm rounded-sm disabled:opacity-50"
+                  className="flex-1 px-6 py-3 border border-[var(--color-border-light)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)] transition-colors font-bold uppercase text-sm rounded-sm disabled:opacity-50"
                 >
                   Não
                 </button>

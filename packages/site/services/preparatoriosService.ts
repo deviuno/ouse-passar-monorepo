@@ -1222,6 +1222,7 @@ export interface QuestaoFiltrosData {
   materias?: string[];
   assuntos?: string[];
   bancas?: string[];
+  banca_ids?: string[]; // UUIDs das bancas (mais eficiente para filtragem)
   orgaos?: string[];
   anos?: number[];
   escolaridade?: string[];

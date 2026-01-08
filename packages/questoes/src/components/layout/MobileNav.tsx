@@ -31,7 +31,7 @@ export function MobileNav() {
 
   return (
     <>
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#252525] border-t border-[#3A3A3A] z-50">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[var(--color-bg-card)] border-t border-[var(--color-border)] z-50 theme-transition">
         <div className="flex items-center justify-around h-16 px-2">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path ||
@@ -68,10 +68,10 @@ export function MobileNav() {
                   data-tour={item.tourId}
                   className="relative flex flex-col items-center justify-center w-16 h-full cursor-not-allowed opacity-50"
                 >
-                  <div className="flex flex-col items-center gap-1 text-[#6E6E6E]">
+                  <div className="flex flex-col items-center gap-1 text-[var(--color-text-muted)]">
                     <div className="relative">
                       <Icon size={22} />
-                      <Lock size={8} className="absolute -bottom-0.5 -right-0.5 text-[#6E6E6E]" />
+                      <Lock size={8} className="absolute -bottom-0.5 -right-0.5 text-[var(--color-text-muted)]" />
                     </div>
                     <span className="text-[10px] font-medium">{item.label}</span>
                   </div>
@@ -90,7 +90,7 @@ export function MobileNav() {
                 >
                   <motion.div
                     whileTap={{ scale: 0.9 }}
-                    className="flex flex-col items-center gap-1 text-[#6E6E6E]"
+                    className="flex flex-col items-center gap-1 text-[var(--color-text-muted)]"
                   >
                     <Icon size={22} />
                     <span className="text-[10px] font-medium">{item.label}</span>
@@ -110,14 +110,14 @@ export function MobileNav() {
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute -top-1 w-12 h-1 bg-[#FFB800] rounded-full"
+                    className="absolute -top-1 w-12 h-1 bg-[var(--color-brand)] rounded-full"
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
                 )}
                 <motion.div
                   whileTap={{ scale: 0.9 }}
                   className={`flex flex-col items-center gap-1 ${
-                    isActive ? 'text-[#FFB800]' : 'text-[#6E6E6E]'
+                    isActive ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-muted)]'
                   }`}
                 >
                   <Icon size={22} />

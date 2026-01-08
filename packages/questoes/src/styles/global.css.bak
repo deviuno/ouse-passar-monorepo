@@ -302,22 +302,22 @@ body {
 
 /* Mission Content Markdown Styles */
 .mission-content {
-  color: var(--color-text-main);
+  color: #E0E0E0;
   line-height: 1.6;
 }
 
 .mission-content h1 {
-  color: var(--color-brand) !important;
+  color: #FFB800 !important;
   font-size: 1.75rem !important;
   font-weight: 700 !important;
   margin-top: 0 !important;
   margin-bottom: 1.5rem !important;
   padding-bottom: 1rem !important;
-  border-bottom: 2px solid var(--color-border) !important;
+  border-bottom: 2px solid #3A3A3A !important;
 }
 
 .mission-content h2 {
-  color: var(--color-text-main) !important;
+  color: #FFFFFF !important;
   font-size: 1.35rem !important;
   font-weight: 700 !important;
   margin-top: 2rem !important;
@@ -325,7 +325,7 @@ body {
 }
 
 .mission-content h3 {
-  color: var(--color-text-main) !important;
+  color: #FFFFFF !important;
   font-size: 1.15rem !important;
   font-weight: 600 !important;
   margin-top: 1.5rem !important;
@@ -333,7 +333,7 @@ body {
 }
 
 .mission-content h4 {
-  color: var(--color-text-main) !important;
+  color: #FFFFFF !important;
   font-size: 1rem !important;
   font-weight: 600 !important;
   margin-top: 1.25rem !important;
@@ -341,20 +341,20 @@ body {
 }
 
 .mission-content p {
-  color: var(--color-text-main) !important;
+  color: #E0E0E0 !important;
   margin-bottom: 0.75rem !important;
   line-height: 1.5 !important;
 }
 
 .mission-content strong,
 .mission-content b {
-  color: var(--color-brand) !important;
+  color: #FFB800 !important;
   font-weight: 600 !important;
 }
 
 .mission-content em,
 .mission-content i {
-  color: var(--color-text-sec) !important;
+  color: #A0A0A0 !important;
   font-style: italic !important;
 }
 
@@ -371,29 +371,29 @@ body {
 }
 
 .mission-content li {
-  color: var(--color-text-main) !important;
+  color: #E0E0E0 !important;
   margin-bottom: 0.35rem !important;
   line-height: 1.5 !important;
 }
 
 .mission-content li::marker {
-  color: var(--color-brand) !important;
+  color: #FFB800 !important;
 }
 
 .mission-content blockquote {
-  border-left: 4px solid var(--color-brand) !important;
+  border-left: 4px solid #FFB800 !important;
   padding-left: 1rem !important;
   margin: 1.5rem 0 !important;
-  background-color: var(--color-bg-card) !important;
+  background-color: #252525 !important;
   padding: 1rem !important;
   border-radius: 0 8px 8px 0 !important;
   font-style: italic !important;
-  color: var(--color-text-sec) !important;
+  color: #A0A0A0 !important;
 }
 
 .mission-content code {
-  background-color: var(--color-bg-elevated) !important;
-  color: var(--color-brand) !important;
+  background-color: #3A3A3A !important;
+  color: #FFB800 !important;
   padding: 0.2rem 0.5rem !important;
   border-radius: 4px !important;
   font-size: 0.9em !important;
@@ -401,8 +401,8 @@ body {
 }
 
 .mission-content pre {
-  background-color: var(--color-bg-card) !important;
-  border: 1px solid var(--color-border) !important;
+  background-color: #1A1A1A !important;
+  border: 1px solid #3A3A3A !important;
   border-radius: 8px !important;
   padding: 1rem !important;
   overflow-x: auto !important;
@@ -416,18 +416,18 @@ body {
 
 .mission-content hr {
   border: none !important;
-  border-top: 1px solid var(--color-border) !important;
+  border-top: 1px solid #3A3A3A !important;
   margin: 2rem 0 !important;
 }
 
 .mission-content a {
-  color: var(--color-info) !important;
+  color: #3498DB !important;
   text-decoration: underline !important;
   text-underline-offset: 2px !important;
 }
 
 .mission-content a:hover {
-  color: var(--color-brand) !important;
+  color: #FFB800 !important;
 }
 
 .mission-content table {
@@ -438,22 +438,22 @@ body {
 }
 
 .mission-content th {
-  background-color: var(--color-bg-elevated) !important;
-  color: var(--color-brand) !important;
+  background-color: #3A3A3A !important;
+  color: #FFB800 !important;
   font-weight: 600 !important;
   padding: 0.75rem !important;
   text-align: left !important;
-  border: 1px solid var(--color-border) !important;
+  border: 1px solid #4A4A4A !important;
 }
 
 .mission-content td {
   padding: 0.75rem !important;
-  border: 1px solid var(--color-border) !important;
-  color: var(--color-text-main) !important;
+  border: 1px solid #3A3A3A !important;
+  color: #E0E0E0 !important;
 }
 
 .mission-content tr:nth-child(even) {
-  background-color: var(--color-bg-card) !important;
+  background-color: #252525 !important;
 }
 
 .mission-content img {

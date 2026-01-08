@@ -164,18 +164,18 @@ const ContributionCalendar: React.FC<{
                 <Flame className="w-7 h-7 text-white" />
               </div>
               <div>
-                <p className="text-3xl font-black text-white leading-none">{streak.atual}</p>
-                <p className="text-xs text-gray-500 uppercase font-bold">dias seguidos</p>
+                <p className="text-3xl font-black text-[var(--color-text-primary)] leading-none">{streak.atual}</p>
+                <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">dias seguidos</p>
               </div>
             </div>
 
             {/* Melhor Streak */}
             {streak.melhor > streak.atual && (
-              <div className="hidden md:flex items-center gap-2 pl-6 border-l border-white/10">
+              <div className="hidden md:flex items-center gap-2 pl-6 border-l border-[var(--color-border-light)]">
                 <Award className="w-5 h-5 text-purple-400" />
                 <div>
-                  <p className="text-lg font-black text-white leading-none">{streak.melhor}</p>
-                  <p className="text-[10px] text-gray-500 uppercase">recorde</p>
+                  <p className="text-lg font-black text-[var(--color-text-primary)] leading-none">{streak.melhor}</p>
+                  <p className="text-[10px] text-[var(--color-text-muted)] uppercase">recorde</p>
                 </div>
               </div>
             )}
@@ -185,15 +185,15 @@ const ContributionCalendar: React.FC<{
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-sm bg-green-500" />
-              <span className="text-sm text-gray-400"><span className="font-bold text-white">{totalVerdes}</span> verdes</span>
+              <span className="text-sm text-[var(--color-text-secondary)]"><span className="font-bold text-[var(--color-text-primary)]">{totalVerdes}</span> verdes</span>
             </div>
             <div className="hidden sm:flex items-center gap-2">
               <div className="w-3 h-3 rounded-sm bg-yellow-500" />
-              <span className="text-sm text-gray-400"><span className="font-bold text-white">{totalAmarelos}</span></span>
+              <span className="text-sm text-[var(--color-text-secondary)]"><span className="font-bold text-[var(--color-text-primary)]">{totalAmarelos}</span></span>
             </div>
             <div className="hidden sm:flex items-center gap-2">
               <div className="w-3 h-3 rounded-sm bg-red-500" />
-              <span className="text-sm text-gray-400"><span className="font-bold text-white">{totalVermelhos}</span></span>
+              <span className="text-sm text-[var(--color-text-secondary)]"><span className="font-bold text-[var(--color-text-primary)]">{totalVermelhos}</span></span>
             </div>
             {percentualVerde > 0 && (
               <div className="text-sm text-green-400 font-bold">
@@ -205,13 +205,13 @@ const ContributionCalendar: React.FC<{
       )}
 
       {/* Calendário */}
-      <div className="bg-brand-dark/30 rounded-xl p-4 overflow-x-auto">
+      <div className="bg-[var(--color-bg-secondary)]/30 rounded-xl p-4 overflow-x-auto">
         {/* Labels dos meses */}
         <div className="flex mb-2 pl-8">
           {mesesLabels.map((label, idx) => (
             <div
               key={idx}
-              className="text-[10px] text-gray-500 font-medium absolute"
+              className="text-[10px] text-[var(--color-text-muted)] font-medium absolute"
               style={{ marginLeft: `${label.posicao * 16}px` }}
             >
               {label.mes}
@@ -226,7 +226,7 @@ const ContributionCalendar: React.FC<{
             {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((dia) => (
               <div
                 key={dia}
-                className="w-6 h-[13px] flex items-center text-[9px] text-gray-500"
+                className="w-6 h-[13px] flex items-center text-[9px] text-[var(--color-text-muted)]"
               >
                 {dia}
               </div>
@@ -240,7 +240,7 @@ const ContributionCalendar: React.FC<{
                 <div
                   key={dIdx}
                   className={`w-[13px] h-[13px] rounded-[3px] transition-all cursor-pointer ${dia
-                    ? `${getCor(dia.semaforo)} ${getCorHover(dia.semaforo)} ${dia.isHoje ? 'ring-2 ring-brand-yellow ring-offset-1 ring-offset-brand-darker' : ''
+                    ? `${getCor(dia.semaforo)} ${getCorHover(dia.semaforo)} ${dia.isHoje ? 'ring-2 ring-[var(--color-accent)] ring-offset-1 ring-offset-[var(--color-bg-primary)]' : ''
                     }`
                     : 'bg-transparent'
                     }`}
@@ -260,13 +260,13 @@ const ContributionCalendar: React.FC<{
         </div>
 
         {/* Legenda */}
-        <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-white/5">
-          <span className="text-[10px] text-gray-500">Menos</span>
+        <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[var(--color-border-light)]">
+          <span className="text-[10px] text-[var(--color-text-muted)]">Menos</span>
           <div className="w-[10px] h-[10px] rounded-[2px] bg-white/[0.06]" />
           <div className="w-[10px] h-[10px] rounded-[2px] bg-red-500/60" />
           <div className="w-[10px] h-[10px] rounded-[2px] bg-yellow-500/80" />
           <div className="w-[10px] h-[10px] rounded-[2px] bg-green-500" />
-          <span className="text-[10px] text-gray-500">Mais</span>
+          <span className="text-[10px] text-[var(--color-text-muted)]">Mais</span>
         </div>
       </div>
     </div>
@@ -343,21 +343,21 @@ const PomodoroTimer: React.FC<{
   const progresso = ((duracao * 60 - tempoRestante) / (duracao * 60)) * 100;
 
   return (
-    <div className="bg-brand-card border border-white/5 rounded-xl p-6 relative">
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 relative theme-transition">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Clock className="w-5 h-5 text-cyan-400" />
-          <h3 className="text-lg font-bold text-white">Timer de Estudo</h3>
+          <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Timer de Estudo</h3>
         </div>
-        <span className="text-xs text-gray-500">Sessão {sessaoAtual}</span>
+        <span className="text-xs text-[var(--color-text-muted)]">Sessão {sessaoAtual}</span>
       </div>
 
       {/* Timer Display */}
       <div className="text-center mb-6">
-        <div className="text-5xl font-mono font-black text-white mb-2">
+        <div className="text-5xl font-mono font-black text-[var(--color-text-primary)] mb-2">
           {formatTime(tempoRestante)}
         </div>
-        <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+        <div className="w-full bg-[var(--color-bg-hover)] rounded-full h-2 overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
             initial={{ width: 0 }}
@@ -366,7 +366,7 @@ const PomodoroTimer: React.FC<{
           />
         </div>
         {tempoTotal > 0 && (
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-[var(--color-text-muted)] mt-2">
             Total hoje: {formatDuracao(tempoTotal)}
           </p>
         )}
@@ -393,14 +393,14 @@ const PomodoroTimer: React.FC<{
         )}
         <button
           onClick={handleReset}
-          className="flex items-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 text-gray-400 rounded-lg transition-all"
+          className="flex items-center gap-2 px-4 py-3 bg-[var(--color-bg-hover)] hover:bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] rounded-lg transition-all"
           title="Reiniciar"
         >
           <RotateCcw className="w-5 h-5" />
         </button>
         <button
           onClick={() => setShowConfig(!showConfig)}
-          className="flex items-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-gray-500 hover:text-gray-300 rounded-lg transition-all"
+          className="flex items-center gap-2 px-4 py-3 bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] rounded-lg transition-all"
           title="Configurar duração"
         >
           <Settings className="w-5 h-5" />
@@ -414,9 +414,9 @@ const PomodoroTimer: React.FC<{
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute right-6 mt-2 bg-brand-dark border border-white/10 rounded-lg p-3 shadow-xl z-10"
+            className="absolute right-6 mt-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg p-3 shadow-xl z-10"
           >
-            <p className="text-xs text-gray-500 uppercase font-bold mb-2">Duração da sessão</p>
+            <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">Duração da sessão</p>
             <div className="flex flex-wrap gap-2">
               {TIMER_DURACOES.map(opt => (
                 <button
@@ -424,7 +424,7 @@ const PomodoroTimer: React.FC<{
                   onClick={() => handleChangeDuracao(opt.value)}
                   className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${duracao === opt.value
                     ? 'bg-cyan-500 text-white'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                    : 'bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
                     }`}
                 >
                   {opt.label}
@@ -449,7 +449,7 @@ const AtividadeCard: React.FC<{
 }> = ({ hora, atividade, cor, duracao, concluida, onToggle }) => (
   <button
     onClick={onToggle}
-    className={`flex items-center gap-3 p-3 rounded-lg transition-all w-full text-left ${concluida ? 'bg-green-500/10 opacity-60' : 'bg-white/5 hover:bg-white/10'
+    className={`flex items-center gap-3 p-3 rounded-lg transition-all w-full text-left ${concluida ? 'bg-green-500/10 opacity-60' : 'bg-[var(--color-bg-hover)] hover:bg-[var(--color-bg-tertiary)]'
       }`}
   >
     <div
@@ -457,10 +457,10 @@ const AtividadeCard: React.FC<{
       style={{ backgroundColor: cor }}
     />
     <div className="flex-1">
-      <p className={`font-bold ${concluida ? 'text-gray-500 line-through' : 'text-white'}`}>
+      <p className={`font-bold ${concluida ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}>
         {atividade}
       </p>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-[var(--color-text-muted)]">
         {hora} - {formatDuracao(duracao)}
       </p>
     </div>
@@ -485,7 +485,7 @@ const InsightCard: React.FC<{
   return (
     <div className={`${config.bg} border ${config.border} rounded-lg p-3 flex items-start gap-3`}>
       <Icon className={`w-5 h-5 ${config.iconColor} flex-shrink-0 mt-0.5`} />
-      <p className="text-sm text-gray-300">{texto}</p>
+      <p className="text-sm text-[var(--color-text-secondary)]">{texto}</p>
     </div>
   );
 };
@@ -505,12 +505,12 @@ const SemaforoPicker: React.FC<{
         key={item.cor}
         onClick={() => onChange(item.cor)}
         className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all ${value === item.cor
-          ? 'bg-white/10 scale-105'
+          ? 'bg-[var(--color-bg-hover)] scale-105'
           : 'opacity-50 hover:opacity-100'
           }`}
       >
-        <div className={`w-8 h-8 rounded-full ${item.bg} ${value === item.cor ? 'ring-2 ring-white ring-offset-2 ring-offset-brand-darker' : ''}`} />
-        <span className="text-xs text-gray-400">{item.label}</span>
+        <div className={`w-8 h-8 rounded-full ${item.bg} ${value === item.cor ? 'ring-2 ring-[var(--color-text-primary)] ring-offset-2 ring-offset-[var(--color-bg-primary)]' : ''}`} />
+        <span className="text-xs text-[var(--color-text-secondary)]">{item.label}</span>
       </button>
     ))}
   </div>
@@ -576,7 +576,7 @@ const TimeInput: React.FC<{
       onBlur={handleBlur}
       placeholder={placeholder}
       maxLength={5}
-      className="w-20 bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-center focus:outline-none focus:border-brand-yellow/50 font-mono"
+      className="w-20 bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] text-center focus:outline-none focus:border-[var(--color-accent)]/50 font-mono"
     />
   );
 };
@@ -590,10 +590,10 @@ const CheckboxItem: React.FC<{
 }> = ({ checked, onChange, icon, label }) => (
   <button
     onClick={() => onChange(!checked)}
-    className={`flex items-center gap-3 p-3 rounded-lg transition-all w-full text-left ${checked ? 'bg-green-500/10 text-green-400' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+    className={`flex items-center gap-3 p-3 rounded-lg transition-all w-full text-left ${checked ? 'bg-green-500/10 text-green-400' : 'bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
       }`}
   >
-    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${checked ? 'bg-green-500 border-green-500' : 'border-gray-600'
+    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${checked ? 'bg-green-500 border-green-500' : 'border-[var(--color-border)]'
       }`}>
       {checked && <CheckCircle2 className="w-4 h-4 text-white" />}
     </div>
@@ -814,21 +814,21 @@ export const PlannerPerformanceView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-brand-yellow animate-spin" />
+      <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center theme-transition">
+        <Loader2 className="w-10 h-10 text-[var(--color-accent)] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-brand-darker text-white pb-24">
+    <div className="min-h-screen bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] pb-24 theme-transition">
       <SEOHead title="Cockpit | Ouse Passar" />
 
       <main className="pt-20 px-4 max-w-6xl mx-auto space-y-6">
         {/* Painel Unificado de Topo */}
-        <div className="bg-brand-card border border-white/5 rounded-xl p-5 lg:p-6 relative overflow-hidden group">
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-5 lg:p-6 relative overflow-hidden group theme-transition">
           {/* Decorative Gradient */}
-          <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-brand-yellow/5 to-transparent pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
+          <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-[var(--color-accent)]/5 to-transparent pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
 
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
 
@@ -837,22 +837,22 @@ export const PlannerPerformanceView: React.FC = () => {
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h1 className="text-2xl lg:text-3xl font-black text-white mb-1 leading-tight tracking-tight">
+                    <h1 className="text-2xl lg:text-3xl font-black text-[var(--color-text-primary)] mb-1 leading-tight tracking-tight">
                       {modo === 'manha' ? '☀️ Bom dia' : '🌙 Boa noite'},{' '}
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-yellow to-yellow-500">
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-accent)] to-yellow-500">
                         {planejamento?.nome_aluno?.split(' ')[0]}!
                       </span>
                     </h1>
                     {mensagemIncentivo && (
-                      <p className="text-gray-300 text-sm italic">"{mensagemIncentivo}"</p>
+                      <p className="text-[var(--color-text-secondary)] text-sm italic">"{mensagemIncentivo}"</p>
                     )}
                   </div>
 
                   {/* Toggle Mobile */}
-                  <div className="lg:hidden flex bg-white/5 rounded-lg p-1">
+                  <div className="lg:hidden flex bg-[var(--color-bg-hover)] rounded-lg p-1">
                     <button
                       onClick={() => setModo(modo === 'manha' ? 'noite' : 'manha')}
-                      className="p-2 text-white hover:bg-white/10 rounded-md transition-all"
+                      className="p-2 text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] rounded-md transition-all"
                     >
                       {modo === 'manha' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                     </button>
@@ -860,10 +860,10 @@ export const PlannerPerformanceView: React.FC = () => {
                 </div>
 
                 {/* Toggle Desktop */}
-                <div className="hidden lg:flex bg-brand-dark/50 rounded-lg p-1 w-full max-w-xs mb-6 border border-white/5">
+                <div className="hidden lg:flex bg-[var(--color-bg-secondary)]/50 rounded-lg p-1 w-full max-w-xs mb-6 border border-[var(--color-border-light)]">
                   <button
                     onClick={() => setModo('manha')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${modo === 'manha' ? 'bg-brand-yellow text-brand-darker shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${modo === 'manha' ? 'bg-[var(--color-accent)] text-[var(--color-text-inverse)] shadow-lg' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)]'
                       }`}
                   >
                     <Sun className="w-4 h-4" />
@@ -871,7 +871,7 @@ export const PlannerPerformanceView: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setModo('noite')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${modo === 'noite' ? 'bg-indigo-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${modo === 'noite' ? 'bg-indigo-500 text-white shadow-lg' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)]'
                       }`}
                   >
                     <Moon className="w-4 h-4" />
@@ -881,38 +881,38 @@ export const PlannerPerformanceView: React.FC = () => {
 
                 {/* Grid de KPIs Compacto */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-brand-dark/40 rounded-xl p-3 border border-white/5 hover:border-brand-yellow/20 transition-colors">
+                  <div className="bg-[var(--color-bg-secondary)]/40 rounded-xl p-3 border border-[var(--color-border-light)] hover:border-[var(--color-accent)]/20 transition-colors">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] uppercase font-bold text-gray-500">Dias Verdes</span>
-                      <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                      <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Dias Verdes</span>
+                      <div className="w-2 h-2 rounded-full bg-[var(--color-success)] shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
                     </div>
-                    <p className="text-2xl font-black text-white">{weekSummary?.diasVerdes || 0}</p>
+                    <p className="text-2xl font-black text-[var(--color-text-primary)]">{weekSummary?.diasVerdes || 0}</p>
                   </div>
 
-                  <div className="bg-brand-dark/40 rounded-xl p-3 border border-white/5 hover:border-brand-yellow/20 transition-colors">
+                  <div className="bg-[var(--color-bg-secondary)]/40 rounded-xl p-3 border border-[var(--color-border-light)] hover:border-[var(--color-accent)]/20 transition-colors">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] uppercase font-bold text-gray-500">Estudadas</span>
-                      <Clock className="w-3 h-3 text-blue-400" />
+                      <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Estudadas</span>
+                      <Clock className="w-3 h-3 text-[var(--color-info)]" />
                     </div>
-                    <p className="text-2xl font-black text-white">{weekSummary?.horasEstudadas || 0}<span className="text-sm text-gray-500 font-bold ml-0.5">h</span></p>
+                    <p className="text-2xl font-black text-[var(--color-text-primary)]">{weekSummary?.horasEstudadas || 0}<span className="text-sm text-[var(--color-text-muted)] font-bold ml-0.5">h</span></p>
                   </div>
 
-                  <div className="bg-brand-dark/40 rounded-xl p-3 border border-white/5 hover:border-brand-yellow/20 transition-colors">
+                  <div className="bg-[var(--color-bg-secondary)]/40 rounded-xl p-3 border border-[var(--color-border-light)] hover:border-[var(--color-accent)]/20 transition-colors">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] uppercase font-bold text-gray-500">Missões</span>
+                      <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Missões</span>
                       <Target className="w-3 h-3 text-purple-400" />
                     </div>
-                    <p className="text-2xl font-black text-white">{weekSummary?.missoesTotal || 0}</p>
+                    <p className="text-2xl font-black text-[var(--color-text-primary)]">{weekSummary?.missoesTotal || 0}</p>
                   </div>
 
-                  <div className="bg-brand-dark/40 rounded-xl p-3 border border-white/5 hover:border-brand-yellow/20 transition-colors">
+                  <div className="bg-[var(--color-bg-secondary)]/40 rounded-xl p-3 border border-[var(--color-border-light)] hover:border-[var(--color-accent)]/20 transition-colors">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] uppercase font-bold text-gray-500">Acertos</span>
+                      <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Acertos</span>
                       <CheckCircle2 className="w-3 h-3 text-cyan-400" />
                     </div>
-                    <p className="text-2xl font-black text-white">
+                    <p className="text-2xl font-black text-[var(--color-text-primary)]">
                       {weekSummary?.mediaAcertos !== null ? weekSummary?.mediaAcertos : '-'}
-                      <span className="text-sm text-gray-500 font-bold ml-0.5">%</span>
+                      <span className="text-sm text-[var(--color-text-muted)] font-bold ml-0.5">%</span>
                     </p>
                   </div>
                 </div>
@@ -920,29 +920,29 @@ export const PlannerPerformanceView: React.FC = () => {
             </div>
 
             {/* Coluna Direita: Streak e Heatmap (7 colunas) */}
-            <div className="lg:col-span-7 flex flex-col h-full bg-brand-dark/20 rounded-xl border border-white/5 p-1">
+            <div className="lg:col-span-7 flex flex-col h-full bg-[var(--color-bg-secondary)]/20 rounded-xl border border-[var(--color-border-light)] p-1">
 
               {/* Header Interno */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-light)]">
                 <div className="flex items-center gap-3">
                   <div className="bg-gradient-to-br from-orange-500 to-red-600 w-10 h-10 rounded-lg flex items-center justify-center shadow-lg shadow-orange-500/20">
                     <Flame className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-2xl font-black text-white leading-none">{streak.atual}</span>
-                      <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">dias seguidos</span>
+                      <span className="text-2xl font-black text-[var(--color-text-primary)] leading-none">{streak.atual}</span>
+                      <span className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">dias seguidos</span>
                     </div>
-                    <p className="text-[10px] text-gray-500 font-medium mt-0.5">{dayInfo.diaSemana}, {dayInfo.dataFormatada}</p>
+                    <p className="text-[10px] text-[var(--color-text-muted)] font-medium mt-0.5">{dayInfo.diaSemana}, {dayInfo.dataFormatada}</p>
                   </div>
                 </div>
 
                 {/* Cargo / Preparatório */}
                 <div className="hidden sm:flex items-center gap-2">
                   {(planejamento as any)?.preparatorio?.nome && (
-                    <div className="flex items-center gap-2 bg-gradient-to-r from-brand-yellow/10 to-transparent pl-3 pr-4 py-1.5 rounded-full border border-brand-yellow/20">
-                      <Target className="w-4 h-4 text-brand-yellow" />
-                      <span className="text-xs font-bold text-white uppercase tracking-wide">
+                    <div className="flex items-center gap-2 bg-gradient-to-r from-[var(--color-accent)]/10 to-transparent pl-3 pr-4 py-1.5 rounded-full border border-[var(--color-accent)]/20">
+                      <Target className="w-4 h-4 text-[var(--color-accent)]" />
+                      <span className="text-xs font-bold text-[var(--color-text-primary)] uppercase tracking-wide">
                         {(planejamento as any).preparatorio.nome}
                       </span>
                     </div>
@@ -966,14 +966,14 @@ export const PlannerPerformanceView: React.FC = () => {
           <div className="md:col-span-2 space-y-6">
             {/* Atividades de Hoje */}
             {atividadesHoje.length > 0 && (
-              <div className="bg-brand-card border border-white/5 rounded-xl p-6">
+              <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 theme-transition">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-blue-400" />
-                    <h3 className="text-lg font-bold text-white">Atividades de Hoje</h3>
+                    <Calendar className="w-5 h-5 text-[var(--color-info)]" />
+                    <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Atividades de Hoje</h3>
                   </div>
-                  <span className="text-xs text-gray-500">
-                    Aderência: <span className={aderencia >= 70 ? 'text-green-400' : 'text-yellow-400'}>{aderencia}%</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    Aderência: <span className={aderencia >= 70 ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}>{aderencia}%</span>
                   </span>
                 </div>
 
@@ -996,21 +996,21 @@ export const PlannerPerformanceView: React.FC = () => {
 
 
             {/* Registro do Dia */}
-            <div className="bg-brand-card border border-white/5 rounded-xl p-6">
+            <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 theme-transition">
               <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="w-5 h-5 text-green-400" />
-                <h3 className="text-lg font-bold text-white">
+                <BookOpen className="w-5 h-5 text-[var(--color-success)]" />
+                <h3 className="text-lg font-bold text-[var(--color-text-primary)]">
                   {modo === 'manha' ? 'Meta do Dia' : 'Registro do Dia'}
                 </h3>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4 mb-4">
-                <div className="bg-brand-dark/50 rounded-lg p-4">
-                  <p className="text-xs text-gray-500 uppercase font-bold mb-1">Planejado</p>
-                  <p className="text-2xl font-black text-white font-mono">{decimalToTime(horasPlanejadas)}</p>
+                <div className="bg-[var(--color-bg-secondary)]/50 rounded-lg p-4">
+                  <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold mb-1">Planejado</p>
+                  <p className="text-2xl font-black text-[var(--color-text-primary)] font-mono">{decimalToTime(horasPlanejadas)}</p>
                 </div>
-                <div className="bg-brand-dark/50 rounded-lg p-4">
-                  <p className="text-xs text-gray-500 uppercase font-bold mb-2">Estudado</p>
+                <div className="bg-[var(--color-bg-secondary)]/50 rounded-lg p-4">
+                  <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">Estudado</p>
                   <div className="flex items-center gap-2">
                     <TimeInput
                       value={planner.horas_estudadas ?? null}
@@ -1026,34 +1026,34 @@ export const PlannerPerformanceView: React.FC = () => {
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                     <div>
-                      <p className="text-xs text-gray-500 uppercase font-bold mb-2">Missões</p>
+                      <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">Missões</p>
                       <input
                         type="number"
                         value={planner.missoes_concluidas ?? ''}
                         onChange={e => updateField('missoes_concluidas', parseInt(e.target.value) || 0)}
-                        className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-center"
+                        className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] text-center"
                         min={0}
                         max={99}
                       />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 uppercase font-bold mb-2">Questões</p>
+                      <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">Questões</p>
                       <input
                         type="number"
                         value={planner.questoes_feitas ?? ''}
                         onChange={e => updateField('questoes_feitas', parseInt(e.target.value) || 0)}
-                        className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-center"
+                        className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] text-center"
                         min={0}
                         max={999}
                       />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 uppercase font-bold mb-2">% Acertos</p>
+                      <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">% Acertos</p>
                       <input
                         type="number"
                         value={planner.percentual_acertos ?? ''}
                         onChange={e => updateField('percentual_acertos', parseInt(e.target.value) || null)}
-                        className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-center"
+                        className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] text-center"
                         min={0}
                         max={100}
                       />
@@ -1062,8 +1062,8 @@ export const PlannerPerformanceView: React.FC = () => {
 
                   {/* Feedback automático */}
                   {horasPlanejadas > 0 && (planner.horas_estudadas || 0) > 0 && (
-                    <div className={`p-4 rounded-lg ${percentualPlanejado >= 80 ? 'bg-green-500/10' : 'bg-yellow-500/10'}`}>
-                      <p className={`text-sm font-bold ${percentualPlanejado >= 80 ? 'text-green-400' : 'text-yellow-400'}`}>
+                    <div className={`p-4 rounded-lg ${percentualPlanejado >= 80 ? 'bg-[var(--color-success-light)]' : 'bg-[var(--color-warning-light)]'}`}>
+                      <p className={`text-sm font-bold ${percentualPlanejado >= 80 ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}`}>
                         {percentualPlanejado >= 80 ? '✓ ' : ''}Você atingiu {percentualPlanejado}% do planejado
                         {percentualPlanejado >= 80 && ' - Parabéns!'}
                       </p>
@@ -1073,8 +1073,8 @@ export const PlannerPerformanceView: React.FC = () => {
               )}
 
               {modo === 'manha' && (
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                  <p className="text-sm text-yellow-400">
+                <div className="bg-[var(--color-warning-light)] border border-[var(--color-warning)]/30 rounded-lg p-4">
+                  <p className="text-sm text-[var(--color-warning)]">
                     💡 <strong>Dica:</strong> Use o timer para estudar em blocos de {timerDuration} minutos. Ao final do dia, registre seu progresso no modo Noite.
                   </p>
                 </div>
@@ -1083,19 +1083,19 @@ export const PlannerPerformanceView: React.FC = () => {
 
 
             {/* Pessoa Melhor - Colapsível */}
-            <div className="bg-brand-card border border-white/5 rounded-xl overflow-hidden">
+            <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl overflow-hidden theme-transition">
               <button
                 onClick={() => setShowPessoaMelhor(!showPessoaMelhor)}
-                className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors"
+                className="w-full flex items-center justify-between p-6 hover:bg-[var(--color-bg-hover)] transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <Heart className="w-5 h-5 text-pink-400" />
-                  <h3 className="text-lg font-bold text-white">Pessoa Melhor</h3>
+                  <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Pessoa Melhor</h3>
                 </div>
                 {showPessoaMelhor ? (
-                  <ChevronUp className="w-5 h-5 text-gray-400" />
+                  <ChevronUp className="w-5 h-5 text-[var(--color-text-secondary)]" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                  <ChevronDown className="w-5 h-5 text-[var(--color-text-secondary)]" />
                 )}
               </button>
 
@@ -1105,7 +1105,7 @@ export const PlannerPerformanceView: React.FC = () => {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="border-t border-white/5"
+                    className="border-t border-[var(--color-border-light)]"
                   >
                     <div className="p-6 grid md:grid-cols-3 gap-6">
                       {/* Corpo */}
@@ -1120,7 +1120,7 @@ export const PlannerPerformanceView: React.FC = () => {
                             label="Exercício (20 min)"
                           />
                           <div>
-                            <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                            <p className="text-xs text-[var(--color-text-muted)] mb-1 flex items-center gap-1">
                               <Droplets className="w-3 h-3" /> Água (litros)
                             </p>
                             <input
@@ -1130,11 +1130,11 @@ export const PlannerPerformanceView: React.FC = () => {
                               step={0.5}
                               min={0}
                               max={10}
-                              className="w-20 bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-center"
+                              className="w-20 bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] text-center"
                             />
                           </div>
                           <div>
-                            <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                            <p className="text-xs text-[var(--color-text-muted)] mb-1 flex items-center gap-1">
                               <Moon className="w-3 h-3" /> Sono (horas)
                             </p>
                             <TimeInput
@@ -1182,13 +1182,13 @@ export const PlannerPerformanceView: React.FC = () => {
                             label="Oração/devocional"
                           />
                           <div>
-                            <p className="text-xs text-gray-500 mb-1">Gratidão</p>
+                            <p className="text-xs text-[var(--color-text-muted)] mb-1">Gratidão</p>
                             <textarea
                               value={planner.gratidao || ''}
                               onChange={e => updateField('gratidao', e.target.value || null)}
                               placeholder="Sou grato por..."
                               rows={2}
-                              className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-sm resize-none"
+                              className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] text-sm resize-none"
                             />
                           </div>
                         </div>
@@ -1208,10 +1208,10 @@ export const PlannerPerformanceView: React.FC = () => {
 
             {/* Insights */}
             {insights.length > 0 && (
-              <div className="bg-brand-card border border-white/5 rounded-xl p-6">
+              <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 theme-transition">
                 <div className="flex items-center gap-2 mb-4">
-                  <Lightbulb className="w-5 h-5 text-yellow-400" />
-                  <h3 className="text-sm font-bold text-gray-400 uppercase">Insights</h3>
+                  <Lightbulb className="w-5 h-5 text-[var(--color-warning)]" />
+                  <h3 className="text-sm font-bold text-[var(--color-text-secondary)] uppercase">Insights</h3>
                 </div>
 
                 <div className="space-y-3">
@@ -1224,10 +1224,10 @@ export const PlannerPerformanceView: React.FC = () => {
 
             {/* Semáforo - Apenas modo noite */}
             {modo === 'noite' && (
-              <div className="bg-brand-card border border-white/5 rounded-xl p-6">
+              <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 theme-transition">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500" />
-                  <h3 className="text-lg font-bold text-white">Como foi seu dia?</h3>
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-[var(--color-success)] via-[var(--color-warning)] to-[var(--color-error)]" />
+                  <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Como foi seu dia?</h3>
                 </div>
 
                 <div className="flex flex-col md:flex-row md:items-center gap-6">
@@ -1238,11 +1238,11 @@ export const PlannerPerformanceView: React.FC = () => {
 
                   {planner.semaforo && planner.semaforo !== 'verde' && (
                     <div className="flex-1">
-                      <p className="text-xs text-gray-500 uppercase font-bold mb-2">Por quê?</p>
+                      <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">Por quê?</p>
                       <select
                         value={planner.semaforo_motivo || ''}
                         onChange={e => updateField('semaforo_motivo', e.target.value || null)}
-                        className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand-yellow/50"
+                        className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]/50"
                       >
                         <option value="">Selecione o motivo...</option>
                         {SEMAFORO_MOTIVOS.map(m => (
@@ -1257,23 +1257,23 @@ export const PlannerPerformanceView: React.FC = () => {
 
             {/* Plano para Amanhã - modo noite */}
             {modo === 'noite' && (
-              <div className="bg-brand-card border border-white/5 rounded-xl p-6">
+              <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-xl p-6 theme-transition">
                 <div className="flex items-center gap-2 mb-4">
                   <Zap className="w-5 h-5 text-cyan-400" />
-                  <h3 className="text-sm font-bold text-gray-400 uppercase">Amanhã</h3>
+                  <h3 className="text-sm font-bold text-[var(--color-text-secondary)] uppercase">Amanhã</h3>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <p className="text-xs text-gray-500 mb-2">Garantir no mínimo:</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-2">Garantir no mínimo:</p>
                     <div className="flex gap-2">
                       {[30, 60, 90].map(min => (
                         <button
                           key={min}
                           onClick={() => updateField('meta_minima_amanha', min)}
                           className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${planner.meta_minima_amanha === min
-                            ? 'bg-brand-yellow text-brand-darker'
-                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            ? 'bg-[var(--color-accent)] text-[var(--color-text-inverse)]'
+                            : 'bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
                             }`}
                         >
                           {min < 60 ? `${min}min` : `${min / 60}h`}
@@ -1283,14 +1283,14 @@ export const PlannerPerformanceView: React.FC = () => {
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-500 mb-2">Missão prioritária:</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-2">Missão prioritária:</p>
                     <textarea
                       value={planner.missao_prioritaria_amanha || ''}
                       onChange={e => updateField('missao_prioritaria_amanha', e.target.value || null)}
                       placeholder="Ex: Revisar Constitucional"
                       maxLength={300}
                       rows={2}
-                      className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-white text-sm resize-y min-h-[50px]"
+                      className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] rounded-lg px-3 py-2 text-[var(--color-text-primary)] text-sm resize-y min-h-[50px]"
                     />
                   </div>
                 </div>
@@ -1303,14 +1303,14 @@ export const PlannerPerformanceView: React.FC = () => {
       </main>
 
       {/* Botão Salvar Fixo */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-brand-darker/95 backdrop-blur-md border-t border-white/10">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-[var(--color-bg-primary)]/95 backdrop-blur-md border-t border-[var(--color-border-light)] theme-transition">
         <div className="max-w-6xl mx-auto">
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
             className={`w-full py-4 rounded-lg font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${hasChanges
-              ? 'bg-brand-yellow text-brand-darker hover:bg-yellow-400'
-              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              ? 'bg-[var(--color-accent)] text-[var(--color-text-inverse)] hover:bg-[var(--color-accent-hover)]'
+              : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] cursor-not-allowed'
               }`}
           >
             {saving ? (
