@@ -208,7 +208,7 @@ export default function ProfilePage() {
         <div className="flex items-center gap-4">
           {/* Avatar */}
           <div className="relative">
-            <div className={`w-20 h-20 rounded-full bg-[var(--color-border)] flex items-center justify-center overflow-hidden border-2 ${isUploading ? 'border-[var(--color-brand)] animate-pulse' : 'border-[var(--color-bg-elevated)]'}`}>
+            <div className={`w-20 h-20 rounded-full bg-[var(--color-bg-elevated)] flex items-center justify-center overflow-hidden border-2 border-[var(--color-border)] ${isUploading ? 'border-[var(--color-brand)] animate-pulse' : ''}`}>
               {isUploading ? (
                 <div className="flex flex-col items-center gap-1">
                   <div className="w-5 h-5 border-2 border-[var(--color-brand)] border-t-transparent rounded-full animate-spin" />
@@ -309,11 +309,10 @@ export default function ProfilePage() {
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`p-2 rounded-lg transition-all ${
-                      copied
+                    className={`p-2 rounded-lg transition-all ${copied
                         ? 'bg-[var(--color-success)] text-white'
                         : 'bg-[var(--color-brand)] text-black hover:bg-[var(--color-brand-dark)]'
-                    }`}
+                      }`}
                   >
                     {copied ? <Check size={18} /> : <Copy size={18} />}
                   </button>
@@ -410,14 +409,12 @@ export default function ProfilePage() {
 
           <button
             onClick={toggleTheme}
-            className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${
-              theme === 'dark' ? 'bg-indigo-500' : 'bg-yellow-400'
-            }`}
+            className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${theme === 'dark' ? 'bg-indigo-500' : 'bg-yellow-400'
+              }`}
           >
             <div
-              className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 flex items-center justify-center ${
-                theme === 'dark' ? 'left-1' : 'left-7'
-              }`}
+              className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 flex items-center justify-center ${theme === 'dark' ? 'left-1' : 'left-7'
+                }`}
             >
               {theme === 'dark' ? (
                 <Moon size={14} className="text-indigo-500" />

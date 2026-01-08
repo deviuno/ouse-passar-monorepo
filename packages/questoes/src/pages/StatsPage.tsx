@@ -396,7 +396,7 @@ function AchievementsCard({
             className="flex items-center gap-3 p-2 rounded-lg bg-[var(--color-bg-elevated)] border border-[var(--color-border)]"
           >
             <div
-              className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 ${achievement.unlocked ? 'bg-[#FFB800]/20' : 'bg-[#1A1A1A] grayscale'
+              className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 ${achievement.unlocked ? 'bg-[#FFB800]/20' : 'bg-[var(--color-bg-main)] grayscale'
                 }`}
             >
               {achievement.unlocked ? achievement.emoji : '🔒'}
@@ -404,22 +404,22 @@ function AchievementsCard({
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-center mb-0.5">
                 <h4
-                  className={`font-medium text-sm truncate ${achievement.unlocked ? 'text-white' : 'text-[#6E6E6E]'
+                  className={`font-medium text-sm truncate ${achievement.unlocked ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-muted)]'
                     }`}
                 >
                   {achievement.title}
                 </h4>
                 {!achievement.unlocked && achievement.progress > 0 && (
-                  <span className="text-[10px] text-[#A0A0A0] ml-2">
+                  <span className="text-[10px] text-[var(--color-text-muted)] ml-2">
                     {Math.round(achievement.progress)}%
                   </span>
                 )}
               </div>
-              <p className="text-xs text-[#A0A0A0] truncate">{achievement.description}</p>
+              <p className="text-xs text-[var(--color-text-muted)] truncate">{achievement.description}</p>
               {!achievement.unlocked && (
-                <div className="mt-1.5 h-1 bg-[#1A1A1A] rounded-full overflow-hidden">
+                <div className="mt-1.5 h-1 bg-[var(--color-bg-main)] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#FFB800] transition-all duration-500"
+                    className="h-full bg-[var(--color-brand)] transition-all duration-500"
                     style={{ width: `${achievement.progress}%` }}
                   />
                 </div>
@@ -527,7 +527,7 @@ function WeeklyRankingCard({
             </div>
 
             {/* Avatar */}
-            <div className="w-8 h-8 rounded-full bg-[#3A3A3A] flex items-center justify-center overflow-hidden flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[var(--color-bg-elevated)] flex items-center justify-center overflow-hidden flex-shrink-0">
               {member.avatar_url ? (
                 <img
                   src={getOptimizedImageUrl(member.avatar_url, 64, 80)}

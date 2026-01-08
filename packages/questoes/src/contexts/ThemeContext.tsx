@@ -26,6 +26,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   useEffect(() => {
     // Aplicar tema no documento
     document.documentElement.setAttribute('data-theme', theme);
+
+    // Aplicar classe 'dark' para suporte ao Tailwind darkMode: 'class'
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
     localStorage.setItem('ouse-questoes-theme', theme);
   }, [theme]);
 
