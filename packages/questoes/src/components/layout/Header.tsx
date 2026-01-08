@@ -3,7 +3,8 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronDown, Flame, Eye, BookOpen, Filter, Map } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTrailStore, useAuthStore, useUIStore } from '../../stores';
-import { LOGO_URL } from '../../constants';
+import { useTheme } from '../../contexts/ThemeContext';
+import { LOGO_FOR_LIGHT_THEME, LOGO_FOR_DARK_THEME } from '../../constants';
 import { PreparatorioDropdown } from '../trail/PreparatorioDropdown';
 import { RoundSelector } from '../trail/RoundSelector';
 import { UserPreparatorio } from '../../types';
@@ -14,7 +15,7 @@ export function Header() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
-  const { practiceMode, headerOverride } = useUIStore();
+  const { practiceMode, headerOverride, isDarkMode } = useUIStore();
   const [showAssuntosPopover, setShowAssuntosPopover] = useState(false);
   const eyeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -137,25 +138,25 @@ export function Header() {
     };
 
     return (
-      <header className="sticky top-0 h-14 bg-[#1A1A1A]/95 backdrop-blur-md border-b border-[#3A3A3A] z-30">
+      <header className="sticky top-0 h-14 bg-[var(--color-bg-main)]/95 backdrop-blur-md border-b border-[var(--color-border)] z-30 theme-transition">
         <div className="flex items-center justify-between h-full px-4 relative">
           {/* Left: Back + Title */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <button
               onClick={handleBackClick}
-              className="p-1.5 rounded-lg hover:bg-[#252525] transition-colors flex-shrink-0"
+              className="p-1.5 rounded-lg hover:bg-[var(--color-bg-card)] transition-colors flex-shrink-0"
             >
-              <ChevronLeft size={20} className="text-[#A0A0A0]" />
+              <ChevronLeft size={20} className="text-[var(--color-text-sec)]" />
             </button>
-            <span className="text-white font-semibold truncate">{practiceMode.title || 'Nova Prática'}</span>
+            <span className="text-[var(--color-text-main)] font-bold truncate">{practiceMode.title || 'Nova Prática'}</span>
           </div>
 
           {/* Center: Counter */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-sm">
-              <span className="text-[#2ECC71] font-bold">{practiceMode.correctCount}</span>
-              <span className="text-[#3A3A3A]">/</span>
-              <span className="text-[#E74C3C] font-bold">{practiceMode.wrongCount}</span>
+              <span className="text-[var(--color-success)] font-bold">{practiceMode.correctCount}</span>
+              <span className="text-[var(--color-border)]">/</span>
+              <span className="text-[var(--color-error)] font-bold">{practiceMode.wrongCount}</span>
             </div>
           </div>
 
@@ -163,19 +164,18 @@ export function Header() {
           {practiceMode.isTrailMode ? (
             <button
               onClick={() => practiceMode.onToggleEdital?.()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium hover:bg-[#252525] text-[#A0A0A0] hover:text-white flex-shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium hover:bg-[var(--color-bg-card)] text-[var(--color-text-sec)] hover:text-[var(--color-text-main)] flex-shrink-0"
             >
-              <ChevronLeft size={16} className="text-[#FFB800]" />
+              <ChevronLeft size={16} className="text-[var(--color-brand)]" />
               <span>Edital</span>
             </button>
           ) : (
             <button
               onClick={() => practiceMode.onToggleFilters?.()}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium flex-shrink-0 ${
-                practiceMode.showFilters
-                  ? 'bg-[#FFB800] text-black'
-                  : 'hover:bg-[#252525] text-[#A0A0A0] hover:text-white'
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium flex-shrink-0 ${practiceMode.showFilters
+                ? 'bg-[var(--color-brand)] text-black'
+                : 'hover:bg-[var(--color-bg-card)] text-[var(--color-text-sec)] hover:text-[var(--color-text-main)]'
+                }`}
             >
               <Filter size={16} />
               <span>Filtrar</span>
@@ -190,15 +190,15 @@ export function Header() {
   // Header Override Mode - quando uma página define header customizado
   if (headerOverride) {
     return (
-      <header className="sticky top-0 h-14 bg-[#1A1A1A]/95 backdrop-blur-md border-b border-[#3A3A3A] z-30">
+      <header className="sticky top-0 h-14 bg-[var(--color-bg-main)]/95 backdrop-blur-md border-b border-[var(--color-border)] z-30 theme-transition">
         <div className="flex items-center justify-between h-full px-4">
           <div className="flex items-center gap-3">
             {headerOverride.showBackButton && (
               <button
                 onClick={() => navigate(headerOverride.backPath)}
-                className="p-2 hover:bg-[#2A2A2A] rounded-lg transition-colors"
+                className="p-2 hover:bg-[var(--color-bg-elevated)] rounded-lg transition-colors"
               >
-                <ChevronLeft size={24} className="text-gray-400" />
+                <ChevronLeft size={24} className="text-[var(--color-text-sec)]" />
               </button>
             )}
             <div className="flex items-center gap-3">
@@ -216,9 +216,9 @@ export function Header() {
                 </div>
               )}
               <div>
-                <h1 className="text-lg font-bold text-white">{headerOverride.title}</h1>
+                <h1 className="text-lg font-bold text-[var(--color-text-main)]">{headerOverride.title}</h1>
                 {headerOverride.subtitle && (
-                  <p className="text-sm text-[#FFB800]">{headerOverride.subtitle}</p>
+                  <p className="text-sm text-[var(--color-brand)]">{headerOverride.subtitle}</p>
                 )}
               </div>
             </div>
@@ -229,7 +229,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 h-14 bg-[#1A1A1A]/95 backdrop-blur-md border-b border-[#3A3A3A] z-30">
+    <header className="sticky top-0 h-14 bg-[var(--color-bg-main)]/95 backdrop-blur-md border-b border-[var(--color-border)] z-30 theme-transition">
       <div className="flex items-center justify-between h-full px-4">
         {/* Left Side */}
         <div className="flex items-center gap-3">
@@ -237,17 +237,17 @@ export function Header() {
             <>
               <button
                 onClick={() => navigate(-1)}
-                className="p-2 rounded-full hover:bg-[#3A3A3A] transition-colors active:scale-95"
+                className="p-2 rounded-full hover:bg-[var(--color-border)] transition-colors active:scale-95"
               >
-                <ChevronLeft size={24} className="text-white" />
+                <ChevronLeft size={24} className="text-[var(--color-text-main)]" />
               </button>
               {/* Mobile mission title - next to back button */}
               {isMissionPage && (
                 <div className="flex items-center gap-2 lg:hidden">
-                  <h1 className="text-base font-semibold text-white">
+                  <h1 className="text-base font-semibold text-[var(--color-text-main)]">
                     {getMissionTitle()}
                     {currentMission?.materia?.materia && (
-                      <span className="text-[#A0A0A0] font-normal"> - {currentMission.materia.materia}</span>
+                      <span className="text-[var(--color-text-sec)] font-normal"> - {currentMission.materia.materia}</span>
                     )}
                   </h1>
                   {currentMission?.assunto?.nome && (
@@ -255,10 +255,10 @@ export function Header() {
                       <button
                         ref={eyeButtonRef}
                         onClick={() => setShowAssuntosPopover(!showAssuntosPopover)}
-                        className="p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-[var(--color-border)] transition-colors"
                         title="Ver assuntos"
                       >
-                        <Eye size={18} className="text-[#A0A0A0] hover:text-[#FFB800]" />
+                        <Eye size={18} className="text-[var(--color-text-sec)] hover:text-[var(--color-brand)]" />
                       </button>
 
                       {/* Popover de Assuntos */}
@@ -275,24 +275,24 @@ export function Header() {
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, y: -10, scale: 0.95 }}
                               transition={{ duration: 0.2 }}
-                              className="fixed left-4 right-4 top-16 w-auto max-w-sm bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden"
+                              className="fixed left-4 right-4 top-16 w-auto max-w-sm bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl shadow-2xl z-50 overflow-hidden theme-transition"
                             >
                               {/* Header do Popover */}
-                              <div className="p-3 border-b border-zinc-800 bg-gradient-to-r from-zinc-800 to-zinc-900">
+                              <div className="p-3 border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)]">
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <BookOpen size={14} className="text-emerald-500" />
-                                  <h3 className="font-bold text-sm leading-tight text-white">
+                                  <h3 className="font-bold text-sm leading-tight text-[var(--color-text-main)]">
                                     {getMissionTitle()}
                                   </h3>
                                 </div>
-                                <p className="text-xs text-zinc-400 line-clamp-1">
+                                <p className="text-xs text-[var(--color-text-muted)] line-clamp-1">
                                   {currentMission?.materia?.materia || 'Matéria'}
                                 </p>
                               </div>
 
                               {/* Body do Popover */}
-                              <div className="p-3 bg-zinc-900">
-                                <p className="text-[10px] uppercase font-bold text-zinc-500 mb-2">Assuntos Abordados:</p>
+                              <div className="p-3 bg-[var(--color-bg-card)]">
+                                <p className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] mb-2">Assuntos Abordados:</p>
                                 {(() => {
                                   const assuntoName = currentMission?.assunto?.nome || '';
                                   const subjects = assuntoName
@@ -306,7 +306,7 @@ export function Header() {
                                       {items.map((subject: string, idx: number) => (
                                         <div key={idx} className="flex items-start gap-2">
                                           <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-emerald-500" />
-                                          <p className="text-xs text-zinc-300 font-medium leading-snug">
+                                          <p className="text-xs text-[var(--color-text-sec)] font-medium leading-snug">
                                             {subject}
                                           </p>
                                         </div>
@@ -352,7 +352,7 @@ export function Header() {
                 </div>
               ) : (
                 <img
-                  src={LOGO_URL}
+                  src={isDarkMode ? LOGO_FOR_DARK_THEME : LOGO_FOR_LIGHT_THEME}
                   alt="Ouse Passar"
                   className="h-8 lg:hidden"
                 />
@@ -373,7 +373,7 @@ export function Header() {
             </div>
           ) : (
             <div className="hidden lg:flex items-center gap-2">
-              <h1 className="text-lg font-semibold text-white">
+              <h1 className="text-xl font-bold text-[var(--color-text-main)] tracking-tight">
                 {getPageTitle()}
               </h1>
               {isMissionPage && currentMode === 'reta_final' && (

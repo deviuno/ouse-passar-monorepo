@@ -945,6 +945,275 @@ export const missoesService = {
       .eq('missao_id', missaoId);
 
     if (error) throw error;
+  },
+
+  // ==================== MULTI-TURMA ====================
+
+  /**
+   * Buscar todos os preparatórios ativos com suas rodadas
+   */
+  async getAllPreparatoriosWithRodadas(): Promise<PreparatorioWithRodadas[]> {
+    const { data: preparatorios, error: prepError } = await supabase
+      .from('preparatorios')
+      .select('id, nome, slug')
+      .eq('is_active', true)
+      .order('nome');
+
+    if (prepError) throw prepError;
+    if (!preparatorios || preparatorios.length === 0) return [];
+
+    // Buscar rodadas de todos os preparatórios
+    const prepIds = preparatorios.map(p => p.id);
+    const { data: rodadas, error: rodError } = await supabase
+      .from('rodadas')
+      .select('id, preparatorio_id, numero, titulo')
+      .in('preparatorio_id', prepIds)
+      .order('numero');
+
+    if (rodError) throw rodError;
+
+    // Agrupar rodadas por preparatório
+    const rodadasMap: Record<string, Rodada[]> = {};
+    for (const rodada of rodadas || []) {
+      if (!rodadasMap[rodada.preparatorio_id]) {
+        rodadasMap[rodada.preparatorio_id] = [];
+      }
+      rodadasMap[rodada.preparatorio_id].push(rodada as Rodada);
+    }
+
+    // Combinar preparatórios com suas rodadas
+    return preparatorios.map(prep => ({
+      ...prep,
+      rodadas: rodadasMap[prep.id] || []
+    })) as PreparatorioWithRodadas[];
+  },
+
+  /**
+   * Buscar próximo número de missão disponível em uma rodada
+   */
+  async getNextMissaoNumero(rodadaId: string): Promise<string> {
+    const { data: missoes } = await supabase
+      .from('missoes')
+      .select('numero')
+      .eq('rodada_id', rodadaId)
+      .order('ordem', { ascending: false });
+
+    if (!missoes || missoes.length === 0) return '1';
+
+    // Tentar extrair o maior número
+    let maxNum = 0;
+    for (const m of missoes) {
+      const num = parseInt(m.numero);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
+    }
+
+    return String(maxNum + 1);
+  },
+
+  /**
+   * Normaliza string para comparação fuzzy
+   * Remove acentos, converte para minúsculas, remove pontuação extra
+   */
+  normalizeForComparison(str: string): string {
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/[^a-z0-9\s]/g, ' ')    // Remove pontuação
+      .replace(/\s+/g, ' ')            // Normaliza espaços
+      .trim();
+  },
+
+  /**
+   * Calcula similaridade entre duas strings (0 a 1)
+   * Usa distância de Levenshtein normalizada
+   */
+  calculateSimilarity(str1: string, str2: string): number {
+    const s1 = this.normalizeForComparison(str1);
+    const s2 = this.normalizeForComparison(str2);
+
+    if (s1 === s2) return 1;
+    if (s1.length === 0 || s2.length === 0) return 0;
+
+    // Verifica se um contém o outro
+    if (s1.includes(s2) || s2.includes(s1)) {
+      const minLen = Math.min(s1.length, s2.length);
+      const maxLen = Math.max(s1.length, s2.length);
+      return minLen / maxLen;
+    }
+
+    // Distância de Levenshtein
+    const matrix: number[][] = [];
+    for (let i = 0; i <= s1.length; i++) {
+      matrix[i] = [i];
+    }
+    for (let j = 0; j <= s2.length; j++) {
+      matrix[0][j] = j;
+    }
+    for (let i = 1; i <= s1.length; i++) {
+      for (let j = 1; j <= s2.length; j++) {
+        const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    const distance = matrix[s1.length][s2.length];
+    const maxLen = Math.max(s1.length, s2.length);
+    return 1 - distance / maxLen;
+  },
+
+  /**
+   * Busca o melhor match para um título de edital em uma lista
+   * Retorna o item com maior similaridade acima do threshold
+   */
+  findBestEditalMatch(
+    titulo: string,
+    candidatos: { id: string; titulo: string }[],
+    threshold: number = 0.7
+  ): { id: string; titulo: string; similarity: number } | null {
+    let bestMatch: { id: string; titulo: string; similarity: number } | null = null;
+
+    for (const candidato of candidatos) {
+      const similarity = this.calculateSimilarity(titulo, candidato.titulo);
+      if (similarity >= threshold && (!bestMatch || similarity > bestMatch.similarity)) {
+        bestMatch = { ...candidato, similarity };
+      }
+    }
+
+    return bestMatch;
+  },
+
+  /**
+   * Clonar missão para múltiplas rodadas de outros preparatórios
+   * Suporta criar nova rodada se target.rodadaId === "new"
+   * Tenta fazer correspondência fuzzy dos itens do edital
+   */
+  async cloneToMultipleRodadas(
+    missaoData: CreateMissaoInput,
+    questaoFiltros: QuestaoFiltrosData | null,
+    questoesCount: number,
+    targets: MultiTurmaTarget[],
+    editalItemTitulos?: string[] // Títulos dos itens do edital da missão original
+  ): Promise<{ success: CloneResult[]; errors: CloneError[] }> {
+    const success: CloneResult[] = [];
+    const errors: CloneError[] = [];
+
+    for (const target of targets) {
+      try {
+        let rodadaId = target.rodadaId;
+
+        // Se precisa criar nova rodada
+        if (rodadaId === 'new' && target.novaRodada) {
+          const { data: novaRodada, error: rodadaError } = await supabase
+            .from('rodadas')
+            .insert({
+              preparatorio_id: target.preparatorioId,
+              numero: target.novaRodada.numero,
+              titulo: target.novaRodada.titulo || `Rodada ${target.novaRodada.numero}`
+            })
+            .select()
+            .single();
+
+          if (rodadaError) throw new Error(`Erro ao criar rodada: ${rodadaError.message}`);
+          rodadaId = novaRodada.id;
+        }
+
+        // Criar a missão no destino
+        const { data: novaMissao, error: missaoError } = await supabase
+          .from('missoes')
+          .insert({
+            rodada_id: rodadaId,
+            numero: target.missaoNumero,
+            tipo: missaoData.tipo || 'padrao',
+            materia: missaoData.materia,
+            assunto: missaoData.assunto,
+            instrucoes: missaoData.instrucoes,
+            tema: missaoData.tema,
+            acao: missaoData.acao,
+            extra: missaoData.extra,
+            obs: missaoData.obs,
+            ordem: parseInt(target.missaoNumero) || 0
+          })
+          .select()
+          .single();
+
+        if (missaoError) throw missaoError;
+
+        // Copiar filtros de questões (se existirem)
+        if (questaoFiltros && novaMissao) {
+          await supabase
+            .from('missao_questao_filtros')
+            .insert({
+              missao_id: novaMissao.id,
+              filtros: questaoFiltros,
+              questoes_count: questoesCount
+            });
+        }
+
+        // Tentar fazer correspondência dos itens do edital
+        const unmatchedEditalItems: string[] = [];
+        const matchedEditalItemIds: string[] = [];
+
+        if (editalItemTitulos && editalItemTitulos.length > 0) {
+          // Buscar todos os itens do edital do preparatório destino
+          const { data: editalItemsDestino } = await supabase
+            .from('edital_verticalizado_items')
+            .select('id, titulo')
+            .eq('preparatorio_id', target.preparatorioId);
+
+          if (editalItemsDestino && editalItemsDestino.length > 0) {
+            for (const titulo of editalItemTitulos) {
+              const match = this.findBestEditalMatch(titulo, editalItemsDestino);
+              if (match) {
+                matchedEditalItemIds.push(match.id);
+              } else {
+                unmatchedEditalItems.push(titulo);
+              }
+            }
+
+            // Vincular itens encontrados à missão
+            if (matchedEditalItemIds.length > 0) {
+              const inserts = matchedEditalItemIds.map(editalItemId => ({
+                missao_id: novaMissao.id,
+                edital_item_id: editalItemId
+              }));
+
+              await supabase
+                .from('missao_edital_items')
+                .insert(inserts);
+            }
+          } else {
+            // Preparatório não tem edital configurado
+            unmatchedEditalItems.push(...editalItemTitulos);
+          }
+        }
+
+        success.push({
+          preparatorioId: target.preparatorioId,
+          preparatorioNome: target.preparatorioNome,
+          rodadaId: rodadaId,
+          missaoId: novaMissao.id,
+          missaoNumero: target.missaoNumero,
+          unmatchedEditalItems: unmatchedEditalItems.length > 0 ? unmatchedEditalItems : undefined,
+          matchedCount: matchedEditalItemIds.length,
+          totalEditalItems: editalItemTitulos?.length || 0
+        });
+      } catch (err: any) {
+        errors.push({
+          preparatorioId: target.preparatorioId,
+          preparatorioNome: target.preparatorioNome,
+          error: err.message || 'Erro desconhecido'
+        });
+      }
+    }
+
+    return { success, errors };
   }
 };
 
@@ -953,6 +1222,7 @@ export interface QuestaoFiltrosData {
   materias?: string[];
   assuntos?: string[];
   bancas?: string[];
+  banca_ids?: string[]; // UUIDs das bancas (mais eficiente para filtragem)
   orgaos?: string[];
   anos?: number[];
   escolaridade?: string[];
@@ -971,6 +1241,46 @@ export interface MissaoQuestaoFiltros {
   adaptacoes_observacoes?: string | null;
   otimizado_por_ia?: boolean;
   filtros_originais?: QuestaoFiltrosData | null;
+}
+
+// ==================== TIPOS MULTI-TURMA ====================
+
+export interface PreparatorioWithRodadas {
+  id: string;
+  nome: string;
+  slug: string;
+  rodadas: Rodada[];
+}
+
+export interface MultiTurmaTarget {
+  preparatorioId: string;
+  preparatorioNome: string;
+  rodadaId: string; // "new" para criar nova rodada
+  rodadaNumero: number;
+  missaoNumero: string;
+  // Campos para criar nova rodada (quando rodadaId === "new")
+  novaRodada?: {
+    numero: number;
+    titulo?: string;
+  };
+}
+
+export interface CloneResult {
+  preparatorioId: string;
+  preparatorioNome: string;
+  rodadaId: string;
+  missaoId: string;
+  missaoNumero: string;
+  // Informações sobre correspondência de edital
+  unmatchedEditalItems?: string[]; // Títulos que não encontraram correspondência
+  matchedCount: number;            // Quantidade de itens que encontraram correspondência
+  totalEditalItems: number;        // Total de itens do edital na missão original
+}
+
+export interface CloneError {
+  preparatorioId: string;
+  preparatorioNome: string;
+  error: string;
 }
 
 // ==================== MENSAGENS DE INCENTIVO ====================

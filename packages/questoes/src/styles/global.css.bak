@@ -1,0 +1,813 @@
+/* Global Styles - Ouse Questoes */
+
+/* Tailwind Base */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Utility: Hide scrollbar */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari and Opera */
+}
+
+/* CSS Variables - Dark Theme (default) */
+:root {
+  --color-brand: #FFB800;
+  --color-brand-light: #FFD54F;
+  --color-brand-dark: #E6A500;
+
+  --color-bg-main: #1A1A1A;
+  --color-bg-card: #252525;
+  --color-bg-elevated: #2D2D2D;
+
+  --color-text-main: #FFFFFF;
+  --color-text-sec: #A0A0A0;
+  --color-text-muted: #6E6E6E;
+
+  --color-success: #2ECC71;
+  --color-error: #E74C3C;
+  --color-warning: #F39C12;
+  --color-info: #3498DB;
+
+  --color-border: #3A3A3A;
+
+  /* Shadows - Dark Mode (Subtle/Dark) */
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+  --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --glass-bg: rgba(37, 37, 37, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Light Theme */
+/* Light Theme */
+[data-theme="light"] {
+  --color-brand: #D98E04;
+  /* Slightly Darker/Richer Gold for better white contrast */
+  --color-brand-light: #FFC107;
+  --color-brand-dark: #B37400;
+
+  /* Refined Backgrounds - Slate/Gray Scale for modernity */
+  --color-bg-main: #F1F5F9;
+  /* Slate-100 */
+  --color-bg-card: #FFFFFF;
+  --color-bg-elevated: #F8FAFC;
+  /* Slate-50 */
+
+  /* Much Darker Text for Contrast */
+  --color-text-main: #020617;
+  /* Slate-950 (Deep Black-Blue) */
+  --color-text-sec: #334155;
+  /* Slate-700 (Dark Grey) */
+  --color-text-muted: #475569;
+  /* Slate-600 (Medium Dark Grey) */
+
+  --color-success: #16A34A;
+  /* Green-600 */
+  --color-error: #DC2626;
+  /* Red-600 */
+  --color-warning: #D97706;
+  /* Amber-600 */
+  --color-info: #0284C7;
+  /* Sky-600 */
+
+  --color-border: #E2E8F0;
+  /* Slate-200 */
+
+  /* Shadows - Light Mode (Soft/Refined) */
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.4);
+}
+
+/* Theme Transition */
+.theme-transition {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--color-bg-main);
+  color: var(--color-text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-card);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-sec);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--color-brand);
+  color: #000;
+}
+
+/* Focus Styles */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Remove tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent pull-to-refresh on mobile */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Animation Classes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes bounce {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Glassmorphism */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-dark {
+  background: rgba(15, 15, 15, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Premium Gradients */
+.bg-premium-dark {
+  background: linear-gradient(180deg, #1A1A1A 0%, #121212 100%);
+}
+
+.bg-premium-light {
+  background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+}
+
+/* Utility Classes */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe Area Padding */
+@supports (padding: max(0px)) {
+  .safe-area-top {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+
+  .safe-area-bottom {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Print Styles */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+}
+
+/* Mission Content Markdown Styles */
+.mission-content {
+  color: #E0E0E0;
+  line-height: 1.6;
+}
+
+.mission-content h1 {
+  color: #FFB800 !important;
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  margin-top: 0 !important;
+  margin-bottom: 1.5rem !important;
+  padding-bottom: 1rem !important;
+  border-bottom: 2px solid #3A3A3A !important;
+}
+
+.mission-content h2 {
+  color: #FFFFFF !important;
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  margin-top: 2rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.mission-content h3 {
+  color: #FFFFFF !important;
+  font-size: 1.15rem !important;
+  font-weight: 600 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.mission-content h4 {
+  color: #FFFFFF !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.mission-content p {
+  color: #E0E0E0 !important;
+  margin-bottom: 0.75rem !important;
+  line-height: 1.5 !important;
+}
+
+.mission-content strong,
+.mission-content b {
+  color: #FFB800 !important;
+  font-weight: 600 !important;
+}
+
+.mission-content em,
+.mission-content i {
+  color: #A0A0A0 !important;
+  font-style: italic !important;
+}
+
+.mission-content ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin: 1rem 0 !important;
+}
+
+.mission-content ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin: 1rem 0 !important;
+}
+
+.mission-content li {
+  color: #E0E0E0 !important;
+  margin-bottom: 0.35rem !important;
+  line-height: 1.5 !important;
+}
+
+.mission-content li::marker {
+  color: #FFB800 !important;
+}
+
+.mission-content blockquote {
+  border-left: 4px solid #FFB800 !important;
+  padding-left: 1rem !important;
+  margin: 1.5rem 0 !important;
+  background-color: #252525 !important;
+  padding: 1rem !important;
+  border-radius: 0 8px 8px 0 !important;
+  font-style: italic !important;
+  color: #A0A0A0 !important;
+}
+
+.mission-content code {
+  background-color: #3A3A3A !important;
+  color: #FFB800 !important;
+  padding: 0.2rem 0.5rem !important;
+  border-radius: 4px !important;
+  font-size: 0.9em !important;
+  font-family: 'Fira Code', 'Consolas', monospace !important;
+}
+
+.mission-content pre {
+  background-color: #1A1A1A !important;
+  border: 1px solid #3A3A3A !important;
+  border-radius: 8px !important;
+  padding: 1rem !important;
+  overflow-x: auto !important;
+  margin: 1rem 0 !important;
+}
+
+.mission-content pre code {
+  background-color: transparent !important;
+  padding: 0 !important;
+}
+
+.mission-content hr {
+  border: none !important;
+  border-top: 1px solid #3A3A3A !important;
+  margin: 2rem 0 !important;
+}
+
+.mission-content a {
+  color: #3498DB !important;
+  text-decoration: underline !important;
+  text-underline-offset: 2px !important;
+}
+
+.mission-content a:hover {
+  color: #FFB800 !important;
+}
+
+.mission-content table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 1.5rem 0 !important;
+  font-size: 0.9rem !important;
+}
+
+.mission-content th {
+  background-color: #3A3A3A !important;
+  color: #FFB800 !important;
+  font-weight: 600 !important;
+  padding: 0.75rem !important;
+  text-align: left !important;
+  border: 1px solid #4A4A4A !important;
+}
+
+.mission-content td {
+  padding: 0.75rem !important;
+  border: 1px solid #3A3A3A !important;
+  color: #E0E0E0 !important;
+}
+
+.mission-content tr:nth-child(even) {
+  background-color: #252525 !important;
+}
+
+.mission-content img {
+  max-width: 100% !important;
+  border-radius: 8px !important;
+  margin: 1rem 0 !important;
+}
+
+/* ============================================
+   MOBILE-FIRST ANIMATIONS (App Nativo)
+   ============================================ */
+
+/* Ripple Effect Animation (Material Design / iOS-like) */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Fade In Up (Page transitions) */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Scale Bounce (Modals e Cards) */
+@keyframes scaleBounce {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-bounce {
+  animation: scaleBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Slide In From Bottom (Bottom Sheets) */
+@keyframes slideInFromBottom {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-from-bottom {
+  animation: slideInFromBottom 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Slide In From Right (Sidebars) */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-from-right {
+  animation: slideInFromRight 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Shimmer Loading Effect (Skeleton) */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg,
+      #2A2A2A 0%,
+      #3A3A3A 20%,
+      #2A2A2A 40%,
+      #2A2A2A 100%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* Shake Animation (Error feedback) */
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-5px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+/* Success Bounce (Feedback positivo) */
+@keyframes successBounce {
+  0% {
+    transform: scale(0);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-success-bounce {
+  animation: successBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Pull to Refresh Spinner */
+@keyframes pullToRefreshSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-ptr-spin {
+  animation: pullToRefreshSpin 1s linear infinite;
+}
+
+/* ============================================
+   TOUCH FEEDBACK & ACCESSIBILITY
+   ============================================ */
+
+/* Aumentar área de toque em elementos clicáveis (44px mínimo iOS) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Active state feedback para botões */
+.touch-feedback:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* Smooth transitions para todos os elementos interativos */
+button,
+a,
+[role="button"] {
+  transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* ============================================
+   MOBILE OPTIMIZATIONS
+   ============================================ */
+
+/* Prevent text selection on buttons and interactive elements */
+button,
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Smooth momentum scrolling on iOS */
+.momentum-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: scroll;
+}
+
+/* Hide scrollbar but keep functionality (iOS-like) */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area for notch devices */
+@supports (padding: env(safe-area-inset-top)) {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ============================================
+   MOBILE-OPTIMIZED TYPOGRAPHY
+   ============================================ */
+
+/* Reduzir tamanhos de fonte em mobile para maximizar conteúdo */
+@media (max-width: 768px) {
+
+  /* Base font size menor em mobile */
+  html {
+    font-size: 15px;
+  }
+
+  /* Headers menores em mobile */
+  h1 {
+    font-size: 1.5rem;
+    /* 24px */
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    /* 20px */
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    /* 18px */
+  }
+
+  h4 {
+    font-size: 1rem;
+    /* 16px */
+  }
+
+  /* Body text otimizado */
+  p,
+  span,
+  div {
+    font-size: 0.9375rem;
+    /* 15px */
+    line-height: 1.5;
+  }
+
+  /* Botões menores mas ainda tocáveis */
+  button {
+    font-size: 0.875rem;
+    /* 14px */
+    padding: 0.625rem 1rem;
+    /* 10px 16px */
+  }
+
+  /* Inputs e form elements */
+  input,
+  textarea,
+  select {
+    font-size: 0.9375rem;
+    /* 15px - iOS zoom prevention */
+  }
+
+  /* Mission content otimizado para mobile */
+  .mission-content {
+    line-height: 1.5;
+  }
+
+  .mission-content h1 {
+    font-size: 1.35rem !important;
+    /* 21.6px */
+    margin-bottom: 1rem !important;
+  }
+
+  .mission-content h2 {
+    font-size: 1.15rem !important;
+    /* 18.4px */
+    margin-top: 1.25rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .mission-content h3 {
+    font-size: 1rem !important;
+    /* 16px */
+    margin-top: 1rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .mission-content p {
+    margin-bottom: 0.625rem !important;
+    /* 10px */
+    line-height: 1.5 !important;
+    font-size: 0.9375rem !important;
+    /* 15px */
+  }
+
+  .mission-content li {
+    margin-bottom: 0.25rem !important;
+    /* 4px */
+    line-height: 1.45 !important;
+    font-size: 0.9375rem !important;
+    /* 15px */
+  }
+
+  .mission-content ul,
+  .mission-content ol {
+    margin: 0.75rem 0 !important;
+    padding-left: 1.25rem !important;
+  }
+}

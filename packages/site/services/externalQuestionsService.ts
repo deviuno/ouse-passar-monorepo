@@ -33,6 +33,7 @@ export interface ExternalQuestion {
 export interface QuestionFilters {
   materias?: string[];
   bancas?: string[];
+  banca_ids?: string[]; // UUIDs das bancas (mais eficiente para filtragem)
   anos?: number[];
   orgaos?: string[];
   cargos?: string[];
@@ -41,6 +42,14 @@ export interface QuestionFilters {
   modalidade?: string[];
   excludeIds?: number[];
   limit?: number;
+}
+
+// Interface para banca com detalhes
+export interface BancaWithDetails {
+  id: string;
+  nome: string;
+  sigla: string | null;
+  questoes_count?: number;
 }
 
 // Opções estáticas para filtros
@@ -114,7 +123,10 @@ export async function getQuestionsForFilters(
       query = query.in('materia', filters.materias);
     }
 
-    if (filters.bancas && filters.bancas.length > 0) {
+    // Preferir banca_ids (mais eficiente) ou fallback para bancas (texto)
+    if (filters.banca_ids && filters.banca_ids.length > 0) {
+      query = query.in('banca_id', filters.banca_ids);
+    } else if (filters.bancas && filters.bancas.length > 0) {
       query = query.in('banca', filters.bancas);
     }
 
@@ -174,6 +186,7 @@ export async function getQuestionsForFilters(
 
 /**
  * Count total questions matching filters
+ * Usa banca_id quando disponível (mais eficiente) ou fallback para banca (texto)
  */
 export async function countQuestionsForFilters(
   filters: QuestionFilters
@@ -196,7 +209,10 @@ export async function countQuestionsForFilters(
       query = query.in('materia', filters.materias);
     }
 
-    if (filters.bancas && filters.bancas.length > 0) {
+    // Preferir banca_ids (mais eficiente) ou fallback para bancas (texto)
+    if (filters.banca_ids && filters.banca_ids.length > 0) {
+      query = query.in('banca_id', filters.banca_ids);
+    } else if (filters.bancas && filters.bancas.length > 0) {
       query = query.in('banca', filters.bancas);
     }
 
@@ -510,6 +526,40 @@ export async function getAssuntosByMaterias(
   } catch (error: any) {
     console.error('Erro ao buscar assuntos:', error);
     return { assuntos: [], error: error.message };
+  }
+}
+
+/**
+ * Get bancas with details (id, nome, sigla) for efficient filtering
+ * Uses RPC function that returns bancas with question counts
+ */
+export async function getBancasWithDetails(): Promise<{
+  bancas: BancaWithDetails[];
+  error?: string;
+}> {
+  if (!questionsDb) {
+    return {
+      bancas: [],
+      error: 'Banco de questões não configurado.'
+    };
+  }
+
+  try {
+    const { data, error } = await questionsDb.rpc('get_bancas_with_details');
+
+    if (error) throw error;
+
+    return {
+      bancas: (data || []).map((b: any) => ({
+        id: b.id,
+        nome: b.nome,
+        sigla: b.sigla,
+        questoes_count: b.questoes_count
+      }))
+    };
+  } catch (error: any) {
+    console.error('Error fetching bancas with details:', error);
+    return { bancas: [], error: error.message };
   }
 }
 

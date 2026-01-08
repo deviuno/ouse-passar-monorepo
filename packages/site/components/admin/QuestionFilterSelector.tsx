@@ -5,7 +5,9 @@ import {
   getDynamicFilterOptions,
   countQuestionsForFilters,
   getAssuntosByMaterias,
+  getBancasWithDetails,
   QuestionFilters,
+  BancaWithDetails,
   isExternalDbAvailable,
   OPTIONS_ESCOLARIDADE,
   OPTIONS_MODALIDADE
@@ -30,6 +32,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   // Opcoes disponiveis
   const [allMaterias, setAllMaterias] = useState<string[]>([]);
   const [allBancas, setAllBancas] = useState<string[]>([]);
+  const [allBancasWithDetails, setAllBancasWithDetails] = useState<BancaWithDetails[]>([]);
   const [allAnos, setAllAnos] = useState<number[]>([]);
   const [allOrgaos, setAllOrgaos] = useState<string[]>([]);
   const [allCargos, setAllCargos] = useState<string[]>([]);
@@ -54,6 +57,24 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   const [selectedAssuntos, setSelectedAssuntos] = useState<string[]>(initialFilters?.assuntos || []);
   const [selectedEscolaridade, setSelectedEscolaridade] = useState<string[]>(initialFilters?.escolaridade || []);
   const [selectedModalidade, setSelectedModalidade] = useState<string[]>(initialFilters?.modalidade || []);
+
+  // Sincronizar estados quando initialFilters mudar
+  useEffect(() => {
+    console.log('[QuestionFilterSelector] initialFilters recebido:', initialFilters);
+    if (initialFilters) {
+      if (initialFilters.materias) setSelectedMaterias(initialFilters.materias);
+      if (initialFilters.bancas) setSelectedBancas(initialFilters.bancas);
+      if (initialFilters.anos) setSelectedAnos(initialFilters.anos);
+      if (initialFilters.orgaos) setSelectedOrgaos(initialFilters.orgaos);
+      if (initialFilters.cargos) setSelectedCargos(initialFilters.cargos);
+      if (initialFilters.assuntos) {
+        console.log('[QuestionFilterSelector] Setando assuntos:', initialFilters.assuntos);
+        setSelectedAssuntos(initialFilters.assuntos);
+      }
+      if (initialFilters.escolaridade) setSelectedEscolaridade(initialFilters.escolaridade);
+      if (initialFilters.modalidade) setSelectedModalidade(initialFilters.modalidade);
+    }
+  }, [initialFilters]);
 
   // Contagem de questoes
   const [questionsCount, setQuestionsCount] = useState<number>(0);
@@ -81,13 +102,19 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
           return;
         }
 
-        const options = await getFilterOptions();
+        // Carregar opções básicas e bancas com detalhes em paralelo
+        const [options, bancasDetails] = await Promise.all([
+          getFilterOptions(),
+          getBancasWithDetails()
+        ]);
+
         if (options.error) {
           console.error('Erro ao carregar opcoes:', options.error);
         }
 
         setAllMaterias(options.materias);
         setAllBancas(options.bancas);
+        setAllBancasWithDetails(bancasDetails.bancas);
         setAllAnos(options.anos);
         setAllOrgaos(options.orgaos);
         setAllCargos(options.cargos);
@@ -184,13 +211,25 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
 
   // Atualizar contagem quando filtros mudam
   const updateCount = useCallback(async () => {
-    if (!dbConfigured) return;
+    if (!dbConfigured) {
+      console.log('[updateCount] DB não configurado, pulando...');
+      return;
+    }
 
     setLoadingCount(true);
     try {
+      // Converter nomes de bancas para IDs quando disponíveis (mais eficiente)
+      const bancaIds = selectedBancas
+        .map(nome => {
+          const bancaDetails = allBancasWithDetails.find(b => b.nome === nome);
+          return bancaDetails?.id;
+        })
+        .filter((id): id is string => id !== undefined);
+
       const filters: QuestionFilters = {
         materias: selectedMaterias.length > 0 ? selectedMaterias : undefined,
         bancas: selectedBancas.length > 0 ? selectedBancas : undefined,
+        banca_ids: bancaIds.length > 0 ? bancaIds : undefined, // Usar IDs para filtragem eficiente
         anos: selectedAnos.length > 0 ? selectedAnos : undefined,
         orgaos: selectedOrgaos.length > 0 ? selectedOrgaos : undefined,
         cargos: selectedCargos.length > 0 ? selectedCargos : undefined,
@@ -199,21 +238,36 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
         modalidade: selectedModalidade.length > 0 ? selectedModalidade : undefined,
       };
 
+      console.log('[updateCount] Filtros para contagem:', filters);
       const result = await countQuestionsForFilters(filters);
+      console.log('[updateCount] Resultado:', result);
       setQuestionsCount(result.count);
     } catch (error) {
       console.error('Erro ao contar questoes:', error);
     } finally {
       setLoadingCount(false);
     }
-  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos, selectedEscolaridade, selectedModalidade]);
+  }, [dbConfigured, selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos, selectedEscolaridade, selectedModalidade, allBancasWithDetails]);
 
+  // Atualizar quando loading terminar
   useEffect(() => {
     if (!loading) {
       updateDynamicOptions();
       updateCount();
     }
-  }, [loading, updateDynamicOptions, updateCount]);
+  }, [loading]);
+
+  // Atualizar contagem quando qualquer filtro mudar
+  useEffect(() => {
+    if (!loading && dbConfigured) {
+      console.log('[QuestionFilterSelector] Filtros mudaram, atualizando contagem...', {
+        materias: selectedMaterias,
+        assuntos: selectedAssuntos,
+        bancas: selectedBancas
+      });
+      updateCount();
+    }
+  }, [selectedMaterias, selectedBancas, selectedAnos, selectedOrgaos, selectedCargos, selectedAssuntos, selectedEscolaridade, selectedModalidade]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -305,10 +359,16 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Converter nomes de bancas para IDs quando disponíveis
+      const bancaIds = selectedBancas
+        .map(nome => getBancaId(nome))
+        .filter((id): id is string => id !== undefined);
+
       const filters: QuestionFilters = {
         materias: selectedMaterias.length > 0 ? selectedMaterias : undefined,
         assuntos: selectedAssuntos.length > 0 ? selectedAssuntos : undefined,
         bancas: selectedBancas.length > 0 ? selectedBancas : undefined,
+        banca_ids: bancaIds.length > 0 ? bancaIds : undefined, // IDs para filtragem eficiente
         anos: selectedAnos.length > 0 ? selectedAnos : undefined,
         orgaos: selectedOrgaos.length > 0 ? selectedOrgaos : undefined,
         cargos: selectedCargos.length > 0 ? selectedCargos : undefined,
@@ -332,62 +392,44 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     return [...selectedItems, ...unselectedItems];
   };
 
-  // Mapeamento de bancas: sigla → nome completo (para exibição)
-  const BANCA_DISPLAY_MAP: Record<string, string> = {
-    // Siglas conhecidas
-    'CEBRASPE': 'CEBRASPE - Centro Brasileiro de Pesquisa em Avaliação e Seleção',
-    'CESPE': 'CESPE - Centro de Seleção e de Promoção de Eventos',
-    'CESPE/CEBRASPE': 'CESPE/CEBRASPE',
-    'FGV': 'FGV - Fundação Getúlio Vargas',
-    'FCC': 'FCC - Fundação Carlos Chagas',
-    'CESGRANRIO': 'CESGRANRIO - Fundação Cesgranrio',
-    'VUNESP': 'VUNESP - Fundação para o Vestibular da UNESP',
-    'IBFC': 'IBFC - Instituto Brasileiro de Formação e Capacitação',
-    'QUADRIX': 'QUADRIX - Instituto Quadrix',
-    'IADES': 'IADES - Instituto Americano de Desenvolvimento',
-    'IDECAN': 'IDECAN - Instituto de Desenvolvimento Educacional',
-    'FUNCAB': 'FUNCAB - Fundação Prof. Carlos Augusto Bittencourt',
-    'AOCP': 'AOCP - Assessoria em Organização de Concursos',
-    'CONSULPLAN': 'CONSULPLAN',
-    'INSTITUTO ACESSO': 'Instituto Acesso',
-    // Nomes por extenso mapeados para sigla primeiro
-    'Fundação Getúlio Vargas': 'FGV - Fundação Getúlio Vargas',
-    'Fundação Getulio Vargas': 'FGV - Fundação Getúlio Vargas',
-    'Fundação Carlos Chagas': 'FCC - Fundação Carlos Chagas',
-    'Fundação Cesgranrio': 'CESGRANRIO - Fundação Cesgranrio',
-    'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos': 'CEBRASPE',
-  };
-
-  // Função para formatar nome da banca (sigla primeiro)
+  // Função para formatar nome da banca usando sigla do banco de dados
   const formatBancaDisplay = (banca: string): string => {
-    // Se já está no mapeamento, usar o formato definido
-    if (BANCA_DISPLAY_MAP[banca]) {
-      return BANCA_DISPLAY_MAP[banca];
-    }
-    // Verificar se o nome contém alguma sigla conhecida
-    const upperBanca = banca.toUpperCase();
-    for (const sigla of ['CEBRASPE', 'CESPE', 'FGV', 'FCC', 'CESGRANRIO', 'VUNESP', 'IBFC', 'QUADRIX', 'IADES', 'IDECAN', 'FUNCAB', 'AOCP']) {
-      if (upperBanca.includes(sigla)) {
-        return banca; // Já contém sigla, manter como está
-      }
+    // Buscar nos detalhes das bancas (vindos do banco de dados)
+    const bancaDetails = allBancasWithDetails.find(b => b.nome === banca);
+    if (bancaDetails?.sigla) {
+      return `${bancaDetails.sigla} - ${banca}`;
     }
     return banca;
   };
 
+  // Função para obter o ID da banca pelo nome
+  const getBancaId = (bancaNome: string): string | undefined => {
+    const bancaDetails = allBancasWithDetails.find(b => b.nome === bancaNome);
+    return bancaDetails?.id;
+  };
+
+  // Função para normalizar texto removendo acentos e convertendo para minúsculo
+  const normalizeText = (text: string): string => {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  };
+
   // Função para verificar se banca corresponde à busca (sigla ou nome)
   const bancaMatchesSearch = (banca: string, search: string): boolean => {
-    const searchLower = search.toLowerCase();
-    const bancaLower = banca.toLowerCase();
-    const displayLower = formatBancaDisplay(banca).toLowerCase();
+    const searchNormalized = normalizeText(search);
+    const bancaNormalized = normalizeText(banca);
+    const displayNormalized = normalizeText(formatBancaDisplay(banca));
 
-    return bancaLower.includes(searchLower) || displayLower.includes(searchLower);
+    return bancaNormalized.includes(searchNormalized) || displayNormalized.includes(searchNormalized);
   };
 
   // Filtrar opcoes por busca e ordenar com selecionados primeiro
   // Para matérias, combinar as disponíveis com as selecionadas (para mostrar herdadas que podem não estar na lista)
   const allMateriasToShow = [...new Set([...selectedMaterias, ...dynamicMaterias])];
   const filteredMaterias = sortWithSelectedFirst(
-    allMateriasToShow.filter(m => m.toLowerCase().includes(searchMaterias.toLowerCase())),
+    allMateriasToShow.filter(m => normalizeText(m).includes(normalizeText(searchMaterias))),
     selectedMaterias
   );
   // Para bancas, combinar as disponíveis com as selecionadas (para mostrar herdadas)
@@ -400,19 +442,19 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   // Para órgãos, combinar os disponíveis com os selecionados
   const allOrgaosToShow = [...new Set([...selectedOrgaos, ...dynamicOrgaos])];
   const filteredOrgaos = sortWithSelectedFirst(
-    allOrgaosToShow.filter(o => o.toLowerCase().includes(searchOrgaos.toLowerCase())),
+    allOrgaosToShow.filter(o => normalizeText(o).includes(normalizeText(searchOrgaos))),
     selectedOrgaos
   );
   // Para cargos, combinar os disponíveis com os selecionados
   const allCargosToShow = [...new Set([...selectedCargos, ...dynamicCargos])];
   const filteredCargos = sortWithSelectedFirst(
-    allCargosToShow.filter(c => c.toLowerCase().includes(searchCargos.toLowerCase())),
+    allCargosToShow.filter(c => normalizeText(c).includes(normalizeText(searchCargos))),
     selectedCargos
   );
   // Para assuntos, combinar os disponíveis com os selecionados (para mostrar herdados que podem não estar na lista)
   const allAssuntosToShow = [...new Set([...selectedAssuntos, ...availableAssuntos])];
   const filteredAssuntos = sortWithSelectedFirst(
-    allAssuntosToShow.filter(a => a.toLowerCase().includes(searchAssuntos.toLowerCase())),
+    allAssuntosToShow.filter(a => normalizeText(a).includes(normalizeText(searchAssuntos))),
     selectedAssuntos
   );
   // Para anos, combinar os disponíveis com os selecionados

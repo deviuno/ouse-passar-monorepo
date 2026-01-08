@@ -134,10 +134,10 @@ export const TrailEditalPage: React.FC = () => {
   if (error || !preparatorio) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-gray-400">{error || 'Preparatório não encontrado'}</p>
+        <p className="text-[var(--color-text-muted)]">{error || 'Preparatório não encontrado'}</p>
         <button
           onClick={() => navigate('/trilhas')}
-          className="mt-4 text-[#FFB800] hover:underline"
+          className="mt-4 text-[var(--color-brand)] hover:underline"
         >
           Voltar para Trilhas
         </button>
@@ -149,13 +149,13 @@ export const TrailEditalPage: React.FC = () => {
   if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-4">
-        <div className="p-4 bg-[#2A2A2A] rounded-full mb-4">
-          <Lock size={48} className="text-gray-500" />
+        <div className="p-4 bg-[var(--color-bg-elevated)] rounded-full mb-4">
+          <Lock size={48} className="text-[var(--color-text-muted)]" />
         </div>
-        <h2 className="text-xl font-bold text-white mb-2 text-center">
+        <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2 text-center">
           Acesso Bloqueado
         </h2>
-        <p className="text-gray-400 max-w-md text-center mb-6">
+        <p className="text-[var(--color-text-sec)] max-w-md text-center mb-6">
           Você ainda não tem acesso a esta trilha de questões.
           Adquira agora para desbloquear o edital verticalizado completo!
         </p>
@@ -163,7 +163,7 @@ export const TrailEditalPage: React.FC = () => {
         {preparatorio.checkout_trilhas && (
           <button
             onClick={handleComprar}
-            className="bg-[#FFB800] hover:bg-[#FFC933] text-[#121212] font-bold py-3 px-6 rounded-lg transition-colors flex items-center gap-2"
+            className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black font-bold py-3 px-6 rounded-lg transition-colors flex items-center gap-2"
           >
             <ExternalLink size={18} />
             Comprar Acesso
@@ -172,7 +172,7 @@ export const TrailEditalPage: React.FC = () => {
 
         <button
           onClick={() => navigate('/trilhas')}
-          className="mt-4 text-gray-400 hover:text-white transition-colors"
+          className="mt-4 text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors"
         >
           Voltar para Trilhas
         </button>
@@ -183,7 +183,7 @@ export const TrailEditalPage: React.FC = () => {
   // Usuário tem acesso, mostrar o edital
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="min-h-[calc(100vh-120px)] bg-[#1A1A1A] border-x border-[#2A2A2A]">
+      <div className="min-h-[calc(100vh-120px)] bg-[var(--color-bg-main)] border-x border-[var(--color-border)]">
         <TrailsTab
           preparatorioId={preparatorio.id}
           banca={preparatorio.banca}

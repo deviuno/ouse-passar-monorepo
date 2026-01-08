@@ -46,7 +46,7 @@ function HeatMapCard({ stats, isLoading }: { stats: MateriaStats[]; isLoading?: 
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
           <BarChart2 size={20} className="text-[#FFB800]" />
-          <h3 className="text-white font-semibold">Mapa de Calor</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold">Mapa de Calor</h3>
         </div>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="animate-spin text-[#FFB800]" size={32} />
@@ -60,11 +60,11 @@ function HeatMapCard({ stats, isLoading }: { stats: MateriaStats[]; isLoading?: 
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
           <BarChart2 size={20} className="text-[#FFB800]" />
-          <h3 className="text-white font-semibold">Mapa de Calor</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold">Mapa de Calor</h3>
         </div>
         <div className="text-center py-8">
-          <p className="text-[#6E6E6E]">Nenhuma estatística disponível ainda.</p>
-          <p className="text-[#6E6E6E] text-sm mt-2">Complete algumas missões para ver seu progresso!</p>
+          <p className="text-[var(--color-text-muted)]">Nenhuma estatística disponível ainda.</p>
+          <p className="text-[var(--color-text-muted)] text-sm mt-2">Complete algumas missões para ver seu progresso!</p>
         </div>
       </Card>
     );
@@ -84,7 +84,7 @@ function HeatMapCard({ stats, isLoading }: { stats: MateriaStats[]; isLoading?: 
     <Card className="h-full">
       <div className="flex items-center gap-2 mb-4">
         <BarChart2 size={20} className="text-[#FFB800]" />
-        <h3 className="text-white font-semibold">Mapa de Calor</h3>
+        <h3 className="text-[var(--color-text-main)] font-semibold">Mapa de Calor</h3>
       </div>
 
       <div className="space-y-3">
@@ -96,20 +96,19 @@ function HeatMapCard({ stats, isLoading }: { stats: MateriaStats[]; isLoading?: 
             transition={{ delay: index * 0.1 }}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-white text-sm">{stat.materia}</span>
+              <span className="text-[var(--color-text-main)] text-sm">{stat.materia}</span>
               <span
-                className={`text-sm font-bold ${
-                  stat.status === 'forte'
-                    ? 'text-[#2ECC71]'
-                    : stat.status === 'medio'
+                className={`text-sm font-bold ${stat.status === 'forte'
+                  ? 'text-[#2ECC71]'
+                  : stat.status === 'medio'
                     ? 'text-[#F39C12]'
                     : 'text-[#E74C3C]'
-                }`}
+                  }`}
               >
                 {stat.percentual}%
               </span>
             </div>
-            <div className="h-3 bg-[#3A3A3A] rounded-full overflow-hidden">
+            <div className="h-3 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden border border-[var(--color-border)]">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${stat.percentual}%` }}
@@ -122,18 +121,18 @@ function HeatMapCard({ stats, isLoading }: { stats: MateriaStats[]; isLoading?: 
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-[#3A3A3A]">
+      <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-[var(--color-border)]">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-full bg-[#2ECC71]" />
-          <span className="text-[#6E6E6E] text-xs">Forte (70%+)</span>
+          <span className="text-[var(--color-text-muted)] text-xs">Forte (70%+)</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-full bg-[#F39C12]" />
-          <span className="text-[#6E6E6E] text-xs">Médio (50-70%)</span>
+          <span className="text-[var(--color-text-muted)] text-xs">Médio (50-70%)</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-full bg-[#E74C3C]" />
-          <span className="text-[#6E6E6E] text-xs">Fraco (-50%)</span>
+          <span className="text-[var(--color-text-muted)] text-xs">Fraco (-50%)</span>
         </div>
       </div>
     </Card>
@@ -154,7 +153,7 @@ function ComparisonCard({
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
           <Target size={20} className="text-[#3498DB]" />
-          <h3 className="text-white font-semibold">Comparativo</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold">Comparativo</h3>
         </div>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="animate-spin text-[#3498DB]" size={32} />
@@ -167,24 +166,24 @@ function ComparisonCard({
     <Card className="h-full">
       <div className="flex items-center gap-2 mb-4">
         <Target size={20} className="text-[#3498DB]" />
-        <h3 className="text-white font-semibold">Comparativo</h3>
+        <h3 className="text-[var(--color-text-main)] font-semibold">Comparativo</h3>
       </div>
 
       <div className="text-center mb-4">
-        <p className="text-[#A0A0A0] text-sm mb-1">Você está acima de</p>
+        <p className="text-[var(--color-text-muted)] text-sm mb-1">Você está acima de</p>
         <p className="text-4xl font-bold text-[#2ECC71]">{percentile}%</p>
-        <p className="text-[#A0A0A0] text-sm">dos estudantes</p>
+        <p className="text-[var(--color-text-muted)] text-sm">dos estudantes</p>
       </div>
 
       {subjectEvolution.length > 0 ? (
         <div className="space-y-2">
-          <p className="text-[#6E6E6E] text-xs mb-2">Evolução últimos 7 dias:</p>
+          <p className="text-[var(--color-text-sec)] text-xs mb-2">Evolução últimos 7 dias:</p>
           {subjectEvolution.map((subject) => (
             <div
               key={subject.materia}
-              className="flex items-center justify-between p-2 bg-[#3A3A3A]/50 rounded-lg"
+              className="flex items-center justify-between p-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg"
             >
-              <span className="text-[#A0A0A0] text-sm truncate flex-1">{subject.materia}</span>
+              <span className="text-[var(--color-text-main)] text-sm truncate flex-1">{subject.materia}</span>
               <div className="flex items-center gap-1 flex-shrink-0">
                 {subject.evolution >= 0 ? (
                   <>
@@ -203,7 +202,7 @@ function ComparisonCard({
         </div>
       ) : (
         <div className="text-center py-4">
-          <p className="text-[#6E6E6E] text-sm">Estude mais para ver sua evolução por matéria</p>
+          <p className="text-[var(--color-text-muted)] text-sm">Estude mais para ver sua evolução por matéria</p>
         </div>
       )}
     </Card>
@@ -216,7 +215,7 @@ function EvolutionChart({ data, isLoading }: { data: DailyStats[]; isLoading?: b
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp size={20} className="text-[#2ECC71]" />
-          <h3 className="text-white font-semibold">Evolução Diária</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold">Evolução Diária</h3>
         </div>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="animate-spin text-[#2ECC71]" size={32} />
@@ -230,7 +229,7 @@ function EvolutionChart({ data, isLoading }: { data: DailyStats[]; isLoading?: b
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp size={20} className="text-[#2ECC71]" />
-          <h3 className="text-white font-semibold">Evolução Diária</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold">Evolução Diária</h3>
         </div>
         <div className="text-center py-8">
           <p className="text-[#6E6E6E]">Nenhum dado de evolução disponível ainda.</p>
@@ -244,7 +243,7 @@ function EvolutionChart({ data, isLoading }: { data: DailyStats[]; isLoading?: b
     <Card className="h-full">
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp size={20} className="text-[#2ECC71]" />
-        <h3 className="text-white font-semibold">Evolução Diária</h3>
+        <h3 className="text-[var(--color-text-main)] font-semibold">Evolução Diária</h3>
       </div>
 
       <div className="flex items-end justify-between gap-1 h-32">
@@ -254,26 +253,26 @@ function EvolutionChart({ data, isLoading }: { data: DailyStats[]; isLoading?: b
               initial={{ height: 0 }}
               animate={{ height: day.questoes > 0 ? `${(day.questoes / maxQuestoes) * 100}%` : '4px' }}
               transition={{ duration: 0.5, delay: index * 0.05 }}
-              className={`w-full rounded-t-lg relative min-h-[4px] ${day.questoes > 0 ? 'bg-[#FFB800]' : 'bg-[#3A3A3A]'}`}
+              className={`w-full rounded-t-lg relative min-h-[4px] ${day.questoes > 0 ? 'bg-[#FFB800]' : 'bg-[var(--color-bg-elevated)]'}`}
             >
               {day.questoes > 0 && (
-                <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-[#A0A0A0]">
+                <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-[var(--color-text-sec)]">
                   {day.acerto}%
                 </span>
               )}
             </motion.div>
-            <span className="text-[#6E6E6E] text-[10px]">{day.dia}</span>
+            <span className="text-[var(--color-text-muted)] text-[10px]">{day.dia}</span>
           </div>
         ))}
       </div>
 
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#3A3A3A]">
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--color-border)]">
         <div>
-          <p className="text-[#6E6E6E] text-xs">Últimos 7 dias</p>
-          <p className="text-white font-bold">{data.reduce((acc, d) => acc + d.questoes, 0)} questões</p>
+          <p className="text-[var(--color-text-muted)] text-xs">Últimos 7 dias</p>
+          <p className="text-[var(--color-text-main)] font-bold">{data.reduce((acc, d) => acc + d.questoes, 0)} questões</p>
         </div>
         <div className="text-right">
-          <p className="text-[#6E6E6E] text-xs">Média de acerto</p>
+          <p className="text-[var(--color-text-muted)] text-xs">Média de acerto</p>
           <p className="text-[#2ECC71] font-bold">
             {data.filter(d => d.questoes > 0).length > 0
               ? Math.round(data.filter(d => d.questoes > 0).reduce((acc, d) => acc + d.acerto, 0) / data.filter(d => d.questoes > 0).length)
@@ -311,7 +310,7 @@ function AchievementsCard({
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
           <Trophy size={20} className="text-[#FFB800]" />
-          <h3 className="text-white font-semibold">Conquistas</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold">Conquistas</h3>
         </div>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="animate-spin text-[#FFB800]" size={32} />
@@ -384,7 +383,7 @@ function AchievementsCard({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Trophy size={20} className="text-[#FFB800]" />
-          <h3 className="text-white font-semibold">Conquistas</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold">Conquistas</h3>
         </div>
         <span className="text-[#6E6E6E] text-xs">
           {displayAchievements.filter(a => a.unlocked).length}/{displayAchievements.length}
@@ -394,21 +393,19 @@ function AchievementsCard({
         {displayAchievements.map((achievement) => (
           <div
             key={achievement.id}
-            className="flex items-center gap-3 p-2 rounded-lg bg-[#2A2A2A]/50 border border-[#3A3A3A]"
+            className="flex items-center gap-3 p-2 rounded-lg bg-[var(--color-bg-elevated)] border border-[var(--color-border)]"
           >
             <div
-              className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 ${
-                achievement.unlocked ? 'bg-[#FFB800]/20' : 'bg-[#1A1A1A] grayscale'
-              }`}
+              className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 ${achievement.unlocked ? 'bg-[#FFB800]/20' : 'bg-[#1A1A1A] grayscale'
+                }`}
             >
               {achievement.unlocked ? achievement.emoji : '🔒'}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-center mb-0.5">
                 <h4
-                  className={`font-medium text-sm truncate ${
-                    achievement.unlocked ? 'text-white' : 'text-[#6E6E6E]'
-                  }`}
+                  className={`font-medium text-sm truncate ${achievement.unlocked ? 'text-white' : 'text-[#6E6E6E]'
+                    }`}
                 >
                   {achievement.title}
                 </h4>
@@ -453,7 +450,7 @@ function WeeklyRankingCard({
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
           <Crown size={20} className="text-[#FFB800]" />
-          <h3 className="text-white font-semibold">Ranking Semanal</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold">Ranking Semanal</h3>
         </div>
         <div className="flex items-center justify-center py-8">
           <Loader2 className="animate-spin text-[#FFB800]" size={32} />
@@ -467,7 +464,7 @@ function WeeklyRankingCard({
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
           <Crown size={20} className="text-[#FFB800]" />
-          <h3 className="text-white font-semibold">Ranking Semanal</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold">Ranking Semanal</h3>
         </div>
         <div className="text-center py-8">
           <p className="text-[#6E6E6E]">Nenhum ranking disponível ainda.</p>
@@ -484,7 +481,7 @@ function WeeklyRankingCard({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Crown size={20} className="text-[#FFB800]" />
-          <h3 className="text-white font-semibold">Ranking Semanal</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold">Ranking Semanal</h3>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-lg">{leagueConfig.emoji}</span>
@@ -495,7 +492,8 @@ function WeeklyRankingCard({
       </div>
 
       {/* Position indicator */}
-      <div className="text-center mb-4 p-2 bg-[#2A2A2A]/50 rounded-lg">
+      {/* Position indicator */}
+      <div className="text-center mb-4 p-2 bg-[var(--color-bg-elevated)] rounded-lg border border-[var(--color-border)]">
         <span className="text-[#A0A0A0] text-sm">Sua posição: </span>
         <span className="text-[#FFB800] font-bold">{ranking.userPosition}º</span>
         <span className="text-[#6E6E6E] text-sm"> de {ranking.totalMembers}</span>
@@ -509,23 +507,21 @@ function WeeklyRankingCard({
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
-            className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
-              member.isCurrentUser
-                ? 'bg-[#FFB800]/10 border border-[#FFB800]/30'
-                : 'bg-[#2A2A2A]/50 border border-transparent'
-            }`}
+            className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${member.isCurrentUser
+              ? 'bg-[#FFB800]/10 border border-[#FFB800]/30'
+              : 'bg-[var(--color-bg-elevated)] border border-[var(--color-border)]'
+              }`}
           >
             {/* Position */}
             <div
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                member.position === 1
-                  ? 'bg-[#FFD700]/20 text-[#FFD700]'
-                  : member.position === 2
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${member.position === 1
+                ? 'bg-[#FFD700]/20 text-[#FFD700]'
+                : member.position === 2
                   ? 'bg-[#C0C0C0]/20 text-[#C0C0C0]'
                   : member.position === 3
-                  ? 'bg-[#CD7F32]/20 text-[#CD7F32]'
-                  : 'bg-[#3A3A3A] text-[#A0A0A0]'
-              }`}
+                    ? 'bg-[#CD7F32]/20 text-[#CD7F32]'
+                    : 'bg-[#3A3A3A] text-[#A0A0A0]'
+                }`}
             >
               {member.position}
             </div>
@@ -547,9 +543,8 @@ function WeeklyRankingCard({
             {/* Name and level */}
             <div className="flex-1 min-w-0">
               <p
-                className={`text-sm font-medium truncate ${
-                  member.isCurrentUser ? 'text-[#FFB800]' : 'text-white'
-                }`}
+                className={`text-sm font-medium truncate ${member.isCurrentUser ? 'text-[#FFB800]' : 'text-[var(--color-text-main)]'
+                  }`}
               >
                 {member.name}
                 {member.isCurrentUser && ' (Você)'}
@@ -679,8 +674,8 @@ export default function StatsPage() {
     <div className="p-4 pb-24 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white mb-2">Raio-X do Aluno</h1>
-        <p className="text-[#A0A0A0]">
+        <h1 className="text-2xl font-bold text-[var(--color-text-main)] mb-2">Raio-X do Aluno</h1>
+        <p className="text-[var(--color-text-muted)]">
           Sua performance detalhada e pontos de melhoria
         </p>
       </div>
@@ -695,22 +690,22 @@ export default function StatsPage() {
             strokeWidth={8}
             color={globalAccuracy >= 70 ? 'success' : globalAccuracy >= 50 ? 'brand' : 'error'}
           />
-          <p className="text-[#6E6E6E] text-sm mt-2">Taxa de Acerto</p>
+          <p className="text-[var(--color-text-muted)] text-sm mt-2">Taxa de Acerto</p>
         </Card>
 
         {/* Stats Summary */}
         <Card className="col-span-1">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[#6E6E6E] text-sm">Questões</span>
-              <span className="text-white font-bold">{stats.totalAnswered}</span>
+              <span className="text-[var(--color-text-muted)] text-sm">Questões</span>
+              <span className="text-[var(--color-text-main)] font-bold">{stats.totalAnswered}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#6E6E6E] text-sm">Acertos</span>
+              <span className="text-[var(--color-text-muted)] text-sm">Acertos</span>
               <span className="text-[#2ECC71] font-bold">{stats.correctAnswers}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#6E6E6E] text-sm">Erros</span>
+              <span className="text-[var(--color-text-muted)] text-sm">Erros</span>
               <span className="text-[#E74C3C] font-bold">
                 {stats.totalAnswered - stats.correctAnswers}
               </span>
@@ -721,18 +716,18 @@ export default function StatsPage() {
         {/* Quick Stats - Hidden on mobile, shown on desktop */}
         <Card className="hidden lg:flex flex-col items-center justify-center h-full">
           <Clock size={24} className="text-[#3498DB] mb-2" />
-          <p className="text-white font-bold text-lg">{averageTime > 0 ? `${averageTime}s` : '-'}</p>
-          <p className="text-[#6E6E6E] text-xs">Tempo médio</p>
+          <p className="text-[var(--color-text-main)] font-bold text-lg">{averageTime > 0 ? `${averageTime}s` : '-'}</p>
+          <p className="text-[var(--color-text-muted)] text-xs">Tempo médio</p>
         </Card>
         <Card className="hidden lg:flex flex-col items-center justify-center h-full">
           <Award size={24} className="text-[#FFB800] mb-2" />
-          <p className="text-white font-bold text-lg">{stats.streak}</p>
-          <p className="text-[#6E6E6E] text-xs">Ofensiva</p>
+          <p className="text-[var(--color-text-main)] font-bold text-lg">{stats.streak}</p>
+          <p className="text-[var(--color-text-muted)] text-xs">Ofensiva</p>
         </Card>
         <Card className="hidden lg:flex flex-col items-center justify-center h-full">
           <Target size={24} className="text-[#2ECC71] mb-2" />
-          <p className="text-white font-bold text-lg">{completedMissions}</p>
-          <p className="text-[#6E6E6E] text-xs">Missões</p>
+          <p className="text-[var(--color-text-main)] font-bold text-lg">{completedMissions}</p>
+          <p className="text-[var(--color-text-muted)] text-xs">Missões</p>
         </Card>
       </div>
 
@@ -740,18 +735,18 @@ export default function StatsPage() {
       <div className="grid grid-cols-3 gap-3 mb-4 lg:hidden">
         <Card className="flex flex-col items-center justify-center py-3">
           <Clock size={22} className="text-[#3498DB] mb-1.5" />
-          <p className="text-white font-bold text-base">{averageTime > 0 ? `${averageTime}s` : '-'}</p>
-          <p className="text-[#6E6E6E] text-xs">Tempo médio</p>
+          <p className="text-[var(--color-text-main)] font-bold text-base">{averageTime > 0 ? `${averageTime}s` : '-'}</p>
+          <p className="text-[var(--color-text-muted)] text-xs">Tempo médio</p>
         </Card>
         <Card className="flex flex-col items-center justify-center py-3">
           <Award size={22} className="text-[#FFB800] mb-1.5" />
-          <p className="text-white font-bold text-base">{stats.streak}</p>
-          <p className="text-[#6E6E6E] text-xs">Ofensiva</p>
+          <p className="text-[var(--color-text-main)] font-bold text-base">{stats.streak}</p>
+          <p className="text-[var(--color-text-muted)] text-xs">Ofensiva</p>
         </Card>
         <Card className="flex flex-col items-center justify-center py-3">
           <Target size={22} className="text-[#2ECC71] mb-1.5" />
-          <p className="text-white font-bold text-base">{completedMissions}</p>
-          <p className="text-[#6E6E6E] text-xs">Missões</p>
+          <p className="text-[var(--color-text-main)] font-bold text-base">{completedMissions}</p>
+          <p className="text-[var(--color-text-muted)] text-xs">Missões</p>
         </Card>
       </div>
 
@@ -767,14 +762,14 @@ export default function StatsPage() {
 
         {/* Action Items */}
         <Card className="h-full">
-          <h3 className="text-white font-semibold mb-3">Recomendações</h3>
+          <h3 className="text-[var(--color-text-main)] font-semibold mb-3">Recomendações</h3>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="animate-spin text-[#FFB800]" size={32} />
             </div>
           ) : recommendations.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-[#6E6E6E]">Continue estudando para receber recomendações personalizadas!</p>
+              <p className="text-[var(--color-text-muted)]">Continue estudando para receber recomendações personalizadas!</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -794,8 +789,8 @@ export default function StatsPage() {
                         <IconComponent size={16} style={{ color: rec.color }} />
                       </div>
                       <div className="text-left">
-                        <p className="text-white text-sm">{rec.title}</p>
-                        <p className="text-[#6E6E6E] text-xs">{rec.description}</p>
+                        <p className="text-[var(--color-text-main)] text-sm">{rec.title}</p>
+                        <p className="text-[var(--color-text-muted)] text-xs">{rec.description}</p>
                       </div>
                     </div>
                     <ChevronRight size={18} className="text-[#6E6E6E]" />

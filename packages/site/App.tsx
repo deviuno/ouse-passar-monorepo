@@ -16,6 +16,7 @@ import { useScrollAnimation } from './lib/useScrollAnimation';
 
 // Auth
 import { AuthProvider } from './lib/AuthContext';
+import { ThemeProvider } from './lib/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminOnlyRoute } from './components/AdminOnlyRoute';
 import { StudentProtectedRoute } from './components/StudentProtectedRoute';
@@ -164,8 +165,9 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <Router>
         <AuthProvider>
-          <ToastProvider>
-            <Routes>
+          <ThemeProvider>
+            <ToastProvider>
+              <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Layout />}>
                 <Route index element={<Home />} />
@@ -302,8 +304,9 @@ const App: React.FC = () => {
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </ToastProvider>
+              </Routes>
+            </ToastProvider>
+          </ThemeProvider>
         </AuthProvider>
       </Router>
     </QueryClientProvider>

@@ -71,28 +71,28 @@ export function Modal({
               }}
               className={`
                 w-full ${sizes[size]}
-                bg-[#252525] rounded-2xl shadow-2xl
+                bg-[var(--color-bg-card)] rounded-2xl shadow-2xl
                 overflow-hidden pointer-events-auto
                 max-h-[calc(100vh-120px)] md:max-h-[calc(100vh-48px)]
-                flex flex-col
+                flex flex-col theme-transition
               `}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
               {!hideHeader && (title || showCloseButton) && (
-                <div className="flex items-center justify-between p-4 border-b border-[#3A3A3A] flex-shrink-0">
+                <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] flex-shrink-0">
                   <div className="flex items-center gap-2">
                     {icon}
                     {title && (
-                      <h2 className="text-lg font-semibold text-white">{title}</h2>
+                      <h2 className="text-lg font-semibold text-[var(--color-text-main)]">{title}</h2>
                     )}
                   </div>
                   {showCloseButton && (
                     <button
                       onClick={onClose}
-                      className="p-2 rounded-full hover:bg-[#3A3A3A] transition-colors"
+                      className="p-2 rounded-full hover:bg-[var(--color-bg-elevated)] transition-colors"
                     >
-                      <X size={20} className="text-[#A0A0A0]" />
+                      <X size={20} className="text-[var(--color-text-sec)]" />
                     </button>
                   )}
                 </div>

@@ -74,7 +74,7 @@ export function CompactTrailMap({
 
     if (rounds.length === 0) {
         return (
-            <div className="flex items-center justify-center p-4 text-[#6E6E6E] text-xs">
+            <div className="flex items-center justify-center p-4 text-[var(--color-text-muted)] text-xs">
                 Sem rodadas
             </div>
         );
@@ -84,13 +84,12 @@ export function CompactTrailMap({
         <div className="flex flex-col items-center py-2">
             {/* Round indicator */}
             {rounds.length > 1 && (
-                <div className={`text-[10px] font-medium px-2 py-0.5 rounded mb-3 ${
-                    isViewingFutureRound
-                        ? 'text-[#6E6E6E] bg-[#2A2A2A]'
-                        : isViewingActiveRound
-                            ? 'text-[#A0A0A0] bg-[#2A2A2A]'
-                            : 'text-[#2ECC71] bg-[#2ECC71]/10'
-                }`}>
+                <div className={`text-[10px] font-medium px-2 py-0.5 rounded mb-3 ${isViewingFutureRound
+                    ? 'text-[var(--color-text-muted)] bg-[var(--color-bg-elevated)]'
+                    : isViewingActiveRound
+                        ? 'text-[var(--color-text-sec)] bg-[var(--color-bg-elevated)]'
+                        : 'text-[#2ECC71] bg-[#2ECC71]/10'
+                    }`}>
                     R{currentRound?.round_number || viewingRoundIndex + 1}
                 </div>
             )}
@@ -98,7 +97,7 @@ export function CompactTrailMap({
             {/* Future round indicator */}
             {isViewingFutureRound && (
                 <div className="mb-2">
-                    <Lock size={12} className="text-[#6E6E6E]" />
+                    <Lock size={12} className="text-[var(--color-text-muted)]" />
                 </div>
             )}
 
@@ -146,16 +145,16 @@ export function CompactTrailMap({
                                         relative w-10 h-10 rounded-xl flex items-center justify-center
                                         transition-all duration-200 border-2
                                         ${isCompleted ? 'border-emerald-500 bg-emerald-500' : ''}
-                                        ${isActive && !isMassificacaoMission ? 'border-[#FFB800] bg-[#FFB800]/20 ring-2 ring-[#FFB800]/30' : ''}
+                                        ${isActive && !isMassificacaoMission ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/20 ring-2 ring-[var(--color-brand)]/30' : ''}
                                         ${isActive && isMassificacaoMission ? 'border-[#E74C3C] bg-[#E74C3C]/20 ring-2 ring-[#E74C3C]/30' : ''}
-                                        ${status === 'locked' ? 'border-zinc-600 bg-zinc-700/50' : ''}
+                                        ${status === 'locked' ? 'border-slate-300 dark:border-zinc-700 bg-[var(--color-bg-main)] opacity-100' : ''}
                                     `}
                                     title={`Missao ${index + 1}`}
                                 >
                                     {isCompleted && <Check size={20} className="text-white" strokeWidth={3} />}
-                                    {isActive && !isMassificacaoMission && <span className="text-sm font-bold text-[#FFB800]">{index + 1}</span>}
+                                    {isActive && !isMassificacaoMission && <span className="text-sm font-bold text-[var(--color-brand)]">{index + 1}</span>}
                                     {isActive && isMassificacaoMission && <RefreshCw size={16} className="text-[#E74C3C]" />}
-                                    {status === 'locked' && <Lock size={14} className="text-zinc-500" />}
+                                    {status === 'locked' && <Lock size={14} className="text-[var(--color-text-muted)]" />}
 
                                     {/* Current indicator */}
                                     {isActive && isCurrent && (
@@ -171,7 +170,7 @@ export function CompactTrailMap({
                                 {!isLast && (
                                     <div className={`
                                         w-0.5 h-4 my-1
-                                        ${index < currentMissionIndexInRound ? 'bg-emerald-500' : 'bg-zinc-600'}
+                                        ${index < currentMissionIndexInRound ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-zinc-700'}
                                     `} />
                                 )}
                             </div>

@@ -1,17 +1,41 @@
 # Instruções do Projeto - Ouse Passar Monorepo
 
-## Projeto Supabase (Banco Unificado)
+## Supabase Branching (Ambiente Único com Branches)
 
+O projeto usa **Supabase Branching** para gerenciar ambientes de desenvolvimento e produção dentro do mesmo projeto.
+
+### Branch Principal (Produção)
 - **Project ID:** `avlttxzppcywybiaxxzd`
 - **URL:** https://avlttxzppcywybiaxxzd.supabase.co
-- **Uso:** Banco de dados unificado contendo:
-  - Tabelas do sistema (users, battery, audio_cache, preparatorios, etc.)
-  - Banco de questões (questoes_concurso, assuntos_taxonomia, etc.)
-  - Autenticação e storage
-- **SEMPRE usar este projeto para migrations e queries MCP**
+- **Branch Git:** `main`
+- **Uso:** Banco de dados de produção
 
-> **Nota:** O projeto secundário de questões (swzosaapqtyhmwdiwdje) foi descontinuado.
-> Todos os dados foram migrados para o projeto principal.
+### Branch Develop (Desenvolvimento)
+- **Project ID:** `dzfjjpdwvotmcpwntprh`
+- **URL:** https://dzfjjpdwvotmcpwntprh.supabase.co
+- **Branch Git:** `develop`
+- **Uso:** Testes e desenvolvimento
+- **Parent:** Produção (herda todas as migrations)
+
+> **IMPORTANTE:** O MCP `supabase-prod` está conectado ao projeto principal.
+> Ao criar migrations, elas são aplicadas na branch atual e sincronizadas via Git.
+
+## Fluxo de Trabalho com Branching
+
+```
+1. DESENVOLVER    → Trabalhar na branch Git `develop`
+2. MIGRATION      → Criar migration via MCP (aplica em develop automaticamente)
+3. TESTAR         → Testar no ambiente develop (dzfjjpdwvotmcpwntprh)
+4. COMMIT/PUSH    → git add + git commit + git push origin develop
+5. PR + MERGE     → Criar PR de develop → main
+6. AUTO-DEPLOY    → Supabase aplica migrations automaticamente em produção
+```
+
+### Vantagens do Branching:
+- ✅ Schema sincronizado automaticamente
+- ✅ Sem necessidade de aplicar migrations manualmente
+- ✅ Ambientes isolados para teste
+- ✅ Merge automático ao fazer PR no Git
 
 ## Estrutura do Monorepo
 

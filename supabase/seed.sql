@@ -47,3 +47,5 @@ ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Nota: Dados de produção (questões reais, usuários, etc.)
 -- NÃO são copiados para branches de preview por segurança.
+
+-- Branch de desenvolvimento inicializada em 2026-01-06

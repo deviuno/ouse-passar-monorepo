@@ -28,7 +28,7 @@ export function MainLayout() {
   }, [isTourCompleted, location.pathname, startTour]);
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A] text-white">
+    <div className="min-h-screen bg-[var(--color-bg-main)] text-[var(--color-text-main)] theme-transition bg-premium-light dark:bg-premium-dark scrollbar-hide">
       {/* Scroll to top on route change */}
       <ScrollToTop />
 
@@ -36,7 +36,7 @@ export function MainLayout() {
       <aside
         className={`
           hidden lg:block fixed left-0 top-0 bottom-0
-          bg-[#252525] border-r border-[#3A3A3A]
+          bg-[var(--color-bg-card)] border-r border-[var(--color-border)] theme-transition
           transition-all duration-300
           z-40
           ${isSidebarOpen ? 'w-64' : 'w-[72px]'}

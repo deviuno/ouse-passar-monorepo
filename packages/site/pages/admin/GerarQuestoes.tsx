@@ -266,6 +266,13 @@ const QuestionCard: React.FC<{
             <span className="px-2 py-1 bg-[#3A3A3A] text-gray-300 rounded">
               Gabarito: {question.gabarito}
             </span>
+            <span className={`px-2 py-1 rounded ${
+              question.is_ai_generated
+                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                : 'bg-[#3A3A3A] text-gray-300'
+            }`}>
+              Questão Original: {question.is_ai_generated ? 'Sim' : 'Não'}
+            </span>
           </div>
 
           {/* Enunciado */}
@@ -557,9 +564,9 @@ export const GerarQuestoes: React.FC = () => {
   // Carregar assuntos quando materia muda
   useEffect(() => {
     if (formData.materia) {
-      loadAssuntos(formData.materia, formData.banca);
+      loadAssuntos(formData.materia);
     }
-  }, [formData.materia, formData.banca]);
+  }, [formData.materia]);
 
   const loadFilters = async () => {
     try {
@@ -571,9 +578,9 @@ export const GerarQuestoes: React.FC = () => {
     }
   };
 
-  const loadAssuntos = async (materia: string, banca?: string) => {
+  const loadAssuntos = async (materia: string) => {
     try {
-      const result = await questionGeneratorService.getAssuntos(materia, banca);
+      const result = await questionGeneratorService.getAssuntos(materia);
       setAssuntos(result.assuntos);
     } catch (err) {
       console.error('Erro ao carregar assuntos:', err);

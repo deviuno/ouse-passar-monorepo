@@ -77,6 +77,9 @@ interface ConfigResult {
     filtrosAssuntos: string[];
     matchType: 'exact' | 'partial' | 'ai' | 'none';
     observacao?: string;
+    foundInDifferentMateria?: boolean;  // Flag se encontrou em matéria diferente
+    originalMateria?: string;            // Matéria original (do pai)
+    foundMateria?: string;               // Matéria onde foi encontrado
 }
 
 interface AutoConfigResult {
@@ -175,6 +178,92 @@ async function getDistinctAssuntos(materias: string[]): Promise<{ assunto: strin
     }
 
     return data || [];
+}
+
+/**
+ * Busca assuntos de TODAS as matérias (para busca cross-matéria)
+ */
+async function getAllAssuntos(): Promise<{ assunto: string; materia: string }[]> {
+    // Usar cache se disponível
+    const cacheKey = '__all__';
+    if (_cachedAssuntos.has(cacheKey)) {
+        console.log('[EditalAutoConfig] Usando cache de todos os assuntos');
+        return _cachedAssuntos.get(cacheKey)!;
+    }
+
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.rpc('get_distinct_assuntos', {
+        p_materias: null  // null = todas as matérias
+    });
+
+    if (error) {
+        console.error('[EditalAutoConfig] Erro ao buscar todos os assuntos:', error);
+        throw error;
+    }
+
+    const assuntos = data || [];
+    _cachedAssuntos.set(cacheKey, assuntos);
+    console.log(`[EditalAutoConfig] ${assuntos.length} assuntos totais carregados`);
+
+    return assuntos;
+}
+
+/**
+ * Busca um assunto em outra matéria diferente da original
+ * Retorna o assunto encontrado e a matéria onde foi encontrado
+ */
+async function findAssuntoInOtherMaterias(
+    titulo: string,
+    excludeMaterias: string[]
+): Promise<{ assunto: string | null; materia: string | null; matchType: 'exact' | 'partial' | 'ai' | 'none' }> {
+    const allAssuntos = await getAllAssuntos();
+
+    // Filtrar assuntos excluindo as matérias do pai
+    const excludeSet = new Set(excludeMaterias.map(m => normalizeText(m)));
+    const otherAssuntos = allAssuntos.filter(a => !excludeSet.has(normalizeText(a.materia)));
+
+    if (otherAssuntos.length === 0) {
+        return { assunto: null, materia: null, matchType: 'none' };
+    }
+
+    const assuntoNames = [...new Set(otherAssuntos.map(a => a.assunto))].filter(Boolean);
+
+    // Tentar match exato
+    let matchedAssunto = findExactMatch(titulo, assuntoNames);
+    if (matchedAssunto) {
+        const materiaMatch = otherAssuntos.find(a => a.assunto === matchedAssunto);
+        return {
+            assunto: matchedAssunto,
+            materia: materiaMatch?.materia || null,
+            matchType: 'exact'
+        };
+    }
+
+    // Tentar match parcial
+    matchedAssunto = findPartialMatch(titulo, assuntoNames);
+    if (matchedAssunto) {
+        const materiaMatch = otherAssuntos.find(a => a.assunto === matchedAssunto);
+        return {
+            assunto: matchedAssunto,
+            materia: materiaMatch?.materia || null,
+            matchType: 'partial'
+        };
+    }
+
+    // Tentar match por IA (limitado para performance)
+    if (assuntoNames.length > 0) {
+        const aiResult = await findAIMatch(titulo, assuntoNames.slice(0, 300), 'assunto');
+        if (aiResult.termo) {
+            const materiaMatch = otherAssuntos.find(a => a.assunto === aiResult.termo);
+            return {
+                assunto: aiResult.termo,
+                materia: materiaMatch?.materia || null,
+                matchType: 'ai'
+            };
+        }
+    }
+
+    return { assunto: null, materia: null, matchType: 'none' };
 }
 
 /**
@@ -695,6 +784,9 @@ export async function autoConfigureEditalFilters(
 
             // Para termos genéricos sem match, tentar múltiplos assuntos relacionados
             let filtrosAssuntos: string[] = matchedAssunto ? [matchedAssunto] : [];
+            let foundInDifferentMateria = false;
+            let foundMateria: string | null = null;
+
             if (filtrosAssuntos.length === 0) {
                 const multipleMatches = findMultipleMatches(item.titulo, assuntoNames);
                 if (multipleMatches.length > 0) {
@@ -702,6 +794,22 @@ export async function autoConfigureEditalFilters(
                     matchType = 'partial';
                     observacao = `Múltiplos assuntos relacionados (${multipleMatches.length})`;
                     console.log(`[EditalAutoConfig] MULTI: "${item.titulo}" -> [${multipleMatches.slice(0, 2).join(', ')}${multipleMatches.length > 2 ? '...' : ''}]`);
+                }
+            }
+
+            // BUSCA CROSS-MATÉRIA: Se ainda não encontrou, buscar em outras matérias
+            if (filtrosAssuntos.length === 0 && parentMaterias.length > 0) {
+                console.log(`[EditalAutoConfig] CROSS-SEARCH: Buscando "${item.titulo}" em outras matérias...`);
+
+                const crossResult = await findAssuntoInOtherMaterias(item.titulo, parentMaterias);
+
+                if (crossResult.assunto && crossResult.materia) {
+                    filtrosAssuntos = [crossResult.assunto];
+                    matchType = crossResult.matchType;
+                    foundInDifferentMateria = true;
+                    foundMateria = crossResult.materia;
+                    observacao = `CROSS-MATÉRIA: Encontrado em "${crossResult.materia}" (original: ${parentMaterias.join(', ')})`;
+                    console.log(`[EditalAutoConfig] CROSS-MATCH: "${item.titulo}" -> "${crossResult.assunto}" em "${crossResult.materia}"`);
                 }
             }
 
@@ -719,6 +827,9 @@ export async function autoConfigureEditalFilters(
                 filtrosAssuntos: filtrosAssuntos,
                 matchType,
                 observacao,
+                foundInDifferentMateria,
+                originalMateria: parentMaterias.length > 0 ? parentMaterias[0] : undefined,
+                foundMateria: foundMateria || undefined,
             });
 
             // Reportar progresso

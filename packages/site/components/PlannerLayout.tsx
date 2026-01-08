@@ -10,9 +10,12 @@ import {
   Gauge,
   User,
   X,
-  Loader2
+  Loader2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../lib/ThemeContext';
 
 // Verificar se o usuário está autenticado
 const isAuthenticated = (): boolean => {
@@ -43,6 +46,7 @@ export const PlannerLayout: React.FC = () => {
   const { slug, id } = useParams<{ slug: string; id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [planejamento, setPlanejamento] = useState<Planejamento | null>(null);
   const [loading, setLoading] = useState(true);
@@ -206,16 +210,16 @@ export const PlannerLayout: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-brand-yellow animate-spin" />
+      <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center theme-transition">
+        <Loader2 className="w-10 h-10 text-[var(--color-accent)] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-brand-darker">
+    <div className="min-h-screen bg-[var(--color-bg-primary)] theme-transition">
       {/* Header Fixo Compartilhado */}
-      <header className="fixed top-0 left-0 right-0 bg-brand-dark/95 backdrop-blur-md border-b border-white/10 z-50">
+      <header className="fixed top-0 left-0 right-0 bg-[var(--color-bg-secondary)]/95 backdrop-blur-md border-b border-[var(--color-border-light)] z-50 theme-transition">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             {/* Logo */}
@@ -238,8 +242,8 @@ export const PlannerLayout: React.FC = () => {
                     onClick={() => navigate(link.path)}
                     className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-lg ${
                       isActive
-                        ? 'text-brand-yellow bg-brand-yellow/10'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        ? 'text-[var(--color-accent)] bg-[var(--color-accent-light)]'
+                        : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)]'
                     }`}
                   >
                     <IconComponent className="w-4 h-4" />
@@ -249,24 +253,36 @@ export const PlannerLayout: React.FC = () => {
               })}
             </nav>
 
-            {/* Botão Perfil (desktop) */}
-            <button
-              onClick={() => navigate(getNavPath('perfil'))}
-              className={`hidden md:flex items-center justify-center w-9 h-9 border border-white/10 rounded-lg transition-all ${
-                activeRoute === 'perfil'
-                  ? 'bg-brand-yellow/10 text-brand-yellow border-brand-yellow/30'
-                  : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-              }`}
-              title="Perfil"
-            >
-              <User className="w-5 h-5" />
-            </button>
+            {/* Botões de ação (desktop) */}
+            <div className="hidden md:flex items-center gap-2">
+              {/* Toggle de Tema */}
+              <button
+                onClick={toggleTheme}
+                className="flex items-center justify-center w-9 h-9 border border-[var(--color-border-light)] rounded-lg transition-all bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]"
+                title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+
+              {/* Botão Perfil */}
+              <button
+                onClick={() => navigate(getNavPath('perfil'))}
+                className={`flex items-center justify-center w-9 h-9 border border-[var(--color-border-light)] rounded-lg transition-all ${
+                  activeRoute === 'perfil'
+                    ? 'bg-[var(--color-accent-light)] text-[var(--color-accent)] border-[var(--color-accent)]/30'
+                    : 'bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]'
+                }`}
+                title="Perfil"
+              >
+                <User className="w-5 h-5" />
+              </button>
+            </div>
 
             {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-white hover:text-brand-yellow focus:outline-none p-2"
+                className="text-[var(--color-text-primary)] hover:text-[var(--color-accent)] focus:outline-none p-2"
               >
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
               </button>
@@ -281,7 +297,7 @@ export const PlannerLayout: React.FC = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden bg-brand-card border-b border-white/10"
+              className="md:hidden bg-[var(--color-bg-card)] border-b border-[var(--color-border-light)] theme-transition"
             >
               <div className="px-4 pt-2 pb-4 space-y-1">
                 {navLinks.map((link) => {
@@ -293,8 +309,8 @@ export const PlannerLayout: React.FC = () => {
                       onClick={() => navigate(link.path)}
                       className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 transition-all ${
                         isActive
-                          ? 'border-brand-yellow text-brand-yellow bg-white/5'
-                          : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                          ? 'border-[var(--color-accent)] text-[var(--color-accent)] bg-[var(--color-bg-hover)]'
+                          : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)]'
                       }`}
                     >
                       <IconComponent className="w-4 h-4" />
@@ -308,13 +324,22 @@ export const PlannerLayout: React.FC = () => {
                   onClick={() => navigate(getNavPath('perfil'))}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 transition-all ${
                     activeRoute === 'perfil'
-                      ? 'border-brand-yellow text-brand-yellow bg-white/5'
-                      : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                      ? 'border-[var(--color-accent)] text-[var(--color-accent)] bg-[var(--color-bg-hover)]'
+                      : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)]'
                   }`}
                 >
                   <User className="w-4 h-4" />
                   Perfil
                   {activeRoute === 'perfil' && <ChevronRight className="w-4 h-4 ml-auto" />}
+                </button>
+
+                {/* Toggle de Tema no mobile */}
+                <button
+                  onClick={toggleTheme}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-bold uppercase border-l-4 border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-all"
+                >
+                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
                 </button>
               </div>
             </motion.div>

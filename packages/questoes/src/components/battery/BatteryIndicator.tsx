@@ -63,7 +63,7 @@ export function BatteryIndicator({
             key={i}
             className={`flex-1 rounded-[2px] transition-all duration-300 ${isPremium || i < filledSegments
               ? `${status.bg} ${status.glow}`
-              : 'bg-[#2A2A2A]'
+              : 'bg-[var(--color-bg-elevated)]'
               } ${!isPremium && i < filledSegments && percentage <= 30 ? 'animate-pulse' : ''
               }`}
           />
@@ -76,7 +76,7 @@ export function BatteryIndicator({
     return (
       <button
         onClick={onClick}
-        className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border ${status.border} transition-all hover:bg-black/60`}
+        className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--color-bg-card)]/80 border ${status.border} transition-all hover:bg-[var(--color-bg-elevated)] theme-transition`}
       >
         <Zap className={`w-3.5 h-3.5 ${status.text} ${isPremium ? 'animate-pulse' : ''}`} fill="currentColor" />
         <span className={`text-xs font-bold ${status.text} tracking-wider`}>
@@ -90,19 +90,19 @@ export function BatteryIndicator({
     <div className="w-full">
       <button
         onClick={onClick}
-        className={`w-full group relative p-3 rounded-xl bg-gradient-to-br from-[#1A1A1A] to-[#111] border border-[#333] hover:border-[#444] transition-all`}
+        className={`w-full group relative p-3 rounded-xl bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)] transition-all theme-transition`}
       >
         {/* Header com Ícone e Texto */}
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
-            <div className={`p-1.5 rounded-md bg-black/50 border border-white/5 ${status.text}`}>
+            <div className={`p-1.5 rounded-md bg-[var(--color-bg-main)]/50 border border-[var(--color-border)] ${status.text}`}>
               {isPremium ? (
                 <Zap className="w-4 h-4" fill="currentColor" />
               ) : (
                 <BatteryCharging className="w-4 h-4" />
               )}
             </div>
-            <span className="text-xs font-bold text-[#A0A0A0] uppercase tracking-wider">
+            <span className="text-xs font-bold text-[var(--color-text-sec)] uppercase tracking-wider">
               Bateria
             </span>
           </div>
@@ -118,10 +118,10 @@ export function BatteryIndicator({
         {/* Info de Recarga (apenas se não for premium) */}
         {!isPremium && (
           <div className="flex items-center justify-between mt-2.5">
-            <span className="text-[10px] text-[#555] font-medium uppercase tracking-wide">
+            <span className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wide">
               Recarga
             </span>
-            <span className="text-[10px] text-[#A0A0A0] font-mono">
+            <span className="text-[10px] text-[var(--color-text-sec)] font-mono">
               {hours}h {minutes}m
             </span>
           </div>

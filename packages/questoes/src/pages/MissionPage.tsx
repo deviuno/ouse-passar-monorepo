@@ -107,10 +107,10 @@ function QuestionsSkeleton() {
           {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="flex items-center gap-3 p-4 bg-[#1A1A1A] rounded-xl border border-[#3A3A3A]"
+              className="flex items-center gap-3 p-4 bg-[var(--color-bg-main)] rounded-xl border border-[var(--color-border)]"
             >
-              <div className="w-8 h-8 rounded-full bg-[#3A3A3A] animate-pulse flex-shrink-0" />
-              <div className="flex-1 h-4 bg-[#3A3A3A] rounded animate-pulse" />
+              <div className="w-8 h-8 rounded-full bg-[var(--color-bg-elevated)] animate-pulse flex-shrink-0" />
+              <div className="flex-1 h-4 bg-[var(--color-bg-elevated)] rounded animate-pulse" />
             </div>
           ))}
         </div>
@@ -201,13 +201,13 @@ function StudyModeModal({
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="bg-[#1A1A1A] border border-[#3A3A3A] rounded-2xl p-6 max-w-md w-full shadow-2xl"
+          className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 max-w-md w-full shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <h2 className="text-xl font-bold text-white mb-2 text-center">
+          <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2 text-center">
             Escolha o modo de estudo
           </h2>
-          <p className="text-[#A0A0A0] text-sm text-center mb-6">
+          <p className="text-[var(--color-text-sec)] text-sm text-center mb-6">
             Como você quer praticar as questões?
           </p>
 
@@ -215,17 +215,17 @@ function StudyModeModal({
             {/* Modo Zen */}
             <button
               onClick={() => onSelectMode('zen')}
-              className="w-full p-4 bg-[#252525] hover:bg-[#2D2D2D] border border-[#3A3A3A] hover:border-[#4CAF50] rounded-xl transition-all group text-left"
+              className="w-full p-4 bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-elevated)] border border-[var(--color-border)] hover:border-[#4CAF50] rounded-xl transition-all group text-left"
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-xl bg-[#4CAF50]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#4CAF50]/30 transition-colors">
                   <span className="text-2xl">🧘</span>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-white group-hover:text-[#4CAF50] transition-colors">
+                  <h3 className="font-semibold text-[var(--color-text-main)] group-hover:text-[#4CAF50] transition-colors">
                     Modo Zen
                   </h3>
-                  <p className="text-[#A0A0A0] text-sm mt-1">
+                  <p className="text-[var(--color-text-sec)] text-sm mt-1">
                     Veja o gabarito e comentário após cada questão. Ideal para aprender com calma.
                   </p>
                 </div>
@@ -235,17 +235,17 @@ function StudyModeModal({
             {/* Modo Simulado (internamente 'hard') */}
             <button
               onClick={() => onSelectMode('hard')}
-              className="w-full p-4 bg-[#252525] hover:bg-[#2D2D2D] border border-[#3A3A3A] hover:border-[#FFB800] rounded-xl transition-all group text-left"
+              className="w-full p-4 bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-elevated)] border border-[var(--color-border)] hover:border-[#FFB800] rounded-xl transition-all group text-left"
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-xl bg-[#FFB800]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#FFB800]/30 transition-colors">
                   <span className="text-2xl">⏱️</span>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-white group-hover:text-[#FFB800] transition-colors">
+                  <h3 className="font-semibold text-[var(--color-text-main)] group-hover:text-[#FFB800] transition-colors">
                     Modo Simulado
                   </h3>
-                  <p className="text-[#A0A0A0] text-sm mt-1">
+                  <p className="text-[var(--color-text-sec)] text-sm mt-1">
                     Responda todas as questões primeiro. Gabarito e comentários só no final.
                   </p>
                 </div>
@@ -429,21 +429,21 @@ function ContentPhase({
         >
           <Sparkles size={48} className="text-[#FFB800]" />
         </motion.div>
-        <h2 className="text-xl font-bold text-white mb-2">
+        <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2">
           Gerando conteúdo personalizado...
         </h2>
-        <p className="text-[#A0A0A0] mb-4 max-w-xs">
+        <p className="text-[var(--color-text-sec)] mb-4 max-w-xs">
           Nossa IA está preparando uma aula especial baseada nas questões desta missão. Isso pode levar alguns segundos.
         </p>
-        <div className="w-48 h-2 bg-[#3A3A3A] rounded-full overflow-hidden">
+        <div className="w-48 h-2 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-[#FFB800]"
+            className="h-full bg-[var(--color-brand)]"
             initial={{ width: '0%' }}
             animate={{ width: '100%' }}
             transition={{ duration: 30, ease: 'linear' }}
           />
         </div>
-        <p className="text-[#6E6E6E] text-xs mt-4">
+        <p className="text-[var(--color-text-muted)] text-xs mt-4">
           Você é o primeiro a acessar esta missão!
         </p>
       </motion.div>
@@ -460,10 +460,10 @@ function ContentPhase({
         className="flex flex-col items-center justify-center h-full p-6 text-center"
       >
         <div className="text-6xl mb-6">⚠️</div>
-        <h2 className="text-xl font-bold text-white mb-2">
+        <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2">
           Ops! Algo deu errado
         </h2>
-        <p className="text-[#A0A0A0] mb-6 max-w-xs">
+        <p className="text-[var(--color-text-sec)] mb-6 max-w-xs">
           Não foi possível gerar o conteúdo. Você ainda pode praticar com as questões!
         </p>
         <Button onClick={() => onContinue('zen')} rightIcon={<ChevronRight size={20} />}>
@@ -483,7 +483,7 @@ function ContentPhase({
       {/* Sticky Mini Player - fixed with same width as content container */}
       {showStickyPlayer && content?.audio_url && containerWidth > 0 && (
         <div
-          className="fixed top-14 z-[100] bg-[#252525] border-b border-[#3A3A3A] py-2 px-4"
+          className="fixed top-14 z-[100] bg-[var(--color-bg-card)] border-b border-[var(--color-border)] py-2 px-4"
           style={{
             width: containerWidth,
             left: containerLeft,
@@ -492,7 +492,7 @@ function ContentPhase({
           <div className="flex items-center gap-3">
             <button
               onClick={handlePlayPause}
-              className="w-12 h-12 rounded-full bg-[#FFB800] hover:bg-[#E5A600] flex items-center justify-center flex-shrink-0 transition-colors"
+              className="w-12 h-12 rounded-full bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] flex items-center justify-center flex-shrink-0 transition-colors"
             >
               {isPlaying ? (
                 <Pause size={28} strokeWidth={3} className="text-black" />
@@ -501,14 +501,14 @@ function ContentPhase({
               )}
             </button>
             <div className="flex-1 min-w-0">
-              <div className="h-1.5 bg-[#3A3A3A] rounded-full">
+              <div className="h-1.5 bg-[var(--color-bg-elevated)] rounded-full">
                 <div
-                  className="h-full rounded-full bg-[#FFB800] transition-all"
+                  className="h-full rounded-full bg-[var(--color-brand)] transition-all"
                   style={{ width: `${audioProgress}%` }}
                 />
               </div>
             </div>
-            <span className="text-[#A0A0A0] text-xs flex-shrink-0 text-right">
+            <span className="text-[var(--color-text-sec)] text-xs flex-shrink-0 text-right">
               {formatTime(audioRef.current?.currentTime || 0)}
             </span>
             <div className="relative">
@@ -517,12 +517,12 @@ function ContentPhase({
                   e.stopPropagation();
                   setShowStickySpeedMenu(!showStickySpeedMenu);
                 }}
-                className="px-2 py-1 bg-[#3A3A3A] hover:bg-[#4A4A4A] rounded text-xs font-bold text-[#FFB800] flex-shrink-0 transition-colors min-w-[40px]"
+                className="px-2 py-1 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-main)] rounded text-xs font-bold text-[var(--color-brand)] flex-shrink-0 transition-colors min-w-[40px]"
               >
                 {playbackRate}x
               </button>
               {showStickySpeedMenu && (
-                <div className="absolute top-full right-0 mt-1 bg-[#2D2D2D] border border-[#3A3A3A] rounded-lg shadow-xl overflow-hidden z-[110]">
+                <div className="absolute top-full right-0 mt-1 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg shadow-xl overflow-hidden z-[110]">
                   {PLAYBACK_SPEEDS.map((speed) => (
                     <button
                       key={speed}
@@ -531,8 +531,8 @@ function ContentPhase({
                         handleSpeedSelect(speed);
                       }}
                       className={`block w-full px-4 py-2 text-xs font-medium text-left transition-colors whitespace-nowrap ${playbackRate === speed
-                        ? 'bg-[#FFB800] text-black'
-                        : 'text-white hover:bg-[#3A3A3A]'
+                        ? 'bg-[var(--color-brand)] text-black'
+                        : 'text-[var(--color-text-main)] hover:bg-[var(--color-bg-main)]'
                         }`}
                     >
                       {speed}x {speed === 1 && '(Normal)'}
@@ -577,8 +577,8 @@ function ContentPhase({
                   onClick={handlePlayPause}
                   disabled={audioLoading || audioError}
                   className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors flex-shrink-0 p-0 ${audioLoading || audioError
-                    ? 'bg-[#3A3A3A] cursor-not-allowed'
-                    : 'bg-[#FFB800] hover:bg-[#E5A600]'
+                    ? 'bg-[var(--color-bg-elevated)] cursor-not-allowed'
+                    : 'bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)]'
                     }`}
                 >
                   {audioLoading ? (
@@ -593,18 +593,18 @@ function ContentPhase({
                 </button>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-1">
-                    <p className="text-white text-sm">
+                    <p className="text-[var(--color-text-main)] text-sm">
                       {audioLoading ? 'Carregando áudio...' : audioError ? 'Erro ao carregar' : 'Ouvir conteúdo'}
                     </p>
                     {audioDuration > 0 && !audioError && (
-                      <span className="text-[#6E6E6E] text-xs">
+                      <span className="text-[var(--color-text-muted)] text-xs">
                         {formatTime(audioRef.current?.currentTime || 0)} / {formatTime(audioDuration)}
                       </span>
                     )}
                   </div>
-                  <div className="h-1 bg-[#3A3A3A] rounded-full">
+                  <div className="h-1 bg-[var(--color-bg-elevated)] rounded-full">
                     <div
-                      className={`h-full rounded-full transition-all ${audioError ? 'bg-[#E74C3C]' : 'bg-[#FFB800]'}`}
+                      className={`h-full rounded-full transition-all ${audioError ? 'bg-[#E74C3C]' : 'bg-[var(--color-brand)]'}`}
                       style={{ width: audioError ? '100%' : `${audioProgress}%` }}
                     />
                   </div>
@@ -617,13 +617,13 @@ function ContentPhase({
                         e.stopPropagation();
                         setShowSpeedMenu(!showSpeedMenu);
                       }}
-                      className="px-2 py-1.5 bg-[#3A3A3A] hover:bg-[#4A4A4A] rounded text-xs font-bold text-[#FFB800] flex-shrink-0 transition-colors min-w-[44px]"
+                      className="px-2 py-1.5 bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-main)] rounded text-xs font-bold text-[var(--color-brand)] flex-shrink-0 transition-colors min-w-[44px]"
                       title="Velocidade de reprodução"
                     >
                       {playbackRate}x
                     </button>
                     {showSpeedMenu && (
-                      <div className="absolute top-full right-0 mt-1 bg-[#2D2D2D] border border-[#3A3A3A] rounded-lg shadow-xl overflow-hidden z-50">
+                      <div className="absolute top-full right-0 mt-1 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg shadow-xl overflow-hidden z-50">
                         {PLAYBACK_SPEEDS.map((speed) => (
                           <button
                             key={speed}
@@ -632,8 +632,8 @@ function ContentPhase({
                               handleSpeedSelect(speed);
                             }}
                             className={`block w-full px-4 py-2 text-xs font-medium text-left transition-colors whitespace-nowrap ${playbackRate === speed
-                              ? 'bg-[#FFB800] text-black'
-                              : 'text-white hover:bg-[#3A3A3A]'
+                              ? 'bg-[var(--color-brand)] text-black'
+                              : 'text-[var(--color-text-main)] hover:bg-[var(--color-bg-main)]'
                               }`}
                           >
                             {speed}x {speed === 1 && '(Normal)'}
@@ -659,7 +659,7 @@ function ContentPhase({
       </div>
 
       {/* Continue Button */}
-      <div className="px-3 py-3 md:p-4 border-t border-[#3A3A3A]">
+      <div className="px-3 py-3 md:p-4 border-t border-[var(--color-border)]">
         <Button
           fullWidth
           size="lg"
@@ -1460,7 +1460,7 @@ export default function MissionPage() {
     }
 
     loadQuestions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedMissionId, getSelectedPreparatorio, currentTrailMode, user?.id, selectedPreparatorioId]);
 
   const currentQuestion = questions[currentQuestionIndex];
@@ -1743,7 +1743,7 @@ export default function MissionPage() {
 
   if (isWaitingForData) {
     return (
-      <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A] p-4">
+      <div className="min-h-[calc(100vh-56px)] bg-[var(--color-bg-main)] p-4">
         <ContentSkeleton />
       </div>
     );
@@ -1752,11 +1752,11 @@ export default function MissionPage() {
   // Se não conseguiu resolver o mission ID após carregar os dados, mostra erro
   if (!resolvedMissionId && isDataLoaded && rounds.length > 0) {
     return (
-      <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A] flex items-center justify-center p-4">
+      <div className="min-h-[calc(100vh-56px)] bg-[var(--color-bg-main)] flex items-center justify-center p-4">
         <div className="text-center">
           <div className="text-6xl mb-4">🔍</div>
-          <h2 className="text-xl font-bold text-white mb-2">Missão não encontrada</h2>
-          <p className="text-[#A0A0A0] mb-6">Não foi possível encontrar esta missão.</p>
+          <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2">Missão não encontrada</h2>
+          <p className="text-[var(--color-text-muted)] mb-6">Não foi possível encontrar esta missão.</p>
           <Button onClick={() => navigate('/')}>Voltar para Trilha</Button>
         </div>
       </div>
@@ -1764,7 +1764,7 @@ export default function MissionPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-[#1A1A1A]">
+    <div className="min-h-[calc(100vh-56px)] bg-[var(--color-bg-main)]">
       <div className={`flex flex-col min-w-0 relative transition-all duration-300 ${isMapExpanded ? 'xl:mr-[400px]' : 'xl:mr-[72px]'}`}>
         <div ref={questionsContainerRef} className="flex-1 relative overflow-y-auto px-0 md:px-4 py-4 md:py-6 scrollbar-thin scrollbar-thumb-zinc-800">
           <div className="w-full md:max-w-[900px] mx-auto flex flex-col min-h-full">
@@ -1773,7 +1773,7 @@ export default function MissionPage() {
 
             {/* Header - só aparece na fase de questões */}
             {phase === 'questions' && (
-              <div className="px-4 py-2 bg-[#1A1A1A]">
+              <div className="px-4 py-2 bg-[var(--color-bg-main)]">
                 {/* Badges de modo */}
                 <div className="flex justify-center gap-2">
                   {/* Badge de Reta Final */}
@@ -1959,7 +1959,7 @@ export default function MissionPage() {
         initial={{ width: 0, opacity: 0 }}
         animate={{ width: isMapExpanded ? 400 : 72, opacity: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 25 }}
-        className="hidden xl:block fixed right-0 top-0 bottom-0 bg-[#252525] border-l border-[#3A3A3A] z-40 shadow-2xl overflow-hidden"
+        className="hidden xl:block fixed right-0 top-0 bottom-0 bg-[var(--color-bg-card)] border-l border-[var(--color-border)] z-40 shadow-2xl overflow-hidden"
       >
         {/* Toggle Button */}
 
@@ -1967,17 +1967,17 @@ export default function MissionPage() {
         <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
           {/* Header - same height as main header (h-14 = 56px) */}
           <div
-            className="sticky top-0 bg-[#252525]/95 backdrop-blur-sm z-30 border-b border-[#3A3A3A] h-14 flex items-center px-3"
+            className="sticky top-0 bg-[var(--color-bg-card)]/95 backdrop-blur-sm z-30 border-b border-[var(--color-border)] h-14 flex items-center px-3"
           >
             {isMapExpanded ? (
               <div className="flex items-center w-full">
                 {/* Collapse button */}
                 <button
                   onClick={() => setIsMapExpanded(false)}
-                  className="p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors flex-shrink-0"
+                  className="p-1.5 rounded-lg hover:bg-[var(--color-bg-elevated)] transition-colors flex-shrink-0"
                   title="Recolher trilha"
                 >
-                  <ChevronRight size={18} className="text-[#A0A0A0]" />
+                  <ChevronRight size={18} className="text-[var(--color-text-sec)]" />
                 </button>
                 {/* Round navigation - centered */}
                 {/* Round navigation - centered */}
@@ -1994,10 +1994,10 @@ export default function MissionPage() {
             ) : (
               <button
                 onClick={() => setIsMapExpanded(true)}
-                className="w-full flex justify-center p-1.5 rounded-lg hover:bg-[#3A3A3A] transition-colors"
+                className="w-full flex justify-center p-1.5 rounded-lg hover:bg-[var(--color-bg-elevated)] transition-colors"
                 title="Expandir Trilha"
               >
-                <ChevronLeft size={18} className="text-[#A0A0A0]" />
+                <ChevronLeft size={18} className="text-[var(--color-text-sec)]" />
               </button>
             )}
           </div>

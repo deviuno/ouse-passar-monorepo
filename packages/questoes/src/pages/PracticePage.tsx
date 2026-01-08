@@ -163,14 +163,14 @@ function MultiSelectDropdown({
     <div ref={dropdownRef} className="relative">
       {/* Label */}
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-[#FFB800]">{icon}</span>
-        <span className="text-white text-sm font-medium">{label}</span>
+        <span className="text-[var(--color-brand)]">{icon}</span>
+        <span className="text-[var(--color-text-main)] text-sm font-medium">{label}</span>
         {selected.length > 0 && (
-          <span className="px-1.5 py-0.5 bg-[#FFB800] text-black text-xs font-bold rounded">
+          <span className="px-1.5 py-0.5 bg-[var(--color-brand)] text-black text-xs font-bold rounded">
             {selected.length}
           </span>
         )}
-        <span className="text-[#6E6E6E] text-xs">({items.length})</span>
+        <span className="text-[var(--color-text-muted)] text-xs">({items.length})</span>
       </div>
 
       {/* Trigger Button */}
@@ -178,16 +178,16 @@ function MultiSelectDropdown({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-colors
+          w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-colors theme-transition
           ${disabled
-            ? 'bg-[#1A1A1A] border-[#2A2A2A] text-[#4A4A4A] cursor-not-allowed'
+            ? 'bg-[var(--color-bg-main)] border-[var(--color-bg-elevated)] text-[var(--color-text-muted)] cursor-not-allowed'
             : isOpen
-              ? 'bg-[#252525] border-[#FFB800] text-white'
-              : 'bg-[#1E1E1E] border-[#3A3A3A] text-white hover:border-[#4A4A4A]'
+              ? 'bg-[var(--color-bg-card)] border-[var(--color-brand)] text-[var(--color-text-main)]'
+              : 'bg-[var(--color-bg-card)] border-[var(--color-border)] text-[var(--color-text-main)] hover:border-[var(--color-text-muted)]'
           }
         `}
       >
-        <span className={selected.length === 0 ? 'text-[#6E6E6E]' : 'text-white truncate'}>
+        <span className={selected.length === 0 ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-main)] truncate'}>
           {selected.length === 0
             ? placeholder
             : selected.length === 1
@@ -195,7 +195,7 @@ function MultiSelectDropdown({
               : `${selected.length} selecionados`
           }
         </span>
-        <ChevronDown size={16} className={`text-[#6E6E6E] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} className={`text-[var(--color-text-muted)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown */}
@@ -206,19 +206,19 @@ function MultiSelectDropdown({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-50 w-full mt-1 bg-[#1E1E1E] border border-[#3A3A3A] rounded-lg shadow-xl overflow-hidden"
+            className="absolute z-50 w-full mt-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg shadow-xl overflow-hidden theme-transition"
           >
             {/* Search */}
-            <div className="p-2 border-b border-[#3A3A3A]">
+            <div className="p-2 border-b border-[var(--color-border)]">
               <div className="relative">
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar..."
                   autoFocus
-                  className="w-full bg-[#252525] border border-[#3A3A3A] rounded pl-8 pr-3 py-1.5 text-white text-sm placeholder-[#6E6E6E] focus:outline-none focus:border-[#FFB800]"
+                  className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded pl-8 pr-3 py-1.5 text-[var(--color-text-main)] text-sm placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand)]"
                 />
               </div>
             </div>
@@ -227,11 +227,11 @@ function MultiSelectDropdown({
             <div className="max-h-[300px] overflow-y-auto">
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
-                  <Loader2 size={16} className="animate-spin text-[#FFB800]" />
-                  <span className="ml-2 text-[#6E6E6E] text-xs">Carregando...</span>
+                  <Loader2 size={16} className="animate-spin text-[var(--color-brand)]" />
+                  <span className="ml-2 text-[var(--color-text-muted)] text-xs">Carregando...</span>
                 </div>
               ) : filteredItems.length === 0 ? (
-                <p className="text-[#6E6E6E] text-xs text-center py-4">Nenhum resultado</p>
+                <p className="text-[var(--color-text-muted)] text-xs text-center py-4">Nenhum resultado</p>
               ) : (
                 filteredItems.map((item) => {
                   const isSelected = selected.includes(item);
@@ -241,12 +241,12 @@ function MultiSelectDropdown({
                       onClick={() => onToggle(item)}
                       className={`
                         w-full flex items-start gap-2 px-3 py-2 text-left text-sm transition-colors
-                        ${isSelected ? 'bg-[#FFB800]/10 text-[#FFB800]' : 'text-white hover:bg-[#252525]'}
+                        ${isSelected ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]' : 'text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)]'}
                       `}
                     >
                       <div className={`
                         w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5
-                        ${isSelected ? 'bg-[#FFB800] border-[#FFB800]' : 'border-[#4A4A4A]'}
+                        ${isSelected ? 'bg-[var(--color-brand)] border-[var(--color-brand)]' : 'border-[var(--color-text-muted)]'}
                       `}>
                         {isSelected && <Check size={10} className="text-black" />}
                       </div>
@@ -259,11 +259,11 @@ function MultiSelectDropdown({
 
             {/* Footer */}
             {selected.length > 0 && (
-              <div className="p-2 border-t border-[#3A3A3A] flex justify-between items-center">
-                <span className="text-[#6E6E6E] text-xs">{selected.length} selecionado(s)</span>
+              <div className="p-2 border-t border-[var(--color-border)] flex justify-between items-center">
+                <span className="text-[var(--color-text-muted)] text-xs">{selected.length} selecionado(s)</span>
                 <button
                   onClick={() => { onClear(); setSearch(''); }}
-                  className="text-[#E74C3C] text-xs hover:underline"
+                  className="text-[var(--color-error)] text-xs hover:underline"
                 >
                   Limpar
                 </button>
@@ -1327,7 +1327,7 @@ export default function PracticePage() {
   // Modo de pratica
   if (mode === 'practicing' && currentQuestion) {
     return (
-      <div className="min-h-[calc(100vh-3.5rem)] bg-[#1A1A1A] flex flex-col">
+      <div className="min-h-[calc(100vh-3.5rem)] bg-[var(--color-bg-main)] flex flex-col theme-transition">
         {/* Painel de filtros deslizante */}
         <AnimatePresence>
           {showPracticingFilters && (
@@ -1336,22 +1336,22 @@ export default function PracticePage() {
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.3, ease: 'easeInOut' }}
-              className="overflow-hidden border-b border-[#3A3A3A] bg-[#121212]"
+              className="overflow-hidden border-b border-[var(--color-border)] bg-[var(--color-bg-main)] theme-transition"
             >
               <div className="p-4 md:p-6 space-y-4 max-w-[1200px] mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Filter size={18} className="text-[#FFB800]" />
-                    <h3 className="text-base font-bold text-white">Filtrar Questões</h3>
+                    <Filter size={18} className="text-[var(--color-brand)]" />
+                    <h3 className="text-base font-bold text-[var(--color-text-main)]">Filtrar Questões</h3>
                   </div>
                   <div className="flex items-center gap-3">
-                    <button onClick={clearFilters} className="text-xs text-[#E74C3C] hover:underline font-medium">
+                    <button onClick={clearFilters} className="text-xs text-[var(--color-error)] hover:underline font-medium">
                       Limpar Filtros
                     </button>
                     <button
                       onClick={() => setShowPracticingFilters(false)}
-                      className="p-1.5 rounded-lg hover:bg-[#252525] text-[#A0A0A0] hover:text-white transition-colors"
+                      className="p-1.5 rounded-lg hover:bg-[var(--color-bg-card)] text-[var(--color-text-sec)] hover:text-[var(--color-text-main)] transition-colors"
                     >
                       <X size={18} />
                     </button>
@@ -1359,7 +1359,7 @@ export default function PracticePage() {
                 </div>
 
                 {/* Filtros Grid */}
-                <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-4 md:p-5">
+                <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-4 md:p-5 theme-transition">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                     <MultiSelectDropdown
                       label="Matérias"
@@ -1462,59 +1462,59 @@ export default function PracticePage() {
                   </div>
 
                   {/* Toggle Filters */}
-                  <div className="flex flex-wrap gap-6 pt-4 border-t border-[#3A3A3A]">
+                  <div className="flex flex-wrap gap-6 pt-4 border-t border-[var(--color-border)]">
                     <button
                       onClick={() => setToggleFilters(prev => ({ ...prev, apenasRevisadas: !prev.apenasRevisadas }))}
                       className="flex items-center gap-3 group"
                     >
-                      <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasRevisadas ? 'bg-[#FFB800]' : 'bg-[#3A3A3A]'}`}>
+                      <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasRevisadas ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-border)]'}`}>
                         <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasRevisadas ? 'left-[22px]' : 'left-0.5'}`} />
                       </div>
-                      <span className={`text-sm transition-colors ${toggleFilters.apenasRevisadas ? 'text-white' : 'text-[#A0A0A0] group-hover:text-white'}`}>Apenas questões revisadas</span>
+                      <span className={`text-sm transition-colors ${toggleFilters.apenasRevisadas ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]'}`}>Apenas questões revisadas</span>
                     </button>
                     <button
                       onClick={() => setToggleFilters(prev => ({ ...prev, apenasComComentario: !prev.apenasComComentario }))}
                       className="flex items-center gap-3 group"
                     >
-                      <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasComComentario ? 'bg-[#FFB800]' : 'bg-[#3A3A3A]'}`}>
+                      <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasComComentario ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-border)]'}`}>
                         <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasComComentario ? 'left-[22px]' : 'left-0.5'}`} />
                       </div>
-                      <span className={`text-sm transition-colors ${toggleFilters.apenasComComentario ? 'text-white' : 'text-[#A0A0A0] group-hover:text-white'}`}>Apenas com comentário</span>
+                      <span className={`text-sm transition-colors ${toggleFilters.apenasComComentario ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]'}`}>Apenas com comentário</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Resumo Section */}
-                <section className="bg-[#1E1E1E] border border-[#FFB800]/20 rounded-2xl p-4 md:p-5 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-48 h-48 bg-[#FFB800]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                <section className="bg-[var(--color-bg-card)] border border-[var(--color-brand)]/20 rounded-2xl p-4 md:p-5 relative overflow-hidden theme-transition">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-[var(--color-brand)]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
                   <div className="relative">
-                    <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-4 flex items-center gap-2">
                       <SlidersHorizontal size={14} /> Resumo do Treino
                     </h3>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-5">
                       {/* Questões Disponíveis */}
-                      <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A]">
-                        <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-1">Disponíveis</p>
+                      <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)]">
+                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">Disponíveis</p>
                         {isLoadingCount ? (
-                          <Loader2 size={20} className="animate-spin text-[#FFB800]" />
+                          <Loader2 size={20} className="animate-spin text-[var(--color-brand)]" />
                         ) : (
-                          <p className="text-2xl font-bold text-white">{filteredCount.toLocaleString()}</p>
+                          <p className="text-2xl font-bold text-[var(--color-text-main)]">{filteredCount.toLocaleString()}</p>
                         )}
                       </div>
 
                       {/* Filtros Ativos */}
-                      <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A]">
-                        <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-1">Filtros Ativos</p>
-                        <p className="text-2xl font-bold text-[#FFB800]">{totalFilters}</p>
+                      <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)]">
+                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">Filtros Ativos</p>
+                        <p className="text-2xl font-bold text-[var(--color-brand)]">{totalFilters}</p>
                       </div>
 
                       {/* Questões por Sessão */}
-                      <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A] col-span-2 md:col-span-1 lg:col-span-2">
-                        <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-2">Questões por Sessão</p>
+                      <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] col-span-2 md:col-span-1 lg:col-span-2">
+                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">Questões por Sessão</p>
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl font-bold text-[#FFB800] min-w-[3rem]">{questionCount}</span>
+                          <span className="text-2xl font-bold text-[var(--color-brand)] min-w-[3rem]">{questionCount}</span>
                           <input
                             type="range"
                             min="5"
@@ -1522,29 +1522,29 @@ export default function PracticePage() {
                             step="5"
                             value={questionCount}
                             onChange={(e) => setQuestionCount(Number(e.target.value))}
-                            className="flex-1 h-2 bg-[#3A3A3A] rounded-lg appearance-none cursor-pointer accent-[#FFB800]"
+                            className="flex-1 h-2 bg-[var(--color-border)] rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
                           />
                         </div>
                       </div>
 
                       {/* Modo de Estudo */}
-                      <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A] col-span-2">
-                        <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-2">Modo de Estudo</p>
+                      <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] col-span-2">
+                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">Modo de Estudo</p>
                         <button
                           onClick={() => setStudyMode(studyMode === 'zen' ? 'hard' : 'zen')}
-                          className="relative inline-flex items-center h-8 rounded-full w-full bg-[#1A1A1A] border border-[#3A3A3A] transition-colors"
+                          className="relative inline-flex items-center h-8 rounded-full w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] transition-colors"
                         >
                           <span
                             className={`absolute inline-flex items-center justify-center h-7 rounded-full text-xs font-bold transition-all duration-300 ${
                               studyMode === 'zen'
-                                ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[#2ECC71] text-black'
-                                : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[#E74C3C] text-black'
+                                ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[var(--color-success)] text-black'
+                                : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[var(--color-error)] text-white'
                             }`}
                           >
                             {studyMode === 'zen' ? 'Zen' : 'Simulado'}
                           </span>
-                          <span className="absolute left-[25%] -translate-x-1/2 text-[10px] text-[#6E6E6E] pointer-events-none" style={{ opacity: studyMode === 'zen' ? 0 : 1 }}>Zen</span>
-                          <span className="absolute left-[75%] -translate-x-1/2 text-[10px] text-[#6E6E6E] pointer-events-none" style={{ opacity: studyMode === 'hard' ? 0 : 1 }}>Simulado</span>
+                          <span className="absolute left-[25%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none" style={{ opacity: studyMode === 'zen' ? 0 : 1 }}>Zen</span>
+                          <span className="absolute left-[75%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none" style={{ opacity: studyMode === 'hard' ? 0 : 1 }}>Simulado</span>
                         </button>
                       </div>
                     </div>
@@ -1553,7 +1553,7 @@ export default function PracticePage() {
                     <div className="flex items-center justify-between">
                       <button
                         onClick={() => setShowPracticingFilters(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-[#A0A0A0] hover:text-white font-medium rounded-lg hover:bg-[#252525] transition-colors"
+                        className="flex items-center gap-2 px-4 py-2.5 text-[var(--color-text-sec)] hover:text-[var(--color-text-main)] font-medium rounded-lg hover:bg-[var(--color-bg-elevated)] transition-colors"
                       >
                         <ChevronUp size={18} />
                         Ocultar filtros
@@ -1561,7 +1561,7 @@ export default function PracticePage() {
                       <div className="flex gap-3">
                         <button
                           onClick={() => setShowSaveNotebookModal(true)}
-                          className="flex items-center gap-2 px-5 py-3 bg-[#252525] text-white font-bold rounded-xl border border-[#3A3A3A] hover:bg-[#303030] hover:border-[#FFB800] transition-colors"
+                          className="flex items-center gap-2 px-5 py-3 bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] font-bold rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-bg-card)] hover:border-[var(--color-brand)] transition-colors"
                         >
                           <Save size={18} />
                           Salvar como Caderno
@@ -1572,7 +1572,7 @@ export default function PracticePage() {
                             startPractice();
                           }}
                           disabled={isLoading || filteredCount === 0}
-                          className="flex items-center gap-2 px-6 py-3 bg-[#FFB800] text-black font-bold rounded-xl hover:bg-[#FFC933] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-2 px-6 py-3 bg-[var(--color-brand)] text-black font-bold rounded-xl hover:bg-[var(--color-brand-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isLoading ? (
                             <>
@@ -1697,17 +1697,17 @@ export default function PracticePage() {
   const isAutoStarting = shouldAutoStart || autoStartPending;
   if (isAutoStarting && (isLoadingFilters || isLoadingCount || isLoading || mode === 'selection')) {
     return (
-      <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center font-sans text-white">
+      <div className="min-h-screen bg-[var(--color-bg-main)] flex flex-col items-center justify-center font-sans text-[var(--color-text-main)] theme-transition">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center text-center"
         >
           <div className="mb-6">
-            <div className="w-16 h-16 border-4 border-[#3A3A3A] border-t-[#FFB800] rounded-full animate-spin"></div>
+            <div className="w-16 h-16 border-4 border-[var(--color-border)] border-t-[var(--color-brand)] rounded-full animate-spin"></div>
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Carregando questões...</h2>
-          <p className="text-[#A0A0A0]">Preparando sua sessão de prática</p>
+          <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2">Carregando questões...</h2>
+          <p className="text-[var(--color-text-sec)]">Preparando sua sessão de prática</p>
         </motion.div>
       </div>
     );
@@ -1717,7 +1717,7 @@ export default function PracticePage() {
   // RENDER: DASHBOARD "COCKPIT"
   // ==========================================
   return (
-    <div className="min-h-screen bg-[#121212] px-2 py-4 md:p-8 lg:p-12 font-sans text-white">
+    <div className="min-h-screen bg-[var(--color-bg-main)] px-2 py-4 md:p-8 lg:p-12 font-sans text-[var(--color-text-main)] theme-transition">
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-6 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <motion.div
@@ -1727,23 +1727,23 @@ export default function PracticePage() {
           {editingNotebook ? (
             <>
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-[#FFB800]/10 rounded-lg">
-                  <PenLine size={24} className="text-[#FFB800]" />
+                <div className="p-2 bg-[var(--color-brand)]/10 rounded-lg">
+                  <PenLine size={24} className="text-[var(--color-brand)]" />
                 </div>
-                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white to-[#A0A0A0] bg-clip-text text-transparent">
+                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-[var(--color-text-main)] to-[var(--color-text-sec)] bg-clip-text text-transparent">
                   Edição - {editingNotebook.title}
                 </h1>
               </div>
-              <p className="text-sm md:text-base text-[#A0A0A0] font-medium">
+              <p className="text-sm md:text-base text-[var(--color-text-sec)] font-medium">
                 Edite os parâmetros do seu caderno e depois clique em Salvar.
               </p>
             </>
           ) : (
             <>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-white to-[#A0A0A0] bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-[var(--color-text-main)] to-[var(--color-text-sec)] bg-clip-text text-transparent">
                 Painel de Prática
               </h1>
-              <p className="text-sm md:text-base text-[#A0A0A0] font-medium">
+              <p className="text-sm md:text-base text-[var(--color-text-sec)] font-medium">
                 Configure seu treino de questões.
               </p>
             </>
@@ -1756,23 +1756,23 @@ export default function PracticePage() {
           animate={{ opacity: 1, x: 0 }}
           className="hidden md:flex items-center gap-4"
         >
-          <div className="flex items-center gap-6 bg-[#1E1E1E]/50 border border-[#3A3A3A] p-3 rounded-2xl backdrop-blur-sm">
+          <div className="flex items-center gap-6 bg-[var(--color-bg-card)]/50 border border-[var(--color-border)] p-3 rounded-2xl backdrop-blur-sm theme-transition">
             <div className="flex items-center gap-3 px-2">
-              <div className="p-2 bg-[#FFB800]/10 rounded-lg">
-                <Zap size={20} className="text-[#FFB800]" />
+              <div className="p-2 bg-[var(--color-brand)]/10 rounded-lg">
+                <Zap size={20} className="text-[var(--color-brand)]" />
               </div>
               <div>
-                <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider">Nível</p>
+                <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider">Nível</p>
                 <p className="font-bold text-lg leading-none">{profile?.level || 1}</p>
               </div>
             </div>
-            <div className="w-px h-8 bg-[#3A3A3A]" />
+            <div className="w-px h-8 bg-[var(--color-border)]" />
             <div className="flex items-center gap-3 px-2">
-              <div className="p-2 bg-[#2ECC71]/10 rounded-lg">
-                <CheckCircle size={20} className="text-[#2ECC71]" />
+              <div className="p-2 bg-[var(--color-success)]/10 rounded-lg">
+                <CheckCircle size={20} className="text-[var(--color-success)]" />
               </div>
               <div>
-                <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider">Acertos</p>
+                <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider">Acertos</p>
                 <p className="font-bold text-lg leading-none">{profile?.correct_answers || 0}</p>
               </div>
             </div>
@@ -1782,9 +1782,9 @@ export default function PracticePage() {
           {trailPreparatorioId ? (
             <button
               onClick={() => setShowEditalSidebar(true)}
-              className="flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all backdrop-blur-sm bg-[#1E1E1E]/50 border-[#3A3A3A] text-white hover:border-[#FFB800] hover:text-[#FFB800]"
+              className="flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all backdrop-blur-sm bg-[var(--color-bg-card)]/50 border-[var(--color-border)] text-[var(--color-text-main)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] theme-transition"
             >
-              <ChevronLeft size={18} className="text-[#FFB800]" />
+              <ChevronLeft size={18} className="text-[var(--color-brand)]" />
               <div className="text-left">
                 <p className="text-xs uppercase font-bold tracking-wider opacity-70">Ver</p>
                 <p className="font-bold text-lg leading-none">Edital</p>
@@ -1793,21 +1793,21 @@ export default function PracticePage() {
           ) : (
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all backdrop-blur-sm ${
+              className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all backdrop-blur-sm theme-transition ${
                 showFilters
-                  ? 'bg-[#FFB800] border-[#FFB800] text-black'
-                  : 'bg-[#1E1E1E]/50 border-[#3A3A3A] text-white hover:border-[#FFB800] hover:text-[#FFB800]'
+                  ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-black'
+                  : 'bg-[var(--color-bg-card)]/50 border-[var(--color-border)] text-[var(--color-text-main)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]'
               }`}
             >
-              <div className={`p-2 rounded-lg ${showFilters ? 'bg-black/10' : 'bg-[#FFB800]/10'}`}>
-                <Filter size={20} className={showFilters ? 'text-black' : 'text-[#FFB800]'} />
+              <div className={`p-2 rounded-lg ${showFilters ? 'bg-black/10' : 'bg-[var(--color-brand)]/10'}`}>
+                <Filter size={20} className={showFilters ? 'text-black' : 'text-[var(--color-brand)]'} />
               </div>
               <div className="text-left">
                 <p className="text-xs uppercase font-bold tracking-wider opacity-70">{showFilters ? 'Ocultar' : 'Exibir'}</p>
                 <p className="font-bold text-lg leading-none">Filtros</p>
               </div>
               {totalFilters > 0 && (
-                <span className={`px-2 py-1 text-xs font-bold rounded-lg ${showFilters ? 'bg-black/20 text-black' : 'bg-[#FFB800] text-black'}`}>
+                <span className={`px-2 py-1 text-xs font-bold rounded-lg ${showFilters ? 'bg-black/20 text-black' : 'bg-[var(--color-brand)] text-black'}`}>
                   {totalFilters}
                 </span>
               )}
@@ -1820,24 +1820,24 @@ export default function PracticePage() {
         {trailPreparatorioId ? (
           <button
             onClick={() => setShowEditalSidebar(true)}
-            className="md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all bg-[#1E1E1E] border-[#3A3A3A] text-white"
+            className="md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all bg-[var(--color-bg-card)] border-[var(--color-border)] text-[var(--color-text-main)] theme-transition"
           >
-            <ChevronLeft size={16} className="text-[#FFB800]" />
+            <ChevronLeft size={16} className="text-[var(--color-brand)]" />
             <span className="font-bold text-sm">Ver Edital</span>
           </button>
         ) : (
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all ${
+            className={`md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all theme-transition ${
               showFilters
-                ? 'bg-[#FFB800] border-[#FFB800] text-black'
-                : 'bg-[#1E1E1E] border-[#3A3A3A] text-white'
+                ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-black'
+                : 'bg-[var(--color-bg-card)] border-[var(--color-border)] text-[var(--color-text-main)]'
             }`}
           >
             <Filter size={16} />
             <span className="font-bold text-sm">{showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}</span>
             {totalFilters > 0 && !showFilters && (
-              <span className="px-1.5 py-0.5 bg-[#FFB800] text-black text-xs font-bold rounded">{totalFilters}</span>
+              <span className="px-1.5 py-0.5 bg-[var(--color-brand)] text-black text-xs font-bold rounded">{totalFilters}</span>
             )}
           </button>
         )}
@@ -1848,29 +1848,29 @@ export default function PracticePage() {
         {/* Editing: Title and Description */}
         {editingNotebook && (
           <section>
-            <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-3 flex items-center gap-2">
               <PenLine size={14} /> Dados do Caderno
             </h3>
-            <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-5">
+            <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-5 theme-transition">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-white text-sm font-medium mb-2 block">Nome do Caderno</label>
+                  <label className="text-[var(--color-text-main)] text-sm font-medium mb-2 block">Nome do Caderno</label>
                   <input
                     type="text"
                     value={editingTitle}
                     onChange={(e) => setEditingTitle(e.target.value)}
                     placeholder="Nome do caderno"
-                    className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors"
+                    className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors theme-transition"
                   />
                 </div>
                 <div>
-                  <label className="text-white text-sm font-medium mb-2 block">Descrição (opcional)</label>
+                  <label className="text-[var(--color-text-main)] text-sm font-medium mb-2 block">Descrição (opcional)</label>
                   <input
                     type="text"
                     value={editingDescription}
                     onChange={(e) => setEditingDescription(e.target.value)}
                     placeholder="Descrição do caderno"
-                    className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors"
+                    className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors theme-transition"
                   />
                 </div>
               </div>
@@ -1889,15 +1889,15 @@ export default function PracticePage() {
               className="overflow-hidden"
             >
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider flex items-center gap-2">
                   <Filter size={14} /> Filtros
                 </h3>
-                <button onClick={clearFilters} className="text-xs text-[#E74C3C] hover:underline font-medium">
+                <button onClick={clearFilters} className="text-xs text-[var(--color-error)] hover:underline font-medium">
                   Limpar Filtros
                 </button>
               </div>
 
-              <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl p-5">
+              <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-5 theme-transition">
                 {/* Main Filters - 3 columns */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                   <MultiSelectDropdown
@@ -2001,60 +2001,60 @@ export default function PracticePage() {
                 </div>
 
                 {/* Toggle Filters */}
-                <div className="flex flex-wrap gap-6 pt-4 border-t border-[#3A3A3A]">
+                <div className="flex flex-wrap gap-6 pt-4 border-t border-[var(--color-border)]">
                   <button
                     onClick={() => setToggleFilters(prev => ({ ...prev, apenasRevisadas: !prev.apenasRevisadas }))}
                     className="flex items-center gap-3 group"
                   >
-                    <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasRevisadas ? 'bg-[#FFB800]' : 'bg-[#3A3A3A]'}`}>
+                    <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasRevisadas ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-border)]'}`}>
                       <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasRevisadas ? 'left-[22px]' : 'left-0.5'}`} />
                     </div>
-                    <span className={`text-sm transition-colors ${toggleFilters.apenasRevisadas ? 'text-white' : 'text-[#A0A0A0] group-hover:text-white'}`}>Apenas questões revisadas</span>
+                    <span className={`text-sm transition-colors ${toggleFilters.apenasRevisadas ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]'}`}>Apenas questões revisadas</span>
                   </button>
                   <button
                     onClick={() => setToggleFilters(prev => ({ ...prev, apenasComComentario: !prev.apenasComComentario }))}
                     className="flex items-center gap-3 group"
                   >
-                    <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasComComentario ? 'bg-[#FFB800]' : 'bg-[#3A3A3A]'}`}>
+                    <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasComComentario ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-border)]'}`}>
                       <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasComComentario ? 'left-[22px]' : 'left-0.5'}`} />
                     </div>
-                    <span className={`text-sm transition-colors ${toggleFilters.apenasComComentario ? 'text-white' : 'text-[#A0A0A0] group-hover:text-white'}`}>Apenas com comentário</span>
+                    <span className={`text-sm transition-colors ${toggleFilters.apenasComComentario ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]'}`}>Apenas com comentário</span>
                   </button>
                 </div>
               </div>
               {/* Summary Section - Horizontal Layout */}
-              <section className="bg-[#1E1E1E] border border-[#FFB800]/20 rounded-2xl p-5 relative overflow-hidden mt-6">
+              <section className="bg-[var(--color-bg-card)] border border-[var(--color-brand)]/20 rounded-2xl p-5 relative overflow-hidden mt-6 theme-transition">
                 {/* Background Glow */}
-                <div className="absolute top-0 right-0 w-48 h-48 bg-[#FFB800]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-48 h-48 bg-[var(--color-brand)]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
                 <div className="relative">
-                  <h3 className="text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-4 flex items-center gap-2">
                     <SlidersHorizontal size={14} /> {editingNotebook ? 'Parâmetros do Caderno' : 'Resumo do Treino'}
                   </h3>
 
                   {/* Horizontal Stats Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-5">
                     {/* Questões Disponíveis */}
-                    <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A]">
-                      <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-1">Disponíveis</p>
+                    <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] theme-transition">
+                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">Disponíveis</p>
                       {isLoadingCount ? (
-                        <Loader2 size={20} className="animate-spin text-[#FFB800]" />
+                        <Loader2 size={20} className="animate-spin text-[var(--color-brand)]" />
                       ) : (
-                        <p className="text-2xl font-bold text-white">{filteredCount.toLocaleString()}</p>
+                        <p className="text-2xl font-bold text-[var(--color-text-main)]">{filteredCount.toLocaleString()}</p>
                       )}
                     </div>
 
                     {/* Filtros Ativos */}
-                    <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A]">
-                      <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-1">Filtros Ativos</p>
-                      <p className="text-2xl font-bold text-[#FFB800]">{totalFilters}</p>
+                    <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] theme-transition">
+                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">Filtros Ativos</p>
+                      <p className="text-2xl font-bold text-[var(--color-brand)]">{totalFilters}</p>
                     </div>
 
                     {/* Questões por Sessão */}
-                    <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A] col-span-2 md:col-span-1 lg:col-span-2">
-                      <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-2">Questões por Sessão</p>
+                    <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] col-span-2 md:col-span-1 lg:col-span-2 theme-transition">
+                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">Questões por Sessão</p>
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold text-[#FFB800] min-w-[3rem]">{questionCount}</span>
+                        <span className="text-2xl font-bold text-[var(--color-brand)] min-w-[3rem]">{questionCount}</span>
                         <input
                           type="range"
                           min="5"
@@ -2062,29 +2062,29 @@ export default function PracticePage() {
                           step="5"
                           value={questionCount}
                           onChange={(e) => setQuestionCount(Number(e.target.value))}
-                          className="flex-1 h-2 bg-[#3A3A3A] rounded-lg appearance-none cursor-pointer accent-[#FFB800]"
+                          className="flex-1 h-2 bg-[var(--color-border)] rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
                         />
                       </div>
                     </div>
 
                     {/* Modo de Estudo */}
-                    <div className="bg-[#252525] rounded-xl p-4 border border-[#3A3A3A] col-span-2">
-                      <p className="text-xs text-[#A0A0A0] uppercase font-bold tracking-wider mb-2">Modo de Estudo</p>
+                    <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] col-span-2 theme-transition">
+                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">Modo de Estudo</p>
                       <button
                         onClick={() => setStudyMode(studyMode === 'zen' ? 'hard' : 'zen')}
-                        className="relative inline-flex items-center h-8 rounded-full w-full bg-[#1A1A1A] border border-[#3A3A3A] transition-colors"
+                        className="relative inline-flex items-center h-8 rounded-full w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] transition-colors theme-transition"
                       >
                         <span
                           className={`absolute inline-flex items-center justify-center h-7 rounded-full text-xs font-bold transition-all duration-300 ${
                             studyMode === 'zen'
-                              ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[#2ECC71] text-black'
-                              : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[#E74C3C] text-black'
+                              ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[var(--color-success)] text-black'
+                              : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[var(--color-error)] text-black'
                           }`}
                         >
                           {studyMode === 'zen' ? 'Zen' : 'Simulado'}
                         </span>
-                        <span className="absolute left-[25%] -translate-x-1/2 text-[10px] text-[#6E6E6E] pointer-events-none" style={{ opacity: studyMode === 'zen' ? 0 : 1 }}>Zen</span>
-                        <span className="absolute left-[75%] -translate-x-1/2 text-[10px] text-[#6E6E6E] pointer-events-none" style={{ opacity: studyMode === 'hard' ? 0 : 1 }}>Simulado</span>
+                        <span className="absolute left-[25%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none" style={{ opacity: studyMode === 'zen' ? 0 : 1 }}>Zen</span>
+                        <span className="absolute left-[75%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none" style={{ opacity: studyMode === 'hard' ? 0 : 1 }}>Simulado</span>
                       </button>
                     </div>
                   </div>
@@ -2097,7 +2097,7 @@ export default function PracticePage() {
                           size="lg"
                           onClick={() => handleSaveEditedNotebook(false)}
                           disabled={isSavingNotebook || isLoadingFilters || !editingTitle.trim()}
-                          className="flex-1 bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
+                          className="flex-1 bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)] text-black font-extrabold hover:shadow-lg hover:shadow-[var(--color-brand)]/20 transition-all transform hover:scale-[1.02]"
                           leftIcon={<Save size={20} />}
                         >
                           {isSavingNotebook ? 'Salvando...' : 'Salvar'}
@@ -2114,7 +2114,7 @@ export default function PracticePage() {
                         </Button>
                         <button
                           onClick={handleCancelEdit}
-                          className="px-4 py-2 text-sm text-[#6E6E6E] hover:text-white transition-colors"
+                          className="px-4 py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors"
                         >
                           Cancelar
                         </button>
@@ -2143,7 +2143,7 @@ export default function PracticePage() {
                           size="lg"
                           onClick={startPractice}
                           disabled={isLoading || isLoadingFilters || filteredCount === 0}
-                          className="flex-1 sm:flex-[2] whitespace-nowrap bg-gradient-to-r from-[#FFB800] to-[#E5A600] text-black font-extrabold hover:shadow-lg hover:shadow-[#FFB800]/20 transition-all transform hover:scale-[1.02]"
+                          className="flex-1 sm:flex-[2] whitespace-nowrap bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)] text-black font-extrabold hover:shadow-lg hover:shadow-[var(--color-brand)]/20 transition-all transform hover:scale-[1.02]"
                           rightIcon={<Play size={20} fill="currentColor" />}
                         >
                           INICIAR PRÁTICA
@@ -2174,50 +2174,50 @@ export default function PracticePage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 100 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed bottom-[114px] left-0 right-0 mx-4 w-auto max-w-md bg-[#252525] rounded-3xl p-8 shadow-2xl z-50 border border-[#3A3A3A] lg:left-1/2 lg:right-auto lg:-translate-x-1/2"
+              className="fixed bottom-[114px] left-0 right-0 mx-4 w-auto max-w-md bg-[var(--color-bg-elevated)] rounded-3xl p-8 shadow-2xl z-50 border border-[var(--color-border)] lg:left-1/2 lg:right-auto lg:-translate-x-1/2 theme-transition"
             >
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-[#FFB800]/10 rounded-xl">
-                  <Save size={24} className="text-[#FFB800]" />
+                <div className="p-3 bg-[var(--color-brand)]/10 rounded-xl">
+                  <Save size={24} className="text-[var(--color-brand)]" />
                 </div>
-                <h3 className="text-2xl font-bold text-white">Salvar Caderno</h3>
+                <h3 className="text-2xl font-bold text-[var(--color-text-main)]">Salvar Caderno</h3>
               </div>
 
               <div className="mb-4">
-                <label className="text-[#A0A0A0] text-sm font-bold uppercase tracking-wider mb-2 block">Nome do Caderno</label>
+                <label className="text-[var(--color-text-sec)] text-sm font-bold uppercase tracking-wider mb-2 block">Nome do Caderno</label>
                 <input
                   type="text"
                   value={newNotebookName}
                   onChange={(e) => setNewNotebookName(e.target.value)}
                   placeholder="Ex: Constitucional - Revisão CPC"
-                  className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors"
+                  className="w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors theme-transition"
                   autoFocus
                 />
               </div>
 
               <div className="mb-6">
-                <label className="text-[#A0A0A0] text-sm font-bold uppercase tracking-wider mb-2 block">Descrição (opcional)</label>
+                <label className="text-[var(--color-text-sec)] text-sm font-bold uppercase tracking-wider mb-2 block">Descrição (opcional)</label>
                 <textarea
                   value={newNotebookDescription}
                   onChange={(e) => setNewNotebookDescription(e.target.value)}
                   placeholder="Ex: Questões de revisão para a prova da PF"
                   rows={2}
-                  className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#FFB800] transition-colors resize-none"
+                  className="w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors resize-none theme-transition"
                 />
               </div>
 
-              <div className="bg-[#1A1A1A] rounded-xl p-4 mb-6 space-y-2 border border-[#3A3A3A]">
-                <div className="flex justify-between text-xs text-[#A0A0A0]">
+              <div className="bg-[var(--color-bg-main)] rounded-xl p-4 mb-6 space-y-2 border border-[var(--color-border)] theme-transition">
+                <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
                   <span>Filtros ativos:</span>
-                  <span className="text-white">{totalFilters}</span>
+                  <span className="text-[var(--color-text-main)]">{totalFilters}</span>
                 </div>
-                <div className="flex justify-between text-xs text-[#A0A0A0]">
+                <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
                   <span>Questões disponíveis:</span>
-                  <span className="text-white">{filteredCount.toLocaleString()}</span>
+                  <span className="text-[var(--color-text-main)]">{filteredCount.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-xs text-[#A0A0A0]">
+                <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
                   <span>Questões por sessão:</span>
-                  <span className="text-white">{questionCount}</span>
+                  <span className="text-[var(--color-text-main)]">{questionCount}</span>
                 </div>
               </div>
 
@@ -2226,7 +2226,7 @@ export default function PracticePage() {
                   fullWidth
                   variant="outline"
                   onClick={() => setShowSaveNotebookModal(false)}
-                  className="rounded-xl py-3 border-[#3A3A3A] hover:bg-[#333]"
+                  className="rounded-xl py-3 border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)]"
                 >
                   Cancelar
                 </Button>
@@ -2234,7 +2234,7 @@ export default function PracticePage() {
                   fullWidth
                   onClick={handleSaveNotebook}
                   disabled={!newNotebookName.trim() || isSavingNotebook || isLoadingCount}
-                  className="rounded-xl py-3 bg-[#FFB800] text-black font-bold hover:bg-[#E5A600]"
+                  className="rounded-xl py-3 bg-[var(--color-brand)] text-black font-bold hover:bg-[var(--color-brand-hover)]"
                 >
                   {isSavingNotebook ? <Loader2 className="animate-spin" size={20} /> : 'Salvar Caderno'}
                 </Button>
@@ -2260,13 +2260,13 @@ export default function PracticePage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 100 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed bottom-[114px] left-0 right-0 mx-4 w-auto max-w-2xl bg-[#1A1A1A] rounded-2xl border border-[#3A3A3A] p-4 lg:p-6 z-50 shadow-2xl max-h-[calc(100vh-180px)] overflow-y-auto lg:left-1/2 lg:right-auto lg:-translate-x-1/2"
+              className="fixed bottom-[114px] left-0 right-0 mx-4 w-auto max-w-2xl bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border)] p-4 lg:p-6 z-50 shadow-2xl max-h-[calc(100vh-180px)] overflow-y-auto lg:left-1/2 lg:right-auto lg:-translate-x-1/2 theme-transition"
             >
               <div className="flex items-center justify-between mb-4 lg:mb-6">
-                <h3 className="text-base lg:text-xl font-bold text-white pr-2">Filtros de "{viewingNotebookFilters.title}"</h3>
+                <h3 className="text-base lg:text-xl font-bold text-[var(--color-text-main)] pr-2">Filtros de "{viewingNotebookFilters.title}"</h3>
                 <button
                   onClick={() => setViewingNotebookFilters(null)}
-                  className="p-2 text-[#6E6E6E] hover:text-white hover:bg-[#252525] rounded-lg transition-colors flex-shrink-0"
+                  className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] rounded-lg transition-colors flex-shrink-0"
                 >
                   <X size={20} />
                 </button>
@@ -2276,10 +2276,10 @@ export default function PracticePage() {
                 {/* Matérias */}
                 {viewingNotebookFilters.filters?.materia && viewingNotebookFilters.filters.materia.length > 0 && (
                   <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Matérias ({viewingNotebookFilters.filters.materia.length})</h4>
+                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Matérias ({viewingNotebookFilters.filters.materia.length})</h4>
                     <div className="flex flex-wrap gap-1.5 lg:gap-2">
                       {viewingNotebookFilters.filters.materia.map((item, idx) => (
-                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
                           {item}
                         </span>
                       ))}
@@ -2290,10 +2290,10 @@ export default function PracticePage() {
                 {/* Assuntos */}
                 {viewingNotebookFilters.filters?.assunto && viewingNotebookFilters.filters.assunto.length > 0 && (
                   <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Assuntos ({viewingNotebookFilters.filters.assunto.length})</h4>
+                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Assuntos ({viewingNotebookFilters.filters.assunto.length})</h4>
                     <div className="flex flex-wrap gap-1.5 lg:gap-2">
                       {viewingNotebookFilters.filters.assunto.map((item, idx) => (
-                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
                           {item}
                         </span>
                       ))}
@@ -2304,10 +2304,10 @@ export default function PracticePage() {
                 {/* Bancas */}
                 {viewingNotebookFilters.filters?.banca && viewingNotebookFilters.filters.banca.length > 0 && (
                   <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Bancas ({viewingNotebookFilters.filters.banca.length})</h4>
+                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Bancas ({viewingNotebookFilters.filters.banca.length})</h4>
                     <div className="flex flex-wrap gap-1.5 lg:gap-2">
                       {viewingNotebookFilters.filters.banca.map((item, idx) => (
-                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
                           {item}
                         </span>
                       ))}
@@ -2318,10 +2318,10 @@ export default function PracticePage() {
                 {/* Órgãos */}
                 {viewingNotebookFilters.filters?.orgao && viewingNotebookFilters.filters.orgao.length > 0 && (
                   <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Órgãos ({viewingNotebookFilters.filters.orgao.length})</h4>
+                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Órgãos ({viewingNotebookFilters.filters.orgao.length})</h4>
                     <div className="flex flex-wrap gap-1.5 lg:gap-2">
                       {viewingNotebookFilters.filters.orgao.map((item, idx) => (
-                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
                           {item}
                         </span>
                       ))}
@@ -2332,10 +2332,10 @@ export default function PracticePage() {
                 {/* Anos */}
                 {viewingNotebookFilters.filters?.ano && viewingNotebookFilters.filters.ano.length > 0 && (
                   <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Anos ({viewingNotebookFilters.filters.ano.length})</h4>
+                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Anos ({viewingNotebookFilters.filters.ano.length})</h4>
                     <div className="flex flex-wrap gap-1.5 lg:gap-2">
                       {viewingNotebookFilters.filters.ano.map((item, idx) => (
-                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
                           {item}
                         </span>
                       ))}
@@ -2346,10 +2346,10 @@ export default function PracticePage() {
                 {/* Cargos */}
                 {viewingNotebookFilters.filters?.cargo && viewingNotebookFilters.filters.cargo.length > 0 && (
                   <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Cargos ({viewingNotebookFilters.filters.cargo.length})</h4>
+                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Cargos ({viewingNotebookFilters.filters.cargo.length})</h4>
                     <div className="flex flex-wrap gap-1.5 lg:gap-2">
                       {viewingNotebookFilters.filters.cargo.map((item, idx) => (
-                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
                           {item}
                         </span>
                       ))}
@@ -2360,10 +2360,10 @@ export default function PracticePage() {
                 {/* Escolaridade */}
                 {viewingNotebookFilters.filters?.escolaridade && viewingNotebookFilters.filters.escolaridade.length > 0 && (
                   <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Escolaridade ({viewingNotebookFilters.filters.escolaridade.length})</h4>
+                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Escolaridade ({viewingNotebookFilters.filters.escolaridade.length})</h4>
                     <div className="flex flex-wrap gap-1.5 lg:gap-2">
                       {viewingNotebookFilters.filters.escolaridade.map((item, idx) => (
-                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
                           {item}
                         </span>
                       ))}
@@ -2374,10 +2374,10 @@ export default function PracticePage() {
                 {/* Modalidade */}
                 {viewingNotebookFilters.filters?.modalidade && viewingNotebookFilters.filters.modalidade.length > 0 && (
                   <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Modalidade ({viewingNotebookFilters.filters.modalidade.length})</h4>
+                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Modalidade ({viewingNotebookFilters.filters.modalidade.length})</h4>
                     <div className="flex flex-wrap gap-1.5 lg:gap-2">
                       {viewingNotebookFilters.filters.modalidade.map((item, idx) => (
-                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
                           {item}
                         </span>
                       ))}
@@ -2388,10 +2388,10 @@ export default function PracticePage() {
                 {/* Dificuldade */}
                 {viewingNotebookFilters.filters?.dificuldade && viewingNotebookFilters.filters.dificuldade.length > 0 && (
                   <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[#A0A0A0] uppercase tracking-wider mb-2">Dificuldade ({viewingNotebookFilters.filters.dificuldade.length})</h4>
+                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Dificuldade ({viewingNotebookFilters.filters.dificuldade.length})</h4>
                     <div className="flex flex-wrap gap-1.5 lg:gap-2">
                       {viewingNotebookFilters.filters.dificuldade.map((item, idx) => (
-                        <span key={idx} className="bg-[#252525] border border-[#3A3A3A] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-white">
+                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
                           {item}
                         </span>
                       ))}
@@ -2406,7 +2406,7 @@ export default function PracticePage() {
                   fullWidth
                   size="lg"
                   onClick={() => handleEditNotebookFilters(viewingNotebookFilters)}
-                  className="bg-[#FFB800] hover:bg-[#E5A600] text-black font-bold text-sm lg:text-lg"
+                  className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-black font-bold text-sm lg:text-lg"
                   leftIcon={<Edit size={16} className="lg:w-[18px] lg:h-[18px]" />}
                 >
                   Editar
@@ -2416,7 +2416,7 @@ export default function PracticePage() {
                     handleDeleteNotebook(viewingNotebookFilters.id, e);
                     setViewingNotebookFilters(null);
                   }}
-                  className="flex items-center justify-center w-12 h-12 bg-[#252525] border border-[#3A3A3A] rounded-lg text-[#E74C3C] hover:bg-[#E74C3C]/10 hover:border-[#E74C3C]/50 transition-colors flex-shrink-0"
+                  className="flex items-center justify-center w-12 h-12 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg text-[var(--color-error)] hover:bg-[var(--color-error)]/10 hover:border-[var(--color-error)]/50 transition-colors flex-shrink-0 theme-transition"
                   title="Excluir caderno"
                 >
                   <Trash2 size={20} />

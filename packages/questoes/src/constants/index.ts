@@ -27,7 +27,11 @@ export const COLORS = {
   ERROR: '#E74C3C',
 };
 
-export const LOGO_URL = "https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp";
+
+export const LOGO_FOR_LIGHT_THEME = "https://i.ibb.co/gZfHDygW/logo-ouse-claro.png";
+export const LOGO_FOR_DARK_THEME = "https://i.ibb.co/27GBPsgN/logo-ouse-escuro2.png";
+// Default to dark for fallback
+export const LOGO_URL = LOGO_FOR_DARK_THEME;
 export const USER_AVATAR_URL = "https://i.pravatar.cc/150?u=ousepassar";
 
 export const INITIAL_USER_STATS: UserStats = {
@@ -38,7 +42,7 @@ export const INITIAL_USER_STATS: UserStats = {
   totalAnswered: 0,
   coins: 0,
   avatarId: 'default',
-  lastPracticeDate: undefined,
+
 };
 
 // Onboarding steps (conforme documentação)
