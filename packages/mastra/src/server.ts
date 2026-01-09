@@ -5640,10 +5640,10 @@ app.post('/api/comentario/formatar', async (req, res) => {
 
         console.log(`[ComentarioFormatter] Processando questão ${questaoId}...`);
 
-        // Buscar dados da questão
+        // Buscar dados da questão (incluindo enunciado para contexto)
         const { data: questao, error: fetchError } = await questionsDb
             .from('questoes_concurso')
-            .select('id, comentario, comentario_formatado')
+            .select('id, enunciado, comentario, comentario_formatado, materia, gabarito')
             .eq('id', questaoId)
             .single();
 
@@ -5701,7 +5701,17 @@ app.post('/api/comentario/formatar', async (req, res) => {
             });
         }
 
-        const prompt = `Formate o seguinte comentário de questão de concurso:\n\n${questao.comentario}`;
+        const prompt = `Formate o seguinte comentário de questão de concurso.
+
+## CONTEXTO DA QUESTÃO
+**Matéria:** ${questao.materia || 'Não informada'}
+**Gabarito:** ${questao.gabarito || 'Não informado'}
+
+**Enunciado:**
+${questao.enunciado || 'Não disponível'}
+
+## COMENTÁRIO PARA FORMATAR
+${questao.comentario}`;
 
         const response = await agent.generate(prompt);
         const responseText = typeof response.text === 'string' ? response.text : String(response.text);
@@ -5862,10 +5872,10 @@ app.post('/api/comentarios/processar-fila-formatacao', async (req, res) => {
                     })
                     .eq('questao_id', item.questao_id);
 
-                // Buscar questão
+                // Buscar questão (incluindo enunciado para contexto)
                 const { data: questao } = await questionsDb
                     .from('questoes_concurso')
-                    .select('id, comentario, comentario_formatado')
+                    .select('id, enunciado, comentario, comentario_formatado, materia, gabarito')
                     .eq('id', item.questao_id)
                     .single();
 
@@ -5901,7 +5911,17 @@ app.post('/api/comentarios/processar-fila-formatacao', async (req, res) => {
                     continue;
                 }
 
-                const prompt = `Formate o seguinte comentário de questão de concurso:\n\n${questao.comentario}`;
+                const prompt = `Formate o seguinte comentário de questão de concurso.
+
+## CONTEXTO DA QUESTÃO
+**Matéria:** ${questao.materia || 'Não informada'}
+**Gabarito:** ${questao.gabarito || 'Não informado'}
+
+**Enunciado:**
+${questao.enunciado || 'Não disponível'}
+
+## COMENTÁRIO PARA FORMATAR
+${questao.comentario}`;
                 const response = await agent.generate(prompt);
                 const responseText = typeof response.text === 'string' ? response.text : String(response.text);
 
@@ -6041,6 +6061,171 @@ app.get('/api/comentarios/fila-formatacao/status', async (req, res) => {
 
     } catch (error: any) {
         console.error("[ComentarioFormatter] Erro ao buscar status:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Endpoint para popular fila de formatação
+app.post('/api/comentarios/fila-formatacao/popular', async (req, res) => {
+    try {
+        const { limite = 1000, materiaFilter, reprocessarFalhas = false } = req.body;
+
+        console.log(`[ComentarioFormatter] Populando fila (limite: ${limite}, materia: ${materiaFilter || 'todas'}, reprocessar falhas: ${reprocessarFalhas})...`);
+
+        // Buscar questões que precisam ser formatadas
+        let query = questionsDb
+            .from('questoes_concurso')
+            .select('id')
+            .eq('comentario_formatado', false)
+            .not('comentario', 'is', null)
+            .neq('comentario', '')
+            .eq('ativo', true)
+            .limit(limite);
+
+        if (materiaFilter) {
+            query = query.eq('materia', materiaFilter);
+        }
+
+        const { data: questoes, error: fetchError } = await query;
+
+        if (fetchError) {
+            console.error('[ComentarioFormatter] Erro ao buscar questões:', fetchError);
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar questões"
+            });
+        }
+
+        if (!questoes || questoes.length === 0) {
+            return res.json({
+                success: true,
+                message: "Nenhuma questão pendente encontrada",
+                adicionadas: 0
+            });
+        }
+
+        // Se reprocessarFalhas, primeiro remove as falhas existentes para essas questões
+        if (reprocessarFalhas) {
+            await questionsDb
+                .from('comentarios_pendentes_formatacao')
+                .delete()
+                .in('questao_id', questoes.map(q => q.id))
+                .eq('status', 'falha');
+        }
+
+        // Verificar quais já estão na fila
+        const { data: jaEnfileiradas } = await questionsDb
+            .from('comentarios_pendentes_formatacao')
+            .select('questao_id')
+            .in('questao_id', questoes.map(q => q.id));
+
+        const idsJaEnfileirados = new Set((jaEnfileiradas || []).map(q => q.questao_id));
+        const novasQuestoes = questoes.filter(q => !idsJaEnfileirados.has(q.id));
+
+        if (novasQuestoes.length === 0) {
+            return res.json({
+                success: true,
+                message: "Todas as questões já estão na fila",
+                adicionadas: 0,
+                jaEnfileiradas: questoes.length
+            });
+        }
+
+        // Inserir na fila
+        const registros = novasQuestoes.map(q => ({
+            questao_id: q.id,
+            status: 'pendente',
+            tentativas: 0,
+            created_at: new Date().toISOString()
+        }));
+
+        const { error: insertError } = await questionsDb
+            .from('comentarios_pendentes_formatacao')
+            .insert(registros);
+
+        if (insertError) {
+            console.error('[ComentarioFormatter] Erro ao inserir na fila:', insertError);
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao inserir na fila"
+            });
+        }
+
+        console.log(`[ComentarioFormatter] ${novasQuestoes.length} questões adicionadas à fila`);
+
+        return res.json({
+            success: true,
+            adicionadas: novasQuestoes.length,
+            jaEnfileiradas: idsJaEnfileirados.size,
+            totalEncontradas: questoes.length
+        });
+
+    } catch (error: any) {
+        console.error("[ComentarioFormatter] Erro ao popular fila:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Endpoint para resetar questões com falha para reprocessamento
+app.post('/api/comentarios/fila-formatacao/resetar-falhas', async (req, res) => {
+    try {
+        const { limite = 500 } = req.body;
+
+        // Buscar questões com falha
+        const { data: falhas, error: fetchError } = await questionsDb
+            .from('comentarios_pendentes_formatacao')
+            .select('questao_id')
+            .eq('status', 'falha')
+            .lt('tentativas', 5)
+            .limit(limite);
+
+        if (fetchError) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar falhas"
+            });
+        }
+
+        if (!falhas || falhas.length === 0) {
+            return res.json({
+                success: true,
+                message: "Nenhuma falha para resetar",
+                resetadas: 0
+            });
+        }
+
+        // Resetar para pendente
+        const { error: updateError } = await questionsDb
+            .from('comentarios_pendentes_formatacao')
+            .update({
+                status: 'pendente',
+                erro: null,
+                processed_at: null
+            })
+            .in('questao_id', falhas.map(f => f.questao_id));
+
+        if (updateError) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao resetar falhas"
+            });
+        }
+
+        console.log(`[ComentarioFormatter] ${falhas.length} falhas resetadas para reprocessamento`);
+
+        return res.json({
+            success: true,
+            resetadas: falhas.length
+        });
+
+    } catch (error: any) {
+        console.error("[ComentarioFormatter] Erro ao resetar falhas:", error);
         return res.status(500).json({
             success: false,
             error: error.message || "Erro interno"
