@@ -51,7 +51,7 @@ export interface QuestaoDetalhes {
   enunciado: string;
   alternativas: { letter: string; text: string }[] | null;
   comentario: string | null;
-  comentario_formatado: string | null;
+  comentario_formatado: boolean; // Flag indicating if comment has been formatted
   materia: string | null;
   assunto: string | null;
   banca: string | null;

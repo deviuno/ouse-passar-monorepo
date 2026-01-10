@@ -680,35 +680,37 @@ const Agentes: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Comentário Original */}
+                  {/* Comentário */}
                   {selectedQuestao.comentario && (
                     <div>
-                      <h4 className="text-sm font-bold text-gray-400 uppercase mb-2">
-                        Comentário Original
+                      <h4 className={`text-sm font-bold uppercase mb-2 flex items-center gap-2 ${
+                        selectedQuestao.comentario_formatado ? 'text-green-400' : 'text-gray-400'
+                      }`}>
+                        {selectedQuestao.comentario_formatado ? (
+                          <>
+                            <CheckCircle className="w-4 h-4" />
+                            Comentário Formatado
+                          </>
+                        ) : (
+                          <>
+                            <MessageSquare className="w-4 h-4" />
+                            Comentário Original
+                          </>
+                        )}
                       </h4>
                       <div
-                        className="text-gray-300 bg-brand-card p-4 rounded border border-white/5 prose prose-invert max-w-none text-sm"
+                        className={`prose prose-invert max-w-none p-4 rounded border ${
+                          selectedQuestao.comentario_formatado
+                            ? 'text-white bg-green-500/5 border-green-500/20'
+                            : 'text-gray-300 bg-brand-card border-white/5 text-sm'
+                        }`}
                         dangerouslySetInnerHTML={{ __html: selectedQuestao.comentario }}
                       />
                     </div>
                   )}
 
-                  {/* Comentário Formatado */}
-                  {selectedQuestao.comentario_formatado && (
-                    <div>
-                      <h4 className="text-sm font-bold text-green-400 uppercase mb-2 flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4" />
-                        Comentário Formatado
-                      </h4>
-                      <div
-                        className="text-white bg-green-500/5 p-4 rounded border border-green-500/20 prose prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: selectedQuestao.comentario_formatado }}
-                      />
-                    </div>
-                  )}
-
                   {/* Sem comentário */}
-                  {!selectedQuestao.comentario && !selectedQuestao.comentario_formatado && (
+                  {!selectedQuestao.comentario && (
                     <div className="text-center py-8 text-gray-400">
                       Esta questão não possui comentário.
                     </div>
