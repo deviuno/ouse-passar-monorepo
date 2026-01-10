@@ -112,24 +112,44 @@ const Agentes: React.FC = () => {
   // Carregar dados
   // --------------------------------------------------------------------------
   const loadData = async () => {
-    try {
-      const [stats, queue, cadernosData, accounts] = await Promise.all([
-        agentesService.getComentarioStats(),
-        agentesService.getComentarioQueue(statusFilter),
-        agentesService.getScraperCadernos(),
-        agentesService.getTecAccounts(),
-      ]);
+    // Carregar cada recurso independentemente para não falhar tudo se um falhar
+    const results = await Promise.allSettled([
+      agentesService.getComentarioStats(),
+      agentesService.getComentarioQueue(statusFilter),
+      agentesService.getScraperCadernos(),
+      agentesService.getTecAccounts(),
+    ]);
 
-      setComentarioStats(stats);
-      setComentarioQueue(queue);
-      setCadernos(cadernosData);
-      setTecAccounts(accounts);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    // Stats
+    if (results[0].status === 'fulfilled') {
+      setComentarioStats(results[0].value);
+    } else {
+      console.warn('Erro ao carregar stats:', results[0].reason);
     }
+
+    // Queue
+    if (results[1].status === 'fulfilled') {
+      setComentarioQueue(results[1].value);
+    } else {
+      console.warn('Erro ao carregar queue:', results[1].reason);
+    }
+
+    // Cadernos
+    if (results[2].status === 'fulfilled') {
+      setCadernos(results[2].value);
+    } else {
+      console.warn('Erro ao carregar cadernos:', results[2].reason);
+    }
+
+    // TecAccounts
+    if (results[3].status === 'fulfilled') {
+      setTecAccounts(results[3].value);
+    } else {
+      console.warn('Erro ao carregar contas TEC:', results[3].reason);
+    }
+
+    setLoading(false);
+    setRefreshing(false);
   };
 
   useEffect(() => {
