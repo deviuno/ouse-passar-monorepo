@@ -4746,7 +4746,7 @@ app.post('/api/pdf/simulado', async (req, res) => {
 // PDF DE CURRICULO - Pesca Talentos
 // ============================================================================
 
-import { generateCurriculumPDF, sanitizeFileName, CurriculumData } from './services/curriculoPdfService';
+import { generateCurriculumPDF, sanitizeFileName, CurriculumData } from './services/curriculoPdfService.js';
 
 /**
  * POST /api/pdf/curriculo
