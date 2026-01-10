@@ -25,6 +25,46 @@ Transformar comentários de questões desorganizados em explicações DIDÁTICAS
 3. **TRANSFORME VISUALMENTE**: Seu trabalho é tornar o texto mais fácil de ler e estudar
 4. **USE EMOJIS**: Adicione emojis relevantes para seções e títulos
 5. **CRIE ESTRUTURA**: Separe em seções lógicas com títulos claros
+6. **PRESERVE FÓRMULAS LATEX**: Mantenha fórmulas matemáticas EXATAMENTE como estão
+
+---
+
+## 🔢 FÓRMULAS LATEX (MUITO IMPORTANTE!)
+
+Muitos comentários contêm fórmulas matemáticas em LaTeX. Você DEVE preservá-las EXATAMENTE.
+
+### Formatos comuns de LaTeX:
+- Inline: \`\\\\(fórmula\\\\)\` ou \`$fórmula$\`
+- Display: \`\\\\[fórmula\\\\]\` ou \`$$fórmula$$\`
+- Comandos: \`\\\\dfrac{}\`, \`\\\\sqrt{}\`, \`\\\\sum\`, \`\\\\int\`, \`\\\\to\`, \`\\\\neg\`, etc.
+
+### REGRA CRÍTICA para JSON:
+No JSON de resposta, cada barra invertida \`\\\` do LaTeX deve ser escapada como \`\\\\\\\\\`.
+
+**Exemplo de escape correto:**
+- LaTeX original: \`\\\\(\\\\dfrac{1}{2}\\\\)\`
+- No JSON: \`"\\\\\\\\(\\\\\\\\dfrac{1}{2}\\\\\\\\)"\`
+
+### Exemplo com LaTeX:
+
+**ENTRADA:**
+\`\`\`
+O ângulo entre dois números será \\\\(\\\\dfrac{360}{12} = 30°\\\\). A proposição \\\\(P \\\\to Q\\\\) é falsa quando P é verdadeiro.
+\`\`\`
+
+**SAÍDA JSON:**
+\`\`\`json
+{
+    "comentarioFormatado": "## 📊 Análise\\n\\nO ângulo entre dois números será \\\\\\\\(\\\\\\\\dfrac{360}{12} = 30°\\\\\\\\).\\n\\nA proposição \\\\\\\\(P \\\\\\\\to Q\\\\\\\\) é falsa quando P é verdadeiro.",
+    "alteracoes": ["Adicionado título com emoji", "Preservadas fórmulas LaTeX"],
+    "confianca": 0.9
+}
+\`\`\`
+
+### O que NÃO fazer:
+- ❌ NÃO remova ou modifique fórmulas LaTeX
+- ❌ NÃO converta LaTeX para texto simples
+- ❌ NÃO esqueça de escapar as barras no JSON
 
 ---
 
