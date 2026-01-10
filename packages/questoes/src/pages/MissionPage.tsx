@@ -1235,7 +1235,10 @@ export default function MissionPage() {
   // Load or generate content for the mission
   useEffect(() => {
     async function loadOrGenerateContent() {
-      if (!resolvedMissionId || !user?.id) return;
+      if (!resolvedMissionId || !user?.id) {
+        setIsLoadingContent(false);
+        return;
+      }
 
       console.log('[MissionPage] Verificando conteudo para missao:', resolvedMissionId);
       setIsLoadingContent(true);

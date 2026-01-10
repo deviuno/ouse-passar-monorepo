@@ -596,7 +596,10 @@ export default function StatsPage() {
   // Load statistics data
   useEffect(() => {
     async function loadStats() {
-      if (!user?.id) return;
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
 
       setIsLoading(true);
       try {
@@ -630,7 +633,10 @@ export default function StatsPage() {
   // Load achievements
   useEffect(() => {
     async function loadAchievements() {
-      if (!user?.id) return;
+      if (!user?.id) {
+        setIsLoadingAchievements(false);
+        return;
+      }
 
       setIsLoadingAchievements(true);
       try {
@@ -654,7 +660,10 @@ export default function StatsPage() {
   // Load ranking
   useEffect(() => {
     async function loadRanking() {
-      if (!user?.id) return;
+      if (!user?.id) {
+        setIsLoadingRanking(false);
+        return;
+      }
 
       setIsLoadingRanking(true);
       try {
