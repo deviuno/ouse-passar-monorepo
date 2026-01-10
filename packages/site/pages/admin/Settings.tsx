@@ -248,11 +248,6 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; 
     icon: Newspaper,
     description: 'Configurações do blog e SEO',
   },
-  scraping: {
-    label: 'Scraping',
-    icon: Globe,
-    description: 'Gestão do TecConcursos Scraper',
-  },
   agentes: {
     label: 'Agentes IA',
     icon: Brain,
@@ -4116,7 +4111,7 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const categories = ['simulado', 'gamification', 'store', 'trail', 'rodadas', 'reta_final', 'battery', 'affiliates', 'assinatura', 'emails', 'legal_texts', 'modules', 'scraping', 'general', 'blog'];
+  const categories = ['simulado', 'gamification', 'store', 'trail', 'rodadas', 'reta_final', 'battery', 'affiliates', 'assinatura', 'emails', 'legal_texts', 'modules', 'agentes', 'general', 'blog'];
   const filteredSettings = settings.filter((s) => s.category === activeCategory);
   const hasChanges = modifiedSettings.size > 0;
 
@@ -4245,8 +4240,6 @@ export const Settings: React.FC = () => {
               onValueChange={handleValueChange}
               modifiedSettings={modifiedSettings}
             />
-          ) : activeCategory === 'scraping' ? (
-            <ScrapingSection />
           ) : activeCategory === 'agentes' ? (
             <Agentes showHeader={false} />
           ) : (
