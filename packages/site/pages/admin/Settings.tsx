@@ -2119,7 +2119,7 @@ function LegalTextsSection() {
 // SCRAPING SECTION
 // ============================================================================
 
-function ScrapingSection() {
+export function ScrapingSection() {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'cadernos' | 'contas' | 'configuracoes'>('cadernos');
   const [loading, setLoading] = useState(true);

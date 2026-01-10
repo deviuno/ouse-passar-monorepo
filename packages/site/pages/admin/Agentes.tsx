@@ -7,58 +7,22 @@ import {
   RotateCcw,
   Plus,
   CheckCircle,
-  XCircle,
-  Clock,
-  AlertTriangle,
   Loader2,
   Database,
-  Bot,
   MessageSquare,
-  User,
   X,
   ExternalLink,
 } from 'lucide-react';
 import {
   agentesService,
-  ComentarioFormatStats,
   ComentarioFormatItem,
-  TecAccount,
-  ScraperCaderno,
   QuestaoDetalhes,
 } from '../../services/agentesService';
+import { ScrapingSection } from './Settings';
 
 // ============================================================================
 // COMPONENTES AUXILIARES
 // ============================================================================
-
-interface StatCardProps {
-  title: string;
-  value: number | string;
-  icon: React.ReactNode;
-  highlight?: 'warning' | 'success' | 'error' | 'info';
-}
-
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, highlight }) => {
-  const colors = {
-    warning: 'bg-yellow-500/5 border-yellow-500/30',
-    success: 'bg-green-500/5 border-green-500/30',
-    error: 'bg-red-500/5 border-red-500/30',
-    info: 'bg-blue-500/5 border-blue-500/30',
-    default: 'bg-brand-card border-white/5',
-  };
-
-  const bgColor = highlight ? colors[highlight] : colors.default;
-
-  return (
-    <div className={`${bgColor} border p-6 rounded-sm`}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-gray-400 font-bold uppercase text-xs tracking-wider">{title}</h3>
-        {icon}
-      </div>
-      <p className="text-4xl font-black text-white font-display">{value}</p>
-    </div>
-  );
-};
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
@@ -103,13 +67,8 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   const [refreshing, setRefreshing] = useState(false);
 
   // Dados do formatador
-  const [comentarioStats, setComentarioStats] = useState<ComentarioFormatStats | null>(null);
   const [comentarioQueue, setComentarioQueue] = useState<ComentarioFormatItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-
-  // Dados do scraper
-  const [cadernos, setCadernos] = useState<ScraperCaderno[]>([]);
-  const [tecAccounts, setTecAccounts] = useState<TecAccount[]>([]);
 
   // Ações
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -125,40 +84,11 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // Carregar dados
   // --------------------------------------------------------------------------
   const loadData = async () => {
-    // Carregar cada recurso independentemente para não falhar tudo se um falhar
-    const results = await Promise.allSettled([
-      agentesService.getComentarioStats(),
-      agentesService.getComentarioQueue(statusFilter),
-      agentesService.getScraperCadernos(),
-      agentesService.getTecAccounts(),
-    ]);
-
-    // Stats
-    if (results[0].status === 'fulfilled') {
-      setComentarioStats(results[0].value);
-    } else {
-      console.warn('Erro ao carregar stats:', results[0].reason);
-    }
-
-    // Queue
-    if (results[1].status === 'fulfilled') {
-      setComentarioQueue(results[1].value);
-    } else {
-      console.warn('Erro ao carregar queue:', results[1].reason);
-    }
-
-    // Cadernos
-    if (results[2].status === 'fulfilled') {
-      setCadernos(results[2].value);
-    } else {
-      console.warn('Erro ao carregar cadernos:', results[2].reason);
-    }
-
-    // TecAccounts
-    if (results[3].status === 'fulfilled') {
-      setTecAccounts(results[3].value);
-    } else {
-      console.warn('Erro ao carregar contas TEC:', results[3].reason);
+    try {
+      const queue = await agentesService.getComentarioQueue(statusFilter);
+      setComentarioQueue(queue);
+    } catch (error) {
+      console.warn('Erro ao carregar queue:', error);
     }
 
     setLoading(false);
@@ -300,34 +230,6 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Pendentes"
-          value={comentarioStats?.pendente || 0}
-          icon={<Clock className="w-8 h-8 text-yellow-400" />}
-          highlight="warning"
-        />
-        <StatCard
-          title="Processados"
-          value={comentarioStats?.concluido || 0}
-          icon={<CheckCircle className="w-8 h-8 text-green-400" />}
-          highlight="success"
-        />
-        <StatCard
-          title="Falhas"
-          value={comentarioStats?.falha || 0}
-          icon={<XCircle className="w-8 h-8 text-red-400" />}
-          highlight="error"
-        />
-        <StatCard
-          title="Processando"
-          value={comentarioStats?.processando || 0}
-          icon={<Loader2 className="w-8 h-8 text-blue-400 animate-spin" />}
-          highlight="info"
-        />
-      </div>
-
       {/* Tabs */}
       <div className="border-b border-white/10">
         <nav className="flex gap-8">
@@ -422,7 +324,7 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
                 ) : (
                   <RotateCcw className="w-4 h-4" />
                 )}
-                Resetar Falhas ({comentarioStats?.falha || 0})
+                Resetar Falhas
               </button>
             </div>
           </div>
@@ -498,105 +400,7 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
       )}
 
       {activeTab === 'scraper' && (
-        <div className="space-y-6">
-          {/* Cadernos */}
-          <div className="bg-brand-card border border-white/5 rounded-sm">
-            <div className="p-4 border-b border-white/5">
-              <h3 className="text-white font-bold flex items-center gap-2">
-                <Database className="w-5 h-5 text-brand-yellow" />
-                Cadernos em Processamento
-              </h3>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-gray-400 text-xs uppercase tracking-wider">
-                    <th className="px-4 py-3">Nome</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Progresso</th>
-                    <th className="px-4 py-3">Atualizado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {cadernos.map((caderno) => (
-                    <tr key={caderno.id} className="hover:bg-white/5">
-                      <td className="px-4 py-3 text-white">{caderno.nome}</td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={caderno.status} />
-                      </td>
-                      <td className="px-4 py-3 text-gray-400">
-                        {caderno.questoes_extraidas} / {caderno.total_questoes || '?'}
-                      </td>
-                      <td className="px-4 py-3 text-gray-400 text-sm">
-                        {new Date(caderno.updated_at).toLocaleString('pt-BR')}
-                      </td>
-                    </tr>
-                  ))}
-                  {cadernos.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
-                        Nenhum caderno em processamento
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Contas TecConcursos */}
-          <div className="bg-brand-card border border-white/5 rounded-sm">
-            <div className="p-4 border-b border-white/5">
-              <h3 className="text-white font-bold flex items-center gap-2">
-                <User className="w-5 h-5 text-brand-yellow" />
-                Contas TecConcursos
-              </h3>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-gray-400 text-xs uppercase tracking-wider">
-                    <th className="px-4 py-3">Email</th>
-                    <th className="px-4 py-3">Status Login</th>
-                    <th className="px-4 py-3">Ocupada</th>
-                    <th className="px-4 py-3">Último Uso</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {tecAccounts.map((account) => (
-                    <tr key={account.id} className="hover:bg-white/5">
-                      <td className="px-4 py-3 text-white">{account.email}</td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={account.login_status} />
-                      </td>
-                      <td className="px-4 py-3">
-                        {account.is_busy ? (
-                          <span className="text-blue-400">Sim</span>
-                        ) : (
-                          <span className="text-gray-400">Não</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-400 text-sm">
-                        {account.last_used_at
-                          ? new Date(account.last_used_at).toLocaleString('pt-BR')
-                          : 'Nunca'}
-                      </td>
-                    </tr>
-                  ))}
-                  {tecAccounts.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
-                        Nenhuma conta cadastrada
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <ScrapingSection />
       )}
 
       {/* Modal de Questão */}
