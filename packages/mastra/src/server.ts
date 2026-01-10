@@ -4746,13 +4746,13 @@ app.post('/api/pdf/simulado', async (req, res) => {
 // PDF DE CURRICULO - Pesca Talentos
 // ============================================================================
 
-import { generateCurriculumPDF, sanitizeFileName, CurriculumData } from './services/curriculoPdfService.js';
+import { generateCurriculumPDF, sanitizeFileName, CurriculumData, CurriculumType } from './services/curriculoPdfService.js';
 
 /**
- * POST /api/pdf/curriculo
- * Gera PDF de curriculo profissional
+ * POST /api/pdf/curriculo/simples
+ * Gera PDF de curriculo simples (preto e branco, ideal para email)
  */
-app.post('/api/pdf/curriculo', async (req, res) => {
+app.post('/api/pdf/curriculo/simples', async (req, res) => {
     try {
         const data: CurriculumData = req.body;
 
@@ -4764,23 +4764,63 @@ app.post('/api/pdf/curriculo', async (req, res) => {
             });
         }
 
-        console.log(`[CurriculoPDF] Gerando curriculo para: ${data.candidateName}`);
+        console.log(`[PDF Simples] Gerando curriculo para: ${data.candidateName}`);
 
-        // Gerar PDF
-        const pdfBuffer = await generateCurriculumPDF(data);
+        // Gerar PDF simples
+        const pdfBuffer = await generateCurriculumPDF(data, 'simples');
 
         // Configurar headers de resposta
-        const fileName = `Curriculo_${sanitizeFileName(data.candidateName)}.pdf`;
+        const fileName = `Curriculo_Simples_${sanitizeFileName(data.candidateName)}.pdf`;
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
         res.setHeader('Content-Length', pdfBuffer.length);
 
-        console.log(`[CurriculoPDF] Curriculo gerado com sucesso: ${fileName} (${pdfBuffer.length} bytes)`);
+        console.log(`[PDF Simples] Curriculo gerado com sucesso: ${fileName} (${pdfBuffer.length} bytes)`);
 
         return res.send(pdfBuffer);
     } catch (error: any) {
-        console.error('[CurriculoPDF] Erro ao gerar curriculo:', error);
+        console.error('[PDF Simples] Erro ao gerar curriculo:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro interno ao gerar PDF',
+        });
+    }
+});
+
+/**
+ * POST /api/pdf/curriculo/completo
+ * Gera PDF de curriculo completo (com foto e layout profissional colorido)
+ */
+app.post('/api/pdf/curriculo/completo', async (req, res) => {
+    try {
+        const data: CurriculumData = req.body;
+
+        // Validacao basica
+        if (!data.candidateName) {
+            return res.status(400).json({
+                success: false,
+                error: 'O campo candidateName e obrigatorio',
+            });
+        }
+
+        console.log(`[PDF Completo] Gerando curriculo para: ${data.candidateName}`);
+
+        // Gerar PDF completo
+        const pdfBuffer = await generateCurriculumPDF(data, 'completo');
+
+        // Configurar headers de resposta
+        const fileName = `Curriculo_Completo_${sanitizeFileName(data.candidateName)}.pdf`;
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+
+        console.log(`[PDF Completo] Curriculo gerado com sucesso: ${fileName} (${pdfBuffer.length} bytes)`);
+
+        return res.send(pdfBuffer);
+    } catch (error: any) {
+        console.error('[PDF Completo] Erro ao gerar curriculo:', error);
         return res.status(500).json({
             success: false,
             error: error.message || 'Erro interno ao gerar PDF',

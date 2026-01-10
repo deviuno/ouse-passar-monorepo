@@ -119,11 +119,324 @@ export function sanitizeFileName(name: string): string {
     .substring(0, 50);
 }
 
+export type CurriculumType = 'simples' | 'completo';
+
 // ============================================================================
-// GERACAO DO HTML
+// GERACAO DO HTML - PDF SIMPLES (Preto e Branco)
 // ============================================================================
 
-function generateCurriculumHTML(data: CurriculumData): string {
+function generateSimpleCurriculumHTML(data: CurriculumData): string {
+  const age = calculateAge(data.birthDate);
+
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curriculo - ${escapeHtml(data.candidateName)}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Times New Roman', Georgia, serif;
+      font-size: 11pt;
+      line-height: 1.5;
+      color: #333;
+      background: #ffffff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 20mm 25mm;
+      background: #ffffff;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #333;
+    }
+
+    .candidate-name {
+      font-size: 20pt;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    .candidate-title {
+      font-size: 12pt;
+      color: #444;
+      font-style: italic;
+      margin-bottom: 10px;
+    }
+
+    .contact-info {
+      font-size: 10pt;
+      color: #555;
+    }
+
+    .contact-info span {
+      margin: 0 10px;
+    }
+
+    .contact-info span:not(:last-child)::after {
+      content: "|";
+      margin-left: 20px;
+      color: #999;
+    }
+
+    /* Info Line */
+    .info-line {
+      font-size: 10pt;
+      color: #555;
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 8px 0;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .info-line span {
+      margin: 0 8px;
+    }
+
+    /* Sections */
+    .section {
+      margin-bottom: 18px;
+    }
+
+    .section-title {
+      font-size: 12pt;
+      font-weight: bold;
+      color: #333;
+      text-transform: uppercase;
+      border-bottom: 1px solid #666;
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+
+    .section-content {
+      color: #444;
+      text-align: justify;
+    }
+
+    /* Items */
+    .item {
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px dotted #ccc;
+    }
+
+    .item:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+
+    .item-title {
+      font-weight: bold;
+      font-size: 11pt;
+      color: #333;
+    }
+
+    .item-period {
+      font-size: 10pt;
+      color: #666;
+      font-style: italic;
+    }
+
+    .item-company {
+      font-size: 10pt;
+      color: #555;
+      margin-top: 2px;
+    }
+
+    .item-description {
+      font-size: 10pt;
+      color: #555;
+      margin-top: 6px;
+      text-align: justify;
+    }
+
+    /* Skills */
+    .skills-list {
+      font-size: 10pt;
+      color: #444;
+    }
+
+    /* Languages */
+    .language-item {
+      display: inline-block;
+      margin-right: 20px;
+      font-size: 10pt;
+    }
+
+    .language-name {
+      font-weight: bold;
+    }
+
+    .language-level {
+      color: #555;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 30px;
+      padding-top: 10px;
+      border-top: 1px solid #ccc;
+      text-align: center;
+      font-size: 9pt;
+      color: #888;
+    }
+
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .page {
+        margin: 0;
+        padding: 15mm 20mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- Header -->
+    <div class="header">
+      <div class="candidate-name">${escapeHtml(data.candidateName)}</div>
+      ${data.title ? `<div class="candidate-title">${escapeHtml(data.title)}</div>` : ''}
+      <div class="contact-info">
+        ${data.email ? `<span>${escapeHtml(data.email)}</span>` : ''}
+        ${data.phone ? `<span>${escapeHtml(data.phone)}</span>` : ''}
+        ${data.location ? `<span>${escapeHtml(data.location)}${data.neighborhood ? ` - ${escapeHtml(data.neighborhood)}` : ''}</span>` : ''}
+      </div>
+    </div>
+
+    <!-- Info Line -->
+    ${(age || data.gender || data.maritalStatus || data.educationLevel || data.yearsOfExperience !== undefined) ? `
+      <div class="info-line">
+        ${age ? `<span>${age} anos</span>` : ''}
+        ${data.gender ? `<span>${escapeHtml(data.gender)}</span>` : ''}
+        ${data.maritalStatus ? `<span>${escapeHtml(data.maritalStatus)}</span>` : ''}
+        ${data.educationLevel ? `<span>${escapeHtml(data.educationLevel)}</span>` : ''}
+        ${data.yearsOfExperience !== undefined ? `<span>${data.yearsOfExperience} ${data.yearsOfExperience === 1 ? 'ano' : 'anos'} de experiencia</span>` : ''}
+        ${data.immediateAvailability ? `<span>Disponibilidade Imediata</span>` : ''}
+        ${data.hasDisability ? `<span>PCD</span>` : ''}
+      </div>
+    ` : ''}
+
+    <!-- Summary -->
+    ${data.summary ? `
+      <div class="section">
+        <div class="section-title">Objetivo / Resumo</div>
+        <div class="section-content">${escapeHtml(data.summary)}</div>
+      </div>
+    ` : ''}
+
+    <!-- Experiences -->
+    ${data.experiences && data.experiences.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Experiencia Profissional</div>
+        ${data.experiences.map(exp => `
+          <div class="item">
+            <div class="item-header">
+              <span class="item-title">${escapeHtml(exp.position)}</span>
+              <span class="item-period">${formatDate(exp.startDate)} - ${exp.currentJob ? 'Atual' : formatDate(exp.endDate)}</span>
+            </div>
+            <div class="item-company">${escapeHtml(exp.company)}${exp.sector ? ` | ${escapeHtml(exp.sector)}` : ''}</div>
+            ${exp.description ? `<div class="item-description">${escapeHtml(exp.description)}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+
+    <!-- Education -->
+    ${data.education && data.education.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Formacao Academica</div>
+        ${data.education.map(edu => `
+          <div class="item">
+            <div class="item-header">
+              <span class="item-title">${escapeHtml(edu.level)}${edu.area ? ` - ${escapeHtml(edu.area)}` : ''}</span>
+              <span class="item-period">${formatDate(edu.startDate)}${edu.endDate ? ` - ${formatDate(edu.endDate)}` : ''}${edu.inProgress ? ' - Em andamento' : ''}</span>
+            </div>
+            <div class="item-company">${escapeHtml(edu.institution)}</div>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+
+    <!-- Courses -->
+    ${data.courses && data.courses.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Cursos e Certificacoes</div>
+        ${data.courses.map(course => `
+          <div class="item">
+            <div class="item-title">${escapeHtml(course.name)}</div>
+            <div class="item-company">${escapeHtml(course.institution)}</div>
+            ${course.description ? `<div class="item-description">${escapeHtml(course.description)}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+
+    <!-- Skills -->
+    ${data.skills && data.skills.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Habilidades</div>
+        <p class="skills-list">${data.skills.map(s => escapeHtml(s)).join(' | ')}</p>
+      </div>
+    ` : ''}
+
+    <!-- Languages -->
+    ${data.languages && data.languages.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Idiomas</div>
+        ${data.languages.map(lang => `
+          <span class="language-item">
+            <span class="language-name">${escapeHtml(lang.name)}:</span>
+            <span class="language-level">${escapeHtml(lang.level)}</span>
+          </span>
+        `).join('')}
+      </div>
+    ` : ''}
+
+    <!-- Footer -->
+    <div class="footer">
+      Curriculo gerado em ${new Date().toLocaleDateString('pt-BR')} | Pesca Talentos
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+// ============================================================================
+// GERACAO DO HTML - PDF COMPLETO (Com cores e foto)
+// ============================================================================
+
+function generateCompleteCurriculumHTML(data: CurriculumData): string {
   const age = calculateAge(data.birthDate);
 
   return `
@@ -675,8 +988,10 @@ async function getBrowser(): Promise<puppeteer.Browser> {
   return browser;
 }
 
-export async function generateCurriculumPDF(data: CurriculumData): Promise<Buffer> {
-  const html = generateCurriculumHTML(data);
+export async function generateCurriculumPDF(data: CurriculumData, type: CurriculumType = 'completo'): Promise<Buffer> {
+  const html = type === 'simples'
+    ? generateSimpleCurriculumHTML(data)
+    : generateCompleteCurriculumHTML(data);
 
   const browserInstance = await getBrowser();
   const page = await browserInstance.newPage();
