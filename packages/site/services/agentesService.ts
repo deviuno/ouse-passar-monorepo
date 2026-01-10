@@ -78,7 +78,7 @@ export const agentesService = {
   // Estatísticas do Formatador (via Mastra API)
   // --------------------------------------------------------------------------
   async getComentarioStats(): Promise<ComentarioFormatStats> {
-    const response = await fetch(`${MASTRA_URL}/api/comentario/status`);
+    const response = await fetch(`${MASTRA_URL}/api/comentarios/fila-formatacao/status`);
     const data = await response.json();
 
     if (!data.success) {
@@ -120,7 +120,7 @@ export const agentesService = {
   // Processar fila (via Mastra API)
   // --------------------------------------------------------------------------
   async processarFila(limite: number = 100): Promise<ProcessarFilaResponse> {
-    const response = await fetch(`${MASTRA_URL}/api/comentario/processar-fila`, {
+    const response = await fetch(`${MASTRA_URL}/api/comentarios/processar-fila-formatacao`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ limite }),
@@ -150,7 +150,7 @@ export const agentesService = {
   // Resetar falhas (via Mastra API)
   // --------------------------------------------------------------------------
   async resetarFalhas(): Promise<{ success: boolean; resetadas?: number; error?: string }> {
-    const response = await fetch(`${MASTRA_URL}/api/comentario/resetar-falhas`, {
+    const response = await fetch(`${MASTRA_URL}/api/comentarios/fila-formatacao/resetar-falhas`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
