@@ -26,6 +26,7 @@ import {
   GeneratedQuestion,
 } from '../../services/questionGeneratorService';
 import { formatBancaDisplay, sortBancas } from '../../utils/bancaFormatter';
+import { MarkdownPreview } from '../../components/admin/MarkdownPreview';
 
 // Tempo em ms para manter questões destacadas (60 minutos)
 const NEW_QUESTION_HIGHLIGHT_DURATION = 60 * 60 * 1000;
@@ -363,9 +364,9 @@ const QuestionCard: React.FC<{
           {question.justificativa_gabarito && (
             <div>
               <h4 className="text-sm font-bold text-gray-400 mb-2">Justificativa</h4>
-              <p className="text-gray-300 text-sm whitespace-pre-wrap">
-                {question.justificativa_gabarito}
-              </p>
+              <div className="bg-[#1A1A1A] rounded-lg p-4 border border-[#3A3A3A]">
+                <MarkdownPreview content={question.justificativa_gabarito} />
+              </div>
             </div>
           )}
 
@@ -373,7 +374,9 @@ const QuestionCard: React.FC<{
           {question.comentario && (
             <div>
               <h4 className="text-sm font-bold text-gray-400 mb-2">Comentario</h4>
-              <p className="text-gray-300 text-sm whitespace-pre-wrap">{question.comentario}</p>
+              <div className="bg-[#1A1A1A] rounded-lg p-4 border border-[#3A3A3A]">
+                <MarkdownPreview content={question.comentario} />
+              </div>
             </div>
           )}
 
