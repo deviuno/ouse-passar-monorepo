@@ -7196,7 +7196,169 @@ app.get('/api/scraper/cron-status', (req, res) => {
 // Question Generator API
 // ============================================
 
-// POST /api/questions/generate - Gerar questões com IA
+// In-memory tracking para jobs de geração de questões
+const questionGenerationJobs = new Map<string, {
+    status: 'running' | 'completed' | 'error';
+    totalRequested: number;
+    totalGenerated: number;
+    totalSaved: number;
+    error?: string;
+    startedAt: Date;
+    completedAt?: Date;
+}>();
+
+// Função auxiliar para formatar comentários das questões geradas
+async function formatQuestionsComments(
+    questions: Array<{
+        enunciado: string;
+        alternativas: Array<{ letter: string; text: string }>;
+        gabarito: string;
+        justificativa_gabarito: string;
+    }>,
+    materia: string
+): Promise<typeof questions> {
+    const agent = mastra.getAgent("comentarioFormatterAgent");
+    if (!agent) {
+        console.warn('[QuestionGenerator] Agente de formatação não encontrado, usando comentários sem formatação');
+        return questions;
+    }
+
+    const formattedQuestions = [];
+
+    for (const question of questions) {
+        try {
+            const prompt = `Formate o seguinte comentário de questão de concurso.
+
+## CONTEXTO DA QUESTÃO
+**Matéria:** ${materia || 'Não informada'}
+**Gabarito:** ${question.gabarito || 'Não informado'}
+
+**Enunciado:**
+${question.enunciado || 'Não disponível'}
+
+## COMENTÁRIO PARA FORMATAR
+${question.justificativa_gabarito}`;
+
+            const response = await agent.generate(prompt);
+            const responseText = typeof response.text === 'string' ? response.text : String(response.text);
+
+            // Limpar resposta e fazer parse do JSON
+            let cleanedResponse = responseText
+                .replace(/```json\s*/g, '')
+                .replace(/```\s*/g, '')
+                .trim();
+
+            try {
+                const result = JSON.parse(cleanedResponse);
+
+                if (result.comentarioFormatado && result.confianca >= 0.5) {
+                    formattedQuestions.push({
+                        ...question,
+                        justificativa_gabarito: result.comentarioFormatado
+                    });
+                    console.log(`[QuestionGenerator] Comentário formatado com confiança ${result.confianca}`);
+                } else {
+                    // Usar comentário original se a formatação tiver baixa confiança
+                    formattedQuestions.push(question);
+                    console.log(`[QuestionGenerator] Mantendo comentário original (confiança: ${result.confianca || 'N/A'})`);
+                }
+            } catch (parseError) {
+                console.warn('[QuestionGenerator] Erro ao parsear resposta do formatador, usando comentário original');
+                formattedQuestions.push(question);
+            }
+        } catch (formatError) {
+            console.warn('[QuestionGenerator] Erro ao formatar comentário, usando original:', formatError);
+            formattedQuestions.push(question);
+        }
+    }
+
+    return formattedQuestions;
+}
+
+// Função auxiliar para gerar questões em batches (processamento em background)
+async function generateQuestionsInBackground(
+    jobId: string,
+    params: QuestionGenerationParams,
+    references: any[]
+) {
+    const BATCH_SIZE = 10; // Gerar 10 questões por vez
+    const totalBatches = Math.ceil(params.quantidade / BATCH_SIZE);
+    let totalGenerated = 0;
+    let totalSaved = 0;
+
+    console.log(`[QuestionGenerator] Job ${jobId}: Iniciando geração de ${params.quantidade} questões em ${totalBatches} batches`);
+
+    try {
+        for (let batch = 0; batch < totalBatches; batch++) {
+            const remaining = params.quantidade - totalGenerated;
+            const batchSize = Math.min(BATCH_SIZE, remaining);
+
+            console.log(`[QuestionGenerator] Job ${jobId}: Batch ${batch + 1}/${totalBatches} - Gerando ${batchSize} questões...`);
+
+            // Criar params para este batch
+            const batchParams = { ...params, quantidade: batchSize };
+
+            try {
+                // Gerar questões do batch
+                const result = await generateQuestions(questionGeneratorAgent, batchParams, references);
+
+                // Formatar comentários usando o agente de formatação
+                const formattedQuestions = await formatQuestionsComments(result.questoes, params.materia);
+
+                // Salvar imediatamente no banco
+                const savedIds = await saveGeneratedQuestions(
+                    formattedQuestions,
+                    params,
+                    questionsDbUrl,
+                    questionsDbKey
+                );
+
+                totalGenerated += formattedQuestions.length;
+                totalSaved += savedIds.length;
+
+                // Atualizar status do job
+                const job = questionGenerationJobs.get(jobId);
+                if (job) {
+                    job.totalGenerated = totalGenerated;
+                    job.totalSaved = totalSaved;
+                }
+
+                console.log(`[QuestionGenerator] Job ${jobId}: Batch ${batch + 1} concluído - ${totalSaved}/${params.quantidade} questões salvas`);
+
+            } catch (batchError) {
+                console.error(`[QuestionGenerator] Job ${jobId}: Erro no batch ${batch + 1}:`, batchError);
+                // Continua para o próximo batch mesmo com erro
+            }
+        }
+
+        // Marcar job como concluído
+        const job = questionGenerationJobs.get(jobId);
+        if (job) {
+            job.status = 'completed';
+            job.completedAt = new Date();
+            job.totalGenerated = totalGenerated;
+            job.totalSaved = totalSaved;
+        }
+
+        console.log(`[QuestionGenerator] Job ${jobId}: Concluído! ${totalSaved} questões geradas e salvas.`);
+
+    } catch (error) {
+        console.error(`[QuestionGenerator] Job ${jobId}: Erro geral:`, error);
+        const job = questionGenerationJobs.get(jobId);
+        if (job) {
+            job.status = 'error';
+            job.error = error instanceof Error ? error.message : 'Erro desconhecido';
+            job.completedAt = new Date();
+        }
+    }
+
+    // Limpar job da memória após 1 hora
+    setTimeout(() => {
+        questionGenerationJobs.delete(jobId);
+    }, 60 * 60 * 1000);
+}
+
+// POST /api/questions/generate - Gerar questões com IA (agora em background)
 app.post('/api/questions/generate', async (req, res) => {
     try {
         const params: QuestionGenerationParams = req.body;
@@ -7210,10 +7372,10 @@ app.post('/api/questions/generate', async (req, res) => {
             return;
         }
 
-        if (params.quantidade < 1 || params.quantidade > 20) {
+        if (params.quantidade < 1 || params.quantidade > 200) {
             res.status(400).json({
                 success: false,
-                error: 'Quantidade deve estar entre 1 e 20'
+                error: 'Quantidade deve estar entre 1 e 200'
             });
             return;
         }
@@ -7227,35 +7389,38 @@ app.post('/api/questions/generate', async (req, res) => {
             questionsDbKey
         );
 
+        // Para matérias novas (sem referências), não bloqueia - gera sem exemplos
         if (references.length < 3) {
-            res.status(400).json({
-                success: false,
-                error: `Poucas questões de referência encontradas (${references.length}). Necessário pelo menos 3 questões da banca ${params.banca} na matéria ${params.materia}.`
-            });
-            return;
+            console.log(`[QuestionGenerator] Poucas referências (${references.length}), gerando com contexto mínimo`);
         }
 
         console.log(`[QuestionGenerator] Encontradas ${references.length} questões de referência`);
 
-        // Gerar questões
-        const result = await generateQuestions(questionGeneratorAgent, params, references);
+        // Criar job ID único
+        const jobId = `gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // Salvar no banco
-        const savedIds = await saveGeneratedQuestions(
-            result.questoes,
-            params,
-            questionsDbUrl,
-            questionsDbKey
-        );
+        // Registrar job
+        questionGenerationJobs.set(jobId, {
+            status: 'running',
+            totalRequested: params.quantidade,
+            totalGenerated: 0,
+            totalSaved: 0,
+            startedAt: new Date()
+        });
 
+        // Iniciar geração em background (não bloqueia a resposta)
+        setImmediate(() => {
+            generateQuestionsInBackground(jobId, params, references);
+        });
+
+        // Retornar imediatamente com o job ID
         res.json({
             success: true,
-            questions: result.questoes.map((q, i) => ({
-                ...q,
-                id: savedIds[i]
-            })),
-            totalGenerated: result.questoes.length,
-            totalSaved: savedIds.length
+            jobId,
+            message: `Geração de ${params.quantidade} questões iniciada em background. As questões aparecerão na aba "Pendentes" conforme forem sendo geradas.`,
+            questions: [], // Vazio, questões aparecerão na aba pendentes
+            totalGenerated: 0,
+            totalSaved: 0
         });
 
     } catch (error) {
@@ -7265,6 +7430,28 @@ app.post('/api/questions/generate', async (req, res) => {
             error: error instanceof Error ? error.message : 'Erro ao gerar questões'
         });
     }
+});
+
+// GET /api/questions/generate/status/:jobId - Verificar status do job
+app.get('/api/questions/generate/status/:jobId', async (req, res) => {
+    const { jobId } = req.params;
+    const job = questionGenerationJobs.get(jobId);
+
+    if (!job) {
+        res.status(404).json({
+            success: false,
+            error: 'Job não encontrado ou expirado'
+        });
+        return;
+    }
+
+    res.json({
+        success: true,
+        job: {
+            jobId,
+            ...job
+        }
+    });
 });
 
 // POST /api/questions/generate-comment - Gerar comentário para questão
@@ -7585,6 +7772,60 @@ const gabaritoExtractorInterval = startGabaritoExtractorCron(
 );
 
 console.log('[Server] Cron jobs de scraping iniciados');
+
+// ============================================
+// Cron job para atualizar caches de filtros (a cada 1 hora)
+// ============================================
+
+const FILTER_CACHE_REFRESH_INTERVAL = 60 * 60 * 1000; // 1 hora
+
+async function refreshFilterCaches() {
+    console.log('[FilterCache] Iniciando atualização dos caches de filtros...');
+
+    try {
+        const supabase = createClient(questionsDbUrl, questionsDbKey);
+
+        // Atualizar cache de opções de filtro
+        const { error: filterError } = await supabase.rpc('refresh_filter_options_cache');
+        if (filterError) {
+            console.error('[FilterCache] Erro ao atualizar filter_options_cache:', filterError);
+        } else {
+            console.log('[FilterCache] filter_options_cache atualizado com sucesso');
+        }
+
+        // Atualizar cache de assuntos por matéria
+        const { error: assuntosError } = await supabase.rpc('refresh_assuntos_cache');
+        if (assuntosError) {
+            console.error('[FilterCache] Erro ao atualizar assuntos_cache:', assuntosError);
+        } else {
+            console.log('[FilterCache] assuntos_by_materia_cache atualizado com sucesso');
+        }
+
+    } catch (error) {
+        console.error('[FilterCache] Erro geral ao atualizar caches:', error);
+    }
+}
+
+// Iniciar cron job de cache
+setInterval(refreshFilterCaches, FILTER_CACHE_REFRESH_INTERVAL);
+console.log(`[FilterCache] Cron job iniciado (intervalo: ${FILTER_CACHE_REFRESH_INTERVAL / 1000 / 60} minutos)`);
+
+// Endpoint para forçar atualização manual do cache
+app.post('/api/admin/refresh-filter-cache', async (req, res) => {
+    try {
+        await refreshFilterCaches();
+        res.json({
+            success: true,
+            message: 'Caches de filtros atualizados com sucesso'
+        });
+    } catch (error) {
+        console.error('[FilterCache] Erro ao atualizar caches manualmente:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro ao atualizar caches'
+        });
+    }
+});
 
 // ============================================
 

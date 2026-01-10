@@ -40,6 +40,23 @@ export interface GenerationResult {
   totalGenerated: number;
   totalSaved: number;
   error?: string;
+  jobId?: string; // ID do job para geração em background
+  message?: string; // Mensagem de status
+}
+
+export interface JobStatusResult {
+  success: boolean;
+  job?: {
+    jobId: string;
+    status: 'running' | 'completed' | 'error';
+    totalRequested: number;
+    totalGenerated: number;
+    totalSaved: number;
+    error?: string;
+    startedAt: string;
+    completedAt?: string;
+  };
+  error?: string;
 }
 
 export interface GeneratedQuestionsListResult {
@@ -216,6 +233,16 @@ export const questionGeneratorService = {
     if (!result.success) {
       throw new Error(result.error || 'Erro ao buscar assuntos');
     }
+
+    return result;
+  },
+
+  /**
+   * Verifica o status de um job de geração de questões
+   */
+  async getJobStatus(jobId: string): Promise<JobStatusResult> {
+    const response = await fetch(`${MASTRA_API_URL}/api/questions/generate/status/${jobId}`);
+    const result = await response.json();
 
     return result;
   },
