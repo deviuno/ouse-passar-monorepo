@@ -4742,6 +4742,52 @@ app.post('/api/pdf/simulado', async (req, res) => {
     }
 });
 
+// ============================================================================
+// PDF DE CURRICULO - Pesca Talentos
+// ============================================================================
+
+import { generateCurriculumPDF, sanitizeFileName, CurriculumData } from './services/curriculoPdfService';
+
+/**
+ * POST /api/pdf/curriculo
+ * Gera PDF de curriculo profissional
+ */
+app.post('/api/pdf/curriculo', async (req, res) => {
+    try {
+        const data: CurriculumData = req.body;
+
+        // Validacao basica
+        if (!data.candidateName) {
+            return res.status(400).json({
+                success: false,
+                error: 'O campo candidateName e obrigatorio',
+            });
+        }
+
+        console.log(`[CurriculoPDF] Gerando curriculo para: ${data.candidateName}`);
+
+        // Gerar PDF
+        const pdfBuffer = await generateCurriculumPDF(data);
+
+        // Configurar headers de resposta
+        const fileName = `Curriculo_${sanitizeFileName(data.candidateName)}.pdf`;
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+
+        console.log(`[CurriculoPDF] Curriculo gerado com sucesso: ${fileName} (${pdfBuffer.length} bytes)`);
+
+        return res.send(pdfBuffer);
+    } catch (error: any) {
+        console.error('[CurriculoPDF] Erro ao gerar curriculo:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Erro interno ao gerar PDF',
+        });
+    }
+});
+
 /**
  * POST /api/preparatorio/analyze-prova
  * Analisa PDF de prova anterior e extrai o Raio-X (distribuição de questões por matéria)
