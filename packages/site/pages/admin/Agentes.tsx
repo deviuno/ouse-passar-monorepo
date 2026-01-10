@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import {
   Brain,
   RefreshCw,
@@ -698,14 +699,18 @@ const Agentes: React.FC = () => {
                           </>
                         )}
                       </h4>
-                      <div
-                        className={`prose prose-invert max-w-none p-4 rounded border ${
-                          selectedQuestao.comentario_formatado
-                            ? 'text-white bg-green-500/5 border-green-500/20'
-                            : 'text-gray-300 bg-brand-card border-white/5 text-sm'
-                        }`}
-                        dangerouslySetInnerHTML={{ __html: selectedQuestao.comentario }}
-                      />
+                      {selectedQuestao.comentario_formatado ? (
+                        // Comentário formatado é Markdown - usar ReactMarkdown
+                        <div className="prose prose-invert max-w-none p-4 rounded border text-white bg-green-500/5 border-green-500/20">
+                          <ReactMarkdown>{selectedQuestao.comentario}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        // Comentário original é HTML - usar dangerouslySetInnerHTML
+                        <div
+                          className="prose prose-invert max-w-none p-4 rounded border text-gray-300 bg-brand-card border-white/5 text-sm"
+                          dangerouslySetInnerHTML={{ __html: selectedQuestao.comentario }}
+                        />
+                      )}
                     </div>
                   )}
 
