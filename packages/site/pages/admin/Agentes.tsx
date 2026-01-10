@@ -12,6 +12,10 @@ import {
   MessageSquare,
   X,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import {
   agentesService,
@@ -70,6 +74,12 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   const [comentarioQueue, setComentarioQueue] = useState<ComentarioFormatItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const ITEMS_PER_PAGE = 50;
+
   // Ações
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [processarQuantidade, setProcessarQuantidade] = useState(100);
@@ -83,10 +93,13 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // --------------------------------------------------------------------------
   // Carregar dados
   // --------------------------------------------------------------------------
-  const loadData = async () => {
+  const loadData = async (page: number = currentPage) => {
     try {
-      const queue = await agentesService.getComentarioQueue(statusFilter);
-      setComentarioQueue(queue);
+      const result = await agentesService.getComentarioQueue(statusFilter, page, ITEMS_PER_PAGE);
+      setComentarioQueue(result.items);
+      setTotalPages(result.totalPages);
+      setTotalItems(result.total);
+      setCurrentPage(result.page);
     } catch (error) {
       console.warn('Erro ao carregar queue:', error);
     }
@@ -96,8 +109,17 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   };
 
   useEffect(() => {
-    loadData();
+    setCurrentPage(1); // Reset para página 1 ao mudar filtro
+    loadData(1);
   }, [statusFilter]);
+
+  // Navegação de página
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      loadData(page);
+    }
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -332,7 +354,12 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
           {/* Filtro e Tabela */}
           <div className="bg-brand-card border border-white/5 rounded-sm">
             <div className="p-4 border-b border-white/5 flex items-center justify-between">
-              <h3 className="text-white font-bold">Fila de Processamento</h3>
+              <div className="flex items-center gap-4">
+                <h3 className="text-white font-bold">Fila de Processamento</h3>
+                <span className="text-sm text-gray-400">
+                  {totalItems.toLocaleString()} itens
+                </span>
+              </div>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -395,6 +422,90 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
                 </tbody>
               </table>
             </div>
+
+            {/* Paginação */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-white/5 flex items-center justify-between">
+                <div className="text-sm text-gray-400">
+                  Página {currentPage} de {totalPages}
+                  <span className="ml-2 text-gray-500">
+                    (mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} de {totalItems.toLocaleString()})
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {/* Primeira página */}
+                  <button
+                    onClick={() => goToPage(1)}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Primeira página"
+                  >
+                    <ChevronsLeft className="w-4 h-4 text-gray-400" />
+                  </button>
+
+                  {/* Página anterior */}
+                  <button
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Página anterior"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-gray-400" />
+                  </button>
+
+                  {/* Números de página */}
+                  <div className="flex items-center gap-1 mx-2">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => goToPage(pageNum)}
+                          className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                            pageNum === currentPage
+                              ? 'bg-brand-yellow text-black'
+                              : 'text-gray-400 hover:bg-white/10'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Próxima página */}
+                  <button
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Próxima página"
+                  >
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </button>
+
+                  {/* Última página */}
+                  <button
+                    onClick={() => goToPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Última página"
+                  >
+                    <ChevronsRight className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

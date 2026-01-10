@@ -109,14 +109,16 @@ export const agentesService = {
   },
 
   // --------------------------------------------------------------------------
-  // Lista de itens na fila (via Mastra API)
+  // Lista de itens na fila (via Mastra API) - com paginação
   // --------------------------------------------------------------------------
   async getComentarioQueue(
     status?: string,
+    page: number = 1,
     limit: number = 50
-  ): Promise<ComentarioFormatItem[]> {
+  ): Promise<{ items: ComentarioFormatItem[]; total: number; page: number; totalPages: number }> {
     const params = new URLSearchParams();
     if (status && status !== 'all') params.append('status', status);
+    params.append('page', page.toString());
     params.append('limit', limit.toString());
 
     const response = await fetch(`${MASTRA_URL}/api/admin/comentarios/queue?${params}`);
@@ -126,7 +128,12 @@ export const agentesService = {
       throw new Error(data.error || 'Erro ao buscar fila');
     }
 
-    return data.items || [];
+    return {
+      items: data.items || [],
+      total: data.total || 0,
+      page: data.page || page,
+      totalPages: data.totalPages || 1,
+    };
   },
 
   // --------------------------------------------------------------------------

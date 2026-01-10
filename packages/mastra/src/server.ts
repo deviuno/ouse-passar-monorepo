@@ -6237,17 +6237,35 @@ app.post('/api/comentarios/fila-formatacao/resetar-falhas', async (req, res) => 
 // ADMIN PANEL - Endpoints para interface de monitoramento
 // ============================================================================
 
-// Lista de itens na fila de formatação
+// Lista de itens na fila de formatação (com paginação)
 app.get('/api/admin/comentarios/queue', async (req, res) => {
     try {
         const status = req.query.status as string | undefined;
+        const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 50;
+        const offset = (page - 1) * limit;
 
+        // Primeiro, contar o total de itens
+        let countQuery = questionsDb
+            .from('comentarios_pendentes_formatacao')
+            .select('*', { count: 'exact', head: true });
+
+        if (status && status !== 'all') {
+            countQuery = countQuery.eq('status', status);
+        }
+
+        const { count: total, error: countError } = await countQuery;
+
+        if (countError) {
+            console.error("[Admin] Erro ao contar fila:", countError);
+        }
+
+        // Buscar itens com paginação
         let query = questionsDb
             .from('comentarios_pendentes_formatacao')
             .select('*')
             .order('processed_at', { ascending: false, nullsFirst: false })
-            .limit(limit);
+            .range(offset, offset + limit - 1);
 
         if (status && status !== 'all') {
             query = query.eq('status', status);
@@ -6262,9 +6280,16 @@ app.get('/api/admin/comentarios/queue', async (req, res) => {
             });
         }
 
+        const totalItems = total || 0;
+        const totalPages = Math.ceil(totalItems / limit);
+
         return res.json({
             success: true,
-            items: data || []
+            items: data || [],
+            total: totalItems,
+            page,
+            limit,
+            totalPages
         });
 
     } catch (error: any) {
