@@ -80,6 +80,7 @@ import { MissionBuilder } from './pages/admin/MissionBuilder';
 import { AutomacaoConteudoMissao } from './pages/admin/AutomacaoConteudoMissao';
 import { Suporte } from './pages/admin/Suporte';
 import { Tickets } from './pages/admin/Tickets';
+import Agentes from './pages/admin/Agentes';
 
 // Gamification Admin
 import {
@@ -274,6 +275,9 @@ const App: React.FC = () => {
 
                 {/* Gerar Questões com IA */}
                 <Route path="gerar-questoes" element={<AdminOnlyRoute><GerarQuestoes /></AdminOnlyRoute>} />
+
+                {/* Agentes IA - Monitoramento e Gerenciamento */}
+                <Route path="agentes" element={<AdminOnlyRoute><Agentes /></AdminOnlyRoute>} />
 
                 {/* Courses (Simulados) - Sistema legado para app Ouse Questões */}
                 <Route path="courses" element={<AdminOnlyRoute><Preparatorios /></AdminOnlyRoute>} />
