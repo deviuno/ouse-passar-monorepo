@@ -530,13 +530,30 @@ export default function PracticePage() {
 
   // Iniciar prática automaticamente quando filtros estiverem carregados
   useEffect(() => {
+    // Se não está em modo autostart, não fazer nada
+    if (!autoStartPending || autoStartTriggeredRef.current) return;
+
+    // Esperar filtros carregarem
+    if (isLoadingFilters || isLoadingCount) return;
+
     const materiaParam = searchParams.get('materia');
     const materiasParam = searchParams.get('materias');
     const assuntoParam = searchParams.get('assunto');
     const assuntosParam = searchParams.get('assuntos');
     const bancaParam = searchParams.get('banca');
 
-    // Parsear arrays para verificação
+    // Verificar se há filtros na URL (além de autostart)
+    const hasFilterParams = materiaParam || materiasParam || assuntoParam || assuntosParam || bancaParam;
+
+    if (!hasFilterParams) {
+      // Sem filtros: iniciar prática com questões aleatórias
+      autoStartTriggeredRef.current = true;
+      console.log('[PracticePage] Auto-iniciando prática com questões aleatórias (autostart sem filtros)');
+      startPractice();
+      return;
+    }
+
+    // Com filtros: verificar se já foram aplicados
     let expectedMaterias: string[] = [];
     let expectedAssuntos: string[] = [];
 
@@ -558,15 +575,13 @@ export default function PracticePage() {
       (expectedAssuntos.length === 0 || expectedAssuntos.every(a => filters.assunto.includes(a))) &&
       (!bancaParam || filters.banca.includes(bancaParam));
 
-    if (autoStartPending && !isLoadingFilters && !isLoadingCount && filtersApplied && !autoStartTriggeredRef.current) {
-      // Usar ref para evitar múltiplas execuções
+    if (filtersApplied) {
       autoStartTriggeredRef.current = true;
       console.log('[PracticePage] Auto-iniciando prática com filtros dos query params:', {
         materia: filters.materia,
         assunto: filters.assunto,
         banca: filters.banca
       });
-      // Chamar startPractice - o autoStartPending permanece true até o modo mudar
       startPractice();
     }
   }, [autoStartPending, isLoadingFilters, isLoadingCount, filters, searchParams]);

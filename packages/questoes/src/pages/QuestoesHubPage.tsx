@@ -19,7 +19,7 @@ const hubCards: HubCard[] = [
     title: 'Ouse Questões',
     description: 'Resolva questões com filtros personalizados por banca, matéria, assunto e mais.',
     icon: <Play size={32} fill="currentColor" />,
-    path: '/praticar',
+    path: '/praticar?autostart=true',
     color: '#FFB800',
     bgGradient: 'from-[#FFB800]/20 to-[#FFB800]/5',
   },
