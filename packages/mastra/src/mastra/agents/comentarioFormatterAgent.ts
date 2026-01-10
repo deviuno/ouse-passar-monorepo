@@ -262,7 +262,7 @@ Retorne APENAS um JSON válido (sem markdown extra, sem explicações antes ou d
 7. **NUNCA invente URLs de imagens**
 
 8. Se o texto menciona "figura" ou "imagem" sem URL, NÃO adicione imagem`,
-    model: google("gemini-2.0-flash"),
+    model: google("gemini-3-flash-preview"),
 });
 
 export default comentarioFormatterAgent;
