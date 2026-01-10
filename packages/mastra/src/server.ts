@@ -6276,6 +6276,45 @@ app.get('/api/admin/comentarios/queue', async (req, res) => {
     }
 });
 
+// Detalhes de uma questão específica
+app.get('/api/admin/questao/:id', async (req, res) => {
+    try {
+        const questaoId = parseInt(req.params.id);
+
+        if (isNaN(questaoId)) {
+            return res.status(400).json({
+                success: false,
+                error: "ID da questão inválido"
+            });
+        }
+
+        const { data: questao, error } = await questionsDb
+            .from('questoes_concurso')
+            .select('id, enunciado, alternativas, comentario, comentario_formatado, materia, assunto, banca, ano, gabarito')
+            .eq('id', questaoId)
+            .single();
+
+        if (error || !questao) {
+            return res.status(404).json({
+                success: false,
+                error: "Questão não encontrada"
+            });
+        }
+
+        return res.json({
+            success: true,
+            questao
+        });
+
+    } catch (error: any) {
+        console.error("[Admin] Erro ao buscar questão:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
 // Cadernos do scraper
 app.get('/api/admin/scraper/cadernos', async (req, res) => {
     try {

@@ -14,6 +14,8 @@ import {
   Bot,
   MessageSquare,
   User,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 import {
   agentesService,
@@ -21,6 +23,7 @@ import {
   ComentarioFormatItem,
   TecAccount,
   ScraperCaderno,
+  QuestaoDetalhes,
 } from '../../services/agentesService';
 
 // ============================================================================
@@ -107,6 +110,11 @@ const Agentes: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [processarQuantidade, setProcessarQuantidade] = useState(100);
   const [popularQuantidade, setPopularQuantidade] = useState(1000);
+
+  // Modal de questão
+  const [selectedQuestao, setSelectedQuestao] = useState<QuestaoDetalhes | null>(null);
+  const [questaoModalOpen, setQuestaoModalOpen] = useState(false);
+  const [questaoLoading, setQuestaoLoading] = useState(false);
 
   // --------------------------------------------------------------------------
   // Carregar dados
@@ -215,6 +223,28 @@ const Agentes: React.FC = () => {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  // --------------------------------------------------------------------------
+  // Modal de Questão
+  // --------------------------------------------------------------------------
+  const handleOpenQuestao = async (questaoId: number) => {
+    setQuestaoLoading(true);
+    setQuestaoModalOpen(true);
+    try {
+      const questao = await agentesService.getQuestaoDetalhes(questaoId);
+      setSelectedQuestao(questao);
+    } catch (error) {
+      console.error('Erro ao carregar questão:', error);
+      setSelectedQuestao(null);
+    } finally {
+      setQuestaoLoading(false);
+    }
+  };
+
+  const handleCloseQuestao = () => {
+    setQuestaoModalOpen(false);
+    setSelectedQuestao(null);
   };
 
   // --------------------------------------------------------------------------
@@ -407,8 +437,15 @@ const Agentes: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {comentarioQueue.map((item) => (
-                    <tr key={item.id} className="hover:bg-white/5">
-                      <td className="px-4 py-3 text-white font-mono">{item.questao_id}</td>
+                    <tr
+                      key={item.id}
+                      onClick={() => handleOpenQuestao(item.questao_id)}
+                      className="hover:bg-white/5 cursor-pointer transition-colors"
+                    >
+                      <td className="px-4 py-3 text-white font-mono flex items-center gap-2">
+                        {item.questao_id}
+                        <ExternalLink className="w-3 h-3 text-gray-500" />
+                      </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={item.status} />
                       </td>
@@ -536,6 +573,152 @@ const Agentes: React.FC = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Questão */}
+      {questaoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={handleCloseQuestao}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-brand-dark border border-white/10 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-brand-yellow" />
+                {selectedQuestao ? `Questão #${selectedQuestao.id}` : 'Carregando...'}
+              </h3>
+              <button
+                onClick={handleCloseQuestao}
+                className="p-1 hover:bg-white/10 rounded transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {questaoLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 text-brand-yellow animate-spin" />
+                </div>
+              ) : selectedQuestao ? (
+                <div className="space-y-6">
+                  {/* Metadata */}
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    {selectedQuestao.banca && (
+                      <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded">
+                        {selectedQuestao.banca}
+                      </span>
+                    )}
+                    {selectedQuestao.ano && (
+                      <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded">
+                        {selectedQuestao.ano}
+                      </span>
+                    )}
+                    {selectedQuestao.materia && (
+                      <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded">
+                        {selectedQuestao.materia}
+                      </span>
+                    )}
+                    {selectedQuestao.assunto && (
+                      <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded">
+                        {selectedQuestao.assunto}
+                      </span>
+                    )}
+                    {selectedQuestao.gabarito && (
+                      <span className="px-2 py-1 bg-brand-yellow/20 text-brand-yellow rounded font-bold">
+                        Gabarito: {selectedQuestao.gabarito}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Enunciado */}
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-400 uppercase mb-2">Enunciado</h4>
+                    <div
+                      className="text-white bg-brand-card p-4 rounded border border-white/5 prose prose-invert max-w-none"
+                      dangerouslySetInnerHTML={{ __html: selectedQuestao.enunciado || 'Sem enunciado' }}
+                    />
+                  </div>
+
+                  {/* Alternativas */}
+                  {selectedQuestao.alternativas && selectedQuestao.alternativas.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-400 uppercase mb-2">Alternativas</h4>
+                      <div className="space-y-2">
+                        {selectedQuestao.alternativas.map((alt, idx) => (
+                          <div
+                            key={idx}
+                            className={`p-3 rounded border ${
+                              selectedQuestao.gabarito === alt.letter
+                                ? 'bg-green-500/10 border-green-500/30'
+                                : 'bg-brand-card border-white/5'
+                            }`}
+                          >
+                            <span className={`font-bold mr-2 ${
+                              selectedQuestao.gabarito === alt.letter
+                                ? 'text-green-400'
+                                : 'text-gray-400'
+                            }`}>
+                              {alt.letter})
+                            </span>
+                            <span
+                              className="text-white"
+                              dangerouslySetInnerHTML={{ __html: alt.text }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Comentário Original */}
+                  {selectedQuestao.comentario && (
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-400 uppercase mb-2">
+                        Comentário Original
+                      </h4>
+                      <div
+                        className="text-gray-300 bg-brand-card p-4 rounded border border-white/5 prose prose-invert max-w-none text-sm"
+                        dangerouslySetInnerHTML={{ __html: selectedQuestao.comentario }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Comentário Formatado */}
+                  {selectedQuestao.comentario_formatado && (
+                    <div>
+                      <h4 className="text-sm font-bold text-green-400 uppercase mb-2 flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
+                        Comentário Formatado
+                      </h4>
+                      <div
+                        className="text-white bg-green-500/5 p-4 rounded border border-green-500/20 prose prose-invert max-w-none"
+                        dangerouslySetInnerHTML={{ __html: selectedQuestao.comentario_formatado }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Sem comentário */}
+                  {!selectedQuestao.comentario && !selectedQuestao.comentario_formatado && (
+                    <div className="text-center py-8 text-gray-400">
+                      Esta questão não possui comentário.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-400">
+                  Erro ao carregar questão
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -46,6 +46,19 @@ export interface TecAccount {
   is_busy: boolean;
 }
 
+export interface QuestaoDetalhes {
+  id: number;
+  enunciado: string;
+  alternativas: { letter: string; text: string }[] | null;
+  comentario: string | null;
+  comentario_formatado: string | null;
+  materia: string | null;
+  assunto: string | null;
+  banca: string | null;
+  ano: number | null;
+  gabarito: string | null;
+}
+
 export interface ProcessarFilaResponse {
   success: boolean;
   sucesso?: number;
@@ -202,6 +215,20 @@ export const agentesService = {
     }
 
     return Object.entries(counts).map(([status, count]) => ({ status, count }));
+  },
+
+  // --------------------------------------------------------------------------
+  // Detalhes de uma questão específica (via Mastra API)
+  // --------------------------------------------------------------------------
+  async getQuestaoDetalhes(questaoId: number): Promise<QuestaoDetalhes> {
+    const response = await fetch(`${MASTRA_URL}/api/admin/questao/${questaoId}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Erro ao buscar questão');
+    }
+
+    return data.questao;
   },
 };
 
