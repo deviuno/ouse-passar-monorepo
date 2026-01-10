@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
+import { MarkdownPreview } from '../../components/admin/MarkdownPreview';
 import {
   Brain,
   RefreshCw,
@@ -700,9 +700,9 @@ const Agentes: React.FC = () => {
                         )}
                       </h4>
                       {selectedQuestao.comentario_formatado ? (
-                        // Comentário formatado é Markdown - usar ReactMarkdown
-                        <div className="prose prose-invert max-w-none p-4 rounded border text-white bg-green-500/5 border-green-500/20">
-                          <ReactMarkdown>{selectedQuestao.comentario}</ReactMarkdown>
+                        // Comentário formatado é Markdown - usar MarkdownPreview (igual ao app do aluno)
+                        <div className="p-4 rounded border bg-[#121212] border-green-500/20">
+                          <MarkdownPreview content={selectedQuestao.comentario} />
                         </div>
                       ) : (
                         // Comentário original é HTML - usar dangerouslySetInnerHTML
