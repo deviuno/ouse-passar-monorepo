@@ -87,11 +87,22 @@ function formatDate(dateStr: string | undefined | null): string {
 
 function formatCurrency(value: number | undefined | null): string {
   if (!value) return '';
+
+  // Se o valor parece estar em centavos (muito alto), dividir por 100
+  // Se o valor parece estar em reais (razoável para salário), usar diretamente
+  // Assumimos que salários entre 100 e 100.000 estão em reais
+  // Valores acima de 100.000 provavelmente estão em centavos
+  let valueInReais = value;
+  if (value > 100000) {
+    valueInReais = value / 100;
+  }
+
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-    minimumFractionDigits: 0,
-  }).format(value / 100);
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(valueInReais);
 }
 
 function calculateAge(birthDate: string | undefined | null): number | null {
@@ -997,15 +1008,32 @@ export async function generateCurriculumPDF(data: CurriculumData, type: Curricul
   const page = await browserInstance.newPage();
 
   try {
+    // Configurar headers HTTP para UTF-8
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'pt-BR,pt;q=0.9',
+      'Accept-Charset': 'utf-8',
+    });
+
     await page.setViewport({
       width: 794,
       height: 1123,
       deviceScaleFactor: 2,
     });
 
+    // Definir o conteúdo HTML com encoding UTF-8 explícito
     await page.setContent(html, {
       waitUntil: 'networkidle0',
       timeout: 30000,
+    });
+
+    // Forçar encoding UTF-8 via JavaScript
+    await page.evaluate(() => {
+      const meta = document.querySelector('meta[charset]');
+      if (!meta) {
+        const newMeta = document.createElement('meta');
+        newMeta.setAttribute('charset', 'UTF-8');
+        document.head.prepend(newMeta);
+      }
     });
 
     // Aguardar fontes carregarem
