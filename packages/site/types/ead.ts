@@ -14,6 +14,18 @@ export type EnrollmentStatus = 'active' | 'completed' | 'expired' | 'cancelled';
 export type PaymentProvider = 'guru' | 'manual' | 'free' | 'subscription';
 export type FileType = 'pdf' | 'doc' | 'xls' | 'zip' | 'image' | 'audio' | 'video' | 'other';
 
+// Tipos para exibição de cards
+export type CourseDisplayFormat = 'card' | 'netflix';
+export type CourseBadgeType = 'premium' | 'new' | 'promo' | 'price' | 'free';
+export type BadgePosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+export interface CourseBadge {
+  type: CourseBadgeType;
+  position: BadgePosition;
+  enabled: boolean;
+  customText?: string;
+}
+
 // ============================================
 // FILTROS
 // ============================================
@@ -79,6 +91,11 @@ export interface EadCourse {
   coverImageUrl: string | null;
   previewVideoUrl: string | null;
 
+  // Exibição de Cards
+  displayFormat: CourseDisplayFormat;
+  posterImageUrl: string | null;
+  badges: CourseBadge[];
+
   // Configurações
   difficultyLevel: DifficultyLevel;
   estimatedDurationHours: number;
@@ -93,6 +110,7 @@ export interface EadCourse {
 
   // Integrações
   guruProductId: string | null;
+  checkoutUrl: string | null;
 
   // Gamificação
   pointsOnComplete: number;
@@ -113,6 +131,7 @@ export interface EadCourse {
   averageRating: number;
   reviewsCount: number;
   totalLessons: number;
+  totalModules: number;
 
   // Timestamps
   createdAt: string;
@@ -134,6 +153,9 @@ export interface EadCourseFormData {
   thumbnailUrl?: string;
   coverImageUrl?: string;
   previewVideoUrl?: string;
+  displayFormat?: CourseDisplayFormat;
+  posterImageUrl?: string;
+  badges?: CourseBadge[];
   difficultyLevel?: DifficultyLevel;
   estimatedDurationHours?: number;
   isFree?: boolean;
@@ -387,6 +409,9 @@ export interface EadCourseRow {
   thumbnail_url: string | null;
   cover_image_url: string | null;
   preview_video_url: string | null;
+  display_format: CourseDisplayFormat;
+  poster_image_url: string | null;
+  badges: CourseBadge[];
   difficulty_level: DifficultyLevel;
   estimated_duration_hours: number;
   is_free: boolean;
@@ -396,6 +421,7 @@ export interface EadCourseRow {
   access_days: number | null;
   included_in_subscription: boolean;
   guru_product_id: string | null;
+  checkout_url: string | null;
   points_on_complete: number;
   status: CourseStatus;
   published_at: string | null;
@@ -546,6 +572,9 @@ export function courseRowToCourse(row: EadCourseRow): EadCourse {
     thumbnailUrl: row.thumbnail_url,
     coverImageUrl: row.cover_image_url,
     previewVideoUrl: row.preview_video_url,
+    displayFormat: row.display_format || 'card',
+    posterImageUrl: row.poster_image_url,
+    badges: row.badges || [],
     difficultyLevel: row.difficulty_level,
     estimatedDurationHours: row.estimated_duration_hours,
     isFree: row.is_free,
@@ -555,6 +584,7 @@ export function courseRowToCourse(row: EadCourseRow): EadCourse {
     accessDays: row.access_days,
     includedInSubscription: row.included_in_subscription,
     guruProductId: row.guru_product_id,
+    checkoutUrl: row.checkout_url,
     pointsOnComplete: row.points_on_complete,
     status: row.status,
     publishedAt: row.published_at,
@@ -567,6 +597,7 @@ export function courseRowToCourse(row: EadCourseRow): EadCourse {
     averageRating: row.average_rating,
     reviewsCount: row.reviews_count,
     totalLessons: row.total_lessons,
+    totalModules: 0, // Computed from modules relationship
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     category: row.category ? categoryRowToCategory(row.category) : null,
@@ -698,6 +729,9 @@ export function courseToRow(course: Partial<EadCourse>): Partial<EadCourseRow> {
   if (course.thumbnailUrl !== undefined) row.thumbnail_url = course.thumbnailUrl;
   if (course.coverImageUrl !== undefined) row.cover_image_url = course.coverImageUrl;
   if (course.previewVideoUrl !== undefined) row.preview_video_url = course.previewVideoUrl;
+  if (course.displayFormat !== undefined) row.display_format = course.displayFormat;
+  if (course.posterImageUrl !== undefined) row.poster_image_url = course.posterImageUrl;
+  if (course.badges !== undefined) row.badges = course.badges;
   if (course.difficultyLevel !== undefined) row.difficulty_level = course.difficultyLevel;
   if (course.estimatedDurationHours !== undefined) row.estimated_duration_hours = course.estimatedDurationHours;
   if (course.isFree !== undefined) row.is_free = course.isFree;
@@ -707,6 +741,7 @@ export function courseToRow(course: Partial<EadCourse>): Partial<EadCourseRow> {
   if (course.accessDays !== undefined) row.access_days = course.accessDays;
   if (course.includedInSubscription !== undefined) row.included_in_subscription = course.includedInSubscription;
   if (course.guruProductId !== undefined) row.guru_product_id = course.guruProductId;
+  if (course.checkoutUrl !== undefined) row.checkout_url = course.checkoutUrl;
   if (course.pointsOnComplete !== undefined) row.points_on_complete = course.pointsOnComplete;
   if (course.status !== undefined) row.status = course.status;
   if (course.publishedAt !== undefined) row.published_at = course.publishedAt;

@@ -1,107 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { BookOpen, Play, CheckCircle, Loader2, Package, Clock, BarChart } from 'lucide-react';
-import { Card, Button, StaggerContainer, StaggerItem } from '../components/ui';
+import { Loader2, Package } from 'lucide-react';
+import { Button, StaggerContainer, StaggerItem } from '../components/ui';
+import { CourseCard, NetflixCard } from '../components/course';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores';
 import { coursesService, Course } from '../services/coursesService';
-import { getOptimizedImageUrl } from '../utils/image';
-
-function CourseCard({
-    course,
-    onOpen,
-}: {
-    course: Course;
-    onOpen: (slug: string) => void;
-}) {
-    const coverImage = getOptimizedImageUrl(course.cover_image_url || course.thumbnail_url, 400);
-    const progress = course.progress || 0;
-    const isCompleted = progress >= 100;
-
-    return (
-        <Card
-            hoverable
-            onClick={() => onOpen(course.slug)}
-            className="relative overflow-hidden h-full cursor-pointer group flex flex-col"
-        >
-            {/* Cover Image */}
-            <div className="relative w-full aspect-video rounded-t-xl overflow-hidden bg-[#3A3A3A]">
-                {coverImage ? (
-                    <img
-                        src={coverImage}
-                        alt={course.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900 to-indigo-900">
-                        <BookOpen size={40} className="text-white/30" />
-                    </div>
-                )}
-
-                {/* Overlay gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
-
-                {/* Progress Badge */}
-                {progress > 0 && (
-                    <div className="absolute bottom-3 left-3 right-3">
-                        <div className="flex justify-between text-xs text-white mb-1">
-                            <span>{Math.round(progress)}% Concluído</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-[var(--color-brand)]"
-                                style={{ width: `${progress}%` }}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {/* Completed Badge */}
-                {isCompleted && (
-                    <div className="absolute top-2 left-2 bg-[#2ECC71] text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <CheckCircle size={12} />
-                        Concluído
-                    </div>
-                )}
-            </div>
-
-            {/* Content */}
-            <div className="p-4 flex flex-col flex-1">
-                <h3 className="text-[var(--color-text-main)] font-medium text-base mb-2 line-clamp-2 group-hover:text-[var(--color-brand)] transition-colors">
-                    {course.title}
-                </h3>
-
-                <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)] mt-auto mb-4">
-                    <div className="flex items-center gap-1">
-                        <Clock size={12} />
-                        <span>{course.estimated_duration_hours || 0}h</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <BookOpen size={12} />
-                        <span>{course.total_lessons || 0} aulas</span>
-                    </div>
-                    {course.difficulty_level && (
-                        <div className="flex items-center gap-1 capitalize">
-                            <BarChart size={12} />
-                            <span>{course.difficulty_level}</span>
-                        </div>
-                    )}
-                </div>
-
-                <Button
-                    size="sm"
-                    className="w-full mt-auto"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onOpen(course.slug);
-                    }}
-                >
-                    {progress > 0 ? 'Continuar' : 'Iniciar'}
-                </Button>
-            </div>
-        </Card>
-    );
-}
 
 export default function CoursesPage() {
     const { profile } = useAuthStore();
@@ -180,16 +83,39 @@ export default function CoursesPage() {
 
             {/* Courses Grid */}
             {courses.length > 0 && (
-                <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {courses.map((course) => (
-                        <StaggerItem key={course.id}>
-                            <CourseCard
-                                course={course}
-                                onOpen={handleOpenCourse}
-                            />
-                        </StaggerItem>
-                    ))}
-                </StaggerContainer>
+                <>
+                    {/* Traditional Cards (16:9) */}
+                    {courses.filter(c => c.display_format !== 'netflix').length > 0 && (
+                        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+                            {courses
+                                .filter(c => c.display_format !== 'netflix')
+                                .map((course) => (
+                                    <StaggerItem key={course.id}>
+                                        <CourseCard
+                                            course={course}
+                                            onOpen={handleOpenCourse}
+                                        />
+                                    </StaggerItem>
+                                ))}
+                        </StaggerContainer>
+                    )}
+
+                    {/* Netflix Cards (5:7 Poster) */}
+                    {courses.filter(c => c.display_format === 'netflix').length > 0 && (
+                        <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {courses
+                                .filter(c => c.display_format === 'netflix')
+                                .map((course) => (
+                                    <StaggerItem key={course.id}>
+                                        <NetflixCard
+                                            course={course}
+                                            onOpen={handleOpenCourse}
+                                        />
+                                    </StaggerItem>
+                                ))}
+                        </StaggerContainer>
+                    )}
+                </>
             )}
         </div>
     );

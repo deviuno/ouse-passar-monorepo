@@ -1,5 +1,16 @@
 import { supabase } from './supabaseClient';
 
+export type CourseDisplayFormat = 'card' | 'netflix';
+export type CourseBadgeType = 'premium' | 'new' | 'promo' | 'price' | 'free';
+export type BadgePosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+export interface CourseBadge {
+    type: CourseBadgeType;
+    position: BadgePosition;
+    enabled: boolean;
+    customText?: string;
+}
+
 export interface Course {
     id: string;
     title: string;
@@ -11,8 +22,13 @@ export interface Course {
     difficulty_level: string;
     estimated_duration_hours: number;
     is_free: boolean;
+    price?: number | null;
     published_at: string;
     total_lessons: number;
+    // Display format fields
+    display_format: CourseDisplayFormat;
+    poster_image_url?: string | null;
+    badges: CourseBadge[];
     // Computed/joined fields
     progress?: number;
     is_enrolled?: boolean;

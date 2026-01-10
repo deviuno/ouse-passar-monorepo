@@ -19,8 +19,9 @@ import {
   generateSlug,
 } from '../../../services/eadService';
 import { ImageUploader } from '../../../components/admin/ImageUploader';
+import { BadgePositionSelector } from '../../../components/admin/BadgePositionSelector';
 import { useToast } from '../../../components/ui/Toast';
-import type { EadCategory, CourseStatus, DifficultyLevel, AccessType } from '../../../types/ead';
+import type { EadCategory, CourseStatus, DifficultyLevel, AccessType, CourseDisplayFormat, CourseBadge } from '../../../types/ead';
 
 interface CourseFormData {
   title: string;
@@ -37,6 +38,9 @@ interface CourseFormData {
   thumbnailUrl: string;
   coverImageUrl: string;
   previewVideoUrl: string;
+  displayFormat: CourseDisplayFormat;
+  posterImageUrl: string;
+  badges: CourseBadge[];
   status: CourseStatus;
   accessType: AccessType;
   accessDays: number;
@@ -60,6 +64,9 @@ const defaultFormData: CourseFormData = {
   thumbnailUrl: '',
   coverImageUrl: '',
   previewVideoUrl: '',
+  displayFormat: 'card',
+  posterImageUrl: '',
+  badges: [],
   status: 'draft',
   accessType: 'lifetime',
   accessDays: 365,
@@ -116,6 +123,9 @@ export const CourseForm: React.FC = () => {
             thumbnailUrl: course.thumbnailUrl || '',
             coverImageUrl: course.coverImageUrl || '',
             previewVideoUrl: course.previewVideoUrl || '',
+            displayFormat: course.displayFormat || 'card',
+            posterImageUrl: course.posterImageUrl || '',
+            badges: course.badges || [],
             status: course.status,
             accessType: course.accessType,
             accessDays: course.accessDays || 365,
@@ -169,6 +179,9 @@ export const CourseForm: React.FC = () => {
         thumbnailUrl: formData.thumbnailUrl || null,
         coverImageUrl: formData.coverImageUrl || null,
         previewVideoUrl: formData.previewVideoUrl || null,
+        displayFormat: formData.displayFormat,
+        posterImageUrl: formData.posterImageUrl || null,
+        badges: formData.badges,
         status: formData.status,
         accessType: formData.accessType,
         accessDays: formData.accessType === 'rental' ? formData.accessDays : null,
@@ -442,6 +455,82 @@ export const CourseForm: React.FC = () => {
                 Vídeo de apresentação (Panda Video, YouTube ou Vimeo embed)
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Display Format & Badges */}
+        <div className="bg-brand-card border border-white/5 rounded-lg">
+          <div className="p-6 border-b border-white/5">
+            <h2 className="text-lg font-bold text-white">Formato de Exibição</h2>
+            <p className="text-gray-400 text-sm mt-1">Configure como o card do curso será exibido</p>
+          </div>
+          <div className="p-6 space-y-6">
+            {/* Format Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">
+                Formato do Card
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, displayFormat: 'card' }))}
+                  className={`p-4 border rounded-lg transition-all ${
+                    formData.displayFormat === 'card'
+                      ? 'border-brand-yellow bg-brand-yellow/10'
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="aspect-video bg-brand-darker rounded mb-3 flex items-center justify-center">
+                    <ImageIcon className="w-8 h-8 text-gray-600" />
+                  </div>
+                  <p className={`font-medium ${formData.displayFormat === 'card' ? 'text-brand-yellow' : 'text-white'}`}>
+                    Card Tradicional
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Formato 16:9 (horizontal)</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, displayFormat: 'netflix' }))}
+                  className={`p-4 border rounded-lg transition-all ${
+                    formData.displayFormat === 'netflix'
+                      ? 'border-brand-yellow bg-brand-yellow/10'
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="aspect-[5/7] bg-brand-darker rounded mb-3 flex items-center justify-center max-h-24 mx-auto">
+                    <ImageIcon className="w-6 h-6 text-gray-600" />
+                  </div>
+                  <p className={`font-medium ${formData.displayFormat === 'netflix' ? 'text-brand-yellow' : 'text-white'}`}>
+                    Estilo Netflix
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Formato 5:7 (poster vertical)</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Poster Image (only for Netflix format) */}
+            {formData.displayFormat === 'netflix' && (
+              <ImageUploader
+                label="Imagem Poster"
+                value={formData.posterImageUrl}
+                onChange={(url) => setFormData((prev) => ({ ...prev, posterImageUrl: url }))}
+                bucket="course-images"
+                folder="posters"
+                description="Formato recomendado: 5:7 (500x700px)"
+                aspectRatio="5/7"
+              />
+            )}
+
+            {/* Badge Position Selector */}
+            <BadgePositionSelector
+              badges={formData.badges}
+              onChange={(badges) => setFormData((prev) => ({ ...prev, badges }))}
+              displayFormat={formData.displayFormat}
+              thumbnailUrl={formData.thumbnailUrl}
+              posterImageUrl={formData.posterImageUrl}
+              price={formData.price}
+            />
           </div>
         </div>
 
