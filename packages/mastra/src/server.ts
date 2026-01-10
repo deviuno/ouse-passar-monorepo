@@ -6234,6 +6234,108 @@ app.post('/api/comentarios/fila-formatacao/resetar-falhas', async (req, res) => 
 });
 
 // ============================================================================
+// ADMIN PANEL - Endpoints para interface de monitoramento
+// ============================================================================
+
+// Lista de itens na fila de formatação
+app.get('/api/admin/comentarios/queue', async (req, res) => {
+    try {
+        const status = req.query.status as string | undefined;
+        const limit = parseInt(req.query.limit as string) || 50;
+
+        let query = questionsDb
+            .from('comentarios_pendentes_formatacao')
+            .select('*')
+            .order('processed_at', { ascending: false, nullsFirst: false })
+            .limit(limit);
+
+        if (status && status !== 'all') {
+            query = query.eq('status', status);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar fila"
+            });
+        }
+
+        return res.json({
+            success: true,
+            items: data || []
+        });
+
+    } catch (error: any) {
+        console.error("[Admin] Erro ao buscar fila:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Cadernos do scraper
+app.get('/api/admin/scraper/cadernos', async (req, res) => {
+    try {
+        const { data, error } = await questionsDb
+            .from('tec_cadernos')
+            .select('*')
+            .order('updated_at', { ascending: false })
+            .limit(20);
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar cadernos"
+            });
+        }
+
+        return res.json({
+            success: true,
+            cadernos: data || []
+        });
+
+    } catch (error: any) {
+        console.error("[Admin] Erro ao buscar cadernos:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Contas TecConcursos
+app.get('/api/admin/scraper/accounts', async (req, res) => {
+    try {
+        const { data, error } = await questionsDb
+            .from('tec_accounts')
+            .select('id, email, login_status, last_used_at, is_busy')
+            .order('last_used_at', { ascending: false, nullsFirst: true });
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar contas"
+            });
+        }
+
+        return res.json({
+            success: true,
+            accounts: data || []
+        });
+
+    } catch (error: any) {
+        console.error("[Admin] Erro ao buscar contas:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// ============================================================================
 // ASSUNTOS TAXONOMY ENDPOINTS
 // ============================================================================
 

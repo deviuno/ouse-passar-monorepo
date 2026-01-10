@@ -1,8 +1,9 @@
 /**
  * Serviço para monitoramento e gerenciamento de agentes Mastra
+ *
+ * IMPORTANTE: As tabelas de comentários, cadernos e contas estão no banco de questões,
+ * não no banco principal. Por isso usamos a API do Mastra para acessar esses dados.
  */
-
-import { supabase } from '../lib/supabase';
 
 // ============================================================================
 // INTERFACES
@@ -64,7 +65,9 @@ export interface PopularFilaResponse {
 // MASTRA API URL
 // ============================================================================
 
-const MASTRA_URL = import.meta.env.VITE_MASTRA_URL || 'https://mastra.ouspassar.com.br';
+const MASTRA_URL = import.meta.env.VITE_MASTRA_URL
+  ? import.meta.env.VITE_MASTRA_URL
+  : 'http://localhost:4000';
 
 // ============================================================================
 // FORMATADOR DE COMENTÁRIOS
@@ -72,54 +75,45 @@ const MASTRA_URL = import.meta.env.VITE_MASTRA_URL || 'https://mastra.ouspassar.
 
 export const agentesService = {
   // --------------------------------------------------------------------------
-  // Estatísticas do Formatador
+  // Estatísticas do Formatador (via Mastra API)
   // --------------------------------------------------------------------------
   async getComentarioStats(): Promise<ComentarioFormatStats> {
-    const { data, error } = await supabase
-      .from('comentarios_pendentes_formatacao')
-      .select('status');
+    const response = await fetch(`${MASTRA_URL}/api/comentario/status`);
+    const data = await response.json();
 
-    if (error) throw error;
-
-    const stats: ComentarioFormatStats = {
-      total: data?.length || 0,
-      pendente: 0,
-      processando: 0,
-      concluido: 0,
-      falha: 0,
-      ignorado: 0,
-    };
-
-    for (const item of data || []) {
-      const status = item.status as keyof Omit<ComentarioFormatStats, 'total'>;
-      if (status in stats) {
-        stats[status]++;
-      }
+    if (!data.success) {
+      throw new Error(data.error || 'Erro ao buscar estatísticas');
     }
 
-    return stats;
+    return {
+      total: data.total || 0,
+      pendente: data.pendente || 0,
+      processando: data.processando || 0,
+      concluido: data.concluido || 0,
+      falha: data.falha || 0,
+      ignorado: data.ignorado || 0,
+    };
   },
 
   // --------------------------------------------------------------------------
-  // Lista de itens na fila
+  // Lista de itens na fila (via Mastra API)
   // --------------------------------------------------------------------------
   async getComentarioQueue(
     status?: string,
     limit: number = 50
   ): Promise<ComentarioFormatItem[]> {
-    let query = supabase
-      .from('comentarios_pendentes_formatacao')
-      .select('*')
-      .order('processed_at', { ascending: false, nullsFirst: false })
-      .limit(limit);
+    const params = new URLSearchParams();
+    if (status && status !== 'all') params.append('status', status);
+    params.append('limit', limit.toString());
 
-    if (status && status !== 'all') {
-      query = query.eq('status', status);
+    const response = await fetch(`${MASTRA_URL}/api/admin/comentarios/queue?${params}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Erro ao buscar fila');
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
+    return data.items || [];
   },
 
   // --------------------------------------------------------------------------
@@ -165,49 +159,46 @@ export const agentesService = {
   },
 
   // ============================================================================
-  // SCRAPER DE QUESTÕES
+  // SCRAPER DE QUESTÕES (via Mastra API)
   // ============================================================================
 
   // --------------------------------------------------------------------------
   // Status dos cadernos
   // --------------------------------------------------------------------------
   async getScraperCadernos(): Promise<ScraperCaderno[]> {
-    const { data, error } = await supabase
-      .from('tec_cadernos')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(20);
+    const response = await fetch(`${MASTRA_URL}/api/admin/scraper/cadernos`);
+    const data = await response.json();
 
-    if (error) throw error;
-    return data || [];
+    if (!data.success) {
+      throw new Error(data.error || 'Erro ao buscar cadernos');
+    }
+
+    return data.cadernos || [];
   },
 
   // --------------------------------------------------------------------------
   // Contas TecConcursos
   // --------------------------------------------------------------------------
   async getTecAccounts(): Promise<TecAccount[]> {
-    const { data, error } = await supabase
-      .from('tec_accounts')
-      .select('id, email, login_status, last_used_at, is_busy')
-      .order('last_used_at', { ascending: false, nullsFirst: true });
+    const response = await fetch(`${MASTRA_URL}/api/admin/scraper/accounts`);
+    const data = await response.json();
 
-    if (error) throw error;
-    return data || [];
+    if (!data.success) {
+      throw new Error(data.error || 'Erro ao buscar contas');
+    }
+
+    return data.accounts || [];
   },
 
   // --------------------------------------------------------------------------
-  // Stats do scraper
+  // Stats do scraper (calculado a partir dos cadernos)
   // --------------------------------------------------------------------------
   async getScraperStats(): Promise<{ status: string; count: number }[]> {
-    const { data, error } = await supabase
-      .from('tec_cadernos')
-      .select('status');
-
-    if (error) throw error;
+    const cadernos = await this.getScraperCadernos();
 
     const counts: Record<string, number> = {};
-    for (const item of data || []) {
-      counts[item.status] = (counts[item.status] || 0) + 1;
+    for (const caderno of cadernos) {
+      counts[caderno.status] = (counts[caderno.status] || 0) + 1;
     }
 
     return Object.entries(counts).map(([status, count]) => ({ status, count }));
