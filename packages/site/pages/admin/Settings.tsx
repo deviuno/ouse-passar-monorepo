@@ -125,6 +125,7 @@ import {
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
+import Agentes from './Agentes';
 
 // ============================================================================
 // TYPES
@@ -251,6 +252,11 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; 
     label: 'Scraping',
     icon: Globe,
     description: 'Gestão do TecConcursos Scraper',
+  },
+  agentes: {
+    label: 'Agentes IA',
+    icon: Brain,
+    description: 'Monitoramento e gestão dos agentes de processamento',
   },
 };
 
@@ -4241,6 +4247,8 @@ export const Settings: React.FC = () => {
             />
           ) : activeCategory === 'scraping' ? (
             <ScrapingSection />
+          ) : activeCategory === 'agentes' ? (
+            <Agentes showHeader={false} />
           ) : (
             <>
               <div className="bg-brand-card border border-white/10 rounded-sm">
