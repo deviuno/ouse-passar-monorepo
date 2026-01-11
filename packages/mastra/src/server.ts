@@ -52,6 +52,8 @@ import {
     generateQuestionComment,
     QuestionGenerationParams,
 } from './mastra/agents/questionGeneratorAgent.js';
+import { musicLyricsAgent } from './mastra/agents/musicLyricsAgent.js';
+import * as sunoService from './services/sunoService.js';
 
 // Load environment variables
 import path from 'path';
@@ -1196,6 +1198,237 @@ app.post('/api/agents/contentSummaryAgent/generate', async (req, res) => {
         res.status(500).json({ success: false, error: error.message || "Internal Server Error" });
     }
 });
+
+// Endpoint para gerar letras de música educativa
+app.post('/api/music/generate-lyrics', async (req, res) => {
+    try {
+        const { materia, assunto, cargo, estilo, customTopic } = req.body;
+
+        if (!materia && !customTopic) {
+            res.status(400).json({ error: "Informe uma matéria ou tópico personalizado" });
+            return;
+        }
+
+        // Build the prompt
+        const estiloLabel = getEstiloLabel(estilo);
+        let prompt = `Crie uma letra de música educativa no estilo **${estiloLabel}**.
+
+## Tema
+`;
+
+        if (materia) {
+            prompt += `- **Matéria**: ${materia}\n`;
+        }
+        if (assunto) {
+            prompt += `- **Assunto**: ${assunto}\n`;
+        }
+        if (cargo) {
+            prompt += `- **Cargo alvo**: ${cargo}\n`;
+        }
+        if (customTopic) {
+            prompt += `\n## Instruções Adicionais\n${customTopic}\n`;
+        }
+
+        prompt += `
+## Objetivo
+A música deve ajudar estudantes a memorizar os conceitos mais importantes deste tema de forma criativa e envolvente. A letra deve ser otimizada para uso em geradores de música como Suno e Udio.
+
+Gere APENAS a letra da música, sem explicações adicionais.`;
+
+        console.log(`[MusicLyrics] Generating lyrics for: ${materia || customTopic} (${estiloLabel})`);
+
+        const result = await musicLyricsAgent.generate([
+            { role: "user", content: prompt }
+        ]);
+
+        console.log(`[MusicLyrics] Lyrics generated (${result.text?.length || 0} chars)`);
+
+        res.json({
+            success: true,
+            lyrics: result.text,
+        });
+
+    } catch (error: any) {
+        console.error("[MusicLyrics] Error:", error);
+        res.status(500).json({ error: error.message || "Erro ao gerar letra" });
+    }
+});
+
+// Helper function to get estilo label
+function getEstiloLabel(estilo: string): string {
+    const estilos: Record<string, string> = {
+        pop: 'Pop Brasileiro',
+        rock: 'Rock Nacional',
+        sertanejo: 'Sertanejo Universitário',
+        funk: 'Funk Melody',
+        pagode: 'Pagode',
+        samba: 'Samba',
+        forro: 'Forró',
+        mpb: 'MPB',
+        bossa_nova: 'Bossa Nova',
+        axe: 'Axé',
+        rap: 'Rap/Hip-Hop Brasileiro',
+        trap: 'Trap Brasileiro',
+        reggae: 'Reggae',
+        gospel: 'Gospel/Música Cristã',
+        country: 'Country/Música Caipira',
+        folk: 'Folk',
+        indie: 'Indie Pop',
+        electronic: 'Eletrônica/EDM',
+        house: 'House',
+        jazz: 'Jazz',
+        blues: 'Blues',
+        classical: 'Clássica Contemporânea',
+        opera: 'Ópera Pop',
+        musical: 'Musical/Teatro',
+        infantil: 'Música Infantil',
+        jingle: 'Jingle/Comercial',
+    };
+    return estilos[estilo] || 'Pop Brasileiro';
+}
+
+// ==================== SUNO API ENDPOINTS ====================
+
+// Endpoint de callback para receber notificações do Suno
+app.post('/api/music/suno-callback', async (req, res) => {
+    try {
+        console.log('[Music] Suno callback received:', JSON.stringify(req.body, null, 2));
+
+        // O Suno envia os dados da música gerada aqui
+        // Podemos salvar no banco de dados ou notificar o frontend via WebSocket
+
+        res.json({ success: true, message: 'Callback received' });
+    } catch (error: any) {
+        console.error('[Music] Suno callback error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Endpoint para gerar música usando Suno API
+app.post('/api/music/generate-music', async (req, res) => {
+    try {
+        const { lyrics, style, title, model, instrumental } = req.body;
+
+        if (!lyrics || !style || !title) {
+            res.status(400).json({
+                success: false,
+                error: "Parâmetros obrigatórios: lyrics, style, title"
+            });
+            return;
+        }
+
+        console.log(`[Music] Generating music with Suno: "${title}"`);
+
+        // URL de callback - usa MASTRA_PUBLIC_URL em produção ou localhost em dev
+        const baseUrl = process.env.MASTRA_PUBLIC_URL || 'http://localhost:4000';
+        const callbackUrl = `${baseUrl}/api/music/suno-callback`;
+
+        const taskId = await sunoService.generateMusic({
+            lyrics,
+            style,
+            title,
+            model: model || 'V5',
+            instrumental: instrumental || false,
+            callbackUrl,
+        });
+
+        res.json({
+            success: true,
+            taskId,
+            message: "Geração iniciada! Use o taskId para verificar o status."
+        });
+
+    } catch (error: any) {
+        console.error("[Music] Suno generation error:", error);
+
+        // Handle specific error cases
+        if (error.message?.includes('429')) {
+            res.status(429).json({
+                success: false,
+                error: "Créditos insuficientes na conta Suno"
+            });
+            return;
+        }
+
+        if (error.message?.includes('SUNO_API_KEY')) {
+            res.status(500).json({
+                success: false,
+                error: "API key do Suno não configurada no servidor"
+            });
+            return;
+        }
+
+        res.status(500).json({
+            success: false,
+            error: error.message || "Erro ao gerar música"
+        });
+    }
+});
+
+// Endpoint para verificar status da geração
+app.get('/api/music/status/:taskId', async (req, res) => {
+    try {
+        const { taskId } = req.params;
+
+        if (!taskId) {
+            res.status(400).json({
+                success: false,
+                error: "taskId é obrigatório"
+            });
+            return;
+        }
+
+        const statusData = await sunoService.getTaskStatus(taskId);
+
+        res.json({
+            success: true,
+            taskId: statusData.taskId,
+            status: statusData.status,
+            statusLabel: sunoService.getStatusLabel(statusData.status),
+            isComplete: sunoService.isTaskComplete(statusData.status),
+            isFailed: sunoService.isTaskFailed(statusData.status),
+            tracks: statusData.response?.sunoData || [],
+            errorMessage: statusData.errorMessage,
+        });
+
+    } catch (error: any) {
+        console.error("[Music] Status check error:", error);
+        res.status(500).json({
+            success: false,
+            error: error.message || "Erro ao verificar status"
+        });
+    }
+});
+
+// Endpoint para verificar créditos disponíveis
+app.get('/api/music/credits', async (req, res) => {
+    try {
+        const credits = await sunoService.getCredits();
+
+        res.json({
+            success: true,
+            credits,
+        });
+
+    } catch (error: any) {
+        console.error("[Music] Credits check error:", error);
+
+        if (error.message?.includes('SUNO_API_KEY')) {
+            res.status(500).json({
+                success: false,
+                error: "API key do Suno não configurada"
+            });
+            return;
+        }
+
+        res.status(500).json({
+            success: false,
+            error: error.message || "Erro ao verificar créditos"
+        });
+    }
+});
+
+// ==================== END SUNO API ENDPOINTS ====================
 
 // Endpoint para gerar TTS e fazer upload para Supabase Storage
 app.post('/api/tts/generate', async (req, res) => {
