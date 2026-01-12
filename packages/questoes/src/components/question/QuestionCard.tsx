@@ -295,16 +295,16 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
         : `border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-main)]`;
     }
 
-    // Feedback Style (Only for Zen/Reta Final)
+    // Feedback Style (Only for Zen/Reta Final) - More visible in light mode
     if (letter === question.gabarito) {
-      return `border-[var(--color-success)] bg-gradient-to-br from-[var(--color-success)]/15 via-transparent to-[var(--color-success)]/5 text-[var(--color-success)] backdrop-blur-sm`;
+      return `border-[var(--color-success)] border-[3px] bg-[var(--color-success)]/20 text-[var(--color-success)] font-semibold shadow-[0_0_12px_rgba(5,150,105,0.3)]`;
     }
 
     if (selectedAlt === letter && letter !== question.gabarito) {
-      return `border-[var(--color-error)] bg-gradient-to-br from-[var(--color-error)]/15 via-transparent to-[var(--color-error)]/5 text-[var(--color-error)] backdrop-blur-sm`;
+      return `border-[var(--color-error)] border-[3px] bg-[var(--color-error)]/20 text-[var(--color-error)] font-semibold shadow-[0_0_12px_rgba(220,38,38,0.3)]`;
     }
 
-    return `border-[var(--color-border)] opacity-50`;
+    return `border-[var(--color-border)] opacity-40`;
   };
 
   // Build stats data from real statistics or use fallback
