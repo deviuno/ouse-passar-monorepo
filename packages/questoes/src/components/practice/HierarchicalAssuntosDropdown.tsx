@@ -191,6 +191,7 @@ const TaxonomyNodeItem: React.FC<{
           isFullySelected ? 'bg-[var(--color-brand)]/10' : ''
         }`}
         style={{ paddingLeft }}
+        onClick={handleToggleNode}
       >
         {/* Botão de expandir */}
         {hasChildren ? (
@@ -212,8 +213,7 @@ const TaxonomyNodeItem: React.FC<{
         )}
 
         {/* Checkbox */}
-        <button
-          onClick={handleToggleNode}
+        <div
           className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
             isFullySelected
               ? 'bg-[var(--color-brand)] border-[var(--color-brand)]'
@@ -225,11 +225,10 @@ const TaxonomyNodeItem: React.FC<{
           {(isFullySelected || isPartiallySelected) && (
             <Check size={10} className="text-black" />
           )}
-        </button>
+        </div>
 
         {/* Nome do nó */}
         <span
-          onClick={handleToggleNode}
           className={`flex-1 text-sm ${
             isFullySelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-main)]'
           }`}
