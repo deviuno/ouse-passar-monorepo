@@ -235,13 +235,6 @@ const TaxonomyNodeItem: React.FC<{
         >
           {node.nome}
         </span>
-
-        {/* Badge com contagem */}
-        {allNodeAssuntos.length > 0 && (
-          <span className="text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-elevated)] px-1.5 py-0.5 rounded">
-            {selectedCount > 0 ? `${selectedCount}/` : ''}{allNodeAssuntos.length}
-          </span>
-        )}
       </div>
 
       {/* Filhos */}
