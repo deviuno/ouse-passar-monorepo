@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wand2, Loader2, Copy, Check, Music, RefreshCw, ChevronDown, Search, Plus,
-  Play, Pause, Download, AlertCircle, Volume2, ExternalLink, Sparkles
+  Play, Pause, Download, AlertCircle, Volume2, ExternalLink, Sparkles,
+  Trash2, CheckCircle, X
 } from 'lucide-react';
+import { musicAdminService } from '../../../services/musicAdminService';
 import { questionGeneratorService } from '../../../services/questionGeneratorService';
 
 // Estilos musicais disponíveis
@@ -264,13 +266,30 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 interface AudioPlayerProps {
   track: SunoTrack;
   index: number;
+  materia?: string;
+  assunto?: string;
+  preparatorioId?: string;
+  onDelete?: (trackId: string) => void;
+  onApprove?: (trackId: string) => void;
 }
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({ track, index }) => {
+const AudioPlayer: React.FC<AudioPlayerProps> = ({
+  track,
+  index,
+  materia,
+  assunto,
+  preparatorioId,
+  onDelete,
+  onApprove,
+}) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(track.duration || 0);
+  const [imageError, setImageError] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [approved, setApproved] = useState(false);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -327,15 +346,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ track, index }) => {
       <div className="flex items-start gap-4">
         {/* Cover Image */}
         <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
-          {track.imageUrl ? (
+          {track.imageUrl && !imageError ? (
             <img
               src={track.imageUrl}
               alt={track.title}
               className="w-full h-full object-cover"
+              onError={() => setImageError(true)}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Music className="w-8 h-8 text-gray-600" />
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600/30 to-pink-600/30">
+              <Music className="w-8 h-8 text-gray-400" />
             </div>
           )}
           <button
@@ -380,7 +400,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ track, index }) => {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
             <button
               onClick={togglePlay}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-yellow text-brand-dark text-sm font-medium rounded-lg hover:bg-brand-yellow/90 transition-colors"
@@ -401,9 +421,99 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ track, index }) => {
                 Baixar
               </a>
             )}
+
+            {/* Approve Button */}
+            {onApprove && !approved && (
+              <button
+                onClick={async () => {
+                  setApproving(true);
+                  try {
+                    await onApprove(track.id);
+                    setApproved(true);
+                  } finally {
+                    setApproving(false);
+                  }
+                }}
+                disabled={approving}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-500 disabled:bg-green-600/50 transition-colors"
+              >
+                {approving ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <CheckCircle size={14} />
+                )}
+                Aprovar
+              </button>
+            )}
+
+            {approved && (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 text-green-400 text-sm font-medium rounded-lg">
+                <CheckCircle size={14} />
+                Aprovada
+              </span>
+            )}
+
+            {/* Delete Button */}
+            {onDelete && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/20 text-red-400 text-sm font-medium rounded-lg hover:bg-red-600/30 transition-colors"
+              >
+                <Trash2 size={14} />
+                Excluir
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-brand-card border border-white/10 rounded-lg p-6 max-w-md mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-400" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Excluir Música</h3>
+              </div>
+              <p className="text-gray-400 mb-6">
+                Tem certeza que deseja excluir esta música? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 bg-white/5 text-gray-300 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    onDelete?.(track.id);
+                    setShowDeleteConfirm(false);
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 transition-colors"
+                >
+                  Excluir
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
@@ -443,14 +553,23 @@ export const MusicLyricsGenerator: React.FC = () => {
   const [generatedTracks, setGeneratedTracks] = useState<SunoTrack[]>([]);
   const [musicError, setMusicError] = useState('');
 
+  // Preparatorio state (for approving tracks)
+  const [preparatorioId, setPreparatorioId] = useState<string | null>(null);
+
   // Polling ref
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const MASTRA_URL = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000';
 
-  // Load filters on mount
+  // Load filters and preparatorioId on mount
   useEffect(() => {
     loadFilters();
+    // Get preparatorioId from URL or localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const prepId = urlParams.get('preparatorio_id') || localStorage.getItem('selectedPreparatorioId');
+    if (prepId) {
+      setPreparatorioId(prepId);
+    }
   }, []);
 
   // Load assuntos when materia changes
@@ -643,6 +762,58 @@ export const MusicLyricsGenerator: React.FC = () => {
       setMusicError(err.message || 'Erro ao gerar música. Tente novamente.');
       setGeneratingMusic(false);
     }
+  };
+
+  // Handle approving a track (save to music_tracks table)
+  const handleApproveTrack = async (trackId: string) => {
+    if (!preparatorioId) {
+      setMusicError('Selecione um preparatório antes de aprovar músicas.');
+      return;
+    }
+
+    const track = generatedTracks.find(t => t.id === trackId);
+    if (!track) return;
+
+    try {
+      // Get duration from audio
+      const getAudioDuration = (url: string): Promise<number> => {
+        return new Promise((resolve) => {
+          const audio = new Audio();
+          audio.addEventListener('loadedmetadata', () => {
+            resolve(Math.round(audio.duration));
+          });
+          audio.addEventListener('error', () => resolve(0));
+          audio.src = url;
+        });
+      };
+
+      const duration = await getAudioDuration(track.audioUrl || track.streamAudioUrl);
+
+      // Save to music_tracks table
+      await musicAdminService.createTrack({
+        title: track.title || musicTitle,
+        artist: 'Ouse Passar IA',
+        audio_url: track.audioUrl || track.streamAudioUrl,
+        cover_url: track.imageUrl || null,
+        duration_seconds: duration || track.duration || 0,
+        preparatorio_id: preparatorioId,
+        is_podcast: false,
+        materia: materia || null,
+        assunto: assunto || null,
+        is_active: true,
+      });
+
+      console.log('[LyricsGenerator] Música aprovada e salva:', track.title);
+    } catch (err: any) {
+      console.error('Error approving track:', err);
+      setMusicError(err.message || 'Erro ao aprovar música');
+      throw err;
+    }
+  };
+
+  // Handle deleting a track from the list
+  const handleDeleteTrack = (trackId: string) => {
+    setGeneratedTracks(prev => prev.filter(t => t.id !== trackId));
   };
 
   const handleCopy = async () => {
@@ -947,7 +1118,16 @@ export const MusicLyricsGenerator: React.FC = () => {
                     Músicas geradas ({generatedTracks.length} faixas):
                   </h3>
                   {generatedTracks.map((track, index) => (
-                    <AudioPlayer key={track.id} track={track} index={index} />
+                    <AudioPlayer
+                      key={track.id}
+                      track={track}
+                      index={index}
+                      materia={materia}
+                      assunto={assunto}
+                      preparatorioId={preparatorioId || undefined}
+                      onDelete={handleDeleteTrack}
+                      onApprove={handleApproveTrack}
+                    />
                   ))}
                 </div>
               )}
