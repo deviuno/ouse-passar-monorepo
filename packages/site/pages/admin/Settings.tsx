@@ -2325,6 +2325,18 @@ export function ScrapingSection() {
     setActionLoading(null);
   };
 
+  const handleToggleAccountActive = async (id: string, currentActive: boolean) => {
+    setActionLoading(id);
+    const result = await tecScraperService.updateAccount(id, { is_active: !currentActive });
+    if (result.success) {
+      toast.success(currentActive ? 'Conta desativada' : 'Conta ativada');
+      loadData();
+    } else {
+      toast.error(result.error || 'Erro ao alterar status da conta');
+    }
+    setActionLoading(null);
+  };
+
   const handleTestLogin = async (id: string) => {
     setActionLoading(id);
     const result = await tecScraperService.testAccountLogin(id);
@@ -2823,11 +2835,24 @@ export function ScrapingSection() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-white font-medium">{account.email}</span>
-                          {account.is_active && (
-                            <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-sm">
-                              Ativa
-                            </span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAccountActive(account.id, account.is_active)}
+                            disabled={actionLoading === account.id}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                              account.is_active ? 'bg-green-500' : 'bg-white/20'
+                            } ${actionLoading === account.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            title={account.is_active ? 'Desativar conta' : 'Ativar conta'}
+                          >
+                            <span
+                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                account.is_active ? 'translate-x-5' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                          <span className={`text-xs ${account.is_active ? 'text-green-400' : 'text-gray-500'}`}>
+                            {account.is_active ? 'Ativa' : 'Inativa'}
+                          </span>
                         </div>
                         <div className="flex items-center gap-4 text-sm mt-1">
                           <span className={getLoginStatusColor(account.login_status)}>
@@ -2884,20 +2909,6 @@ export function ScrapingSection() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/10">
-                    {!account.is_active && (
-                      <button
-                        onClick={() => handleActivateAccount(account.id)}
-                        disabled={actionLoading === account.id}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-sm text-sm disabled:opacity-50"
-                      >
-                        {actionLoading === account.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Power className="w-3 h-3" />
-                        )}
-                        Ativar
-                      </button>
-                    )}
                     <button
                       onClick={() => handleTestLogin(account.id)}
                       disabled={actionLoading === account.id}

@@ -20,6 +20,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
+// Importar módulo de comportamento humano
+import {
+  humanDelay,
+  humanDelayCustom,
+  humanPause,
+  simulateMouseMovement,
+  simulateReadingScroll,
+  humanSkipDuplicate,
+  detectExtractionProblem,
+  getRandomUserAgent,
+  shouldTakePause,
+  DELAY_RANGES,
+} from './humanBehavior.js';
+
 // Configurar puppeteer-extra com plugins
 const puppeteer = puppeteerExtra.default || puppeteerExtra;
 
@@ -80,9 +94,19 @@ const CONFIG = {
   delays: {
     afterLogin: 5000,
     afterPageLoad: 3000,
-    betweenQuestions: 1500,      // Aumentado de 500 para 1500
+    betweenQuestions: [1500, 2500] as [number, number],  // Range para variação
     betweenCadernos: 8000,
     randomExtra: () => Math.floor(Math.random() * 1000), // 0-1000ms extra aleatório
+    // Novas configurações de humanização
+    pauseEveryNQuestions: 30,      // Fazer pausa a cada N questões
+    pauseDuration: [2000, 4000] as [number, number],  // Duração da pausa
+  },
+  // Configurações de humanização
+  humanization: {
+    enableMouseMovement: true,    // Simular movimento de mouse
+    enableReadingScroll: true,    // Simular scroll de leitura
+    enablePeriodicPauses: true,   // Fazer pausas periódicas
+    rotateUserAgent: true,        // Rotacionar user agent
   },
 };
 
@@ -492,10 +516,12 @@ async function getPage(accountId?: string): Promise<Page> {
 
     const page = await browser.newPage();
 
-    // Configurar user agent para parecer um navegador real (Chrome mais recente)
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-    );
+    // Configurar user agent (rotativo para parecer mais humano)
+    const userAgent = CONFIG.humanization.rotateUserAgent
+      ? getRandomUserAgent()
+      : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    await page.setUserAgent(userAgent);
+    log(`User-Agent configurado: ${userAgent.substring(0, 60)}...`);
 
     // Configurar headers extras para parecer mais real
     await page.setExtraHTTPHeaders({
@@ -531,10 +557,12 @@ async function getPage(accountId?: string): Promise<Page> {
   const browser = await initBrowser();
   _page = await browser.newPage();
 
-  // Configurar user agent para parecer um navegador real (Chrome mais recente)
-  await _page.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-  );
+  // Configurar user agent (rotativo para parecer mais humano)
+  const userAgent = CONFIG.humanization.rotateUserAgent
+    ? getRandomUserAgent()
+    : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+  await _page.setUserAgent(userAgent);
+  log(`User-Agent configurado: ${userAgent.substring(0, 60)}...`);
 
   // Configurar headers extras para parecer mais real
   await _page.setExtraHTTPHeaders({
@@ -1552,7 +1580,9 @@ async function coletarQuestoesDoCaderno(caderno: CadernoInfo): Promise<QuestaoCo
           log(`Erro ao extrair questão: ${err instanceof Error ? err.message : String(err)}`, 'warn');
         }
 
-        await delay(CONFIG.delays.betweenQuestions);
+        // Delay humanizado entre questões
+        const [minDelay, maxDelay] = CONFIG.delays.betweenQuestions;
+        await humanDelayCustom(minDelay, maxDelay);
       }
 
       // Verificar se há próxima página
@@ -2790,7 +2820,21 @@ async function extrairQuestoesDeCadernoUrl(
             const jaExiste = await questaoJaExiste(questaoIdRapido);
             if (jaExiste) {
               questoesPuladas++;
-              log(`Questão ${questaoIdRapido} já existe, pulando... (${questoesPuladas} puladas)`);
+              log(`Questão ${questaoIdRapido} já existe, pulando com comportamento humano... (${questoesPuladas} puladas)`);
+
+              // Comportamento humanizado ao pular duplicata
+              // Usa diferentes padrões (quick_skip, scroll_then_skip, hesitate_skip)
+              const skipSuccess = await humanSkipDuplicate(
+                page,
+                questaoIdRapido,
+                'button.questao-navegacao-botao-proxima'
+              );
+
+              if (!skipSuccess) {
+                // Fallback: delay simples se o skip humanizado falhar
+                await humanDelay('duplicate_recognition');
+              }
+
               // Atualizar posição mesmo pulando (para retomada correta)
               await updateCadernoPosition(paginaAtual, questaoIdRapido);
               continue; // Pular para próxima questão sem extrair dados
@@ -2821,9 +2865,17 @@ async function extrairQuestoesDeCadernoUrl(
           log(`Erro ao extrair questão: ${err instanceof Error ? err.message : String(err)}`, 'warn');
         }
 
-        // Delay entre questões (aumentado para parecer mais humano)
-        const delayBetween = CONFIG.delays.betweenQuestions + CONFIG.delays.randomExtra();
-        await delay(delayBetween);
+        // Delay entre questões (humanizado com distribuição gaussiana)
+        const [minDelay, maxDelay] = CONFIG.delays.betweenQuestions;
+        const delayBetween = await humanDelayCustom(minDelay, maxDelay);
+        log(`Delay humanizado: ${(delayBetween / 1000).toFixed(1)}s`);
+
+        // Pausas periódicas humanizadas (a cada N questões)
+        if (CONFIG.humanization.enablePeriodicPauses &&
+            shouldTakePause(questoes.length, CONFIG.delays.pauseEveryNQuestions)) {
+          const pauseDuration = await humanPause('periodic');
+          log(`Pausa periódica: ${(pauseDuration / 1000).toFixed(1)}s após ${questoes.length} questões`);
+        }
 
         // Verificar CAPTCHA periodicamente (a cada 10 questões)
         if (questoes.length % 10 === 0) {
@@ -2831,6 +2883,16 @@ async function extrairQuestoesDeCadernoUrl(
           if (!captchaOk) {
             log('CAPTCHA não resolvido, interrompendo extração', 'error');
             break;
+          }
+
+          // Verificar problemas de extração (Cloudflare, layout, etc)
+          const problem = await detectExtractionProblem(page);
+          if (problem !== 'none') {
+            log(`Problema detectado: ${problem}`, 'warn');
+            if (problem === 'cloudflare' || problem === 'captcha') {
+              log('Aguardando 30 segundos para resolver...', 'warn');
+              await delay(30000);
+            }
           }
         }
       }
@@ -2902,13 +2964,23 @@ async function extrairQuestoesDeCadernoUrl(
         // Obter ID da questão atual antes de navegar
         const questaoAtualId = questoes.length > 0 ? questoes[questoes.length - 1].id : '';
 
+        // Movimento de mouse humanizado antes de clicar (se habilitado)
+        if (CONFIG.humanization.enableMouseMovement) {
+          const box = await (nextBtn as any).boundingBox();
+          if (box) {
+            await simulateMouseMovement(page, box.x + box.width / 2, box.y + box.height / 2);
+          }
+        }
+
+        // Delay humanizado antes do clique
+        await humanDelay('click');
+
         // Tentar navegação via teclado primeiro (mais confiável)
         // TecConcursos suporta atalho de teclado para próxima questão
         await page.keyboard.press('ArrowRight');
 
-        // Delay maior e variável para parecer mais humano
-        const navDelay = 2500 + Math.floor(Math.random() * 1000);
-        await delay(navDelay);
+        // Delay humanizado após navegação
+        await humanDelay('page_load');
 
         // Verificar se apareceu CAPTCHA após navegação
         const captchaOk = await handleCaptchaIfPresent(page);
@@ -2916,6 +2988,16 @@ async function extrairQuestoesDeCadernoUrl(
           log('CAPTCHA detectado durante navegação, interrompendo...', 'error');
           temMaisQuestoes = false;
           break;
+        }
+
+        // Verificar problemas de extração após navegação
+        const problem = await detectExtractionProblem(page);
+        if (problem !== 'none') {
+          log(`Problema detectado após navegação: ${problem}`, 'warn');
+          if (problem === 'cloudflare') {
+            log('Cloudflare detectado, aguardando 30s...', 'warn');
+            await delay(30000);
+          }
         }
 
         // Verificar se mudou via teclado
@@ -2929,11 +3011,21 @@ async function extrairQuestoesDeCadernoUrl(
           continue; // Pular para a próxima iteração do loop
         }
 
-        // Se não funcionou via teclado, tentar click no botão
+        // Se não funcionou via teclado, tentar click no botão com comportamento humanizado
         if (!navegouComSucesso) {
           log('Teclado não funcionou, tentando click no botão...');
+
+          // Movimento de mouse até o botão (novamente, caso tenha se movido)
+          if (CONFIG.humanization.enableMouseMovement) {
+            const box = await (nextBtn as any).boundingBox();
+            if (box) {
+              await simulateMouseMovement(page, box.x + box.width / 2, box.y + box.height / 2);
+            }
+          }
+
+          await humanDelay('click');
           await (nextBtn as any).click();
-          await delay(2500); // Esperar mais tempo para o click
+          await humanDelay('page_load');
         }
 
         // Verificar se realmente mudou de questão após click
@@ -3070,6 +3162,11 @@ async function extrairQuestoesDeCadernoUrl(
  */
 async function extrairDadosQuestaoTec(questaoEl: any, page: Page): Promise<QuestaoColetada | null> {
   try {
+    // Simular scroll de leitura para parecer mais humano
+    if (CONFIG.humanization.enableReadingScroll) {
+      await simulateReadingScroll(page, false);
+    }
+
     // Extrair ID da questão - TecConcursos usa data-id ou id no elemento
     const id = await questaoEl.evaluate((el: Element) => {
       // Tentar diferentes formas de obter o ID
@@ -3262,10 +3359,13 @@ async function captureCookiesForAccount(
 
     page = await browser.newPage();
 
-    // Configurar User-Agent e headers
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-    );
+    // Configurar User-Agent (rotativo para parecer mais humano)
+    const userAgent = CONFIG.humanization.rotateUserAgent
+      ? getRandomUserAgent()
+      : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    await page.setUserAgent(userAgent);
+    log(`User-Agent configurado: ${userAgent.substring(0, 60)}...`);
+
     await page.setExtraHTTPHeaders({
       'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
     });
