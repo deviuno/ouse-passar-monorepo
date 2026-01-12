@@ -31,8 +31,17 @@ const PRESET_ICONS = [
 ];
 
 export const MusicCategories: React.FC = () => {
+  console.log('[MusicCategories] ========== COMPONENTE MONTADO ==========');
   const toast = useToast();
-  const { currentPreparatorio } = useAuth();
+  const { currentPreparatorio, loadingPreparatorios, preparatorios } = useAuth();
+
+  console.log('[MusicCategories] Estado do useAuth:', {
+    currentPreparatorio,
+    loadingPreparatorios,
+    preparatoriosCount: preparatorios?.length,
+    preparatorios
+  });
+
   const [categories, setCategories] = useState<musicAdminService.MusicCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,17 +64,24 @@ export const MusicCategories: React.FC = () => {
   }, [currentPreparatorio?.id]);
 
   const loadCategories = async () => {
-    if (!currentPreparatorio?.id) return;
+    console.log('[MusicCategories] loadCategories chamado, preparatorioId:', currentPreparatorio?.id);
+    if (!currentPreparatorio?.id) {
+      console.log('[MusicCategories] SEM PREPARATORIO - abortando loadCategories');
+      return;
+    }
 
     setLoading(true);
     try {
+      console.log('[MusicCategories] Chamando musicAdminService.getCategories...');
       const data = await musicAdminService.getCategories(currentPreparatorio.id);
+      console.log('[MusicCategories] Categorias recebidas:', data);
       setCategories(data);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error('[MusicCategories] ERRO ao carregar categorias:', error);
       toast.error('Erro ao carregar categorias');
     } finally {
       setLoading(false);
+      console.log('[MusicCategories] loadCategories finalizado');
     }
   };
 

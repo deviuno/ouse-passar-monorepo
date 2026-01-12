@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Search, Library, PlusSquare, Heart, ListMusic } from 'lucide-react';
+import { Home, Search, Library, PlusSquare, Heart, ListMusic, Send, FileText } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { musicService, type MusicPlaylist } from '../../services/musicService';
 
@@ -29,9 +29,11 @@ export const MusicSidebar: React.FC<MusicSidebarProps> = ({ onNavigate }) => {
     };
 
     const navItems = [
-        { icon: Home, label: 'Início', path: '/music', exact: true },
+        { icon: Home, label: 'Inicio', path: '/music', exact: true },
         { icon: Search, label: 'Buscar', path: '/music/search' },
         { icon: Library, label: 'Sua Biblioteca', path: '/music/library' },
+        { icon: Send, label: 'Solicitar Audio', path: '/music/solicitar' },
+        { icon: FileText, label: 'Minhas Solicitacoes', path: '/music/solicitacoes' },
     ];
 
     return (

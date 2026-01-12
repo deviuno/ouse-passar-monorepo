@@ -10,13 +10,15 @@ import {
   X,
   Edit2,
   Trash2,
-  Mic2,
+  Mic,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react';
 import { musicAdminService, type MusicTrack, type MusicCategory } from '../../../services/musicAdminService';
-import { useMusicPreparatorio } from '../../../hooks/useMusicPreparatorio';
 
 export const MusicTracks: React.FC = () => {
-  const { selectedId: preparatorioId, loading: loadingPrep } = useMusicPreparatorio();
+  console.log('[MusicTracks] ========== COMPONENTE MONTADO ==========');
+
   const [loading, setLoading] = useState(true);
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [categories, setCategories] = useState<MusicCategory[]>([]);
@@ -44,26 +46,26 @@ export const MusicTracks: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
-    if (preparatorioId) {
-      loadData();
-    }
-  }, [preparatorioId]);
+    loadData();
+  }, []);
 
   const loadData = async () => {
-    if (!preparatorioId) return;
-
+    console.log('[MusicTracks] loadData chamado');
     setLoading(true);
     try {
+      console.log('[MusicTracks] Chamando getTracks e getCategories...');
       const [tracksData, categoriesData] = await Promise.all([
-        musicAdminService.getTracks(preparatorioId),
-        musicAdminService.getCategories(preparatorioId),
+        musicAdminService.getTracks(), // Sem filtro de preparatorio
+        musicAdminService.getCategories(), // Sem filtro de preparatorio
       ]);
+      console.log('[MusicTracks] Dados recebidos:', { tracksCount: tracksData.length, categoriesCount: categoriesData.length });
       setTracks(tracksData);
       setCategories(categoriesData);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('[MusicTracks] ERRO ao carregar dados:', error);
     } finally {
       setLoading(false);
+      console.log('[MusicTracks] loadData finalizado');
     }
   };
 
@@ -112,7 +114,6 @@ export const MusicTracks: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!preparatorioId) return;
 
     setSaving(true);
     try {
@@ -123,7 +124,7 @@ export const MusicTracks: React.FC = () => {
       // Upload audio if new file
       if (audioFile) {
         setUploadProgress(10);
-        const result = await musicAdminService.uploadAudioFile(preparatorioId, audioFile);
+        const result = await musicAdminService.uploadAudioFile(audioFile);
         audioUrl = result.url;
         duration = result.duration;
         setUploadProgress(50);
@@ -131,7 +132,7 @@ export const MusicTracks: React.FC = () => {
 
       // Upload cover if new file
       if (coverFile) {
-        coverUrl = await musicAdminService.uploadCoverImage(preparatorioId, coverFile);
+        coverUrl = await musicAdminService.uploadCoverImage(coverFile);
         setUploadProgress(75);
       }
 
@@ -151,7 +152,7 @@ export const MusicTracks: React.FC = () => {
           return;
         }
 
-        await musicAdminService.createTrack(preparatorioId, {
+        await musicAdminService.createTrack(undefined, {
           ...formData,
           audio_url: audioUrl,
           cover_url: coverUrl,
@@ -183,6 +184,21 @@ export const MusicTracks: React.FC = () => {
     }
   };
 
+  const handleToggleActive = async (track: MusicTrack) => {
+    try {
+      await musicAdminService.updateTrack(track.id, {
+        is_active: !track.is_active,
+      });
+      // Update local state immediately for better UX
+      setTracks(tracks.map(t =>
+        t.id === track.id ? { ...t, is_active: !t.is_active } : t
+      ));
+    } catch (error) {
+      console.error('Error toggling track status:', error);
+      alert('Erro ao alterar status da faixa.');
+    }
+  };
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -205,7 +221,7 @@ export const MusicTracks: React.FC = () => {
     return matchesSearch && matchesType && matchesCategory;
   });
 
-  if (loading || loadingPrep) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 text-brand-yellow animate-spin" />
@@ -292,6 +308,9 @@ export const MusicTracks: React.FC = () => {
               <th className="text-left text-gray-400 text-xs uppercase font-bold px-4 py-3 hidden lg:table-cell">
                 Plays
               </th>
+              <th className="text-center text-gray-400 text-xs uppercase font-bold px-4 py-3">
+                Status
+              </th>
               <th className="text-right text-gray-400 text-xs uppercase font-bold px-4 py-3">
                 Acoes
               </th>
@@ -300,7 +319,7 @@ export const MusicTracks: React.FC = () => {
           <tbody>
             {filteredTracks.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-gray-400">
+                <td colSpan={7} className="text-center py-12 text-gray-400">
                   <Music className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>Nenhuma faixa encontrada</p>
                 </td>
@@ -335,7 +354,7 @@ export const MusicTracks: React.FC = () => {
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             {track.is_podcast ? (
-                              <Mic2 className="w-4 h-4 text-gray-500" />
+                              <Mic className="text-gray-500" style={{ width: '1.5rem', height: '1.5rem' }} />
                             ) : (
                               <Music className="w-4 h-4 text-gray-500" />
                             )}
@@ -365,6 +384,19 @@ export const MusicTracks: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
                     <span className="text-gray-400">{track.play_count.toLocaleString()}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() => handleToggleActive(track)}
+                      className={`transition-colors ${track.is_active ? 'text-green-400 hover:text-green-300' : 'text-gray-500 hover:text-gray-400'}`}
+                      title={track.is_active ? 'Ativo - Clique para desativar' : 'Inativo - Clique para ativar'}
+                    >
+                      {track.is_active ? (
+                        <ToggleRight className="w-8 h-8" />
+                      ) : (
+                        <ToggleLeft className="w-8 h-8" />
+                      )}
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">

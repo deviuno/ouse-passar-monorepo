@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, Lock, ExternalLink } from 'lucide-react';
+import { Loader2, Lock, ExternalLink, BookOpen, ArrowLeft } from 'lucide-react';
 import { useAuthStore, useUIStore } from '../stores';
 import { supabase } from '../services/supabaseClient';
 import { TrailsTab } from '../components/practice/TrailsTab';
@@ -125,20 +125,29 @@ export const TrailEditalPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+      <div className="min-h-[60vh] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 rounded-xl bg-[var(--color-bg-card)] flex items-center justify-center mb-4 shadow-[var(--shadow-card)]">
+          <Loader2 className="w-6 h-6 text-[var(--color-brand)] animate-spin" />
+        </div>
+        <p className="text-[var(--color-text-sec)] text-sm">Carregando trilha...</p>
       </div>
     );
   }
 
   if (error || !preparatorio) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-[var(--color-text-muted)]">{error || 'Preparatório não encontrado'}</p>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
+        <div className="w-16 h-16 rounded-2xl bg-[var(--color-bg-card)] flex items-center justify-center mb-4 shadow-[var(--shadow-card)]">
+          <BookOpen className="w-8 h-8 text-[var(--color-text-muted)]" />
+        </div>
+        <h2 className="text-lg font-semibold text-[var(--color-text-main)] mb-2">
+          {error || 'Preparatório não encontrado'}
+        </h2>
         <button
           onClick={() => navigate('/trilhas')}
-          className="mt-4 text-[var(--color-brand)] hover:underline"
+          className="mt-4 flex items-center gap-2 text-[var(--color-brand)] hover:text-[var(--color-brand-light)] font-medium transition-colors"
         >
+          <ArrowLeft size={16} />
           Voltar para Trilhas
         </button>
       </div>
@@ -148,42 +157,45 @@ export const TrailEditalPage: React.FC = () => {
   // Se não tem acesso, mostrar tela de bloqueio
   if (!hasAccess) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 px-4">
-        <div className="p-4 bg-[var(--color-bg-elevated)] rounded-full mb-4">
-          <Lock size={48} className="text-[var(--color-text-muted)]" />
-        </div>
-        <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2 text-center">
-          Acesso Bloqueado
-        </h2>
-        <p className="text-[var(--color-text-sec)] max-w-md text-center mb-6">
-          Você ainda não tem acesso a esta trilha de questões.
-          Adquira agora para desbloquear o edital verticalizado completo!
-        </p>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
+        <div className="max-w-sm w-full bg-[var(--color-bg-card)] rounded-2xl p-8 shadow-[var(--shadow-card)] text-center">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--color-bg-elevated)] flex items-center justify-center mx-auto mb-5">
+            <Lock size={32} className="text-[var(--color-text-muted)]" />
+          </div>
+          <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2">
+            Acesso Bloqueado
+          </h2>
+          <p className="text-[var(--color-text-sec)] text-sm mb-6 leading-relaxed">
+            Você ainda não tem acesso a esta trilha de questões.
+            Adquira agora para desbloquear o edital verticalizado completo!
+          </p>
 
-        {preparatorio.checkout_trilhas && (
+          {preparatorio.checkout_trilhas && (
+            <button
+              onClick={handleComprar}
+              className="w-full bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+            >
+              <ExternalLink size={18} />
+              Comprar Acesso
+            </button>
+          )}
+
           <button
-            onClick={handleComprar}
-            className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black font-bold py-3 px-6 rounded-lg transition-colors flex items-center gap-2"
+            onClick={() => navigate('/trilhas')}
+            className="mt-4 flex items-center justify-center gap-2 w-full py-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] font-medium transition-colors"
           >
-            <ExternalLink size={18} />
-            Comprar Acesso
+            <ArrowLeft size={16} />
+            Voltar para Trilhas
           </button>
-        )}
-
-        <button
-          onClick={() => navigate('/trilhas')}
-          className="mt-4 text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors"
-        >
-          Voltar para Trilhas
-        </button>
+        </div>
       </div>
     );
   }
 
   // Usuário tem acesso, mostrar o edital
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="min-h-[calc(100vh-120px)] bg-[var(--color-bg-main)] border-x border-[var(--color-border)]">
+    <div className="max-w-5xl mx-auto">
+      <div className="bg-[var(--color-bg-card)] rounded-xl lg:rounded-2xl shadow-[var(--shadow-card)] overflow-hidden min-h-[calc(100vh-180px)]">
         <TrailsTab
           preparatorioId={preparatorio.id}
           banca={preparatorio.banca}

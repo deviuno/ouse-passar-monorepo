@@ -92,6 +92,34 @@ export interface TrackFilters {
   search?: string;
 }
 
+export interface AudioRequest {
+  id: string;
+  user_id: string;
+  preparatorio_id: string | null;
+  audio_type: 'music' | 'podcast';
+  materia: string;
+  assunto: string;
+  music_style: string | null;
+  podcast_duration: number | null;
+  additional_info: string | null;
+  status: 'pending' | 'approved' | 'generating' | 'ready' | 'rejected';
+  generated_track_id: string | null;
+  admin_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  user?: { email: string; raw_user_meta_data?: { full_name?: string } };
+  generated_track?: MusicTrack;
+}
+
+export interface AudioRequestFilters {
+  status?: string;
+  audio_type?: 'music' | 'podcast';
+  preparatorio_id?: string;
+}
+
 // ============================================================================
 // STATISTICS
 // ============================================================================
@@ -150,13 +178,22 @@ export async function getMusicStats(preparatorioId: string): Promise<MusicStats>
 // CATEGORIES
 // ============================================================================
 
-export async function getCategories(preparatorioId: string): Promise<MusicCategory[]> {
-  const { data, error } = await db
+export async function getCategories(preparatorioId?: string): Promise<MusicCategory[]> {
+  console.log('[musicAdminService] getCategories chamado, preparatorioId:', preparatorioId);
+
+  let query = db
     .from('music_categories')
     .select('*')
-    .eq('preparatorio_id', preparatorioId)
     .order('sort_order', { ascending: true });
 
+  // Só filtra por preparatorio se fornecido
+  if (preparatorioId) {
+    query = query.eq('preparatorio_id', preparatorioId);
+  }
+
+  const { data, error } = await query;
+
+  console.log('[musicAdminService] getCategories resultado:', { data, error });
   if (error) throw error;
   return data || [];
 }
@@ -173,29 +210,29 @@ export async function getCategoryById(id: string): Promise<MusicCategory | null>
 }
 
 export async function createCategory(
-  preparatorioId: string,
+  preparatorioId: string | undefined,
   category: {
     name: string;
     slug: string;
     description?: string;
     icon?: string;
     color?: string;
+    sort_order?: number;
   }
 ): Promise<MusicCategory> {
   // Get next sort_order
   const { data: existing } = await db
     .from('music_categories')
     .select('sort_order')
-    .eq('preparatorio_id', preparatorioId)
     .order('sort_order', { ascending: false })
     .limit(1);
 
-  const nextOrder = existing && existing.length > 0 ? existing[0].sort_order + 1 : 0;
+  const nextOrder = category.sort_order ?? (existing && existing.length > 0 ? existing[0].sort_order + 1 : 0);
 
   const { data, error } = await db
     .from('music_categories')
     .insert({
-      preparatorio_id: preparatorioId,
+      preparatorio_id: preparatorioId || null,
       name: category.name,
       slug: category.slug,
       description: category.description || null,
@@ -253,15 +290,20 @@ export async function reorderCategories(categories: { id: string; sort_order: nu
 // ============================================================================
 
 export async function getTracks(
-  preparatorioId: string,
+  preparatorioId?: string,
   filters?: TrackFilters,
   page = 1,
   limit = 20
 ): Promise<{ tracks: MusicTrack[]; total: number }> {
+  console.log('[musicAdminService] getTracks chamado:', { preparatorioId, filters, page, limit });
   let query = db
     .from('music_tracks')
-    .select('*, category:music_categories(*)', { count: 'exact' })
-    .eq('preparatorio_id', preparatorioId);
+    .select('*, category:music_categories(*)', { count: 'exact' });
+
+  // Só filtra por preparatorio se fornecido
+  if (preparatorioId) {
+    query = query.eq('preparatorio_id', preparatorioId);
+  }
 
   if (filters?.category_id) {
     query = query.eq('category_id', filters.category_id);
@@ -286,6 +328,7 @@ export async function getTracks(
     .order('created_at', { ascending: false })
     .range(from, to);
 
+  console.log('[musicAdminService] getTracks resultado:', { data, error, count });
   if (error) throw error;
 
   return {
@@ -306,7 +349,7 @@ export async function getTrackById(id: string): Promise<MusicTrack | null> {
 }
 
 export async function createTrack(
-  preparatorioId: string,
+  preparatorioId: string | undefined,
   track: {
     title: string;
     artist?: string;
@@ -323,7 +366,7 @@ export async function createTrack(
   const { data, error } = await db
     .from('music_tracks')
     .insert({
-      preparatorio_id: preparatorioId,
+      preparatorio_id: preparatorioId || null,
       title: track.title,
       artist: track.artist || null,
       album: track.album || null,
@@ -388,13 +431,18 @@ export async function toggleTrackActive(id: string): Promise<MusicTrack> {
 // ============================================================================
 
 export async function getPlaylists(
-  preparatorioId: string,
+  preparatorioId?: string,
   adminOnly = true
 ): Promise<MusicPlaylist[]> {
+  console.log('[musicAdminService] getPlaylists chamado:', { preparatorioId, adminOnly });
   let query = db
     .from('music_playlists')
-    .select('*')
-    .eq('preparatorio_id', preparatorioId);
+    .select('*');
+
+  // Só filtra por preparatorio se fornecido
+  if (preparatorioId) {
+    query = query.eq('preparatorio_id', preparatorioId);
+  }
 
   if (adminOnly) {
     query = query.is('user_id', null);
@@ -402,6 +450,7 @@ export async function getPlaylists(
 
   const { data, error } = await query.order('created_at', { ascending: false });
 
+  console.log('[musicAdminService] getPlaylists resultado:', { data, error });
   if (error) throw error;
   return data || [];
 }
@@ -437,24 +486,25 @@ export async function getPlaylistWithTracks(id: string): Promise<MusicPlaylist |
 }
 
 export async function createPlaylist(
-  preparatorioId: string,
+  preparatorioId: string | undefined,
   playlist: {
     name: string;
     description?: string;
     cover_url?: string;
     is_auto_generated?: boolean;
     auto_filter?: Record<string, string>;
+    is_public?: boolean;
   }
 ): Promise<MusicPlaylist> {
   const { data, error } = await db
     .from('music_playlists')
     .insert({
-      preparatorio_id: preparatorioId,
+      preparatorio_id: preparatorioId || null,
       user_id: null, // Admin playlist
       name: playlist.name,
       description: playlist.description || null,
       cover_url: playlist.cover_url || null,
-      is_public: true,
+      is_public: playlist.is_public ?? true,
       is_auto_generated: playlist.is_auto_generated || false,
       auto_filter: playlist.auto_filter || null,
     })
@@ -612,11 +662,12 @@ export async function upsertSettings(
 
 export async function uploadAudioFile(
   file: File,
-  preparatorioId: string
+  preparatorioId?: string
 ): Promise<{ url: string; duration: number }> {
   const fileExt = file.name.split('.').pop();
   const fileName = `${crypto.randomUUID()}.${fileExt}`;
-  const filePath = `tracks/${preparatorioId}/${fileName}`;
+  const folder = preparatorioId || 'global';
+  const filePath = `tracks/${folder}/${fileName}`;
 
   const { error: uploadError } = await db.storage
     .from('music')
@@ -640,11 +691,12 @@ export async function uploadAudioFile(
 
 export async function uploadCoverImage(
   file: File,
-  preparatorioId: string
+  preparatorioId?: string
 ): Promise<string> {
   const fileExt = file.name.split('.').pop();
   const fileName = `${crypto.randomUUID()}.${fileExt}`;
-  const filePath = `covers/${preparatorioId}/${fileName}`;
+  const folder = preparatorioId || 'global';
+  const filePath = `covers/${folder}/${fileName}`;
 
   const { error: uploadError } = await db.storage
     .from('music')
@@ -675,6 +727,176 @@ async function getAudioDuration(file: File): Promise<number> {
 
     audio.src = URL.createObjectURL(file);
   });
+}
+
+// ============================================================================
+// AUDIO REQUESTS (Solicitacoes de audio)
+// ============================================================================
+
+export async function getAudioRequests(
+  filters?: AudioRequestFilters,
+  page = 1,
+  limit = 20
+): Promise<{ requests: AudioRequest[]; total: number }> {
+  console.log('[getAudioRequests] Buscando solicitacoes...', { filters, page, limit });
+
+  // Get current user for debugging
+  const { data: { user } } = await db.auth.getUser();
+  console.log('[getAudioRequests] Usuario atual:', user?.id, user?.email);
+
+  let query = db
+    .from('audio_requests')
+    .select('*, generated_track:music_tracks(*)', { count: 'exact' });
+
+  if (filters?.status) {
+    query = query.eq('status', filters.status);
+  }
+
+  if (filters?.audio_type) {
+    query = query.eq('audio_type', filters.audio_type);
+  }
+
+  if (filters?.preparatorio_id) {
+    query = query.eq('preparatorio_id', filters.preparatorio_id);
+  }
+
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, error, count } = await query
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  console.log('[getAudioRequests] Resultado:', { data, error, count });
+
+  if (error) {
+    console.error('[getAudioRequests] Erro:', error);
+    throw error;
+  }
+
+  return {
+    requests: data || [],
+    total: count || 0,
+  };
+}
+
+export async function getAudioRequestById(id: string): Promise<AudioRequest | null> {
+  const { data, error } = await db
+    .from('audio_requests')
+    .select('*, generated_track:music_tracks(*)')
+    .eq('id', id)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data;
+}
+
+export async function getPendingRequestsCount(): Promise<number> {
+  const { count, error } = await db
+    .from('audio_requests')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'pending');
+
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function updateAudioRequestStatus(
+  id: string,
+  status: AudioRequest['status'],
+  adminUserId: string,
+  adminNotes?: string
+): Promise<AudioRequest> {
+  const { data, error } = await db
+    .from('audio_requests')
+    .update({
+      status,
+      admin_notes: adminNotes || null,
+      reviewed_by: adminUserId,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*, generated_track:music_tracks(*)')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function linkTrackToRequest(
+  requestId: string,
+  trackId: string
+): Promise<AudioRequest> {
+  const { data, error } = await db
+    .from('audio_requests')
+    .update({
+      generated_track_id: trackId,
+      status: 'ready',
+    })
+    .eq('id', requestId)
+    .select('*, generated_track:music_tracks(*)')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function approveAudioRequest(
+  id: string,
+  adminUserId: string
+): Promise<AudioRequest> {
+  return updateAudioRequestStatus(id, 'approved', adminUserId);
+}
+
+export async function rejectAudioRequest(
+  id: string,
+  adminUserId: string,
+  reason?: string
+): Promise<AudioRequest> {
+  return updateAudioRequestStatus(id, 'rejected', adminUserId, reason);
+}
+
+export async function setRequestGenerating(
+  id: string,
+  adminUserId: string
+): Promise<AudioRequest> {
+  return updateAudioRequestStatus(id, 'generating', adminUserId);
+}
+
+/**
+ * Completa uma solicitacao: vincula a faixa, atualiza status e notifica o usuario
+ */
+export async function completeAudioRequest(
+  requestId: string,
+  trackId: string,
+  trackTitle: string
+): Promise<AudioRequest> {
+  // Get request info first
+  const request = await getAudioRequestById(requestId);
+  if (!request) throw new Error('Request not found');
+
+  // Link track to request and set status to ready
+  const updatedRequest = await linkTrackToRequest(requestId, trackId);
+
+  // Send notification to user
+  try {
+    const audioTypeLabel = request.audio_type === 'music' ? 'musica' : 'podcast';
+    await db.rpc('create_notification', {
+      p_user_id: request.user_id,
+      p_type: 'audio_request_ready',
+      p_title: 'Seu audio esta pronto!',
+      p_description: `A ${audioTypeLabel} "${trackTitle}" que voce solicitou foi gerada e esta disponivel.`,
+      p_icon: request.audio_type === 'music' ? 'music' : 'mic',
+      p_link: '/music',
+      p_trigger_type: `audio_request_${requestId}`,
+    });
+    console.log('[musicAdminService] Notificacao enviada para usuario:', request.user_id);
+  } catch (error) {
+    console.error('[musicAdminService] Erro ao enviar notificacao:', error);
+    // Don't throw - notification failure shouldn't break the flow
+  }
+
+  return updatedRequest;
 }
 
 // ============================================================================
@@ -760,6 +982,17 @@ export const musicAdminService = {
   // Settings
   getSettings,
   updateSettings: upsertSettings,
+
+  // Audio Requests
+  getAudioRequests,
+  getAudioRequestById,
+  getPendingRequestsCount,
+  updateAudioRequestStatus,
+  linkTrackToRequest,
+  approveAudioRequest,
+  rejectAudioRequest,
+  setRequestGenerating,
+  completeAudioRequest,
 
   // Helpers
   generateSlug,

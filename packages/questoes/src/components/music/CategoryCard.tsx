@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FolderOpen, Music, Headphones, Radio, Mic } from 'lucide-react';
+import { FolderOpen, Music, Headphones, Radio, Mic, Flame, BookOpen, GraduationCap, Brain, Sparkles } from 'lucide-react';
 import type { MusicCategory } from '../../services/musicService';
 
 interface CategoryCardProps {
@@ -9,11 +9,28 @@ interface CategoryCardProps {
 }
 
 const iconMap: Record<string, React.ElementType> = {
+  // Minúsculas
   music: Music,
   headphones: Headphones,
   radio: Radio,
   mic: Mic,
   folder: FolderOpen,
+  flame: Flame,
+  book: BookOpen,
+  graduation: GraduationCap,
+  brain: Brain,
+  sparkles: Sparkles,
+  // Capitalizadas (como vem do banco)
+  Music: Music,
+  Headphones: Headphones,
+  Radio: Radio,
+  Mic: Mic,
+  Folder: FolderOpen,
+  Flame: Flame,
+  BookOpen: BookOpen,
+  GraduationCap: GraduationCap,
+  Brain: Brain,
+  Sparkles: Sparkles,
 };
 
 export const CategoryCard: React.FC<CategoryCardProps> = ({ category, trackCount }) => {

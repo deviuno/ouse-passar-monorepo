@@ -9,7 +9,6 @@ import {
   GripVertical,
 } from 'lucide-react';
 import { musicAdminService, type MusicCategory } from '../../../services/musicAdminService';
-import { useMusicPreparatorio } from '../../../hooks/useMusicPreparatorio';
 
 const ICON_OPTIONS = [
   { value: 'music', label: 'Musica' },
@@ -31,7 +30,8 @@ const COLOR_OPTIONS = [
 ];
 
 export const MusicCategories: React.FC = () => {
-  const { selectedId: preparatorioId, loading: loadingPrep } = useMusicPreparatorio();
+  console.log('[MusicCategories] ========== COMPONENTE MONTADO ==========');
+
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<MusicCategory[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -47,22 +47,22 @@ export const MusicCategories: React.FC = () => {
   });
 
   useEffect(() => {
-    if (preparatorioId) {
-      loadData();
-    }
-  }, [preparatorioId]);
+    loadData();
+  }, []);
 
   const loadData = async () => {
-    if (!preparatorioId) return;
-
+    console.log('[MusicCategories] loadData chamado');
     setLoading(true);
     try {
-      const data = await musicAdminService.getCategories(preparatorioId);
+      console.log('[MusicCategories] Chamando musicAdminService.getCategories...');
+      const data = await musicAdminService.getCategories(); // Sem filtro de preparatorio
+      console.log('[MusicCategories] Categorias recebidas:', data);
       setCategories(data);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error('[MusicCategories] ERRO ao carregar categorias:', error);
     } finally {
       setLoading(false);
+      console.log('[MusicCategories] loadData finalizado');
     }
   };
 
@@ -89,7 +89,6 @@ export const MusicCategories: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!preparatorioId) return;
 
     setSaving(true);
     try {
@@ -107,7 +106,7 @@ export const MusicCategories: React.FC = () => {
           slug,
         });
       } else {
-        await musicAdminService.createCategory(preparatorioId, {
+        await musicAdminService.createCategory(undefined, {
           ...formData,
           slug,
           sort_order: categories.length,
@@ -136,7 +135,7 @@ export const MusicCategories: React.FC = () => {
     }
   };
 
-  if (loading || loadingPrep) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 text-brand-yellow animate-spin" />

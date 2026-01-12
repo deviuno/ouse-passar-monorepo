@@ -38,54 +38,92 @@
   --color-info: #3498DB;
 
   --color-border: #3A3A3A;
+  --color-border-strong: #4A4A4A;
 
   /* Shadows - Dark Mode (Subtle/Dark) */
   --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
   --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
   --glass-bg: rgba(37, 37, 37, 0.7);
   --glass-border: rgba(255, 255, 255, 0.1);
+
+  /* Dark mode specific - Button states */
+  --color-button-disabled-bg: #2A2A2A;
+  --color-button-disabled-text: #6E6E6E;
+  --color-button-secondary-bg: transparent;
+  --color-button-secondary-border: #4A4A4A;
+  --color-button-secondary-text: #FFFFFF;
+  --color-button-secondary-hover: #2A2A2A;
+
+  /* Feedback colors for dark mode */
+  --color-feedback-success-bg: rgba(46, 204, 113, 0.1);
+  --color-feedback-success-border: rgba(46, 204, 113, 0.3);
+  --color-feedback-error-bg: rgba(231, 76, 60, 0.1);
+  --color-feedback-error-border: rgba(231, 76, 60, 0.3);
 }
 
-/* Light Theme */
-/* Light Theme */
+/* Light Theme - Bold & Clarity (Vercel Style) with Slate Foundation */
 [data-theme="light"] {
-  --color-brand: #D98E04;
-  /* Slightly Darker/Richer Gold for better white contrast */
-  --color-brand-light: #FFC107;
-  --color-brand-dark: #B37400;
+  /* Brand Colors - Amber that pops on slate backgrounds */
+  --color-brand: #D97706;
+  --color-brand-light: #F59E0B;
+  --color-brand-dark: #B45309;
 
-  /* Refined Backgrounds - Slate/Gray Scale for modernity */
-  --color-bg-main: #F1F5F9;
-  /* Slate-100 */
+  /* Backgrounds - Cool slate foundation */
+  --color-bg-main: #F8FAFC;
   --color-bg-card: #FFFFFF;
-  --color-bg-elevated: #F8FAFC;
-  /* Slate-50 */
+  --color-bg-elevated: #F1F5F9;
 
-  /* Much Darker Text for Contrast */
-  --color-text-main: #020617;
-  /* Slate-950 (Deep Black-Blue) */
-  --color-text-sec: #334155;
-  /* Slate-700 (Dark Grey) */
-  --color-text-muted: #475569;
-  /* Slate-600 (Medium Dark Grey) */
+  /* Text - High contrast slate scale */
+  --color-text-main: #0F172A;
+  --color-text-sec: #475569;
+  --color-text-muted: #94A3B8;
 
-  --color-success: #16A34A;
-  /* Green-600 */
+  /* Semantic Colors - Vibrant for visibility */
+  --color-success: #059669;
   --color-error: #DC2626;
-  /* Red-600 */
   --color-warning: #D97706;
-  /* Amber-600 */
   --color-info: #0284C7;
-  /* Sky-600 */
 
+  /* Borders - Refined slate */
   --color-border: #E2E8F0;
-  /* Slate-200 */
+  --color-border-strong: #CBD5E1;
 
-  /* Shadows - Light Mode (Soft/Refined) */
-  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.4);
+  /* Shadows - Stripe-style layered depth */
+  --shadow-card:
+    0 0 0 1px rgba(15, 23, 42, 0.04),
+    0 1px 2px 0 rgba(15, 23, 42, 0.04),
+    0 4px 8px -2px rgba(15, 23, 42, 0.06),
+    0 12px 24px -4px rgba(15, 23, 42, 0.08);
+
+  --shadow-elevated:
+    0 0 0 1px rgba(15, 23, 42, 0.04),
+    0 2px 4px 0 rgba(15, 23, 42, 0.04),
+    0 8px 16px -4px rgba(15, 23, 42, 0.08),
+    0 24px 48px -8px rgba(15, 23, 42, 0.12);
+
+  --shadow-hover:
+    0 0 0 1px rgba(15, 23, 42, 0.06),
+    0 4px 8px -2px rgba(15, 23, 42, 0.08),
+    0 16px 32px -8px rgba(15, 23, 42, 0.12),
+    0 32px 64px -16px rgba(15, 23, 42, 0.16);
+
+  /* Glass effects - cooler tint */
+  --glass-bg: rgba(248, 250, 252, 0.92);
+  --glass-border: rgba(15, 23, 42, 0.06);
+
+  /* Button states */
+  --color-button-disabled-bg: #F1F5F9;
+  --color-button-disabled-text: #94A3B8;
+  --color-button-secondary-bg: #FFFFFF;
+  --color-button-secondary-border: #CBD5E1;
+  --color-button-secondary-text: #0F172A;
+  --color-button-secondary-hover: #F1F5F9;
+
+  /* Feedback colors */
+  --color-feedback-success-bg: rgba(5, 150, 105, 0.08);
+  --color-feedback-success-border: rgba(5, 150, 105, 0.24);
+  --color-feedback-error-bg: rgba(220, 38, 38, 0.08);
+  --color-feedback-error-border: rgba(220, 38, 38, 0.24);
 }
 
 /* Theme Transition */
@@ -810,4 +848,285 @@ button,
     margin: 0.75rem 0 !important;
     padding-left: 1.25rem !important;
   }
+}
+
+/* ============================================
+   LIGHT MODE - BOLD & CLARITY OVERRIDES
+   Slate foundation with Stripe-style shadows
+   ============================================ */
+
+/* Typography - Tight letter-spacing for bold look */
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] .text-xl,
+[data-theme="light"] .text-2xl,
+[data-theme="light"] .text-3xl {
+  letter-spacing: -0.025em;
+}
+
+[data-theme="light"] .font-bold,
+[data-theme="light"] .font-semibold {
+  letter-spacing: -0.01em;
+}
+
+/* Fix hardcoded gray borders */
+[data-theme="light"] .border-gray-700,
+[data-theme="light"] .border-gray-600,
+[data-theme="light"] .border-\[\#4A4A4A\],
+[data-theme="light"] .border-\[\#3A3A3A\],
+[data-theme="light"] .border-\[\#333\] {
+  border-color: var(--color-border-strong) !important;
+}
+
+/* Fix hardcoded gray text */
+[data-theme="light"] .text-gray-400,
+[data-theme="light"] .text-gray-500 {
+  color: var(--color-text-sec) !important;
+}
+
+[data-theme="light"] .text-gray-600 {
+  color: var(--color-text-muted) !important;
+}
+
+/* Fix hardcoded dark backgrounds */
+[data-theme="light"] .bg-gray-900\/50,
+[data-theme="light"] .bg-\[\#2A2A2A\],
+[data-theme="light"] .bg-\[\#1A1A1A\],
+[data-theme="light"] .bg-gray-800 {
+  background-color: var(--color-bg-elevated) !important;
+}
+
+/* Hover states */
+[data-theme="light"] .hover\:bg-gray-800:hover,
+[data-theme="light"] .hover\:bg-\[\#2A2A2A\]:hover {
+  background-color: var(--color-bg-elevated) !important;
+}
+
+/* Cards - Enhanced layered shadows */
+[data-theme="light"] .bg-\[var\(--color-bg-card\)\] {
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease-out;
+}
+
+[data-theme="light"] .bg-\[var\(--color-bg-card\)\]:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+/* Question card - premium shadow */
+[data-theme="light"] .rounded-xl.border-2 {
+  box-shadow: var(--shadow-card);
+}
+
+/* Scrollbar styling - slate tones */
+[data-theme="light"]::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+[data-theme="light"]::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+[data-theme="light"]::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Shimmer animation - slate gradient */
+[data-theme="light"] .animate-shimmer {
+  background: linear-gradient(90deg,
+      #F1F5F9 0%,
+      #FFFFFF 20%,
+      #F1F5F9 40%,
+      #F1F5F9 100%);
+  background-size: 1000px 100%;
+}
+
+/* Glass effects - cool slate tint */
+[data-theme="light"] .glass {
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .glass-dark {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+/* Premium gradient for light mode */
+[data-theme="light"] .bg-premium-light {
+  background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+}
+
+/* Modal backdrops - slate overlay */
+[data-theme="light"] .bg-black\/80 {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+}
+
+[data-theme="light"] .bg-black\/70 {
+  background-color: rgba(15, 23, 42, 0.4) !important;
+}
+
+/* Input fields - refined with subtle shadow */
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  background-color: var(--color-bg-card) !important;
+  border-color: var(--color-border-strong) !important;
+  color: var(--color-text-main) !important;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] input:focus,
+[data-theme="light"] textarea:focus,
+[data-theme="light"] select:focus {
+  border-color: var(--color-brand) !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12);
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+/* Primary button - strong brand presence with shadow */
+[data-theme="light"] .bg-\[\#FFB800\],
+[data-theme="light"] .bg-\[var\(--color-brand\)\] {
+  background-color: var(--color-brand) !important;
+  box-shadow:
+    0 1px 2px 0 rgba(217, 119, 6, 0.24),
+    0 4px 8px -2px rgba(217, 119, 6, 0.16);
+}
+
+[data-theme="light"] .bg-\[\#FFB800\]:hover,
+[data-theme="light"] .bg-\[var\(--color-brand\)\]:hover {
+  background-color: var(--color-brand-light) !important;
+  box-shadow:
+    0 2px 4px 0 rgba(245, 158, 11, 0.24),
+    0 8px 16px -4px rgba(245, 158, 11, 0.20);
+}
+
+/* Disabled button states */
+[data-theme="light"] button:disabled {
+  background-color: var(--color-button-disabled-bg) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-button-disabled-text) !important;
+  opacity: 1 !important;
+}
+
+/* Secondary buttons */
+[data-theme="light"] .bg-transparent.border {
+  background-color: var(--color-bg-card);
+  border-color: var(--color-border-strong) !important;
+  color: var(--color-text-main);
+}
+
+[data-theme="light"] .bg-transparent.border:hover {
+  background-color: var(--color-bg-elevated);
+}
+
+/* Text color fixes for readability */
+[data-theme="light"] .text-white {
+  color: var(--color-text-main) !important;
+}
+
+[data-theme="light"] .hover\:text-white:hover {
+  color: var(--color-text-main) !important;
+}
+
+/* Feedback box styling */
+[data-theme="light"] .border-green-900 {
+  border-color: var(--color-success) !important;
+}
+
+[data-theme="light"] .bg-green-900\/10 {
+  background-color: var(--color-feedback-success-bg) !important;
+}
+
+[data-theme="light"] .border-red-900 {
+  border-color: var(--color-error) !important;
+}
+
+[data-theme="light"] .bg-red-900\/10 {
+  background-color: var(--color-feedback-error-bg) !important;
+}
+
+/* Border sections */
+[data-theme="light"] .border-gray-800 {
+  border-color: var(--color-border) !important;
+}
+
+/* Stats and progress bars - slate tones */
+[data-theme="light"] .bg-gray-700 {
+  background-color: #E2E8F0 !important;
+}
+
+/* Difficulty rating colors - vibrant */
+[data-theme="light"] .text-green-500 {
+  color: #059669 !important;
+}
+
+[data-theme="light"] .text-yellow-500 {
+  color: #D97706 !important;
+}
+
+[data-theme="light"] .text-red-500 {
+  color: #DC2626 !important;
+}
+
+/* Difficulty button backgrounds */
+[data-theme="light"] .bg-green-500\/20 {
+  background-color: rgba(5, 150, 105, 0.12) !important;
+}
+
+[data-theme="light"] .bg-yellow-500\/20 {
+  background-color: rgba(217, 119, 6, 0.12) !important;
+}
+
+[data-theme="light"] .bg-red-500\/20 {
+  background-color: rgba(220, 38, 38, 0.12) !important;
+}
+
+/* Mode badges - refined for slate background */
+[data-theme="light"] .bg-teal-900\/20 {
+  background-color: rgba(20, 184, 166, 0.12) !important;
+  border-color: rgba(20, 184, 166, 0.24) !important;
+}
+
+[data-theme="light"] .bg-red-900\/20 {
+  background-color: rgba(220, 38, 38, 0.10) !important;
+  border-color: rgba(220, 38, 38, 0.20) !important;
+}
+
+[data-theme="light"] .bg-purple-900\/20 {
+  background-color: rgba(147, 51, 234, 0.10) !important;
+  border-color: rgba(147, 51, 234, 0.20) !important;
+}
+
+[data-theme="light"] .bg-blue-900\/20 {
+  background-color: rgba(37, 99, 235, 0.10) !important;
+  border-color: rgba(37, 99, 235, 0.20) !important;
+}
+
+/* Orange pegadinha badge */
+[data-theme="light"] .bg-orange-500\/10 {
+  background-color: rgba(249, 115, 22, 0.10) !important;
+}
+
+[data-theme="light"] .border-orange-500\/30 {
+  border-color: rgba(249, 115, 22, 0.24) !important;
+}
+
+/* Focus states - brand colored ring */
+[data-theme="light"] :focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--color-brand);
+}
+
+/* Selection color - amber tint */
+[data-theme="light"] ::selection {
+  background-color: rgba(217, 119, 6, 0.24);
+  color: #0F172A;
 }

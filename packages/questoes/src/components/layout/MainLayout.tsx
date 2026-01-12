@@ -7,7 +7,7 @@ import { ToastContainer } from '../ui/Toast';
 import { ScrollToTop } from '../ui';
 import { ProductTour } from '../tour';
 import { BatteryConsumeToast } from '../battery/BatteryConsumeToast';
-import { AudioEngine, MusicPlayer, FloatingMiniPlayer } from '../music';
+import { AudioEngine, TopMusicPlayer } from '../music';
 import { useUIStore, useBatteryStore } from '../../stores';
 import { useMusicPlayerStore } from '../../stores/useMusicPlayerStore';
 
@@ -57,9 +57,12 @@ export function MainLayout() {
       {/* Main Content */}
       <div
         className={`
-          min-h-screen w-full max-w-full overflow-x-hidden flex flex-col
+          min-h-screen flex flex-col
           transition-all duration-300
-          ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-[72px]'}
+          ${isSidebarOpen
+            ? 'lg:ml-64 lg:w-[calc(100%-16rem)]'
+            : 'lg:ml-[72px] lg:w-[calc(100%-72px)]'}
+          w-full
         `}
       >
         {/* Header - Hidden on music pages */}
@@ -67,13 +70,11 @@ export function MainLayout() {
 
         {/* Page Content */}
         <main className={`flex-1 w-full max-w-full overflow-x-hidden ${
+          showMusicPlayer ? 'pt-14' : '' // Padding top for fixed top player
+        } ${
           isMusicPage
-            ? showMusicPlayer
-              ? 'pb-44 lg:pb-24' // Music page with player: nav + player padding
-              : 'pb-20 lg:pb-0' // Music page without player: just nav padding
-            : showMusicPlayer
-              ? 'pb-32 lg:pb-8 p-4 lg:p-6' // Other page with floating player
-              : 'pb-20 lg:pb-4 p-4 lg:p-6' // No music playing
+            ? 'pb-20 lg:pb-0' // Music page: just nav padding
+            : 'pb-20 lg:pb-4 p-4 lg:p-6' // Other pages: normal padding
         }`}>
           <Outlet key={location.pathname} />
         </main>
@@ -107,9 +108,8 @@ export function MainLayout() {
       {/* Audio Engine - sempre montado para manter a reprodução entre páginas */}
       <AudioEngine />
 
-      {/* Music Player - Full player on music pages, floating mini player elsewhere */}
-      {showMusicPlayer && isMusicPage && <MusicPlayer />}
-      {showMusicPlayer && !isMusicPage && <FloatingMiniPlayer />}
+      {/* Top Music Player - Fixed at top, visible on all pages when playing */}
+      {showMusicPlayer && <TopMusicPlayer />}
     </div>
   );
 }

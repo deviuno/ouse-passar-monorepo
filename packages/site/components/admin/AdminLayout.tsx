@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag, Sparkles, PlayCircle, FolderOpen, Layers, Headphones, Music, ListMusic, Wand2 } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag, Sparkles, PlayCircle, FolderOpen, Layers, Headphones, Music, ListMusic, Wand2, Inbox } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -343,7 +343,15 @@ export const AdminLayout: React.FC = () => {
                                             className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/music/gerador')}`}
                                         >
                                             <Wand2 className="w-4 h-4 mr-3" />
-                                            Gerador de Músicas
+                                            Gerar Áudio
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/music/solicitacoes"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/music/solicitacoes')}`}
+                                        >
+                                            <Inbox className="w-4 h-4 mr-3" />
+                                            Solicitações
                                         </Link>
                                     </div>
                                 )}

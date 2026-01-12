@@ -24,6 +24,9 @@ import * as musicAdminService from '../../services/musicAdminService';
 export const MusicTracks: React.FC = () => {
   const toast = useToast();
   const { currentPreparatorio } = useAuth();
+
+  // Debug log
+  console.log('[MusicTracks] currentPreparatorio:', currentPreparatorio);
   const [tracks, setTracks] = useState<musicAdminService.MusicTrack[]>([]);
   const [categories, setCategories] = useState<musicAdminService.MusicCategory[]>([]);
   const [total, setTotal] = useState(0);
@@ -78,7 +81,11 @@ export const MusicTracks: React.FC = () => {
   };
 
   const loadTracks = async () => {
-    if (!currentPreparatorio?.id) return;
+    console.log('[MusicTracks] loadTracks called, preparatorioId:', currentPreparatorio?.id);
+    if (!currentPreparatorio?.id) {
+      console.log('[MusicTracks] Sem preparatório, abortando loadTracks');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -88,16 +95,18 @@ export const MusicTracks: React.FC = () => {
       if (filterType === 'music') filters.is_podcast = false;
       if (filterType === 'podcast') filters.is_podcast = true;
 
+      console.log('[MusicTracks] Chamando getTracks com:', { preparatorioId: currentPreparatorio.id, filters, page, LIMIT });
       const { tracks: data, total: totalCount } = await musicAdminService.getTracks(
         currentPreparatorio.id,
         filters,
         page,
         LIMIT
       );
+      console.log('[MusicTracks] Resultado getTracks:', { tracksCount: data.length, totalCount });
       setTracks(data);
       setTotal(totalCount);
     } catch (error) {
-      console.error('Error loading tracks:', error);
+      console.error('[MusicTracks] Error loading tracks:', error);
       toast.error('Erro ao carregar faixas');
     } finally {
       setLoading(false);

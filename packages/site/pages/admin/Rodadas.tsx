@@ -265,7 +265,7 @@ const RodadaModal: React.FC<RodadaModalProps> = ({ preparatorioId, rodada, nextN
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     numero: rodada?.numero ?? nextNumero,
-    titulo: rodada?.titulo || '',
+    titulo: rodada?.titulo || `Rodada ${nextNumero}`,
     nota: rodada?.nota || '',
     ordem: rodada?.ordem ?? nextNumero
   });
@@ -297,7 +297,7 @@ const RodadaModal: React.FC<RodadaModalProps> = ({ preparatorioId, rodada, nextN
     setFormData({
       ...formData,
       numero,
-      titulo: rodada ? formData.titulo : `${numero}a RODADA`,
+      titulo: rodada ? formData.titulo : `Rodada ${numero}`,
       ordem: numero
     });
   };
@@ -334,7 +334,7 @@ const RodadaModal: React.FC<RodadaModalProps> = ({ preparatorioId, rodada, nextN
               value={formData.titulo}
               onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
               className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-              placeholder="Ex: 1a RODADA (Missoes 1 a 10)"
+              placeholder="Ex: Rodada 1"
               required
             />
           </div>

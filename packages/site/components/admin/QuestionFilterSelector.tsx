@@ -409,7 +409,8 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   };
 
   // Função para normalizar texto removendo acentos e convertendo para minúsculo
-  const normalizeText = (text: string): string => {
+  const normalizeText = (text: string | undefined | null): string => {
+    if (!text) return '';
     return text
       .toLowerCase()
       .normalize('NFD')
@@ -426,39 +427,42 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   };
 
   // Filtrar opcoes por busca e ordenar com selecionados primeiro
+  // Helper para filtrar valores válidos (remove undefined, null, strings vazias)
+  const filterValid = <T,>(arr: T[]): T[] => arr.filter(item => item !== undefined && item !== null && item !== '');
+
   // Para matérias, combinar as disponíveis com as selecionadas (para mostrar herdadas que podem não estar na lista)
-  const allMateriasToShow = [...new Set([...selectedMaterias, ...dynamicMaterias])];
+  const allMateriasToShow = [...new Set(filterValid([...selectedMaterias, ...dynamicMaterias]))];
   const filteredMaterias = sortWithSelectedFirst(
     allMateriasToShow.filter(m => normalizeText(m).includes(normalizeText(searchMaterias))),
     selectedMaterias
   );
   // Para bancas, combinar as disponíveis com as selecionadas (para mostrar herdadas)
   // Usar busca que funciona com sigla ou nome completo
-  const allBancasToShow = [...new Set([...selectedBancas, ...dynamicBancas])];
+  const allBancasToShow = [...new Set(filterValid([...selectedBancas, ...dynamicBancas]))];
   const filteredBancas = sortWithSelectedFirst(
     allBancasToShow.filter(b => bancaMatchesSearch(b, searchBancas)),
     selectedBancas
   );
   // Para órgãos, combinar os disponíveis com os selecionados
-  const allOrgaosToShow = [...new Set([...selectedOrgaos, ...dynamicOrgaos])];
+  const allOrgaosToShow = [...new Set(filterValid([...selectedOrgaos, ...dynamicOrgaos]))];
   const filteredOrgaos = sortWithSelectedFirst(
     allOrgaosToShow.filter(o => normalizeText(o).includes(normalizeText(searchOrgaos))),
     selectedOrgaos
   );
   // Para cargos, combinar os disponíveis com os selecionados
-  const allCargosToShow = [...new Set([...selectedCargos, ...dynamicCargos])];
+  const allCargosToShow = [...new Set(filterValid([...selectedCargos, ...dynamicCargos]))];
   const filteredCargos = sortWithSelectedFirst(
     allCargosToShow.filter(c => normalizeText(c).includes(normalizeText(searchCargos))),
     selectedCargos
   );
   // Para assuntos, combinar os disponíveis com os selecionados (para mostrar herdados que podem não estar na lista)
-  const allAssuntosToShow = [...new Set([...selectedAssuntos, ...availableAssuntos])];
+  const allAssuntosToShow = [...new Set(filterValid([...selectedAssuntos, ...availableAssuntos]))];
   const filteredAssuntos = sortWithSelectedFirst(
     allAssuntosToShow.filter(a => normalizeText(a).includes(normalizeText(searchAssuntos))),
     selectedAssuntos
   );
   // Para anos, combinar os disponíveis com os selecionados
-  const allAnosToShow = [...new Set([...selectedAnos, ...dynamicAnos])];
+  const allAnosToShow = [...new Set(filterValid([...selectedAnos, ...dynamicAnos]))];
   const filteredAnos = sortWithSelectedFirst(allAnosToShow, selectedAnos);
   // Para escolaridade e modalidade, ordenar com selecionados primeiro
   const sortedEscolaridade = sortWithSelectedFirst(

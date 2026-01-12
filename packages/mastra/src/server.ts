@@ -53,6 +53,7 @@ import {
     QuestionGenerationParams,
 } from './mastra/agents/questionGeneratorAgent.js';
 import { musicLyricsAgent } from './mastra/agents/musicLyricsAgent.js';
+import { podcastScriptAgent } from './mastra/agents/podcastScriptAgent.js';
 import * as sunoService from './services/sunoService.js';
 
 // Load environment variables
@@ -1251,6 +1252,197 @@ Gere APENAS a letra da música, sem explicações adicionais.`;
     } catch (error: any) {
         console.error("[MusicLyrics] Error:", error);
         res.status(500).json({ error: error.message || "Erro ao gerar letra" });
+    }
+});
+
+// Endpoint para gerar roteiro de podcast educativo
+app.post('/api/music/generate-podcast-script', async (req, res) => {
+    try {
+        const { materia, assunto, cargo, duracao, customTopic } = req.body;
+
+        if (!materia && !customTopic) {
+            res.status(400).json({ error: "Informe uma matéria ou tópico personalizado" });
+            return;
+        }
+
+        // Validate duracao
+        const validDurations = [3, 5, 10, 15, 20, 30];
+        const selectedDuration = validDurations.includes(duracao) ? duracao : 10;
+
+        // Build the prompt
+        let prompt = `Crie um roteiro completo de podcast educativo para o **Ouse Passar Podcast**.
+
+## Configurações
+- **Duração aproximada**: ${selectedDuration} minutos
+
+## Tema
+`;
+
+        if (materia) {
+            prompt += `- **Matéria**: ${materia}\n`;
+        }
+        if (assunto) {
+            prompt += `- **Assunto**: ${assunto}\n`;
+        }
+        if (cargo) {
+            prompt += `- **Cargo alvo**: ${cargo}\n`;
+        }
+        if (customTopic) {
+            prompt += `\n## Instruções Adicionais\n${customTopic}\n`;
+        }
+
+        prompt += `
+## Objetivo
+O roteiro deve ser educativo, ajudando os ouvintes a memorizar os conceitos mais importantes deste tema para passar em concursos públicos. Use a dinâmica entre Diego (técnico e detalhista) e Glau (dinâmica e questionadora) para criar uma conversa natural e envolvente.
+
+## IMPORTANTE
+- Siga EXATAMENTE a estrutura de abertura, desenvolvimento e encerramento definida nas instruções
+- Use APENAS o formato **[NOME]:** para as falas
+- NÃO inclua indicações de som, música ou ações
+- A duração de ${selectedDuration} minutos corresponde a aproximadamente ${selectedDuration * 150} palavras
+
+Gere o roteiro completo.`;
+
+        console.log(`[PodcastScript] Generating script for: ${materia || customTopic} (${selectedDuration}min)`);
+
+        const result = await podcastScriptAgent.generate([
+            { role: "user", content: prompt }
+        ]);
+
+        console.log(`[PodcastScript] Script generated (${result.text?.length || 0} chars)`);
+
+        res.json({
+            success: true,
+            script: result.text,
+            duracao: selectedDuration,
+        });
+
+    } catch (error: any) {
+        console.error("[PodcastScript] Error:", error);
+        res.status(500).json({ error: error.message || "Erro ao gerar roteiro" });
+    }
+});
+
+// Endpoint para gerar áudio do podcast usando Gemini TTS
+app.post('/api/music/generate-podcast-audio', async (req, res) => {
+    try {
+        const { script } = req.body;
+
+        if (!script) {
+            res.status(400).json({ error: "Roteiro não fornecido" });
+            return;
+        }
+
+        console.log(`[PodcastTTS] Generating audio for script (${script.length} chars)`);
+
+        // Initialize Gemini client
+        const genai = new GoogleGenAI({
+            apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.VITE_GEMINI_API_KEY
+        });
+
+        // Clean and format the script for TTS
+        // Remove markdown formatting but keep speaker names
+        let cleanScript = script
+            .replace(/\*\*\[DIEGO\]\:\*\*/gi, 'Diego:')
+            .replace(/\*\*\[GLAU\]\:\*\*/gi, 'Glau:')
+            .replace(/\[DIEGO\]:/gi, 'Diego:')
+            .replace(/\[GLAU\]:/gi, 'Glau:')
+            .replace(/\*\*/g, '') // Remove bold markdown
+            .replace(/\*/g, '')   // Remove italic markdown
+            .replace(/#{1,6}\s/g, '') // Remove headers
+            .trim();
+
+        // Generate audio using Gemini TTS with multi-speaker
+        const response = await genai.models.generateContent({
+            model: "gemini-2.5-flash-preview-tts",
+            contents: [{ parts: [{ text: cleanScript }] }],
+            config: {
+                responseModalities: ['AUDIO'],
+                speechConfig: {
+                    multiSpeakerVoiceConfig: {
+                        speakerVoiceConfigs: [
+                            {
+                                speaker: 'Diego',
+                                voiceConfig: {
+                                    prebuiltVoiceConfig: { voiceName: 'Charon' } // Male voice (deep, warm)
+                                }
+                            },
+                            {
+                                speaker: 'Glau',
+                                voiceConfig: {
+                                    prebuiltVoiceConfig: { voiceName: 'Kore' } // Female voice (bright, upbeat)
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        });
+
+        // Extract audio data and mimeType from response
+        const inlineData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+        const audioData = inlineData?.data;
+        const responseMimeType = inlineData?.mimeType || 'audio/L16;rate=24000';
+
+        if (!audioData) {
+            throw new Error("Nenhum áudio foi gerado pela API");
+        }
+
+        console.log(`[PodcastTTS] Audio generated successfully (${audioData.length} bytes base64, mimeType: ${responseMimeType})`);
+
+        // Convert PCM to WAV if needed
+        // Gemini TTS returns raw PCM audio (linear16 at 24kHz)
+        // We need to add WAV headers to make it playable in browsers
+        const pcmBuffer = Buffer.from(audioData, 'base64');
+
+        // Create WAV header
+        const sampleRate = 24000; // Gemini TTS uses 24kHz
+        const numChannels = 1;    // Mono audio
+        const bitsPerSample = 16; // 16-bit PCM
+        const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+        const blockAlign = numChannels * (bitsPerSample / 8);
+        const dataSize = pcmBuffer.length;
+        const fileSize = 36 + dataSize;
+
+        // WAV header is 44 bytes
+        const wavHeader = Buffer.alloc(44);
+
+        // RIFF chunk descriptor
+        wavHeader.write('RIFF', 0);                      // ChunkID
+        wavHeader.writeUInt32LE(fileSize, 4);            // ChunkSize
+        wavHeader.write('WAVE', 8);                      // Format
+
+        // fmt sub-chunk
+        wavHeader.write('fmt ', 12);                     // Subchunk1ID
+        wavHeader.writeUInt32LE(16, 16);                 // Subchunk1Size (16 for PCM)
+        wavHeader.writeUInt16LE(1, 20);                  // AudioFormat (1 for PCM)
+        wavHeader.writeUInt16LE(numChannels, 22);        // NumChannels
+        wavHeader.writeUInt32LE(sampleRate, 24);         // SampleRate
+        wavHeader.writeUInt32LE(byteRate, 28);           // ByteRate
+        wavHeader.writeUInt16LE(blockAlign, 32);         // BlockAlign
+        wavHeader.writeUInt16LE(bitsPerSample, 34);      // BitsPerSample
+
+        // data sub-chunk
+        wavHeader.write('data', 36);                     // Subchunk2ID
+        wavHeader.writeUInt32LE(dataSize, 40);           // Subchunk2Size
+
+        // Combine header and PCM data
+        const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
+        const wavBase64 = wavBuffer.toString('base64');
+
+        console.log(`[PodcastTTS] WAV file created (${wavBuffer.length} bytes total)`);
+
+        // Return the audio as base64 WAV
+        res.json({
+            success: true,
+            audio: wavBase64,
+            mimeType: 'audio/wav',
+            format: 'base64'
+        });
+
+    } catch (error: any) {
+        console.error("[PodcastTTS] Error:", error);
+        res.status(500).json({ error: error.message || "Erro ao gerar áudio" });
     }
 });
 

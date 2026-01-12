@@ -96,6 +96,36 @@ export interface TrackFilters {
   search?: string;
 }
 
+export interface AudioRequest {
+  id: string;
+  user_id: string;
+  preparatorio_id: string | null;
+  audio_type: 'music' | 'podcast';
+  materia: string;
+  assunto: string;
+  music_style: string | null;
+  podcast_duration: number | null;
+  additional_info: string | null;
+  status: 'pending' | 'approved' | 'generating' | 'ready' | 'rejected';
+  generated_track_id: string | null;
+  admin_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  generated_track?: MusicTrack;
+}
+
+export interface CreateAudioRequestData {
+  audio_type: 'music' | 'podcast';
+  materia: string;
+  assunto: string;
+  music_style?: string;
+  podcast_duration?: number;
+  additional_info?: string;
+}
+
 // ============================================================================
 // SERVICE
 // ============================================================================
@@ -105,22 +135,23 @@ export const musicService = {
   // CATEGORIES
   // --------------------------------------------------------------------------
 
-  async getCategories(preparatorioId: string): Promise<MusicCategory[]> {
+  async getCategories(_preparatorioId?: string): Promise<MusicCategory[]> {
+    // Categorias são globais - não filtrar por preparatorio_id
     const { data, error } = await supabase
       .from('music_categories')
       .select('*')
-      .eq('preparatorio_id', preparatorioId)
       .order('sort_order', { ascending: true });
 
     if (error) throw error;
     return data || [];
   },
 
-  async getCategoryBySlug(preparatorioId: string, slug: string): Promise<MusicCategory | null> {
+  async getCategoryBySlug(_preparatorioId?: string, slug?: string): Promise<MusicCategory | null> {
+    if (!slug) return null;
+    // Categorias são globais - não filtrar por preparatorio_id
     const { data, error } = await supabase
       .from('music_categories')
       .select('*')
-      .eq('preparatorio_id', preparatorioId)
       .eq('slug', slug)
       .single();
 
@@ -132,11 +163,11 @@ export const musicService = {
   // TRACKS
   // --------------------------------------------------------------------------
 
-  async getTracks(preparatorioId: string, filters?: TrackFilters): Promise<MusicTrack[]> {
+  async getTracks(_preparatorioId?: string, filters?: TrackFilters): Promise<MusicTrack[]> {
+    // Faixas são globais - não filtrar por preparatorio_id
     let query = supabase
       .from('music_tracks')
       .select('*, category:music_categories(*)')
-      .eq('preparatorio_id', preparatorioId)
       .eq('is_active', true);
 
     if (filters?.category_id) {
@@ -180,11 +211,11 @@ export const musicService = {
     return this.getTracks(preparatorioId, { category_id: category.id });
   },
 
-  async getLessonPodcasts(preparatorioId: string, materia?: string): Promise<MusicTrack[]> {
+  async getLessonPodcasts(_preparatorioId?: string, materia?: string): Promise<MusicTrack[]> {
+    // Faixas são globais - não filtrar por preparatorio_id
     let query = supabase
       .from('music_tracks')
       .select('*')
-      .eq('preparatorio_id', preparatorioId)
       .eq('is_podcast', true)
       .not('lesson_id', 'is', null)
       .eq('is_active', true);
@@ -199,11 +230,11 @@ export const musicService = {
     return data || [];
   },
 
-  async getLessonPodcastsMaterias(preparatorioId: string): Promise<{ materia: string; count: number }[]> {
+  async getLessonPodcastsMaterias(_preparatorioId?: string): Promise<{ materia: string; count: number }[]> {
+    // Faixas são globais - não filtrar por preparatorio_id
     const { data, error } = await supabase
       .from('music_tracks')
       .select('materia')
-      .eq('preparatorio_id', preparatorioId)
       .eq('is_podcast', true)
       .not('lesson_id', 'is', null)
       .not('materia', 'is', null)
@@ -585,12 +616,12 @@ export const musicService = {
 
   /**
    * Busca podcasts gerados por matéria
+   * Faixas são globais - não filtrar por preparatorio_id
    */
-  async getPodcastsByMateria(preparatorioId: string, materia?: string): Promise<MusicTrack[]> {
+  async getPodcastsByMateria(_preparatorioId?: string, materia?: string): Promise<MusicTrack[]> {
     let query = supabase
       .from('music_tracks')
       .select('*')
-      .eq('preparatorio_id', preparatorioId)
       .eq('is_podcast', true)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
@@ -607,12 +638,12 @@ export const musicService = {
 
   /**
    * Busca lista de matérias que têm podcasts
+   * Faixas são globais - não filtrar por preparatorio_id
    */
-  async getPodcastMaterias(preparatorioId: string): Promise<{ materia: string; count: number }[]> {
+  async getPodcastMaterias(_preparatorioId?: string): Promise<{ materia: string; count: number }[]> {
     const { data, error } = await supabase
       .from('music_tracks')
       .select('materia')
-      .eq('preparatorio_id', preparatorioId)
       .eq('is_podcast', true)
       .eq('is_active', true)
       .not('materia', 'is', null);
@@ -649,6 +680,81 @@ export const musicService = {
   async isModuleEnabled(preparatorioId: string): Promise<boolean> {
     const settings = await this.getSettings(preparatorioId);
     return settings?.is_enabled ?? true;
+  },
+
+  // --------------------------------------------------------------------------
+  // AUDIO REQUESTS (Solicitações de áudio)
+  // --------------------------------------------------------------------------
+
+  /**
+   * Cria uma nova solicitação de áudio (música ou podcast)
+   */
+  async createAudioRequest(
+    userId: string,
+    preparatorioId: string | null,
+    data: CreateAudioRequestData
+  ): Promise<AudioRequest> {
+    const { data: request, error } = await supabase
+      .from('audio_requests')
+      .insert({
+        user_id: userId,
+        preparatorio_id: preparatorioId,
+        audio_type: data.audio_type,
+        materia: data.materia,
+        assunto: data.assunto,
+        music_style: data.music_style || null,
+        podcast_duration: data.podcast_duration || null,
+        additional_info: data.additional_info || null,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return request as AudioRequest;
+  },
+
+  /**
+   * Lista as solicitações do usuário
+   */
+  async getUserAudioRequests(userId: string): Promise<AudioRequest[]> {
+    const { data, error } = await supabase
+      .from('audio_requests')
+      .select('*, generated_track:music_tracks(*)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []) as AudioRequest[];
+  },
+
+  /**
+   * Obtém uma solicitação específica
+   */
+  async getAudioRequestById(requestId: string, userId: string): Promise<AudioRequest | null> {
+    const { data, error } = await supabase
+      .from('audio_requests')
+      .select('*, generated_track:music_tracks(*)')
+      .eq('id', requestId)
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data as AudioRequest | null;
+  },
+
+  /**
+   * Conta solicitações pendentes do usuário
+   */
+  async countUserPendingRequests(userId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('audio_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('status', ['pending', 'approved', 'generating']);
+
+    if (error) throw error;
+    return count || 0;
   },
 };
 

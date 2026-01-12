@@ -5,4 +5,5 @@ export * from './MusicLayout';
 export * from './MusicPlayer';
 export * from './MusicSidebar';
 export * from './PlaylistCard';
+export * from './TopMusicPlayer';
 export * from './TrackRow';

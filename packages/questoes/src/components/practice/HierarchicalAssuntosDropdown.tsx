@@ -182,12 +182,12 @@ const TaxonomyNodeItem: React.FC<{
     }
   };
 
-  const paddingLeft = 12 + level * 16;
+  const paddingLeft = 8 + level * 12;
 
   return (
     <div>
       <div
-        className={`flex items-center gap-2 py-2 px-3 cursor-pointer transition-colors hover:bg-[#252525] ${
+        className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors hover:bg-[#252525] ${
           isFullySelected ? 'bg-[#FFB800]/10' : ''
         }`}
         style={{ paddingLeft }}
@@ -199,16 +199,16 @@ const TaxonomyNodeItem: React.FC<{
               e.stopPropagation();
               toggleExpanded(nodeId);
             }}
-            className="p-0.5 hover:bg-[#3A3A3A] rounded"
+            className="p-0.5 hover:bg-[#3A3A3A] rounded flex-shrink-0"
           >
             {isExpanded ? (
-              <ChevronDown size={14} className="text-[#A0A0A0]" />
+              <ChevronDown size={12} className="text-[#A0A0A0]" />
             ) : (
-              <ChevronRight size={14} className="text-[#A0A0A0]" />
+              <ChevronRight size={12} className="text-[#A0A0A0]" />
             )}
           </button>
         ) : (
-          <span className="w-5" />
+          <span className="w-[13px] flex-shrink-0" />
         )}
 
         {/* Checkbox */}
@@ -544,9 +544,10 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
                           <button
                             key={assunto}
                             onClick={() => onToggleAssunto(assunto)}
-                            className={`w-full flex items-start gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                            className={`w-full flex items-start gap-1.5 px-2 py-1.5 text-left text-sm transition-colors ${
                               isSelected ? 'bg-[#FFB800]/10 text-[#FFB800]' : 'text-white hover:bg-[#252525]'
                             }`}
+                            style={{ paddingLeft: 8 }}
                           >
                             <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5 ${
                               isSelected ? 'bg-[#FFB800] border-[#FFB800]' : 'border-[#4A4A4A]'

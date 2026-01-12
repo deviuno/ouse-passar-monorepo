@@ -30,6 +30,7 @@ export function useAuth() {
   }, []);
 
   const loadPreparatorios = async () => {
+    console.log('[useAuth] Iniciando carregamento de preparatórios...');
     try {
       const { data, error } = await supabase
         .from('preparatorios')
@@ -37,9 +38,11 @@ export function useAuth() {
         .eq('is_active', true)
         .order('nome');
 
+      console.log('[useAuth] Resultado query preparatorios:', { data, error });
+
       if (error) {
         // Se a tabela não existir, usar preparatório padrão
-        console.warn('Tabela preparatorios não encontrada, usando padrão');
+        console.warn('[useAuth] Erro na query, usando padrão:', error);
         const defaultPrep: Preparatorio = {
           id: DEFAULT_PREPARATORIO_ID,
           nome: 'Ouse Passar',
@@ -53,21 +56,26 @@ export function useAuth() {
       }
 
       if (data && data.length > 0) {
+        console.log('[useAuth] Preparatórios encontrados:', data.length);
         setPreparatorios(data);
 
         // Tentar carregar seleção salva
         const savedId = localStorage.getItem(STORAGE_KEY);
+        console.log('[useAuth] ID salvo no localStorage:', savedId);
         const savedPrep = data.find(p => p.id === savedId);
 
         if (savedPrep) {
+          console.log('[useAuth] Usando preparatório salvo:', savedPrep);
           setCurrentPreparatorio(savedPrep);
         } else {
           // Usar primeiro preparatório
+          console.log('[useAuth] Usando primeiro preparatório:', data[0]);
           setCurrentPreparatorio(data[0]);
           localStorage.setItem(STORAGE_KEY, data[0].id);
         }
       } else {
         // Nenhum preparatório encontrado, usar padrão
+        console.warn('[useAuth] Nenhum preparatório encontrado, usando padrão');
         const defaultPrep: Preparatorio = {
           id: DEFAULT_PREPARATORIO_ID,
           nome: 'Ouse Passar',
@@ -78,7 +86,7 @@ export function useAuth() {
         localStorage.setItem(STORAGE_KEY, defaultPrep.id);
       }
     } catch (err) {
-      console.error('Erro ao carregar preparatórios:', err);
+      console.error('[useAuth] Erro ao carregar preparatórios:', err);
       // Fallback para preparatório padrão
       const defaultPrep: Preparatorio = {
         id: DEFAULT_PREPARATORIO_ID,
@@ -89,6 +97,7 @@ export function useAuth() {
       setCurrentPreparatorio(defaultPrep);
     } finally {
       setLoadingPreparatorios(false);
+      console.log('[useAuth] Carregamento finalizado');
     }
   };
 

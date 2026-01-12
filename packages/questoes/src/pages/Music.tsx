@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Play, Loader2, Mic2, ChevronRight } from 'lucide-react';
+import { Search, Play, Loader2, Mic2, ChevronRight, Sparkles, Music as MusicIcon, Send } from 'lucide-react';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useTrailStore } from '../stores/useTrailStore';
 import { useMusicPlayerStore } from '../stores/useMusicPlayerStore';
@@ -15,52 +15,58 @@ export const Music: React.FC = () => {
 
     const [loading, setLoading] = useState(true); // Começa como true
     const [recentTracks, setRecentTracks] = useState<MusicTrack[]>([]);
+    const [allTracks, setAllTracks] = useState<MusicTrack[]>([]);
     const [playlists, setPlaylists] = useState<MusicPlaylist[]>([]);
     const [categories, setCategories] = useState<MusicCategory[]>([]);
     const [lessonPodcastsMaterias, setLessonPodcastsMaterias] = useState<{ materia: string; count: number }[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [loadedForPreparatorio, setLoadedForPreparatorio] = useState<string | null>(null);
+    const [loadedData, setLoadedData] = useState(false);
 
     const preparatorioId = currentTrail?.preparatorio_id;
 
-    // Carregar dados quando preparatorioId e user estiverem disponíveis
+    // Carregar dados quando user estiver disponível
     useEffect(() => {
-        // Se não temos preparatorioId ou user, aguardar (store pode estar hidratando)
-        if (!preparatorioId || !user?.id) {
-            // Dar um timeout curto para permitir hidratação
+        // Se não temos user, aguardar (store pode estar hidratando)
+        if (!user?.id) {
             const timeout = setTimeout(() => {
-                if (!preparatorioId) {
-                    setLoading(false); // Mostrar empty state se realmente não tem
-                }
+                setLoading(false);
             }, 500);
             return () => clearTimeout(timeout);
         }
 
-        // Se já carregamos para este preparatório, não carregar novamente
-        if (loadedForPreparatorio === preparatorioId) {
+        // Se já carregamos, não carregar novamente
+        if (loadedData) {
             return;
         }
 
         loadData();
-    }, [preparatorioId, user?.id, loadedForPreparatorio]);
+    }, [user?.id, loadedData, preparatorioId]);
 
     const loadData = async () => {
-        if (!preparatorioId || !user?.id) return;
+        if (!user?.id) return;
 
         setLoading(true);
         try {
-            const [playlistsData, categoriesData, historyData, podcastsMaterias] = await Promise.all([
-                musicService.getPublicPlaylists(preparatorioId),
-                musicService.getCategories(preparatorioId),
+            // Faixas e categorias são globais
+            const [tracksData, categoriesData, historyData, podcastsMaterias] = await Promise.all([
+                musicService.getTracks(),
+                musicService.getCategories(),
                 musicService.getHistory(user.id, 10),
-                musicService.getLessonPodcastsMaterias(preparatorioId),
+                musicService.getLessonPodcastsMaterias(),
             ]);
 
-            setPlaylists(playlistsData);
+            setAllTracks(tracksData);
             setCategories(categoriesData);
             setRecentTracks(historyData);
             setLessonPodcastsMaterias(podcastsMaterias);
-            setLoadedForPreparatorio(preparatorioId);
+
+            // Playlists dependem de preparatorio (se disponível)
+            if (preparatorioId) {
+                const playlistsData = await musicService.getPublicPlaylists(preparatorioId);
+                setPlaylists(playlistsData);
+            }
+
+            setLoadedData(true);
         } catch (error) {
             console.error('Error loading music data:', error);
         } finally {
@@ -209,6 +215,84 @@ export const Music: React.FC = () => {
                     </section>
                 )}
 
+                {/* Músicas */}
+                {allTracks.filter(t => !t.is_podcast).length > 0 && (
+                    <section>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <MusicIcon className="w-5 h-5 text-[#FFB800]" />
+                                Músicas Educativas
+                            </h2>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            {allTracks.filter(t => !t.is_podcast).map((track) => (
+                                <button
+                                    key={track.id}
+                                    onClick={() => {
+                                        setQueue([track], 0);
+                                        play(track);
+                                    }}
+                                    className="group bg-[#181818] hover:bg-[#282828] p-4 rounded-lg text-left transition-all"
+                                >
+                                    <div className="aspect-square bg-[#282828] rounded-md mb-3 overflow-hidden relative">
+                                        {track.cover_url ? (
+                                            <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#FFB800]/20 to-orange-500/20">
+                                                <MusicIcon className="w-12 h-12 text-[#FFB800]/50" />
+                                            </div>
+                                        )}
+                                        <div className="absolute bottom-2 right-2 w-10 h-10 bg-[#FFB800] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg">
+                                            <Play className="w-5 h-5 text-black ml-0.5" fill="black" />
+                                        </div>
+                                    </div>
+                                    <p className="text-white font-medium truncate">{track.title}</p>
+                                    <p className="text-gray-400 text-sm truncate">{track.materia || track.artist || 'Música'}</p>
+                                </button>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Podcasts */}
+                {allTracks.filter(t => t.is_podcast).length > 0 && (
+                    <section>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Mic2 className="w-5 h-5 text-purple-400" />
+                                Podcasts
+                            </h2>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            {allTracks.filter(t => t.is_podcast).map((track) => (
+                                <button
+                                    key={track.id}
+                                    onClick={() => {
+                                        setQueue([track], 0);
+                                        play(track);
+                                    }}
+                                    className="group bg-[#181818] hover:bg-[#282828] p-4 rounded-lg text-left transition-all"
+                                >
+                                    <div className="aspect-square bg-[#282828] rounded-md mb-3 overflow-hidden relative">
+                                        {track.cover_url ? (
+                                            <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600/20 to-purple-900/20">
+                                                <Mic2 className="w-12 h-12 text-purple-400/50" />
+                                            </div>
+                                        )}
+                                        <div className="absolute bottom-2 right-2 w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg">
+                                            <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+                                        </div>
+                                    </div>
+                                    <p className="text-white font-medium truncate">{track.title}</p>
+                                    <p className="text-gray-400 text-sm truncate">{track.materia || 'Podcast'}</p>
+                                </button>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
                 {/* Playlists */}
                 {playlists.length > 0 && (
                     <section>
@@ -227,8 +311,58 @@ export const Music: React.FC = () => {
                     </section>
                 )}
 
+                {/* Request Audio Card */}
+                <section>
+                    <Link
+                        to="/music/solicitar"
+                        className="block bg-gradient-to-r from-[#FFB800]/20 via-[#FFB800]/10 to-purple-500/20 border border-[#FFB800]/30 rounded-2xl p-6 hover:border-[#FFB800]/50 hover:scale-[1.01] transition-all group"
+                    >
+                        <div className="flex items-center gap-6">
+                            {/* Icon */}
+                            <div className="w-16 h-16 bg-gradient-to-br from-[#FFB800] to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                <Sparkles className="w-8 h-8 text-black" />
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                                    Solicitar Audio
+                                    <span className="text-xs bg-[#FFB800]/20 text-[#FFB800] px-2 py-0.5 rounded-full font-medium">
+                                        Novo
+                                    </span>
+                                </h3>
+                                <p className="text-gray-400 text-sm">
+                                    Nao encontrou o que procurava? Solicite uma musica ou podcast sobre qualquer tema do seu preparatorio!
+                                </p>
+                            </div>
+
+                            {/* Arrow */}
+                            <div className="flex-shrink-0 hidden sm:flex items-center gap-2 text-[#FFB800]">
+                                <span className="text-sm font-medium">Solicitar</span>
+                                <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                        </div>
+
+                        {/* Features */}
+                        <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-white/10">
+                            <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                <MusicIcon className="w-4 h-4 text-[#FFB800]" />
+                                <span>Musicas educativas</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                <Mic2 className="w-4 h-4 text-purple-400" />
+                                <span>Podcasts explicativos</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                <Sparkles className="w-4 h-4 text-green-400" />
+                                <span>Gerado com IA</span>
+                            </div>
+                        </div>
+                    </Link>
+                </section>
+
                 {/* Empty state */}
-                {playlists.length === 0 && categories.length === 0 && recentTracks.length === 0 && lessonPodcastsMaterias.length === 0 && (
+                {playlists.length === 0 && categories.length === 0 && recentTracks.length === 0 && lessonPodcastsMaterias.length === 0 && allTracks.length === 0 && (
                     <div className="text-center py-16">
                         <div className="w-24 h-24 bg-[#282828] rounded-full flex items-center justify-center mx-auto mb-6">
                             <Play className="w-12 h-12 text-gray-500" />

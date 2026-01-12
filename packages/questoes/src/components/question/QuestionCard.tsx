@@ -291,20 +291,20 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
     // Basic Selection Style
     if (!isSubmitted) {
       return selectedAlt === letter
-        ? `border-[var(--color-brand)] bg-[var(--color-brand)] bg-opacity-20 text-[var(--color-text-main)]`
+        ? `border-[var(--color-brand)] bg-gradient-to-br from-[var(--color-brand)]/10 via-transparent to-[var(--color-brand)]/5 text-[var(--color-text-main)] backdrop-blur-sm`
         : `border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-main)]`;
     }
 
     // Feedback Style (Only for Zen/Reta Final)
     if (letter === question.gabarito) {
-      return `border-[#2ECC71] bg-[#2ECC71] bg-opacity-20 text-[#2ECC71]`;
+      return `border-[var(--color-success)] bg-gradient-to-br from-[var(--color-success)]/15 via-transparent to-[var(--color-success)]/5 text-[var(--color-success)] backdrop-blur-sm`;
     }
 
     if (selectedAlt === letter && letter !== question.gabarito) {
-      return `border-[#E74C3C] bg-[#E74C3C] bg-opacity-20 text-[#E74C3C]`;
+      return `border-[var(--color-error)] bg-gradient-to-br from-[var(--color-error)]/15 via-transparent to-[var(--color-error)]/5 text-[var(--color-error)] backdrop-blur-sm`;
     }
 
-    return `border-[#333] opacity-50`;
+    return `border-[var(--color-border)] opacity-50`;
   };
 
   // Build stats data from real statistics or use fallback
@@ -497,25 +497,25 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             <div className="grid grid-cols-4 gap-2 mb-4">
               <button
                 onClick={() => handleRate('easy')}
-                className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'easy' ? 'bg-green-500/20 border-green-500 text-green-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
+                className={`p-2 rounded-lg text-xs font-bold border transition-colors ${difficultyRating === 'easy' ? 'bg-[var(--color-success)]/20 border-[var(--color-success)] text-[var(--color-success)]' : 'border-[var(--color-border-strong)] text-[var(--color-text-sec)] hover:bg-[var(--color-bg-elevated)]'}`}
               >
                 Fácil
               </button>
               <button
                 onClick={() => handleRate('medium')}
-                className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'medium' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
+                className={`p-2 rounded-lg text-xs font-bold border transition-colors ${difficultyRating === 'medium' ? 'bg-[var(--color-warning)]/20 border-[var(--color-warning)] text-[var(--color-warning)]' : 'border-[var(--color-border-strong)] text-[var(--color-text-sec)] hover:bg-[var(--color-bg-elevated)]'}`}
               >
                 Médio
               </button>
               <button
                 onClick={() => handleRate('hard')}
-                className={`p-2 rounded-lg text-xs font-bold border ${difficultyRating === 'hard' ? 'bg-red-500/20 border-red-500 text-red-500' : 'border-gray-700 text-gray-400 hover:bg-gray-800'}`}
+                className={`p-2 rounded-lg text-xs font-bold border transition-colors ${difficultyRating === 'hard' ? 'bg-[var(--color-error)]/20 border-[var(--color-error)] text-[var(--color-error)]' : 'border-[var(--color-border-strong)] text-[var(--color-text-sec)] hover:bg-[var(--color-bg-elevated)]'}`}
               >
                 Difícil
               </button>
               <button
                 onClick={() => setShowStatsModal(true)}
-                className="p-2 rounded-lg text-xs font-bold border border-gray-700 text-[#FFB800] hover:bg-gray-800 flex flex-col items-center justify-center"
+                className="p-2 rounded-lg text-xs font-bold border border-[var(--color-border-strong)] text-[var(--color-brand)] hover:bg-[var(--color-bg-elevated)] flex flex-col items-center justify-center transition-colors"
               >
                 <BarChart2 size={16} />
               </button>
@@ -528,8 +528,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                   onClick={onPrevious}
                   disabled={!onPrevious}
                   className={`w-full flex items-center justify-center py-3 rounded-xl border-2 font-bold transition-all touch-feedback ${onPrevious
-                    ? 'border-gray-600 text-white hover:bg-gray-800'
-                    : 'border-transparent text-gray-600 cursor-not-allowed bg-gray-900/50'
+                    ? 'border-[var(--color-border-strong)] text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] bg-[var(--color-bg-card)]'
+                    : 'border-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed bg-[var(--color-bg-elevated)]'
                     }`}
                 >
                   <ChevronLeft size={20} className="mr-1" /> Anterior
@@ -538,8 +538,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
 
               <RippleEffect className="flex-1 rounded-xl">
                 <button
-                  onClick={onNext}
-                  className="w-full flex items-center justify-center py-3 bg-[#FFB800] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,184,0,0.3)] hover:shadow-[0_0_25px_rgba(255,184,0,0.5)] transition-all border-2 border-[#FFB800] touch-feedback"
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    onNext();
+                  }}
+                  className="w-full flex items-center justify-center py-3 bg-[var(--color-brand)] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(199,120,0,0.3)] hover:shadow-[0_0_25px_rgba(199,120,0,0.5)] transition-all border-2 border-[var(--color-brand)] touch-feedback"
                 >
                   {isLastQuestion ? 'Finalizar' : 'Próxima'} <ChevronRight size={20} className="ml-1" />
                 </button>
@@ -547,17 +550,17 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             </div>
 
             {/* 3. Feedback Box (Lower down) */}
-            <div className={`p-4 rounded-lg mb-4 border ${selectedAlt === question.gabarito ? 'border-green-900 bg-green-900/10' : 'border-red-900 bg-red-900/10'}`}>
+            <div className={`p-4 rounded-lg mb-4 border ${selectedAlt === question.gabarito ? 'border-[var(--color-success)] bg-[var(--color-feedback-success-bg)]' : 'border-[var(--color-error)] bg-[var(--color-feedback-error-bg)]'}`}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className={`font-bold ${selectedAlt === question.gabarito ? 'text-[#2ECC71]' : 'text-[#E74C3C]'}`}>
+                <h3 className={`font-bold ${selectedAlt === question.gabarito ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
                   {selectedAlt === question.gabarito ? 'Excelente! 🎯' : 'Não foi dessa vez... ❌'}
                 </h3>
                 {questionStats && questionStats.totalAnswers > 0 ? (
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-[var(--color-text-sec)]">
                     {questionStats.accuracyRate}% da comunidade acertou ({questionStats.totalAnswers} respostas)
                   </span>
                 ) : (
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-[var(--color-text-muted)]">
                     Seja o primeiro a responder!
                   </span>
                 )}
@@ -582,9 +585,9 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
               <div className="text-sm text-[var(--color-text-main)] leading-relaxed">
                 {loadingExplanation ? (
                   <div className="space-y-2">
-                    <div className="h-4 bg-gray-700 rounded animate-pulse w-3/4"></div>
-                    <div className="h-4 bg-gray-700 rounded animate-pulse w-full"></div>
-                    <div className="h-4 bg-gray-700 rounded animate-pulse w-5/6"></div>
+                    <div className="h-4 bg-[var(--color-bg-elevated)] rounded animate-pulse w-3/4"></div>
+                    <div className="h-4 bg-[var(--color-bg-elevated)] rounded animate-pulse w-full"></div>
+                    <div className="h-4 bg-[var(--color-bg-elevated)] rounded animate-pulse w-5/6"></div>
                   </div>
                 ) : (
                   <>
@@ -627,11 +630,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             </div>
 
             {/* 4. Bottom Nav Buttons */}
-            <div className="flex space-x-3 pb-4 border-b border-gray-800 mb-6">
+            <div className="flex space-x-3 pb-4 border-b border-[var(--color-border)] mb-6">
               {/* Botão de Report - estilo secundário */}
               <button
                 onClick={() => setShowReportModal(true)}
-                className="w-12 h-12 flex items-center justify-center bg-transparent text-gray-400 border border-[#4A4A4A] rounded-full hover:bg-[#2A2A2A] hover:text-white transition-colors flex-shrink-0"
+                className="w-12 h-12 flex items-center justify-center bg-[var(--color-bg-card)] text-[var(--color-text-sec)] border border-[var(--color-border-strong)] rounded-full hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-main)] transition-colors flex-shrink-0"
                 title="Reportar problema"
               >
                 <Flag size={18} />
@@ -640,15 +643,18 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
               {/* Botão Tirar Dúvida - estilo secundário */}
               <button
                 onClick={onOpenTutor}
-                className="flex-1 flex items-center justify-center py-3 bg-transparent text-gray-300 border border-[#4A4A4A] rounded-full font-medium hover:bg-[#2A2A2A] hover:text-white transition-colors"
+                className="flex-1 flex items-center justify-center py-3 bg-[var(--color-bg-card)] text-[var(--color-text-main)] border border-[var(--color-border-strong)] rounded-full font-medium hover:bg-[var(--color-bg-elevated)] transition-colors"
               >
-                <MessageCircle size={18} className="mr-2 text-gray-400" />
+                <MessageCircle size={18} className="mr-2 text-[var(--color-text-sec)]" />
                 Tirar Dúvida
               </button>
 
               {/* Botão Próxima Questão - estilo primário */}
               <button
-                onClick={onNext}
+                onClick={() => {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  onNext();
+                }}
                 className="flex-1 py-3 bg-[var(--color-brand)] text-black rounded-full font-bold hover:bg-[var(--color-brand-light)] transition-colors"
               >
                 {isLastQuestion ? 'Finalizar' : 'Próxima Questão'}

@@ -37,6 +37,8 @@ import MusicLibrary from '../pages/MusicLibrary';
 import MusicSearch from '../pages/MusicSearch';
 import MusicCategory from '../pages/MusicCategory';
 import MusicLessonPodcasts from '../pages/MusicLessonPodcasts';
+import MusicRequestAudio from '../pages/MusicRequestAudio';
+import MusicMyRequests from '../pages/MusicMyRequests';
 
 // Auth pages (will redirect from existing components)
 import AuthPage from '../pages/AuthPage';
@@ -238,6 +240,14 @@ export const router = createBrowserRouter([
           {
             path: 'aulas',
             element: <MusicLessonPodcasts />,
+          },
+          {
+            path: 'solicitar',
+            element: <MusicRequestAudio />,
+          },
+          {
+            path: 'solicitacoes',
+            element: <MusicMyRequests />,
           },
         ],
       },

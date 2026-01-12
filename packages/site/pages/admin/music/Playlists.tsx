@@ -12,10 +12,8 @@ import {
   Clock,
 } from 'lucide-react';
 import { musicAdminService, type MusicPlaylist, type MusicTrack } from '../../../services/musicAdminService';
-import { useMusicPreparatorio } from '../../../hooks/useMusicPreparatorio';
 
 export const MusicPlaylists: React.FC = () => {
-  const { selectedId: preparatorioId, loading: loadingPrep } = useMusicPreparatorio();
   const [loading, setLoading] = useState(true);
   const [playlists, setPlaylists] = useState<MusicPlaylist[]>([]);
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
@@ -34,19 +32,15 @@ export const MusicPlaylists: React.FC = () => {
   const [coverFile, setCoverFile] = useState<File | null>(null);
 
   useEffect(() => {
-    if (preparatorioId) {
-      loadData();
-    }
-  }, [preparatorioId]);
+    loadData();
+  }, []);
 
   const loadData = async () => {
-    if (!preparatorioId) return;
-
     setLoading(true);
     try {
       const [playlistsData, tracksData] = await Promise.all([
-        musicAdminService.getPlaylists(preparatorioId),
-        musicAdminService.getTracks(preparatorioId),
+        musicAdminService.getPlaylists(), // Sem filtro de preparatorio
+        musicAdminService.getTracks(), // Sem filtro de preparatorio
       ]);
       setPlaylists(playlistsData);
       setTracks(tracksData);
@@ -77,14 +71,13 @@ export const MusicPlaylists: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!preparatorioId) return;
 
     setSaving(true);
     try {
       let coverUrl = editingPlaylist?.cover_url;
 
       if (coverFile) {
-        coverUrl = await musicAdminService.uploadCoverImage(preparatorioId, coverFile, 'playlists');
+        coverUrl = await musicAdminService.uploadCoverImage(coverFile);
       }
 
       if (editingPlaylist) {
@@ -93,7 +86,7 @@ export const MusicPlaylists: React.FC = () => {
           cover_url: coverUrl,
         });
       } else {
-        await musicAdminService.createPlaylist(preparatorioId, {
+        await musicAdminService.createPlaylist(undefined, {
           ...formData,
           cover_url: coverUrl,
           is_public: true,
@@ -161,7 +154,7 @@ export const MusicPlaylists: React.FC = () => {
     playlist.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (loading || loadingPrep) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 text-brand-yellow animate-spin" />
