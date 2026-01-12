@@ -6538,40 +6538,210 @@ ${questao.comentario}`;
 
 app.get('/api/comentarios/fila-formatacao/status', async (req, res) => {
     try {
-        // Contar por status
-        const { data: counts, error } = await questionsDb
-            .from('comentarios_pendentes_formatacao')
-            .select('status');
+        // Buscar estatísticas REAIS do banco de questões (não da fila)
+        const { data: stats, error } = await questionsDb.rpc('get_comentarios_stats');
 
         if (error) {
-            return res.status(500).json({
-                success: false,
-                error: "Erro ao buscar status da fila"
-            });
-        }
+            // Fallback: calcular manualmente se a função não existir
+            console.log('[ComentarioFormatter] Função RPC não existe, calculando manualmente...');
 
-        const statusCounts = {
-            pendente: 0,
-            processando: 0,
-            concluido: 0,
-            falha: 0,
-            ignorado: 0
-        };
+            // Contar total de questões com comentário
+            const { count: totalComComentario } = await questionsDb
+                .from('questoes_concurso')
+                .select('*', { count: 'exact', head: true })
+                .not('comentario', 'is', null);
 
-        for (const item of counts || []) {
-            if (item.status in statusCounts) {
-                statusCounts[item.status as keyof typeof statusCounts]++;
+            // Contar formatadas
+            const { count: formatadas } = await questionsDb
+                .from('questoes_concurso')
+                .select('*', { count: 'exact', head: true })
+                .eq('comentario_formatado', true);
+
+            // Contar da fila (para processando)
+            const { data: filaStatus } = await questionsDb
+                .from('comentarios_pendentes_formatacao')
+                .select('status');
+
+            let processando = 0;
+            let falha = 0;
+            for (const item of filaStatus || []) {
+                if (item.status === 'processando') processando++;
+                if (item.status === 'falha') falha++;
             }
+
+            const pendentes = (totalComComentario || 0) - (formatadas || 0) - processando;
+
+            return res.json({
+                success: true,
+                total: totalComComentario || 0,
+                pendente: Math.max(0, pendentes),
+                processando,
+                concluido: formatadas || 0,
+                falha,
+                ignorado: 0
+            });
         }
 
         return res.json({
             success: true,
-            total: counts?.length || 0,
-            ...statusCounts
+            ...stats
         });
 
     } catch (error: any) {
         console.error("[ComentarioFormatter] Erro ao buscar status:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// ============================================================================
+// Endpoint SIMPLIFICADO: Processar pendentes diretamente do banco
+// ============================================================================
+app.post('/api/comentarios/processar-pendentes', async (req, res) => {
+    try {
+        const { limite = 50 } = req.body;
+
+        console.log(`[ComentarioFormatter] Processando ${limite} questões pendentes diretamente do banco...`);
+
+        // Buscar questões diretamente do banco que precisam ser formatadas
+        const { data: questoes, error: fetchError } = await questionsDb
+            .from('questoes_concurso')
+            .select('id, comentario')
+            .not('comentario', 'is', null)
+            .or('comentario_formatado.is.null,comentario_formatado.eq.false')
+            .limit(limite);
+
+        if (fetchError) {
+            console.error('[ComentarioFormatter] Erro ao buscar questões:', fetchError);
+            return res.status(500).json({
+                success: false,
+                error: 'Erro ao buscar questões pendentes'
+            });
+        }
+
+        if (!questoes || questoes.length === 0) {
+            return res.json({
+                success: true,
+                message: 'Nenhuma questão pendente para processar',
+                sucesso: 0,
+                falha: 0,
+                total: 0
+            });
+        }
+
+        console.log(`[ComentarioFormatter] Encontradas ${questoes.length} questões para processar`);
+
+        let sucesso = 0;
+        let falha = 0;
+
+        for (const questao of questoes) {
+            try {
+                if (!questao.comentario || questao.comentario.trim() === '') {
+                    continue;
+                }
+
+                // Chamar a API do Anthropic para formatar
+                const systemPrompt = `Você é um especialista em formatação de comentários de questões de concurso.
+Sua tarefa é reformatar comentários de questões para ficarem mais claros e organizados em Markdown.
+
+REGRAS:
+1. Use títulos (##) para separar seções quando apropriado
+2. Use **negrito** para termos importantes
+3. Use listas (-) quando houver enumerações
+4. Mantenha o conteúdo técnico intacto
+5. NÃO adicione informações novas
+6. NÃO remova informações existentes
+7. Corrija erros de português quando encontrar
+8. Use > para citações de leis ou doutrinas`;
+
+                const userPrompt = `Formate o seguinte comentário de questão de concurso em Markdown limpo e organizado:
+
+${questao.comentario}
+
+Responda APENAS com um JSON no formato:
+{
+  "comentarioFormatado": "texto formatado em markdown",
+  "confianca": 0.95
+}`;
+
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-3-5-haiku-20241022',
+                        max_tokens: 4096,
+                        messages: [
+                            { role: 'user', content: userPrompt }
+                        ],
+                        system: systemPrompt
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error(`[ComentarioFormatter] Erro API Anthropic para questão ${questao.id}:`, response.status);
+                    falha++;
+                    continue;
+                }
+
+                const apiResponse = await response.json();
+                const responseText = apiResponse.content?.[0]?.text || '';
+
+                let result;
+                try {
+                    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                    const cleanedResponse = jsonMatch ? jsonMatch[0] : responseText;
+                    result = JSON.parse(cleanedResponse);
+                } catch {
+                    console.error(`[ComentarioFormatter] Erro ao parsear resposta para questão ${questao.id}`);
+                    falha++;
+                    continue;
+                }
+
+                if (!result.comentarioFormatado || result.confianca < 0.5) {
+                    falha++;
+                    continue;
+                }
+
+                // Atualizar no banco
+                const { error: updateError } = await questionsDb
+                    .from('questoes_concurso')
+                    .update({
+                        comentario: result.comentarioFormatado,
+                        comentario_formatado: true
+                    })
+                    .eq('id', questao.id);
+
+                if (updateError) {
+                    console.error(`[ComentarioFormatter] Erro ao atualizar questão ${questao.id}:`, updateError);
+                    falha++;
+                } else {
+                    sucesso++;
+                }
+
+            } catch (itemError: any) {
+                console.error(`[ComentarioFormatter] Erro na questão ${questao.id}:`, itemError);
+                falha++;
+            }
+        }
+
+        console.log(`[ComentarioFormatter] Processamento concluído: ${sucesso} sucesso, ${falha} falhas`);
+
+        return res.json({
+            success: true,
+            sucesso,
+            falha,
+            total: questoes.length,
+            message: `Processadas ${sucesso} questões com sucesso`
+        });
+
+    } catch (error: any) {
+        console.error("[ComentarioFormatter] Erro geral:", error);
         return res.status(500).json({
             success: false,
             error: error.message || "Erro interno"

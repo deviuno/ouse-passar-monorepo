@@ -70,6 +70,7 @@ export interface ProcessarFilaResponse {
 export interface PopularFilaResponse {
   success: boolean;
   adicionadas?: number;
+  jaEnfileiradas?: number;
   message?: string;
   error?: string;
 }
@@ -137,16 +138,24 @@ export const agentesService = {
   },
 
   // --------------------------------------------------------------------------
-  // Processar fila (via Mastra API)
+  // Processar pendentes diretamente do banco (via Mastra API)
   // --------------------------------------------------------------------------
-  async processarFila(limite: number = 100): Promise<ProcessarFilaResponse> {
-    const response = await fetch(`${MASTRA_URL}/api/comentarios/processar-fila-formatacao`, {
+  async processarPendentes(limite: number = 100): Promise<ProcessarFilaResponse> {
+    const response = await fetch(`${MASTRA_URL}/api/comentarios/processar-pendentes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ limite }),
     });
 
     return response.json();
+  },
+
+  // --------------------------------------------------------------------------
+  // [DEPRECATED] Processar fila antiga (mantido para compatibilidade)
+  // --------------------------------------------------------------------------
+  async processarFila(limite: number = 100): Promise<ProcessarFilaResponse> {
+    // Redireciona para o novo endpoint
+    return this.processarPendentes(limite);
   },
 
   // --------------------------------------------------------------------------

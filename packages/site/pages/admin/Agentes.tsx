@@ -4,8 +4,6 @@ import {
   Brain,
   RefreshCw,
   Play,
-  RotateCcw,
-  Plus,
   CheckCircle,
   Loader2,
   Database,
@@ -16,10 +14,10 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  AlertCircle,
   CheckCircle2,
   XCircle,
   Clock,
+  Info,
 } from 'lucide-react';
 import {
   agentesService,
@@ -77,6 +75,13 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // Dados do formatador
   const [comentarioQueue, setComentarioQueue] = useState<ComentarioFormatItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [queueStats, setQueueStats] = useState<{
+    pendente: number;
+    processando: number;
+    concluido: number;
+    falha: number;
+    ignorado: number;
+  } | null>(null);
 
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,7 +92,6 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // Ações
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [processarQuantidade, setProcessarQuantidade] = useState(100);
-  const [popularQuantidade, setPopularQuantidade] = useState(1000);
 
   // Status da operação (feedback visual)
   const [operationStatus, setOperationStatus] = useState<{
@@ -117,11 +121,26 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // --------------------------------------------------------------------------
   const loadData = async (page: number = currentPage) => {
     try {
-      const result = await agentesService.getComentarioQueue(statusFilter, page, ITEMS_PER_PAGE);
-      setComentarioQueue(result.items);
-      setTotalPages(result.totalPages);
-      setTotalItems(result.total);
-      setCurrentPage(result.page);
+      // Carregar fila e estatísticas em paralelo
+      const [queueResult, statsResult] = await Promise.all([
+        agentesService.getComentarioQueue(statusFilter, page, ITEMS_PER_PAGE),
+        agentesService.getComentarioStats().catch(() => null),
+      ]);
+
+      setComentarioQueue(queueResult.items);
+      setTotalPages(queueResult.totalPages);
+      setTotalItems(queueResult.total);
+      setCurrentPage(queueResult.page);
+
+      if (statsResult) {
+        setQueueStats({
+          pendente: statsResult.pendente,
+          processando: statsResult.processando,
+          concluido: statsResult.concluido,
+          falha: statsResult.falha,
+          ignorado: statsResult.ignorado,
+        });
+      }
     } catch (error) {
       console.warn('Erro ao carregar queue:', error);
     }
@@ -151,16 +170,16 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // --------------------------------------------------------------------------
   // Ações do Formatador
   // --------------------------------------------------------------------------
-  const handleProcessarFila = async () => {
+  const handleProcessarPendentes = async () => {
     setActionLoading('processar');
     setOperationStatus({
       type: 'processing',
-      message: `Processando ${processarQuantidade} questões...`,
-      details: 'Aguarde enquanto o agente de IA formata os comentários',
+      message: `Formatando ${processarQuantidade} comentários...`,
+      details: 'O agente de IA está processando as questões pendentes',
       timestamp: new Date(),
     });
     try {
-      const result = await agentesService.processarFila(processarQuantidade);
+      const result = await agentesService.processarPendentes(processarQuantidade);
       if (result.success) {
         setOperationStatus({
           type: 'success',
@@ -180,85 +199,7 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
     } catch (error) {
       setOperationStatus({
         type: 'error',
-        message: 'Erro ao processar fila',
-        details: error instanceof Error ? error.message : 'Erro de conexão',
-        timestamp: new Date(),
-      });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handlePopularFila = async () => {
-    setActionLoading('popular');
-    setOperationStatus({
-      type: 'processing',
-      message: `Adicionando ${popularQuantidade} questões à fila...`,
-      details: 'Buscando questões sem comentário formatado',
-      timestamp: new Date(),
-    });
-    try {
-      const result = await agentesService.popularFila(popularQuantidade);
-      if (result.success) {
-        setOperationStatus({
-          type: 'success',
-          message: 'Fila populada!',
-          details: `${result.adicionadas || 0} questões adicionadas (${result.jaEnfileiradas || 0} já estavam na fila)`,
-          timestamp: new Date(),
-        });
-        loadData();
-      } else {
-        setOperationStatus({
-          type: 'error',
-          message: 'Erro ao popular fila',
-          details: result.error || 'Erro desconhecido',
-          timestamp: new Date(),
-        });
-      }
-    } catch (error) {
-      setOperationStatus({
-        type: 'error',
-        message: 'Erro ao popular fila',
-        details: error instanceof Error ? error.message : 'Erro de conexão',
-        timestamp: new Date(),
-      });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleResetarFalhas = async () => {
-    if (!confirm('Tem certeza que deseja resetar todas as falhas para reprocessamento?')) return;
-
-    setActionLoading('resetar');
-    setOperationStatus({
-      type: 'processing',
-      message: 'Resetando falhas...',
-      details: 'Preparando questões com falha para reprocessamento',
-      timestamp: new Date(),
-    });
-    try {
-      const result = await agentesService.resetarFalhas();
-      if (result.success) {
-        setOperationStatus({
-          type: 'success',
-          message: 'Falhas resetadas!',
-          details: `${result.resetadas || 0} questões prontas para reprocessamento`,
-          timestamp: new Date(),
-        });
-        loadData();
-      } else {
-        setOperationStatus({
-          type: 'error',
-          message: 'Erro ao resetar falhas',
-          details: result.error || 'Erro desconhecido',
-          timestamp: new Date(),
-        });
-      }
-    } catch (error) {
-      setOperationStatus({
-        type: 'error',
-        message: 'Erro ao resetar falhas',
+        message: 'Erro ao processar',
         details: error instanceof Error ? error.message : 'Erro de conexão',
         timestamp: new Date(),
       });
@@ -370,10 +311,14 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
         <div className="space-y-6">
           {/* Ações */}
           <div className="bg-brand-card border border-white/5 rounded-sm p-6">
-            <h3 className="text-white font-bold mb-4">Ações</h3>
-            <div className="flex flex-wrap gap-4">
-              {/* Processar Fila */}
+            <h3 className="text-white font-bold mb-4">Processar Comentários</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              O agente de IA irá formatar os comentários das questões pendentes, convertendo para Markdown organizado.
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Quantidade */}
               <div className="flex items-center gap-2">
+                <label className="text-gray-400 text-sm">Quantidade:</label>
                 <input
                   type="number"
                   value={processarQuantidade}
@@ -382,59 +327,151 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
                   min={1}
                   max={500}
                 />
-                <button
-                  onClick={handleProcessarFila}
-                  disabled={actionLoading === 'processar'}
-                  className="flex items-center gap-2 px-4 py-2 bg-brand-yellow text-black font-bold rounded hover:bg-brand-yellow/90 transition-colors disabled:opacity-50"
-                >
-                  {actionLoading === 'processar' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
-                  Processar Fila
-                </button>
               </div>
 
-              {/* Popular Fila */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={popularQuantidade}
-                  onChange={(e) => setPopularQuantidade(Number(e.target.value))}
-                  className="w-24 px-3 py-2 bg-brand-dark border border-white/10 rounded text-white"
-                  min={1}
-                  max={5000}
-                />
-                <button
-                  onClick={handlePopularFila}
-                  disabled={actionLoading === 'popular'}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {actionLoading === 'popular' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Plus className="w-4 h-4" />
-                  )}
-                  Popular Fila
-                </button>
-              </div>
-
-              {/* Resetar Falhas */}
+              {/* Botão Processar */}
               <button
-                onClick={handleResetarFalhas}
-                disabled={actionLoading === 'resetar'}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+                onClick={handleProcessarPendentes}
+                disabled={actionLoading === 'processar' || (queueStats?.pendente === 0)}
+                className="flex items-center gap-2 px-6 py-2 bg-brand-yellow text-black font-bold rounded hover:bg-brand-yellow/90 transition-colors disabled:opacity-50"
               >
-                {actionLoading === 'resetar' ? (
+                {actionLoading === 'processar' ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <RotateCcw className="w-4 h-4" />
+                  <Play className="w-4 h-4" />
                 )}
-                Resetar Falhas
+                Formatar Comentários
               </button>
+
+              {/* Info de pendentes */}
+              {queueStats && queueStats.pendente > 0 && (
+                <span className="text-yellow-400 text-sm">
+                  {queueStats.pendente.toLocaleString()} pendentes
+                </span>
+              )}
+              {queueStats && queueStats.pendente === 0 && (
+                <span className="text-green-400 text-sm flex items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Todos os comentários foram formatados!
+                </span>
+              )}
             </div>
           </div>
+
+          {/* Card de Estatísticas da Fila */}
+          {queueStats && (
+            <div className="bg-brand-card border border-white/5 rounded-sm p-6">
+              <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+                <Database className="w-5 h-5 text-brand-yellow" />
+                Estatísticas da Fila
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {/* Pendente */}
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-yellow-400">
+                    {queueStats.pendente.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-yellow-400/70 uppercase tracking-wider mt-1">
+                    Pendente
+                  </div>
+                </div>
+
+                {/* Processando */}
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-blue-400 flex items-center justify-center gap-2">
+                    {queueStats.processando > 0 && (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    )}
+                    {queueStats.processando.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-blue-400/70 uppercase tracking-wider mt-1">
+                    Processando
+                  </div>
+                </div>
+
+                {/* Concluído */}
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-green-400">
+                    {queueStats.concluido.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-green-400/70 uppercase tracking-wider mt-1">
+                    Concluído
+                  </div>
+                </div>
+
+                {/* Falha */}
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-red-400">
+                    {queueStats.falha.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-red-400/70 uppercase tracking-wider mt-1">
+                    Falha
+                  </div>
+                </div>
+
+                {/* Ignorado */}
+                <div className="bg-gray-500/10 border border-gray-500/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-gray-400">
+                    {queueStats.ignorado.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-gray-400/70 uppercase tracking-wider mt-1">
+                    Ignorado
+                  </div>
+                </div>
+              </div>
+
+              {/* Barra de progresso */}
+              {(queueStats.pendente + queueStats.processando + queueStats.concluido + queueStats.falha + queueStats.ignorado) > 0 && (
+                <div className="mt-4">
+                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden flex">
+                    {queueStats.concluido > 0 && (
+                      <div
+                        className="h-full bg-green-500"
+                        style={{
+                          width: `${(queueStats.concluido / (queueStats.pendente + queueStats.processando + queueStats.concluido + queueStats.falha + queueStats.ignorado)) * 100}%`,
+                        }}
+                      />
+                    )}
+                    {queueStats.processando > 0 && (
+                      <div
+                        className="h-full bg-blue-500"
+                        style={{
+                          width: `${(queueStats.processando / (queueStats.pendente + queueStats.processando + queueStats.concluido + queueStats.falha + queueStats.ignorado)) * 100}%`,
+                        }}
+                      />
+                    )}
+                    {queueStats.pendente > 0 && (
+                      <div
+                        className="h-full bg-yellow-500"
+                        style={{
+                          width: `${(queueStats.pendente / (queueStats.pendente + queueStats.processando + queueStats.concluido + queueStats.falha + queueStats.ignorado)) * 100}%`,
+                        }}
+                      />
+                    )}
+                    {queueStats.falha > 0 && (
+                      <div
+                        className="h-full bg-red-500"
+                        style={{
+                          width: `${(queueStats.falha / (queueStats.pendente + queueStats.processando + queueStats.concluido + queueStats.falha + queueStats.ignorado)) * 100}%`,
+                        }}
+                      />
+                    )}
+                    {queueStats.ignorado > 0 && (
+                      <div
+                        className="h-full bg-gray-500"
+                        style={{
+                          width: `${(queueStats.ignorado / (queueStats.pendente + queueStats.processando + queueStats.concluido + queueStats.falha + queueStats.ignorado)) * 100}%`,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2 text-right">
+                    Total: {(queueStats.pendente + queueStats.processando + queueStats.concluido + queueStats.falha + queueStats.ignorado).toLocaleString()} itens na fila
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Status da Operação */}
           {operationStatus.type !== 'idle' && (
