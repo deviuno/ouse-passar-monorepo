@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Map, Target, FileText, BarChart2, ShoppingBag, Lock } from 'lucide-react';
+import { Map, Target, FileText, BarChart2, Headphones, Lock } from 'lucide-react';
 import { ModuleBlockedModal } from '../ui/ModuleBlockedModal';
 import { useModuleAccess, getModuleFromPath } from '../../hooks/useModuleAccess';
 import { ModuleName } from '../../stores/useModuleSettingsStore';
@@ -11,7 +11,7 @@ const navItems = [
   { path: '/questoes', icon: Target, label: 'Questões', tourId: 'nav-praticar' },
   { path: '/simulados', icon: FileText, label: 'Simulados', tourId: 'nav-simulados' },
   { path: '/estatisticas', icon: BarChart2, label: 'Raio-X', tourId: 'nav-raiox' },
-  { path: '/loja', icon: ShoppingBag, label: 'Loja', tourId: 'nav-loja' },
+  { path: '/music', icon: Headphones, label: 'Music', tourId: 'nav-music' },
 ];
 
 // Module name labels for the blocked modal
@@ -21,6 +21,7 @@ const MODULE_LABELS: Record<ModuleName, string> = {
   simulados: 'Meus Simulados',
   estatisticas: 'Estatísticas',
   loja: 'Loja',
+  music: 'Ouse Music',
 };
 
 export function MobileNav() {

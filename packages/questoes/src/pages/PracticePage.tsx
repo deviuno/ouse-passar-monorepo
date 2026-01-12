@@ -1565,21 +1565,15 @@ export default function PracticePage() {
                     </div>
 
                     {/* Botões de Ação */}
-                    <div className="flex items-center justify-between">
-                      <button
-                        onClick={() => setShowPracticingFilters(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-[var(--color-text-sec)] hover:text-[var(--color-text-main)] font-medium rounded-lg hover:bg-[var(--color-bg-elevated)] transition-colors"
-                      >
-                        <ChevronUp size={18} />
-                        Ocultar filtros
-                      </button>
-                      <div className="flex gap-3">
+                    <div className="flex flex-col gap-3">
+                      {/* Linha 1: Botões lado a lado (50% cada) */}
+                      <div className="flex gap-2">
                         <button
                           onClick={() => setShowSaveNotebookModal(true)}
-                          className="flex items-center gap-2 px-5 py-3 bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] font-bold rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-bg-card)] hover:border-[var(--color-brand)] transition-colors"
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] font-bold rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-bg-card)] hover:border-[var(--color-brand)] transition-colors whitespace-nowrap text-sm lg:text-base lg:px-5"
                         >
-                          <Save size={18} />
-                          Salvar como Caderno
+                          <Save size={16} className="lg:w-[18px] lg:h-[18px] flex-shrink-0" />
+                          <span className="truncate">Salvar Caderno</span>
                         </button>
                         <button
                           onClick={() => {
@@ -1587,21 +1581,30 @@ export default function PracticePage() {
                             startPractice();
                           }}
                           disabled={isLoading || filteredCount === 0}
-                          className="flex items-center gap-2 px-6 py-3 bg-[var(--color-brand)] text-black font-bold rounded-xl hover:bg-[var(--color-brand-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-[var(--color-brand)] text-black font-bold rounded-xl hover:bg-[var(--color-brand-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm lg:text-base lg:px-6"
                         >
                           {isLoading ? (
                             <>
-                              <Loader2 size={18} className="animate-spin" />
-                              Carregando...
+                              <Loader2 size={16} className="animate-spin flex-shrink-0" />
+                              <span className="truncate">Carregando...</span>
                             </>
                           ) : (
                             <>
-                              <Play size={18} />
-                              Iniciar Treino
+                              <Play size={16} className="lg:w-[18px] lg:h-[18px] flex-shrink-0" />
+                              <span className="truncate">Iniciar Treino</span>
                             </>
                           )}
                         </button>
                       </div>
+
+                      {/* Linha 2: Link para ocultar filtros */}
+                      <button
+                        onClick={() => setShowPracticingFilters(false)}
+                        className="flex items-center justify-center gap-2 py-2 text-[var(--color-text-sec)] hover:text-[var(--color-text-main)] font-medium transition-colors text-sm"
+                      >
+                        <ChevronUp size={16} />
+                        Ocultar filtros
+                      </button>
                     </div>
                   </div>
                 </section>

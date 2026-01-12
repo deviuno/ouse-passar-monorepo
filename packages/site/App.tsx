@@ -108,6 +108,14 @@ import { AcademyCourses } from './pages/admin/academy/Courses';
 import { CourseForm } from './pages/admin/academy/CourseForm';
 import { CourseContent } from './pages/admin/academy/CourseContent';
 
+// Music Admin
+import { MusicDashboard } from './pages/admin/music/Dashboard';
+import { MusicTracks } from './pages/admin/music/Tracks';
+import { MusicPlaylists } from './pages/admin/music/Playlists';
+import { MusicCategories } from './pages/admin/music/Categories';
+import { MusicSettings } from './pages/admin/music/Settings';
+import { MusicLyricsGenerator } from './pages/admin/music/LyricsGenerator';
+
 // Wrapper for Home Page components
 const Home = () => {
   const navigate = useNavigate();
@@ -312,6 +320,14 @@ const App: React.FC = () => {
                 <Route path="suporte/reportes" element={<AdminOnlyRoute><Suporte /></AdminOnlyRoute>} />
                 {/* Redirect old suporte route to tickets */}
                 <Route path="suporte" element={<AdminOnlyRoute><Tickets /></AdminOnlyRoute>} />
+
+                {/* Music Admin */}
+                <Route path="music" element={<AdminOnlyRoute><MusicDashboard /></AdminOnlyRoute>} />
+                <Route path="music/tracks" element={<AdminOnlyRoute><MusicTracks /></AdminOnlyRoute>} />
+                <Route path="music/playlists" element={<AdminOnlyRoute><MusicPlaylists /></AdminOnlyRoute>} />
+                <Route path="music/categorias" element={<AdminOnlyRoute><MusicCategories /></AdminOnlyRoute>} />
+                <Route path="music/configuracoes" element={<AdminOnlyRoute><MusicSettings /></AdminOnlyRoute>} />
+                <Route path="music/gerador" element={<AdminOnlyRoute><MusicLyricsGenerator /></AdminOnlyRoute>} />
 
                 {/* Documentação técnica - Acesso apenas via URL direta, sem links */}
                 <Route path="automacao-conteudo-missao" element={<AdminOnlyRoute><AutomacaoConteudoMissao /></AdminOnlyRoute>} />

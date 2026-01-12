@@ -103,25 +103,25 @@ export function AudioPlayer({ src, type = 'explanation' }: AudioPlayerProps) {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="flex items-center gap-3 bg-[#1A1A1A] rounded-full px-3 py-2">
+    <div className="flex items-center gap-2 sm:gap-3 bg-[#1A1A1A] rounded-full px-2 sm:px-3 py-2">
       {/* Hidden audio element */}
       <audio ref={audioRef} src={src} preload="metadata" />
 
       {/* Play/Pause Button */}
       <button
         onClick={togglePlay}
-        className="flex-shrink-0 w-9 h-9 rounded-full bg-[#FFB800] hover:bg-[#FFC933] flex items-center justify-center transition-colors"
+        className="flex-shrink-0 w-10 h-10 rounded-full bg-[#FFB800] hover:bg-[#FFC933] flex items-center justify-center transition-colors"
       >
         {isPlaying ? (
-          <Pause size={18} className="text-black" fill="black" />
+          <Pause size={20} className="text-black" fill="black" />
         ) : (
-          <Play size={18} className="text-black ml-0.5" fill="black" />
+          <Play size={20} className="text-black ml-0.5" fill="black" />
         )}
       </button>
 
       {/* Waveform */}
       <div
-        className="flex-1 flex items-center gap-[2px] h-6 cursor-pointer min-w-[100px]"
+        className="flex-1 flex items-center gap-[2px] h-6 cursor-pointer min-w-[60px]"
         onClick={handleWaveformClick}
       >
         {waveform.map((height, index) => {
@@ -141,14 +141,14 @@ export function AudioPlayer({ src, type = 'explanation' }: AudioPlayerProps) {
       </div>
 
       {/* Duration */}
-      <span className="flex-shrink-0 text-xs text-[#A0A0A0] font-medium min-w-[36px] text-center">
+      <span className="flex-shrink-0 text-xs text-[#A0A0A0] font-medium min-w-[32px] text-center">
         {formatTime(duration - currentTime)}
       </span>
 
       {/* Speed Button */}
       <button
         onClick={cycleSpeed}
-        className="flex-shrink-0 w-10 h-6 rounded-full bg-[#3A3A3A] hover:bg-[#4A4A4A] flex items-center justify-center text-xs font-medium text-white transition-colors"
+        className="flex-shrink-0 w-9 h-7 rounded-full bg-[#3A3A3A] hover:bg-[#4A4A4A] flex items-center justify-center text-xs font-bold text-white transition-colors"
       >
         {playbackRate}x
       </button>

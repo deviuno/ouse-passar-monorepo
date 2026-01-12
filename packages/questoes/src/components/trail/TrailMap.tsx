@@ -629,7 +629,7 @@ export function TrailMap({
     }
 
     return (
-        <div className="relative w-full">
+        <div className="relative w-full overflow-x-hidden">
             {/* Future Round Warning - Minimal banner */}
             {isViewingFutureRound && (
                 <div className="bg-[var(--color-bg-elevated)] border-b border-[var(--color-border)] px-4 py-2 text-center theme-transition">

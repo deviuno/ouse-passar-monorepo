@@ -55,6 +55,9 @@ export function Header() {
   // Check if we're on home page to show preparatorio dropdown
   const isHomePage = location.pathname === '/' || location.pathname === '/trilha';
 
+  // Check if we're on a music page
+  const isMusicPage = location.pathname.startsWith('/music');
+
   // Get current mission for title (support both URL formats)
   const currentMission = useMemo(() => {
     // Try old format first: /missao/:id
@@ -222,6 +225,36 @@ export function Header() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  // Music Page Header - header customizado para o módulo de música
+  if (isMusicPage) {
+    return (
+      <header className="sticky top-0 h-14 bg-[#121212]/95 backdrop-blur-md border-b border-white/10 z-30">
+        <div className="flex items-center h-full px-4">
+          {/* Mobile: Back button + Title */}
+          <div className="flex items-center gap-3 lg:hidden">
+            <button
+              onClick={() => navigate('/')}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <ChevronLeft size={24} className="text-gray-400" />
+            </button>
+            <h1 className="text-xl font-sans uppercase tracking-wide">
+              <span className="text-white font-medium">OUSE </span>
+              <span className="text-[#FFB800] font-semibold">MUSIC</span>
+            </h1>
+          </div>
+          {/* Desktop: Just title */}
+          <div className="hidden lg:flex items-center">
+            <h1 className="text-xl font-sans uppercase tracking-wide">
+              <span className="text-white font-medium">OUSE </span>
+              <span className="text-[#FFB800] font-semibold">MUSIC</span>
+            </h1>
           </div>
         </div>
       </header>

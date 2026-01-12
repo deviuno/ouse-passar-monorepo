@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag, Sparkles, PlayCircle, FolderOpen, Layers } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag, Sparkles, PlayCircle, FolderOpen, Layers, Headphones, Music, ListMusic, Wand2 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -13,6 +13,7 @@ export const AdminLayout: React.FC = () => {
     const [planejamentosOpen, setPlanejamentosOpen] = useState(false);
     const [suporteOpen, setSuporteOpen] = useState(false);
     const [academyOpen, setAcademyOpen] = useState(false);
+    const [musicOpen, setMusicOpen] = useState(false);
     const [pendingReportsCount, setPendingReportsCount] = useState(0);
     const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
 
@@ -68,6 +69,9 @@ export const AdminLayout: React.FC = () => {
         }
         if (location.pathname.includes('/admin/academy')) {
             setAcademyOpen(true);
+        }
+        if (location.pathname.includes('/admin/music')) {
+            setMusicOpen(true);
         }
     }, [location.pathname]);
 
@@ -274,6 +278,72 @@ export const AdminLayout: React.FC = () => {
                                         >
                                             <Layers className="w-4 h-4 mr-3" />
                                             Cursos
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Music Accordion */}
+                            <div className="space-y-1">
+                                <button
+                                    onClick={() => setMusicOpen(!musicOpen)}
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${location.pathname.includes('/admin/music') ? 'text-white bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                >
+                                    <div className="flex items-center">
+                                        <Headphones className="w-5 h-5 mr-3" />
+                                        Ouse Music
+                                    </div>
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${musicOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {musicOpen && (
+                                    <div className="pl-4 space-y-1 bg-black/20 py-2 rounded-sm">
+                                        <Link
+                                            to="/admin/music"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/music')}`}
+                                        >
+                                            <LayoutDashboard className="w-4 h-4 mr-3" />
+                                            Dashboard
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/music/tracks"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/music/tracks')}`}
+                                        >
+                                            <Music className="w-4 h-4 mr-3" />
+                                            Faixas
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/music/playlists"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/music/playlists')}`}
+                                        >
+                                            <ListMusic className="w-4 h-4 mr-3" />
+                                            Playlists
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/music/categorias"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/music/categorias')}`}
+                                        >
+                                            <FolderOpen className="w-4 h-4 mr-3" />
+                                            Categorias
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/music/configuracoes"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/music/configuracoes')}`}
+                                        >
+                                            <Settings className="w-4 h-4 mr-3" />
+                                            Configurações
+                                        </Link>
+
+                                        <Link
+                                            to="/admin/music/gerador"
+                                            className={`flex items-center px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors ${isActive('/admin/music/gerador')}`}
+                                        >
+                                            <Wand2 className="w-4 h-4 mr-3" />
+                                            Gerador de Músicas
                                         </Link>
                                     </div>
                                 )}

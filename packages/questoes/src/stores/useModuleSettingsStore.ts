@@ -3,7 +3,7 @@ import { supabase } from '../services/supabaseClient';
 
 export type BlockBehavior = 'hidden' | 'disabled' | 'modal';
 
-export type ModuleName = 'trilha' | 'praticar' | 'simulados' | 'estatisticas' | 'loja';
+export type ModuleName = 'trilha' | 'praticar' | 'simulados' | 'estatisticas' | 'loja' | 'music';
 
 export interface ModuleConfig {
   enabled: boolean;
@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS: Record<ModuleName, ModuleConfig> = {
   simulados: { ...DEFAULT_CONFIG },
   estatisticas: { ...DEFAULT_CONFIG },
   loja: { ...DEFAULT_CONFIG },
+  music: { ...DEFAULT_CONFIG },
 };
 
 export const useModuleSettingsStore = create<ModuleSettingsState>()((set, get) => ({

@@ -6,7 +6,6 @@ import {
   Target,
   FileText,
   BarChart2,
-  ShoppingBag,
   User,
   LogOut,
   HelpCircle,
@@ -15,6 +14,7 @@ import {
   Bell,
   Lock,
   BookOpen,
+  Headphones,
 } from 'lucide-react';
 import { useAuthStore, useUserStore, useUIStore, useNotificationStore, useTrailStore, useBatteryStore } from '../../stores';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -34,8 +34,8 @@ const mainNavItems = [
   { path: '/questoes', icon: Target, label: 'Ouse Questões', tourId: 'sidebar-praticar' },
   { path: '/simulados', icon: FileText, label: 'Meus Simulados', tourId: 'sidebar-simulados' },
   { path: '/cursos', icon: BookOpen, label: 'Meus Cursos', tourId: 'sidebar-cursos' },
+  { path: '/music', icon: Headphones, label: 'Ouse Music', tourId: 'sidebar-music' },
   { path: '/estatisticas', icon: BarChart2, label: 'Estatísticas', tourId: 'sidebar-raiox' },
-  { path: '/loja', icon: ShoppingBag, label: 'Loja', tourId: 'sidebar-loja' },
 ];
 
 const bottomNavItems = [
@@ -54,6 +54,7 @@ const MODULE_LABELS: Record<ModuleName, string> = {
   simulados: 'Meus Simulados',
   estatisticas: 'Estatísticas',
   loja: 'Loja',
+  music: 'Ouse Music',
 };
 
 export function Sidebar({ isCollapsed = false }: SidebarProps) {

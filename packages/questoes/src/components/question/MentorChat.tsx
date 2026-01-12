@@ -4,6 +4,7 @@ import { Send, Zap, Mic, Square, MessageSquare, GripHorizontal, Sparkles, Headph
 import { motion, AnimatePresence } from 'framer-motion';
 import { chatWithTutor, TutorUserContext, GeneratedAudio } from '../../services/geminiService';
 import { generateAudioWithCache, generatePodcastWithCache } from '../../services/audioCacheService';
+import { musicService } from '../../services/musicService';
 import { AudioPlayer } from '../ui/AudioPlayer';
 import { ParsedQuestion } from '../../types';
 import { useBatteryStore } from '../../stores/useBatteryStore';
@@ -11,6 +12,20 @@ import { getTimeUntilRecharge } from '../../types/battery';
 
 // Delay simulado para áudios em cache (para dar impressão de geração)
 const CACHE_SIMULATION_DELAY = 1500; // 1.5 segundos
+
+// Helper para obter a duração de um áudio a partir da URL
+const getAudioDuration = (audioUrl: string): Promise<number> => {
+    return new Promise((resolve) => {
+        const audio = new Audio();
+        audio.addEventListener('loadedmetadata', () => {
+            resolve(Math.round(audio.duration));
+        });
+        audio.addEventListener('error', () => {
+            resolve(0); // Se falhar, retorna 0
+        });
+        audio.src = audioUrl;
+    });
+};
 
 // Shortcut options for AI-generated content
 interface ShortcutOption {
@@ -569,6 +584,27 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                 // Se veio do cache, simular delay para parecer que está gerando
                 if (audio.fromCache) {
                     await new Promise(resolve => setTimeout(resolve, CACHE_SIMULATION_DELAY));
+                }
+
+                // Salvar podcast na tabela music_tracks para aparecer no módulo Music
+                if (preparatorioId && !audio.audioUrl.startsWith('blob:')) {
+                    const materia = contentContext.question?.materia;
+                    const assunto = contentContext.question?.assunto;
+                    const title = contentContext.title || contentContext.question?.assunto || 'Podcast';
+
+                    // Obter duração do áudio antes de salvar
+                    getAudioDuration(audio.audioUrl).then(durationSeconds => {
+                        musicService.saveUserGeneratedPodcast({
+                            title: `Podcast: ${title}`,
+                            audioUrl: audio.audioUrl,
+                            preparatorioId,
+                            materia,
+                            assunto,
+                            durationSeconds,
+                        }).catch(err => {
+                            console.error('[MentorChat] Erro ao salvar podcast no Music:', err);
+                        });
+                    });
                 }
 
                 setMessages(prev => {

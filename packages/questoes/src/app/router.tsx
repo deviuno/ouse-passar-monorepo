@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 // Layouts
 import MainLayout from '../components/layout/MainLayout';
+import { MusicLayout } from '../components/music/MusicLayout';
 
 // Pages
 import OnboardingPage from '../pages/OnboardingPage';
@@ -28,6 +29,14 @@ import TermsPage from '../pages/TermsPage';
 import PrivacyPage from '../pages/PrivacyPage';
 import CoursesPage from '../pages/CoursesPage';
 import CourseViewPage from '../pages/CourseViewPage';
+
+// Music pages
+import Music from '../pages/Music';
+import MusicPlaylist from '../pages/MusicPlaylist';
+import MusicLibrary from '../pages/MusicLibrary';
+import MusicSearch from '../pages/MusicSearch';
+import MusicCategory from '../pages/MusicCategory';
+import MusicLessonPodcasts from '../pages/MusicLessonPodcasts';
 
 // Auth pages (will redirect from existing components)
 import AuthPage from '../pages/AuthPage';
@@ -200,6 +209,39 @@ export const router = createBrowserRouter([
         path: 'ajuda',
         element: <HelpPage />,
       },
+
+      // Music routes (inside MainLayout)
+      {
+        path: 'music',
+        element: <ModuleGuard module="music"><MusicLayout /></ModuleGuard>,
+        children: [
+          {
+            index: true,
+            element: <Music />,
+          },
+          {
+            path: 'playlist/:id',
+            element: <MusicPlaylist />,
+          },
+          {
+            path: 'library',
+            element: <MusicLibrary />,
+          },
+          {
+            path: 'search',
+            element: <MusicSearch />,
+          },
+          {
+            path: 'category/:slug',
+            element: <MusicCategory />,
+          },
+          {
+            path: 'aulas',
+            element: <MusicLessonPodcasts />,
+          },
+        ],
+      },
+
     ],
   },
 

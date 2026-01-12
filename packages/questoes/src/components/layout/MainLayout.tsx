@@ -7,12 +7,21 @@ import { ToastContainer } from '../ui/Toast';
 import { ScrollToTop } from '../ui';
 import { ProductTour } from '../tour';
 import { BatteryConsumeToast } from '../battery/BatteryConsumeToast';
+import { AudioEngine, MusicPlayer, FloatingMiniPlayer } from '../music';
 import { useUIStore, useBatteryStore } from '../../stores';
+import { useMusicPlayerStore } from '../../stores/useMusicPlayerStore';
 
 export function MainLayout() {
   const { isSidebarOpen, isTourActive, isTourCompleted, startTour, completeTour, skipTour } = useUIStore();
   const { consumeToast, hideConsumeToast } = useBatteryStore();
+  const { currentTrack } = useMusicPlayerStore();
   const location = useLocation();
+
+  // Check if we're on a music page
+  const isMusicPage = location.pathname.startsWith('/music');
+
+  // Check if music player should be shown (has current track)
+  const showMusicPlayer = !!currentTrack;
 
   // Check if we should start the tour (only on home page and if not completed)
   useEffect(() => {
@@ -28,7 +37,7 @@ export function MainLayout() {
   }, [isTourCompleted, location.pathname, startTour]);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-main)] text-[var(--color-text-main)] theme-transition scrollbar-hide">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[var(--color-bg-main)] text-[var(--color-text-main)] theme-transition scrollbar-hide">
       {/* Scroll to top on route change */}
       <ScrollToTop />
 
@@ -48,20 +57,28 @@ export function MainLayout() {
       {/* Main Content */}
       <div
         className={`
-          min-h-screen flex flex-col
+          min-h-screen w-full max-w-full overflow-x-hidden flex flex-col
           transition-all duration-300
           ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-[72px]'}
         `}
       >
-        {/* Header */}
-        <Header />
+        {/* Header - Hidden on music pages */}
+        {!isMusicPage && <Header />}
 
         {/* Page Content */}
-        <main className="flex-1 pb-20 lg:pb-4">
+        <main className={`flex-1 w-full max-w-full overflow-x-hidden ${
+          isMusicPage
+            ? showMusicPlayer
+              ? 'pb-44 lg:pb-24' // Music page with player: nav + player padding
+              : 'pb-20 lg:pb-0' // Music page without player: just nav padding
+            : showMusicPlayer
+              ? 'pb-32 lg:pb-8 p-4 lg:p-6' // Other page with floating player
+              : 'pb-20 lg:pb-4 p-4 lg:p-6' // No music playing
+        }`}>
           <Outlet key={location.pathname} />
         </main>
 
-        {/* Mobile Bottom Navigation */}
+        {/* Mobile Bottom Navigation - Sempre visível no mobile */}
         <MobileNav />
       </div>
 
@@ -86,6 +103,13 @@ export function MainLayout() {
         onComplete={completeTour}
         onSkip={skipTour}
       />
+
+      {/* Audio Engine - sempre montado para manter a reprodução entre páginas */}
+      <AudioEngine />
+
+      {/* Music Player - Full player on music pages, floating mini player elsewhere */}
+      {showMusicPlayer && isMusicPage && <MusicPlayer />}
+      {showMusicPlayer && !isMusicPage && <FloatingMiniPlayer />}
     </div>
   );
 }

@@ -13,6 +13,7 @@ export interface ModuleAccess {
   simulados: ModuleConfig;
   estatisticas: ModuleConfig;
   loja: ModuleConfig;
+  music: ModuleConfig;
   hasFullAccess: boolean;
   isLoading: boolean;
 }
@@ -33,6 +34,7 @@ export const routeToModule: Record<string, ModuleName> = {
   '/simulados': 'simulados',
   '/estatisticas': 'estatisticas',
   '/loja': 'loja',
+  '/music': 'music',
 };
 
 export function getModuleFromPath(path: string): ModuleName | null {
@@ -51,6 +53,11 @@ export function getModuleFromPath(path: string): ModuleName | null {
   // Check for loja sub-routes
   if (path.startsWith('/loja')) {
     return 'loja';
+  }
+
+  // Check for music sub-routes
+  if (path.startsWith('/music')) {
+    return 'music';
   }
 
   return null;
@@ -83,6 +90,7 @@ export function useModuleAccess(): ModuleAccess {
         simulados: FULL_ACCESS_CONFIG,
         estatisticas: FULL_ACCESS_CONFIG,
         loja: FULL_ACCESS_CONFIG,
+        music: FULL_ACCESS_CONFIG,
         hasFullAccess: true,
         isLoading,
       };
@@ -95,6 +103,7 @@ export function useModuleAccess(): ModuleAccess {
       simulados: settings.simulados,
       estatisticas: settings.estatisticas,
       loja: settings.loja,
+      music: settings.music,
       hasFullAccess: false,
       isLoading,
     };

@@ -446,7 +446,7 @@ export default function HomePage() {
   const isLoadingAnything = isLoading && displayRounds.length === 0;
 
   return (
-    <div className="min-h-full pb-20">
+    <div className="min-h-full pb-20 w-full max-w-full overflow-x-hidden">
       {/* Trail Map - Centralizado */}
       {isLoadingAnything ? (
         <TrailSkeleton />
