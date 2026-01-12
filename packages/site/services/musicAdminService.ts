@@ -105,36 +105,36 @@ export async function getMusicStats(preparatorioId: string): Promise<MusicStats>
     { data: playCountData },
     { count: totalFavorites },
   ] = await Promise.all([
-    supabase
+    db
       .from('music_tracks')
       .select('*', { count: 'exact', head: true })
       .eq('preparatorio_id', preparatorioId)
       .eq('is_podcast', false),
-    supabase
+    db
       .from('music_tracks')
       .select('*', { count: 'exact', head: true })
       .eq('preparatorio_id', preparatorioId)
       .eq('is_podcast', true),
-    supabase
+    db
       .from('music_playlists')
       .select('*', { count: 'exact', head: true })
       .eq('preparatorio_id', preparatorioId)
       .is('user_id', null),
-    supabase
+    db
       .from('music_categories')
       .select('*', { count: 'exact', head: true })
       .eq('preparatorio_id', preparatorioId),
-    supabase
+    db
       .from('music_tracks')
       .select('play_count')
       .eq('preparatorio_id', preparatorioId),
-    supabase
+    db
       .from('music_favorites')
       .select('*, track:music_tracks!inner(preparatorio_id)', { count: 'exact', head: true })
       .eq('track.preparatorio_id', preparatorioId),
   ]);
 
-  const totalPlays = (playCountData || []).reduce((sum, t) => sum + (t.play_count || 0), 0);
+  const totalPlays = (playCountData || []).reduce((sum: number, t: any) => sum + (t.play_count || 0), 0);
 
   return {
     totalTracks: totalTracks || 0,
@@ -258,7 +258,7 @@ export async function getTracks(
   page = 1,
   limit = 20
 ): Promise<{ tracks: MusicTrack[]; total: number }> {
-  let query = supabase
+  let query = db
     .from('music_tracks')
     .select('*, category:music_categories(*)', { count: 'exact' })
     .eq('preparatorio_id', preparatorioId);
@@ -391,7 +391,7 @@ export async function getPlaylists(
   preparatorioId: string,
   adminOnly = true
 ): Promise<MusicPlaylist[]> {
-  let query = supabase
+  let query = db
     .from('music_playlists')
     .select('*')
     .eq('preparatorio_id', preparatorioId);
