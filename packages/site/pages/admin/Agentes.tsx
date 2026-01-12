@@ -16,6 +16,10 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from 'lucide-react';
 import {
   agentesService,
@@ -85,6 +89,24 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   const [processarQuantidade, setProcessarQuantidade] = useState(100);
   const [popularQuantidade, setPopularQuantidade] = useState(1000);
 
+  // Status da operação (feedback visual)
+  const [operationStatus, setOperationStatus] = useState<{
+    type: 'idle' | 'processing' | 'success' | 'error';
+    message: string;
+    details?: string;
+    timestamp?: Date;
+  }>({ type: 'idle', message: '' });
+
+  // Auto-limpar status de sucesso após 10 segundos
+  useEffect(() => {
+    if (operationStatus.type === 'success') {
+      const timer = setTimeout(() => {
+        setOperationStatus({ type: 'idle', message: '' });
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [operationStatus]);
+
   // Modal de questão
   const [selectedQuestao, setSelectedQuestao] = useState<QuestaoDetalhes | null>(null);
   const [questaoModalOpen, setQuestaoModalOpen] = useState(false);
@@ -131,16 +153,37 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // --------------------------------------------------------------------------
   const handleProcessarFila = async () => {
     setActionLoading('processar');
+    setOperationStatus({
+      type: 'processing',
+      message: `Processando ${processarQuantidade} questões...`,
+      details: 'Aguarde enquanto o agente de IA formata os comentários',
+      timestamp: new Date(),
+    });
     try {
       const result = await agentesService.processarFila(processarQuantidade);
       if (result.success) {
-        alert(`Processamento iniciado! ${result.sucesso || 0} sucesso, ${result.falha || 0} falhas`);
+        setOperationStatus({
+          type: 'success',
+          message: 'Processamento concluído!',
+          details: `${result.sucesso || 0} formatados com sucesso, ${result.falha || 0} falhas`,
+          timestamp: new Date(),
+        });
         loadData();
       } else {
-        alert(`Erro: ${result.error}`);
+        setOperationStatus({
+          type: 'error',
+          message: 'Erro no processamento',
+          details: result.error || 'Erro desconhecido',
+          timestamp: new Date(),
+        });
       }
     } catch (error) {
-      alert('Erro ao processar fila');
+      setOperationStatus({
+        type: 'error',
+        message: 'Erro ao processar fila',
+        details: error instanceof Error ? error.message : 'Erro de conexão',
+        timestamp: new Date(),
+      });
     } finally {
       setActionLoading(null);
     }
@@ -148,16 +191,37 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
 
   const handlePopularFila = async () => {
     setActionLoading('popular');
+    setOperationStatus({
+      type: 'processing',
+      message: `Adicionando ${popularQuantidade} questões à fila...`,
+      details: 'Buscando questões sem comentário formatado',
+      timestamp: new Date(),
+    });
     try {
       const result = await agentesService.popularFila(popularQuantidade);
       if (result.success) {
-        alert(`${result.adicionadas || 0} questões adicionadas à fila`);
+        setOperationStatus({
+          type: 'success',
+          message: 'Fila populada!',
+          details: `${result.adicionadas || 0} questões adicionadas (${result.jaEnfileiradas || 0} já estavam na fila)`,
+          timestamp: new Date(),
+        });
         loadData();
       } else {
-        alert(`Erro: ${result.error}`);
+        setOperationStatus({
+          type: 'error',
+          message: 'Erro ao popular fila',
+          details: result.error || 'Erro desconhecido',
+          timestamp: new Date(),
+        });
       }
     } catch (error) {
-      alert('Erro ao popular fila');
+      setOperationStatus({
+        type: 'error',
+        message: 'Erro ao popular fila',
+        details: error instanceof Error ? error.message : 'Erro de conexão',
+        timestamp: new Date(),
+      });
     } finally {
       setActionLoading(null);
     }
@@ -167,16 +231,37 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
     if (!confirm('Tem certeza que deseja resetar todas as falhas para reprocessamento?')) return;
 
     setActionLoading('resetar');
+    setOperationStatus({
+      type: 'processing',
+      message: 'Resetando falhas...',
+      details: 'Preparando questões com falha para reprocessamento',
+      timestamp: new Date(),
+    });
     try {
       const result = await agentesService.resetarFalhas();
       if (result.success) {
-        alert(`${result.resetadas || 0} falhas resetadas`);
+        setOperationStatus({
+          type: 'success',
+          message: 'Falhas resetadas!',
+          details: `${result.resetadas || 0} questões prontas para reprocessamento`,
+          timestamp: new Date(),
+        });
         loadData();
       } else {
-        alert(`Erro: ${result.error}`);
+        setOperationStatus({
+          type: 'error',
+          message: 'Erro ao resetar falhas',
+          details: result.error || 'Erro desconhecido',
+          timestamp: new Date(),
+        });
       }
     } catch (error) {
-      alert('Erro ao resetar falhas');
+      setOperationStatus({
+        type: 'error',
+        message: 'Erro ao resetar falhas',
+        details: error instanceof Error ? error.message : 'Erro de conexão',
+        timestamp: new Date(),
+      });
     } finally {
       setActionLoading(null);
     }
@@ -350,6 +435,64 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
               </button>
             </div>
           </div>
+
+          {/* Status da Operação */}
+          {operationStatus.type !== 'idle' && (
+            <div
+              className={`border rounded-sm p-4 flex items-start gap-4 transition-all ${
+                operationStatus.type === 'processing'
+                  ? 'bg-blue-500/10 border-blue-500/30'
+                  : operationStatus.type === 'success'
+                  ? 'bg-green-500/10 border-green-500/30'
+                  : 'bg-red-500/10 border-red-500/30'
+              }`}
+            >
+              {/* Ícone */}
+              <div className="flex-shrink-0 mt-0.5">
+                {operationStatus.type === 'processing' ? (
+                  <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+                ) : operationStatus.type === 'success' ? (
+                  <CheckCircle2 className="w-6 h-6 text-green-400" />
+                ) : (
+                  <XCircle className="w-6 h-6 text-red-400" />
+                )}
+              </div>
+
+              {/* Conteúdo */}
+              <div className="flex-1 min-w-0">
+                <h4
+                  className={`font-bold ${
+                    operationStatus.type === 'processing'
+                      ? 'text-blue-400'
+                      : operationStatus.type === 'success'
+                      ? 'text-green-400'
+                      : 'text-red-400'
+                  }`}
+                >
+                  {operationStatus.message}
+                </h4>
+                {operationStatus.details && (
+                  <p className="text-sm text-gray-400 mt-1">{operationStatus.details}</p>
+                )}
+                {operationStatus.timestamp && (
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {operationStatus.timestamp.toLocaleTimeString('pt-BR')}
+                  </p>
+                )}
+              </div>
+
+              {/* Botão fechar (apenas para sucesso e erro) */}
+              {operationStatus.type !== 'processing' && (
+                <button
+                  onClick={() => setOperationStatus({ type: 'idle', message: '' })}
+                  className="flex-shrink-0 text-gray-500 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Filtro e Tabela */}
           <div className="bg-brand-card border border-white/5 rounded-sm">
