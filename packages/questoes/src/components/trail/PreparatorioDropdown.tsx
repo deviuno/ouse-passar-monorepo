@@ -49,8 +49,8 @@ export function PreparatorioDropdown({
   if (isLoading) {
     return (
       <div className="flex items-center gap-2">
-        <div className="w-32 h-6 bg-[#252525] rounded-lg animate-pulse" />
-        <div className="w-5 h-5 bg-[#252525] rounded animate-pulse" />
+        <div className="w-32 h-6 bg-[var(--color-bg-elevated)] rounded-lg animate-pulse" />
+        <div className="w-5 h-5 bg-[var(--color-bg-elevated)] rounded animate-pulse" />
       </div>
     );
   }
@@ -74,7 +74,7 @@ export function PreparatorioDropdown({
         ) : null}
 
         {/* Nome do preparatorio */}
-        <h1 className="text-white font-bold text-xl">
+        <h1 className="text-[var(--color-text-main)] font-bold text-xl">
           {selectedPrep?.preparatorio.nome || 'Selecionar Trilha'}
         </h1>
 
@@ -85,7 +85,7 @@ export function PreparatorioDropdown({
         >
           <ChevronDown
             size={24}
-            className="text-[#FFB800] group-hover:text-white transition-colors"
+            className="text-[var(--color-brand)] group-hover:text-[var(--color-text-main)] transition-colors"
           />
         </motion.div>
       </button>
@@ -101,10 +101,10 @@ export function PreparatorioDropdown({
             className="absolute top-full left-0 right-0 mt-3 z-50 overflow-hidden"
             style={{ minWidth: '320px' }}
           >
-            <div className="bg-[#1E1E1E] border border-[#3A3A3A] rounded-2xl shadow-2xl shadow-black/50 overflow-hidden">
+            <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl shadow-[var(--shadow-elevated)] overflow-hidden">
               {/* Header */}
-              <div className="px-4 py-3 border-b border-[#3A3A3A]">
-                <p className="text-[#6E6E6E] text-xs font-medium uppercase tracking-wider">
+              <div className="px-4 py-3 border-b border-[var(--color-border)]">
+                <p className="text-[var(--color-text-muted)] text-xs font-medium uppercase tracking-wider">
                   Seus Preparatorios
                 </p>
               </div>
@@ -113,16 +113,16 @@ export function PreparatorioDropdown({
               <div className="max-h-[300px] overflow-y-auto">
                 {preparatorios.map((prep) => {
                   const isSelected = selectedId === prep.id;
-                  const iconeBg = prep.preparatorio.cor || '#FFB800';
+                  const iconeBg = prep.preparatorio.cor || 'var(--color-brand)';
 
                   return (
                     <motion.button
                       key={prep.id}
                       onClick={() => handleSelect(prep)}
-                      whileHover={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
+                      whileHover={{ backgroundColor: 'var(--color-bg-elevated)' }}
                       className={`
                         w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
-                        ${isSelected ? 'bg-black/30' : 'hover:bg-black/20'}
+                        ${isSelected ? 'bg-[var(--color-bg-elevated)]' : 'hover:bg-[var(--color-bg-elevated)]'}
                       `}
                     >
                       {/* Logo ou Icone */}
@@ -145,24 +145,24 @@ export function PreparatorioDropdown({
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className={`font-medium truncate ${isSelected ? 'text-[#FFB800]' : 'text-white'}`}>
+                        <p className={`font-medium truncate ${isSelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-main)]'}`}>
                           {prep.preparatorio.nome}
                         </p>
-                        <p className="text-[#6E6E6E] text-xs truncate">
+                        <p className="text-[var(--color-text-muted)] text-xs truncate">
                           {prep.preparatorio.banca || prep.preparatorio.descricao || 'Preparatorio'}
                         </p>
                       </div>
 
                       {/* Progress */}
                       <div className="text-right flex-shrink-0">
-                        <p className="text-[#FFB800] text-sm font-medium">
+                        <p className="text-[var(--color-brand)] text-sm font-medium">
                           {prep.progressPercent || 0}%
                         </p>
                       </div>
 
                       {/* Check se selecionado */}
                       {isSelected && (
-                        <div className="w-6 h-6 rounded-full bg-[#FFB800] flex items-center justify-center flex-shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-[var(--color-brand)] flex items-center justify-center flex-shrink-0">
                           <Check size={14} className="text-black" />
                         </div>
                       )}
@@ -172,23 +172,23 @@ export function PreparatorioDropdown({
               </div>
 
               {/* Adicionar novo */}
-              <div className="border-t border-[#3A3A3A]">
+              <div className="border-t border-[var(--color-border)]">
                 <motion.button
                   onClick={() => {
                     onAddNew();
                     setIsOpen(false);
                   }}
-                  whileHover={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left group hover:bg-black/20"
+                  whileHover={{ backgroundColor: 'var(--color-bg-elevated)' }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left group hover:bg-[var(--color-bg-elevated)]"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[#3A3A3A] group-hover:bg-[#FFB800]/20 flex items-center justify-center transition-colors">
-                    <Plus size={20} className="text-[#6E6E6E] group-hover:text-[#FFB800] transition-colors" />
+                  <div className="w-10 h-10 rounded-xl bg-[var(--color-border)] group-hover:bg-[var(--color-brand)]/20 flex items-center justify-center transition-colors">
+                    <Plus size={20} className="text-[var(--color-text-muted)] group-hover:text-[var(--color-brand)] transition-colors" />
                   </div>
                   <div>
-                    <p className="text-white font-medium group-hover:text-[#FFB800] transition-colors">
+                    <p className="text-[var(--color-text-main)] font-medium group-hover:text-[var(--color-brand)] transition-colors">
                       Novo Preparatorio
                     </p>
-                    <p className="text-[#6E6E6E] text-xs">
+                    <p className="text-[var(--color-text-muted)] text-xs">
                       Adquirir mais cursos
                     </p>
                   </div>

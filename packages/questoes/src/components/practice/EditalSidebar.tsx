@@ -37,11 +37,11 @@ const EditalItemNode: React.FC<{
   const getIcon = () => {
     switch (item.tipo) {
       case 'bloco':
-        return <FolderOpen size={16} className="text-[#FFB800]" />;
+        return <FolderOpen size={16} className="text-[var(--color-brand)]" />;
       case 'materia':
-        return <BookOpen size={16} className="text-blue-400" />;
+        return <BookOpen size={16} className="text-[var(--color-info)]" />;
       case 'topico':
-        return <FileText size={14} className="text-gray-400" />;
+        return <FileText size={14} className="text-[var(--color-text-muted)]" />;
       default:
         return null;
     }
@@ -69,8 +69,8 @@ const EditalItemNode: React.FC<{
   return (
     <div>
       <div
-        className={`flex items-center justify-between py-2 px-3 cursor-pointer transition-colors border-b border-[#2A2A2A] ${
-          isCurrentTopic ? 'bg-[#FFB800]/10 border-l-2 border-l-[#FFB800]' : 'hover:bg-[#252525]'
+        className={`flex items-center justify-between py-2 px-3 cursor-pointer transition-colors border-b border-[var(--color-border)] ${
+          isCurrentTopic ? 'bg-[var(--color-brand)]/10 border-l-2 border-l-[var(--color-brand)]' : 'hover:bg-[var(--color-bg-elevated)]'
         }`}
         style={{ paddingLeft }}
         onClick={handleRowClick}
@@ -83,12 +83,12 @@ const EditalItemNode: React.FC<{
                 e.stopPropagation();
                 toggleExpanded(item.id);
               }}
-              className="p-0.5 hover:bg-[#3A3A3A] rounded transition-colors flex-shrink-0"
+              className="p-0.5 hover:bg-[var(--color-border)] rounded transition-colors flex-shrink-0"
             >
               {isExpanded ? (
-                <ChevronDown size={14} className="text-gray-400" />
+                <ChevronDown size={14} className="text-[var(--color-text-muted)]" />
               ) : (
-                <ChevronRight size={14} className="text-gray-400" />
+                <ChevronRight size={14} className="text-[var(--color-text-muted)]" />
               )}
             </button>
           ) : (
@@ -102,12 +102,12 @@ const EditalItemNode: React.FC<{
           <span
             className={`truncate text-xs ${
               item.tipo === 'bloco'
-                ? 'font-bold text-white uppercase tracking-wide'
+                ? 'font-bold text-[var(--color-text-main)] uppercase tracking-wide'
                 : item.tipo === 'materia'
-                ? 'font-semibold text-white'
+                ? 'font-semibold text-[var(--color-text-main)]'
                 : isCurrentTopic
-                ? 'text-[#FFB800] font-medium'
-                : 'text-gray-300'
+                ? 'text-[var(--color-brand)] font-medium'
+                : 'text-[var(--color-text-sec)]'
             }`}
           >
             {item.titulo}
@@ -115,7 +115,7 @@ const EditalItemNode: React.FC<{
 
           {/* Badge com contagem */}
           {hasChildren && (
-            <span className="ml-1 px-1.5 py-0.5 bg-[#3A3A3A] rounded-full text-[10px] text-gray-400 flex-shrink-0">
+            <span className="ml-1 px-1.5 py-0.5 bg-[var(--color-border)] rounded-full text-[10px] text-[var(--color-text-muted)] flex-shrink-0">
               {item.children.length}
             </span>
           )}
@@ -127,8 +127,8 @@ const EditalItemNode: React.FC<{
             onClick={handlePraticar}
             className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded transition-all flex-shrink-0 ml-1 ${
               isCurrentTopic
-                ? 'bg-[#FFB800]/20 text-[#FFB800] cursor-default'
-                : 'bg-[#FFB800] hover:bg-[#FFC933] text-black'
+                ? 'bg-[var(--color-brand)]/20 text-[var(--color-brand)] cursor-default'
+                : 'bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black'
             }`}
             disabled={isCurrentTopic}
             title={isCurrentTopic ? 'Você está praticando este tópico' : 'Praticar este tópico'}
@@ -274,24 +274,24 @@ export const EditalSidebar: React.FC<EditalSidebarProps> = ({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed right-0 top-0 h-full w-full max-w-md bg-[#1A1A1A] border-l border-[#2A2A2A] z-50 flex flex-col"
+            className="fixed right-0 top-0 h-full w-full max-w-md bg-[var(--color-bg-card)] border-l border-[var(--color-border)] z-50 flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#2A2A2A] bg-[#1E1E1E]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)]">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-[#FFB800]/10 rounded-lg">
-                  <BookOpen size={18} className="text-[#FFB800]" />
+                <div className="p-2 bg-[var(--color-brand)]/10 rounded-lg">
+                  <BookOpen size={18} className="text-[var(--color-brand)]" />
                 </div>
                 <div>
-                  <h2 className="text-white font-bold text-sm">Edital Verticalizado</h2>
-                  <p className="text-gray-400 text-xs">Escolha outro tópico para praticar</p>
+                  <h2 className="text-[var(--color-text-main)] font-bold text-sm">Edital Verticalizado</h2>
+                  <p className="text-[var(--color-text-muted)] text-xs">Escolha outro tópico para praticar</p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-[#2A2A2A] rounded-lg transition-colors"
+                className="p-2 hover:bg-[var(--color-bg-elevated)] rounded-lg transition-colors"
               >
-                <X size={20} className="text-gray-400" />
+                <X size={20} className="text-[var(--color-text-muted)]" />
               </button>
             </div>
 
@@ -299,18 +299,18 @@ export const EditalSidebar: React.FC<EditalSidebarProps> = ({
             <div className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-16">
-                  <Loader2 size={24} className="text-[#FFB800] animate-spin mb-3" />
-                  <p className="text-gray-400 text-sm">Carregando edital...</p>
+                  <Loader2 size={24} className="text-[var(--color-brand)] animate-spin mb-3" />
+                  <p className="text-[var(--color-text-muted)] text-sm">Carregando edital...</p>
                 </div>
               ) : error ? (
                 <div className="flex flex-col items-center justify-center py-16 px-4">
-                  <AlertCircle size={32} className="text-red-500 mb-3" />
-                  <p className="text-gray-400 text-sm text-center">{error}</p>
+                  <AlertCircle size={32} className="text-[var(--color-error)] mb-3" />
+                  <p className="text-[var(--color-text-muted)] text-sm text-center">{error}</p>
                 </div>
               ) : editalTree.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 px-4">
-                  <BookOpen size={32} className="text-gray-500 mb-3" />
-                  <p className="text-gray-400 text-sm text-center">Edital não disponível</p>
+                  <BookOpen size={32} className="text-[var(--color-text-muted)] mb-3" />
+                  <p className="text-[var(--color-text-muted)] text-sm text-center">Edital não disponível</p>
                 </div>
               ) : (
                 <div>

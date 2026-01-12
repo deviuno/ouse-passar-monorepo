@@ -1,8 +1,22 @@
 import { supabase } from '../lib/supabase';
+import { questionsDb } from '../lib/questionsDb';
 
 // ==================== TIPOS ====================
 
 export type EditalItemTipo = 'bloco' | 'materia' | 'topico';
+
+// Tipo para nó da taxonomia hierárquica
+export interface TaxonomyNode {
+  id: number;
+  codigo: string;
+  nome: string;
+  nivel: number;
+  ordem: number;
+  materia: string;
+  parent_id: number | null;
+  filhos: TaxonomyNode[];
+  assuntos_originais?: string[];
+}
 
 export interface EditalItem {
   id: string;
@@ -297,14 +311,22 @@ export const editalService = {
 
   // Buscar matérias distintas do banco de questões
   async getDistinctMaterias(): Promise<string[]> {
-    const { data, error } = await supabase.rpc('get_distinct_materias');
+    if (!questionsDb) {
+      console.error('questionsDb not configured');
+      return [];
+    }
+    const { data, error } = await questionsDb.rpc('get_distinct_materias');
     if (error) throw error;
     return (data || []).map((d: { materia: string }) => d.materia);
   },
 
   // Buscar assuntos distintos (opcionalmente filtrados por matérias)
   async getDistinctAssuntos(materias?: string[]): Promise<{ assunto: string; materia: string }[]> {
-    const { data, error } = await supabase.rpc('get_distinct_assuntos', {
+    if (!questionsDb) {
+      console.error('questionsDb not configured');
+      return [];
+    }
+    const { data, error } = await questionsDb.rpc('get_distinct_assuntos', {
       p_materias: materias && materias.length > 0 ? materias : null
     });
     if (error) throw error;
@@ -313,7 +335,11 @@ export const editalService = {
 
   // Contar questões com base nos filtros (para preview)
   async countQuestoesByFilter(materias?: string[], assuntos?: string[], banca?: string): Promise<number> {
-    const { data, error } = await supabase.rpc('count_questoes_by_filter', {
+    if (!questionsDb) {
+      console.error('questionsDb not configured');
+      return 0;
+    }
+    const { data, error } = await questionsDb.rpc('count_questoes_by_filter', {
       p_materias: materias && materias.length > 0 ? materias : null,
       p_assuntos: assuntos && assuntos.length > 0 ? assuntos : null,
       p_banca: banca || null
@@ -329,9 +355,7 @@ export const editalService = {
     itemsProcessed: number;
     error?: string;
   }> {
-    const MASTRA_URL = import.meta.env.VITE_MASTRA_URL
-      ? import.meta.env.VITE_MASTRA_URL
-      : 'http://localhost:4000';
+    const MASTRA_URL = getMastraApiUrl('');
 
     const response = await fetch(`${MASTRA_URL}/api/edital/${preparatorioId}/auto-configure-filters`, {
       method: 'POST',
@@ -339,5 +363,86 @@ export const editalService = {
     });
 
     return response.json();
+  },
+
+  // ==================== TAXONOMIA HIERÁRQUICA ====================
+
+  // Busca toda a taxonomia de todas as matérias
+  async fetchAllTaxonomia(): Promise<Map<string, TaxonomyNode[]>> {
+    try {
+      const API_URL = getMastraApiUrl('/api/taxonomia/all');
+
+      const response = await fetch(API_URL);
+      if (!response.ok) {
+        console.error('[fetchAllTaxonomia] Erro na resposta:', response.status);
+        return new Map();
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        console.error('[fetchAllTaxonomia] API retornou erro:', data.error);
+        return new Map();
+      }
+
+      // Converter objeto para Map
+      const result = new Map<string, TaxonomyNode[]>();
+      for (const [materia, nodes] of Object.entries(data.taxonomiaByMateria)) {
+        result.set(materia, nodes as TaxonomyNode[]);
+      }
+
+      console.log('[fetchAllTaxonomia] Taxonomia carregada:', result.size, 'matérias');
+      return result;
+    } catch (error) {
+      console.error('[fetchAllTaxonomia] Erro:', error);
+      return new Map();
+    }
+  },
+
+  // Busca taxonomia para múltiplas matérias específicas
+  async fetchTaxonomiaByMaterias(materias: string[]): Promise<Map<string, TaxonomyNode[]>> {
+    const result = new Map<string, TaxonomyNode[]>();
+
+    if (!materias || materias.length === 0) return result;
+
+    // Buscar em paralelo para todas as matérias
+    const promises = materias.map(async (materia) => {
+      try {
+        const API_URL = getMastraApiUrl(`/api/taxonomia/${encodeURIComponent(materia)}`);
+        const response = await fetch(API_URL);
+
+        if (!response.ok) return { materia, taxonomia: [] };
+
+        const data = await response.json();
+        if (!data.success) return { materia, taxonomia: [] };
+
+        return { materia, taxonomia: data.taxonomia || [] };
+      } catch {
+        return { materia, taxonomia: [] };
+      }
+    });
+
+    const results = await Promise.all(promises);
+
+    for (const { materia, taxonomia } of results) {
+      result.set(materia, taxonomia);
+    }
+
+    return result;
   }
+};
+
+// URL base do Mastra API (com fallback para produção)
+const getMastraApiUrl = (path: string): string => {
+  // Se VITE_MASTRA_URL está definido, usar
+  if (import.meta.env.VITE_MASTRA_URL) {
+    return `${import.meta.env.VITE_MASTRA_URL}${path}`;
+  }
+
+  // Em produção (hostname não é localhost), usar VPS
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    return `http://72.61.217.225:4000${path}`;
+  }
+
+  // Desenvolvimento local
+  return `http://localhost:4000${path}`;
 };

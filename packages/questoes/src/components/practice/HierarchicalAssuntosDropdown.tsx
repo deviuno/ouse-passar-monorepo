@@ -187,8 +187,8 @@ const TaxonomyNodeItem: React.FC<{
   return (
     <div>
       <div
-        className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors hover:bg-[#252525] ${
-          isFullySelected ? 'bg-[#FFB800]/10' : ''
+        className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors hover:bg-[var(--color-bg-elevated)] ${
+          isFullySelected ? 'bg-[var(--color-brand)]/10' : ''
         }`}
         style={{ paddingLeft }}
       >
@@ -199,12 +199,12 @@ const TaxonomyNodeItem: React.FC<{
               e.stopPropagation();
               toggleExpanded(nodeId);
             }}
-            className="p-0.5 hover:bg-[#3A3A3A] rounded flex-shrink-0"
+            className="p-0.5 hover:bg-[var(--color-border)] rounded flex-shrink-0"
           >
             {isExpanded ? (
-              <ChevronDown size={12} className="text-[#A0A0A0]" />
+              <ChevronDown size={12} className="text-[var(--color-text-muted)]" />
             ) : (
-              <ChevronRight size={12} className="text-[#A0A0A0]" />
+              <ChevronRight size={12} className="text-[var(--color-text-muted)]" />
             )}
           </button>
         ) : (
@@ -216,10 +216,10 @@ const TaxonomyNodeItem: React.FC<{
           onClick={handleToggleNode}
           className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
             isFullySelected
-              ? 'bg-[#FFB800] border-[#FFB800]'
+              ? 'bg-[var(--color-brand)] border-[var(--color-brand)]'
               : isPartiallySelected
-              ? 'bg-[#FFB800]/50 border-[#FFB800]'
-              : 'border-[#4A4A4A] hover:border-[#6A6A6A]'
+              ? 'bg-[var(--color-brand)]/50 border-[var(--color-brand)]'
+              : 'border-[var(--color-border-strong)] hover:border-[var(--color-text-muted)]'
           }`}
         >
           {(isFullySelected || isPartiallySelected) && (
@@ -231,7 +231,7 @@ const TaxonomyNodeItem: React.FC<{
         <span
           onClick={handleToggleNode}
           className={`flex-1 text-sm ${
-            isFullySelected ? 'text-[#FFB800]' : 'text-white'
+            isFullySelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-main)]'
           }`}
         >
           {node.nome}
@@ -239,7 +239,7 @@ const TaxonomyNodeItem: React.FC<{
 
         {/* Badge com contagem */}
         {allNodeAssuntos.length > 0 && (
-          <span className="text-xs text-[#6E6E6E] bg-[#2A2A2A] px-1.5 py-0.5 rounded">
+          <span className="text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-elevated)] px-1.5 py-0.5 rounded">
             {selectedCount > 0 ? `${selectedCount}/` : ''}{allNodeAssuntos.length}
           </span>
         )}
@@ -396,14 +396,14 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
     <div ref={dropdownRef} className="relative">
       {/* Label */}
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-[#FFB800]">{icon || <FileText size={16} />}</span>
-        <span className="text-white text-sm font-medium">{label}</span>
+        <span className="text-[var(--color-brand)]">{icon || <FileText size={16} />}</span>
+        <span className="text-[var(--color-text-main)] text-sm font-medium">{label}</span>
         {selectedAssuntos.length > 0 && (
-          <span className="px-1.5 py-0.5 bg-[#FFB800] text-black text-xs font-bold rounded">
+          <span className="px-1.5 py-0.5 bg-[var(--color-brand)] text-black text-xs font-bold rounded">
             {selectedAssuntos.length}
           </span>
         )}
-        <span className="text-[#6E6E6E] text-xs">({totalAvailable})</span>
+        <span className="text-[var(--color-text-muted)] text-xs">({totalAvailable})</span>
       </div>
 
       {/* Trigger Button */}
@@ -413,14 +413,14 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
         className={`
           w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-colors
           ${disabled
-            ? 'bg-[#1A1A1A] border-[#2A2A2A] text-[#4A4A4A] cursor-not-allowed'
+            ? 'bg-[var(--color-bg-main)] border-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed'
             : isOpen
-              ? 'bg-[#252525] border-[#FFB800] text-white'
-              : 'bg-[#1E1E1E] border-[#3A3A3A] text-white hover:border-[#4A4A4A]'
+              ? 'bg-[var(--color-bg-elevated)] border-[var(--color-brand)] text-[var(--color-text-main)]'
+              : 'bg-[var(--color-bg-card)] border-[var(--color-border)] text-[var(--color-text-main)] hover:border-[var(--color-border-strong)]'
           }
         `}
       >
-        <span className={selectedAssuntos.length === 0 ? 'text-[#6E6E6E]' : 'text-white truncate'}>
+        <span className={selectedAssuntos.length === 0 ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-main)] truncate'}>
           {selectedAssuntos.length === 0
             ? placeholder
             : selectedAssuntos.length === 1
@@ -429,9 +429,9 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
           }
         </span>
         {isLoading ? (
-          <Loader2 size={16} className="animate-spin text-[#A0A0A0]" />
+          <Loader2 size={16} className="animate-spin text-[var(--color-text-muted)]" />
         ) : (
-          <ChevronDown size={16} className={`text-[#6E6E6E] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown size={16} className={`text-[var(--color-text-muted)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         )}
       </button>
 
@@ -443,24 +443,24 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-50 w-full mt-1 bg-[#1E1E1E] border border-[#3A3A3A] rounded-lg shadow-xl overflow-hidden"
+            className="absolute z-50 w-full mt-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg shadow-[var(--shadow-elevated)] overflow-hidden"
           >
             {/* Busca */}
-            <div className="p-2 border-b border-[#3A3A3A]">
+            <div className="p-2 border-b border-[var(--color-border)]">
               <div className="relative">
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Buscar..."
                   autoFocus
-                  className="w-full bg-[#252525] border border-[#3A3A3A] rounded pl-8 pr-3 py-1.5 text-white text-sm placeholder-[#6E6E6E] focus:outline-none focus:border-[#FFB800]"
+                  className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded pl-8 pr-3 py-1.5 text-[var(--color-text-main)] text-sm placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand)]"
                 />
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6E6E6E] hover:text-white"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
                   >
                     <X size={14} />
                   </button>
@@ -472,11 +472,11 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
             <div className="max-h-[300px] overflow-y-auto">
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
-                  <Loader2 size={16} className="animate-spin text-[#FFB800]" />
-                  <span className="ml-2 text-[#6E6E6E] text-xs">Carregando...</span>
+                  <Loader2 size={16} className="animate-spin text-[var(--color-brand)]" />
+                  <span className="ml-2 text-[var(--color-text-muted)] text-xs">Carregando...</span>
                 </div>
               ) : totalAvailable === 0 ? (
-                <p className="text-[#6E6E6E] text-xs text-center py-4">Nenhum resultado</p>
+                <p className="text-[var(--color-text-muted)] text-xs text-center py-4">Nenhum resultado</p>
               ) : (
                 <>
                   {/* Matérias com taxonomia */}
@@ -505,8 +505,8 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
                     return (
                       <div key={materia}>
                         {/* Header da matéria */}
-                        <div className="px-3 py-2 bg-[#252525] border-y border-[#3A3A3A] sticky top-0">
-                          <span className="text-xs font-bold text-[#FFB800] uppercase tracking-wide">
+                        <div className="px-3 py-2 bg-[var(--color-bg-elevated)] border-y border-[var(--color-border)] sticky top-0">
+                          <span className="text-xs font-bold text-[var(--color-brand)] uppercase tracking-wide">
                             {materia}
                           </span>
                         </div>
@@ -532,8 +532,8 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
                   {filteredFlatAssuntos.length > 0 && (
                     <div>
                       {hasTaxonomy && (
-                        <div className="px-3 py-2 bg-[#252525] border-y border-[#3A3A3A] sticky top-0">
-                          <span className="text-xs font-bold text-[#A0A0A0] uppercase tracking-wide">
+                        <div className="px-3 py-2 bg-[var(--color-bg-elevated)] border-y border-[var(--color-border)] sticky top-0">
+                          <span className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">
                             Outros Assuntos
                           </span>
                         </div>
@@ -545,12 +545,12 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
                             key={assunto}
                             onClick={() => onToggleAssunto(assunto)}
                             className={`w-full flex items-start gap-1.5 px-2 py-1.5 text-left text-sm transition-colors ${
-                              isSelected ? 'bg-[#FFB800]/10 text-[#FFB800]' : 'text-white hover:bg-[#252525]'
+                              isSelected ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]' : 'text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)]'
                             }`}
                             style={{ paddingLeft: 8 }}
                           >
                             <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                              isSelected ? 'bg-[#FFB800] border-[#FFB800]' : 'border-[#4A4A4A]'
+                              isSelected ? 'bg-[var(--color-brand)] border-[var(--color-brand)]' : 'border-[var(--color-border-strong)]'
                             }`}>
                               {isSelected && <Check size={10} className="text-black" />}
                             </div>
@@ -566,11 +566,11 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
 
             {/* Footer */}
             {selectedAssuntos.length > 0 && (
-              <div className="p-2 border-t border-[#3A3A3A] flex justify-between items-center">
-                <span className="text-[#6E6E6E] text-xs">{selectedAssuntos.length} selecionado(s)</span>
+              <div className="p-2 border-t border-[var(--color-border)] flex justify-between items-center">
+                <span className="text-[var(--color-text-muted)] text-xs">{selectedAssuntos.length} selecionado(s)</span>
                 <button
                   onClick={() => { onClear(); setSearchTerm(''); }}
-                  className="text-[#E74C3C] text-xs hover:underline"
+                  className="text-[var(--color-error)] text-xs hover:underline"
                 >
                   Limpar
                 </button>

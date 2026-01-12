@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Search, X, Check, Loader2, Filter, AlertCircle } from 'lucide-react';
-import { editalService, EditalItem } from '../../services/editalService';
+import { Search, X, Check, Loader2, Filter, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { editalService, EditalItem, TaxonomyNode } from '../../services/editalService';
 
 interface EditalFilterConfigProps {
   item: EditalItem;
@@ -8,6 +8,208 @@ interface EditalFilterConfigProps {
   onClose: () => void;
   onSave: () => void;
 }
+
+// ============================================
+// Funções de busca flexível (mesmo padrão do app)
+// ============================================
+
+const normalizeText = (text: string): string => {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
+const SYNONYMS: Record<string, string[]> = {
+  'portugues': ['lingua portuguesa', 'portugues', 'lp', 'gramatica', 'redacao'],
+  'lingua portuguesa': ['portugues', 'lp', 'gramatica', 'redacao'],
+  'constitucional': ['direito constitucional', 'constituicao', 'cf'],
+  'direito constitucional': ['constitucional', 'constituicao', 'cf'],
+  'administrativo': ['direito administrativo', 'admin'],
+  'direito administrativo': ['administrativo', 'admin'],
+  'penal': ['direito penal', 'criminal'],
+  'direito penal': ['penal', 'criminal'],
+  'civil': ['direito civil', 'codigo civil'],
+  'direito civil': ['civil', 'codigo civil'],
+  'tributario': ['direito tributario', 'tributos', 'impostos'],
+  'trabalho': ['direito do trabalho', 'trabalhista', 'clt'],
+  'direito do trabalho': ['trabalho', 'trabalhista', 'clt'],
+  'informatica': ['ti', 'tecnologia da informacao', 'computacao'],
+  'raciocinio logico': ['logica', 'rl', 'raciocinio'],
+  'logica': ['raciocinio logico', 'rl'],
+  'matematica': ['mat', 'calculo', 'aritmetica'],
+};
+
+const fuzzyMatch = (searchTerm: string, text: string): boolean => {
+  if (!searchTerm || !text) return !searchTerm;
+
+  const normalizedSearch = normalizeText(searchTerm);
+  const normalizedText = normalizeText(text);
+
+  if (normalizedText.includes(normalizedSearch)) return true;
+
+  const searchWords = normalizedSearch.split(/\s+/).filter(w => w.length > 1);
+  if (searchWords.length > 1) {
+    const allWordsMatch = searchWords.every(word => normalizedText.includes(word));
+    if (allWordsMatch) return true;
+  }
+
+  const synonymsForSearch = SYNONYMS[normalizedSearch] || [];
+  for (const synonym of synonymsForSearch) {
+    if (normalizedText.includes(normalizeText(synonym))) return true;
+  }
+
+  return false;
+};
+
+// ============================================
+// Componente para nó da árvore de taxonomia
+// ============================================
+
+interface TaxonomyNodeItemProps {
+  node: TaxonomyNode;
+  selectedAssuntos: string[];
+  onToggleMultiple: (assuntos: string[], select: boolean) => void;
+  expandedNodes: Set<string>;
+  toggleExpanded: (nodeId: string) => void;
+  searchTerm: string;
+  level?: number;
+}
+
+const TaxonomyNodeItem: React.FC<TaxonomyNodeItemProps> = ({
+  node,
+  selectedAssuntos,
+  onToggleMultiple,
+  expandedNodes,
+  toggleExpanded,
+  searchTerm,
+  level = 0
+}) => {
+  const nodeId = `${node.materia}-${node.id}`;
+  const isExpanded = expandedNodes.has(nodeId);
+  const hasChildren = node.filhos && node.filhos.length > 0;
+
+  // Calcular todos os assuntos deste nó e filhos
+  const getAllAssuntos = (n: TaxonomyNode): string[] => {
+    let assuntos = [...(n.assuntos_originais || [])];
+    if (n.filhos) {
+      for (const filho of n.filhos) {
+        assuntos = [...assuntos, ...getAllAssuntos(filho)];
+      }
+    }
+    return assuntos;
+  };
+
+  const allNodeAssuntos = getAllAssuntos(node);
+  const selectedCount = allNodeAssuntos.filter(a => selectedAssuntos.includes(a)).length;
+  const isPartiallySelected = selectedCount > 0 && selectedCount < allNodeAssuntos.length;
+  const isFullySelected = selectedCount === allNodeAssuntos.length && allNodeAssuntos.length > 0;
+
+  // Verificar se corresponde à busca
+  const matchesSearch = (n: TaxonomyNode): boolean => {
+    if (!searchTerm) return true;
+    if (fuzzyMatch(searchTerm, n.nome)) return true;
+    if (fuzzyMatch(searchTerm, n.materia)) return true;
+    if (n.assuntos_originais?.some(a => fuzzyMatch(searchTerm, a))) return true;
+    if (n.filhos?.some(f => matchesSearch(f))) return true;
+    return false;
+  };
+
+  if (!matchesSearch(node)) return null;
+
+  const handleToggleNode = () => {
+    if (allNodeAssuntos.length > 0) {
+      onToggleMultiple(allNodeAssuntos, !isFullySelected);
+    }
+  };
+
+  const paddingLeft = 8 + level * 16;
+
+  return (
+    <div>
+      <div
+        className={`flex items-center gap-2 py-2 px-2 cursor-pointer transition-colors hover:bg-white/5 ${
+          isFullySelected ? 'bg-brand-yellow/10' : ''
+        }`}
+        style={{ paddingLeft }}
+      >
+        {/* Botão de expandir */}
+        {hasChildren ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleExpanded(nodeId);
+            }}
+            className="p-0.5 hover:bg-white/10 rounded flex-shrink-0"
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-3 h-3 text-gray-500" />
+            ) : (
+              <ChevronRight className="w-3 h-3 text-gray-500" />
+            )}
+          </button>
+        ) : (
+          <span className="w-4 flex-shrink-0" />
+        )}
+
+        {/* Checkbox */}
+        <button
+          onClick={handleToggleNode}
+          className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+            isFullySelected
+              ? 'bg-brand-yellow border-brand-yellow'
+              : isPartiallySelected
+              ? 'bg-brand-yellow/50 border-brand-yellow'
+              : 'border-gray-600 hover:border-gray-500'
+          }`}
+        >
+          {(isFullySelected || isPartiallySelected) && (
+            <Check className="w-3 h-3 text-black" />
+          )}
+        </button>
+
+        {/* Nome do nó */}
+        <span
+          onClick={handleToggleNode}
+          className={`flex-1 text-sm ${
+            isFullySelected ? 'text-brand-yellow' : 'text-gray-300'
+          }`}
+        >
+          {node.nome}
+        </span>
+
+        {/* Badge com contagem */}
+        {allNodeAssuntos.length > 0 && (
+          <span className="text-xs text-gray-600 bg-brand-dark px-1.5 py-0.5 rounded">
+            {selectedCount > 0 ? `${selectedCount}/` : ''}{allNodeAssuntos.length}
+          </span>
+        )}
+      </div>
+
+      {/* Filhos */}
+      {isExpanded && hasChildren && (
+        <div>
+          {node.filhos.map((filho) => (
+            <TaxonomyNodeItem
+              key={`${filho.materia}-${filho.id}`}
+              node={filho}
+              selectedAssuntos={selectedAssuntos}
+              onToggleMultiple={onToggleMultiple}
+              expandedNodes={expandedNodes}
+              toggleExpanded={toggleExpanded}
+              searchTerm={searchTerm}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// Componente principal
+// ============================================
 
 export const EditalFilterConfig: React.FC<EditalFilterConfigProps> = ({
   item,
@@ -21,6 +223,8 @@ export const EditalFilterConfig: React.FC<EditalFilterConfigProps> = ({
   // Dados das opções
   const [allMaterias, setAllMaterias] = useState<string[]>([]);
   const [allAssuntos, setAllAssuntos] = useState<{ assunto: string; materia: string }[]>([]);
+  const [taxonomyByMateria, setTaxonomyByMateria] = useState<Map<string, TaxonomyNode[]>>(new Map());
+  const [loadingTaxonomy, setLoadingTaxonomy] = useState(false);
 
   // Seleções
   const [selectedMaterias, setSelectedMaterias] = useState<string[]>(item.filtro_materias || []);
@@ -29,6 +233,9 @@ export const EditalFilterConfig: React.FC<EditalFilterConfigProps> = ({
   // Filtros de busca
   const [materiaSearch, setMateriaSearch] = useState('');
   const [assuntoSearch, setAssuntoSearch] = useState('');
+
+  // Estado para nós expandidos
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
   // Preview de questões
   const [questionCount, setQuestionCount] = useState<number | null>(null);
@@ -53,6 +260,49 @@ export const EditalFilterConfig: React.FC<EditalFilterConfigProps> = ({
     };
     loadData();
   }, []);
+
+  // Carregar taxonomia quando matérias mudam
+  useEffect(() => {
+    const loadTaxonomy = async () => {
+      if (selectedMaterias.length === 0) {
+        setTaxonomyByMateria(new Map());
+        return;
+      }
+
+      try {
+        setLoadingTaxonomy(true);
+        const taxonomy = await editalService.fetchTaxonomiaByMaterias(selectedMaterias);
+        setTaxonomyByMateria(taxonomy);
+
+        // Expandir todos os nós por padrão
+        const getAllNodeIds = (nodes: TaxonomyNode[], materia: string): string[] => {
+          const ids: string[] = [];
+          for (const node of nodes) {
+            if (node.filhos && node.filhos.length > 0) {
+              ids.push(`${materia}-${node.id}`);
+              ids.push(...getAllNodeIds(node.filhos, materia));
+            }
+          }
+          return ids;
+        };
+
+        const allIds: string[] = [];
+        for (const [materia, nodes] of taxonomy.entries()) {
+          allIds.push(...getAllNodeIds(nodes, materia));
+        }
+
+        if (allIds.length > 0) {
+          setExpandedNodes(new Set(allIds));
+        }
+      } catch (error) {
+        console.error('Erro ao carregar taxonomia:', error);
+      } finally {
+        setLoadingTaxonomy(false);
+      }
+    };
+
+    loadTaxonomy();
+  }, [selectedMaterias]);
 
   // Atualizar contagem quando mudar seleção
   useEffect(() => {
@@ -84,27 +334,42 @@ export const EditalFilterConfig: React.FC<EditalFilterConfigProps> = ({
   // Filtrar matérias por busca
   const filteredMaterias = useMemo(() => {
     if (!materiaSearch) return allMaterias;
-    const search = materiaSearch.toLowerCase();
-    return allMaterias.filter(m => m.toLowerCase().includes(search));
+    return allMaterias.filter(m => fuzzyMatch(materiaSearch, m));
   }, [allMaterias, materiaSearch]);
 
-  // Filtrar assuntos por matérias selecionadas e busca
-  const filteredAssuntos = useMemo(() => {
-    let filtered = allAssuntos;
+  // Verificar se há taxonomia disponível
+  const hasTaxonomy = taxonomyByMateria.size > 0 &&
+    Array.from(taxonomyByMateria.values()).some(nodes => nodes.length > 0);
 
-    // Se há matérias selecionadas, filtrar por elas
-    if (selectedMaterias.length > 0) {
-      filtered = filtered.filter(a => selectedMaterias.includes(a.materia));
-    }
+  // Filtrar assuntos flat que não estão na taxonomia (fallback)
+  const assuntosSemTaxonomia = useMemo(() => {
+    if (selectedMaterias.length === 0) return [];
 
-    // Aplicar busca
-    if (assuntoSearch) {
-      const search = assuntoSearch.toLowerCase();
-      filtered = filtered.filter(a => a.assunto.toLowerCase().includes(search));
-    }
+    const assuntosFiltrados = allAssuntos.filter(a => selectedMaterias.includes(a.materia));
 
-    return filtered;
-  }, [allAssuntos, selectedMaterias, assuntoSearch]);
+    if (!hasTaxonomy) return assuntosFiltrados;
+
+    // Verificar se o assunto está em alguma taxonomia
+    return assuntosFiltrados.filter(({ assunto }) => {
+      for (const nodes of taxonomyByMateria.values()) {
+        const isInTaxonomy = (nodeList: TaxonomyNode[]): boolean => {
+          for (const node of nodeList) {
+            if (node.assuntos_originais?.includes(assunto)) return true;
+            if (node.filhos && isInTaxonomy(node.filhos)) return true;
+          }
+          return false;
+        };
+        if (isInTaxonomy(nodes)) return false;
+      }
+      return true;
+    });
+  }, [allAssuntos, selectedMaterias, taxonomyByMateria, hasTaxonomy]);
+
+  // Filtrar assuntos flat pela busca
+  const filteredFlatAssuntos = useMemo(() => {
+    if (!assuntoSearch) return assuntosSemTaxonomia;
+    return assuntosSemTaxonomia.filter(({ assunto }) => fuzzyMatch(assuntoSearch, assunto));
+  }, [assuntosSemTaxonomia, assuntoSearch]);
 
   // Toggle matéria
   const toggleMateria = (materia: string) => {
@@ -116,13 +381,40 @@ export const EditalFilterConfig: React.FC<EditalFilterConfigProps> = ({
     });
   };
 
-  // Toggle assunto
+  // Toggle assunto individual
   const toggleAssunto = (assunto: string) => {
     setSelectedAssuntos(prev => {
       if (prev.includes(assunto)) {
         return prev.filter(a => a !== assunto);
       }
       return [...prev, assunto];
+    });
+  };
+
+  // Toggle múltiplos assuntos (para nós da árvore)
+  const toggleMultipleAssuntos = (assuntos: string[], select: boolean) => {
+    setSelectedAssuntos(prev => {
+      if (select) {
+        // Adicionar assuntos que ainda não estão selecionados
+        const newAssuntos = assuntos.filter(a => !prev.includes(a));
+        return [...prev, ...newAssuntos];
+      } else {
+        // Remover assuntos
+        return prev.filter(a => !assuntos.includes(a));
+      }
+    });
+  };
+
+  // Toggle expandir nó
+  const toggleExpanded = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
     });
   };
 
@@ -231,11 +523,11 @@ export const EditalFilterConfig: React.FC<EditalFilterConfigProps> = ({
             </div>
           </div>
 
-          {/* Assuntos */}
+          {/* Assuntos (Hierárquico) */}
           <div className="w-1/2 flex flex-col">
             <div className="p-4 border-b border-white/10">
               <h4 className="text-sm font-bold text-gray-400 uppercase mb-2">
-                Assuntos (Filtrados pelas Matérias)
+                Assuntos (Hierárquico)
               </h4>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -248,10 +540,11 @@ export const EditalFilterConfig: React.FC<EditalFilterConfigProps> = ({
                 />
               </div>
               <p className="text-xs text-gray-600 mt-2">
-                {selectedAssuntos.length} selecionado(s) de {filteredAssuntos.length} disponíveis
+                {selectedAssuntos.length} selecionado(s)
+                {loadingTaxonomy && <span className="ml-2 text-brand-yellow">(carregando...)</span>}
               </p>
             </div>
-            <div className="flex-1 overflow-y-auto p-2">
+            <div className="flex-1 overflow-y-auto">
               {selectedMaterias.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center px-4">
                   <AlertCircle className="w-8 h-8 text-gray-600 mb-2" />
@@ -259,31 +552,103 @@ export const EditalFilterConfig: React.FC<EditalFilterConfigProps> = ({
                     Selecione pelo menos uma matéria para ver os assuntos disponíveis
                   </p>
                 </div>
-              ) : filteredAssuntos.length === 0 ? (
-                <p className="text-gray-500 text-center py-4 text-sm">Nenhum assunto encontrado</p>
+              ) : loadingTaxonomy ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 text-brand-yellow animate-spin" />
+                  <span className="ml-2 text-gray-400 text-sm">Carregando taxonomia...</span>
+                </div>
               ) : (
-                filteredAssuntos.map(({ assunto, materia }) => (
-                  <button
-                    key={`${materia}-${assunto}`}
-                    onClick={() => toggleAssunto(assunto)}
-                    className={`w-full text-left px-3 py-2 text-sm rounded transition-colors flex items-center gap-2 ${
-                      selectedAssuntos.includes(assunto)
-                        ? 'bg-brand-yellow/20 text-brand-yellow'
-                        : 'text-gray-300 hover:bg-white/5'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 border rounded flex items-center justify-center flex-shrink-0 ${
-                      selectedAssuntos.includes(assunto)
-                        ? 'bg-brand-yellow border-brand-yellow'
-                        : 'border-gray-600'
-                    }`}>
-                      {selectedAssuntos.includes(assunto) && (
-                        <Check className="w-3 h-3 text-black" />
+                <>
+                  {/* Taxonomia hierárquica por matéria */}
+                  {Array.from(taxonomyByMateria.entries()).map(([materia, nodes]) => {
+                    if (nodes.length === 0) return null;
+
+                    // Verificar se a matéria corresponde à busca
+                    const materiaMatches = assuntoSearch ? fuzzyMatch(assuntoSearch, materia) : false;
+
+                    // Filtrar nós que correspondem à busca
+                    const matchesSearch = (n: TaxonomyNode): boolean => {
+                      if (!assuntoSearch) return true;
+                      if (materiaMatches) return true;
+                      if (fuzzyMatch(assuntoSearch, n.nome)) return true;
+                      if (n.assuntos_originais?.some(a => fuzzyMatch(assuntoSearch, a))) return true;
+                      if (n.filhos?.some(f => matchesSearch(f))) return true;
+                      return false;
+                    };
+
+                    const filteredNodes = nodes.filter(matchesSearch);
+                    if (filteredNodes.length === 0) return null;
+
+                    return (
+                      <div key={materia}>
+                        {/* Header da matéria */}
+                        <div className="px-3 py-2 bg-brand-dark/50 border-y border-white/5 sticky top-0 z-10">
+                          <span className="text-xs font-bold text-brand-yellow uppercase tracking-wide">
+                            {materia}
+                          </span>
+                        </div>
+
+                        {/* Árvore de taxonomia */}
+                        {filteredNodes.map((node) => (
+                          <TaxonomyNodeItem
+                            key={`${node.materia}-${node.id}`}
+                            node={node}
+                            selectedAssuntos={selectedAssuntos}
+                            onToggleMultiple={toggleMultipleAssuntos}
+                            expandedNodes={expandedNodes}
+                            toggleExpanded={toggleExpanded}
+                            searchTerm={assuntoSearch}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+
+                  {/* Assuntos sem taxonomia (fallback) */}
+                  {filteredFlatAssuntos.length > 0 && (
+                    <div>
+                      {hasTaxonomy && (
+                        <div className="px-3 py-2 bg-brand-dark/50 border-y border-white/5 sticky top-0 z-10">
+                          <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                            Outros Assuntos
+                          </span>
+                        </div>
                       )}
+                      {filteredFlatAssuntos.map(({ assunto, materia }) => {
+                        const isSelected = selectedAssuntos.includes(assunto);
+                        return (
+                          <button
+                            key={`${materia}-${assunto}`}
+                            onClick={() => toggleAssunto(assunto)}
+                            className={`w-full text-left px-3 py-2 text-sm rounded transition-colors flex items-center gap-2 ${
+                              isSelected
+                                ? 'bg-brand-yellow/20 text-brand-yellow'
+                                : 'text-gray-300 hover:bg-white/5'
+                            }`}
+                          >
+                            <div className={`w-4 h-4 border rounded flex items-center justify-center flex-shrink-0 ${
+                              isSelected
+                                ? 'bg-brand-yellow border-brand-yellow'
+                                : 'border-gray-600'
+                            }`}>
+                              {isSelected && (
+                                <Check className="w-3 h-3 text-black" />
+                              )}
+                            </div>
+                            <span className="truncate">{assunto}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <span className="truncate">{assunto}</span>
-                  </button>
-                ))
+                  )}
+
+                  {/* Mensagem se não há assuntos */}
+                  {!hasTaxonomy && filteredFlatAssuntos.length === 0 && (
+                    <p className="text-gray-500 text-center py-4 text-sm">
+                      Nenhum assunto encontrado para as matérias selecionadas
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>

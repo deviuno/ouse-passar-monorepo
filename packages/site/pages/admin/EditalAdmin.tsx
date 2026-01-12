@@ -25,7 +25,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { preparatoriosService } from '../../services/preparatoriosService';
-import { editalService, EditalItem, EditalItemWithChildren, EditalItemTipo } from '../../services/editalService';
+import { editalService, EditalItem, EditalItemWithChildren, EditalItemTipo, TaxonomyNode } from '../../services/editalService';
 import { Preparatorio } from '../../lib/database.types';
 import { ImportEditalModal } from '../../components/admin/ImportEditalModal';
 import { ParsedEdital, EditalExistsAction } from '../../services/editalAIService';
@@ -220,7 +220,154 @@ const InlineDropdown: React.FC<InlineDropdownProps> = ({
   );
 };
 
-// Componente dropdown de assuntos com opção de trocar matéria
+// Componente para renderizar um nó da árvore de taxonomia no dropdown
+interface TaxonomyTreeNodeProps {
+  node: TaxonomyNode;
+  selectedAssuntos: string[];
+  onToggleMultiple: (assuntos: string[], select: boolean) => void;
+  expandedNodes: Set<string>;
+  toggleExpanded: (nodeId: string) => void;
+  searchTerm: string;
+  level?: number;
+}
+
+const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
+  node,
+  selectedAssuntos,
+  onToggleMultiple,
+  expandedNodes,
+  toggleExpanded,
+  searchTerm,
+  level = 0
+}) => {
+  const nodeId = `${node.materia}-${node.id}`;
+  const isExpanded = expandedNodes.has(nodeId);
+  const hasChildren = node.filhos && node.filhos.length > 0;
+
+  // Calcular todos os assuntos deste nó e filhos
+  const getAllAssuntos = (n: TaxonomyNode): string[] => {
+    let assuntos = [...(n.assuntos_originais || [])];
+    if (n.filhos) {
+      for (const filho of n.filhos) {
+        assuntos = [...assuntos, ...getAllAssuntos(filho)];
+      }
+    }
+    return assuntos;
+  };
+
+  const allNodeAssuntos = getAllAssuntos(node);
+  const selectedCount = allNodeAssuntos.filter(a => selectedAssuntos.includes(a)).length;
+  const isPartiallySelected = selectedCount > 0 && selectedCount < allNodeAssuntos.length;
+  const isFullySelected = selectedCount === allNodeAssuntos.length && allNodeAssuntos.length > 0;
+
+  // Normalizar texto para busca
+  const normalizeText = (text: string): string => {
+    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  };
+
+  // Verificar se corresponde à busca
+  const matchesSearch = (n: TaxonomyNode): boolean => {
+    if (!searchTerm) return true;
+    const searchNorm = normalizeText(searchTerm);
+    if (normalizeText(n.nome).includes(searchNorm)) return true;
+    if (n.assuntos_originais?.some(a => normalizeText(a).includes(searchNorm))) return true;
+    if (n.filhos?.some(f => matchesSearch(f))) return true;
+    return false;
+  };
+
+  if (!matchesSearch(node)) return null;
+
+  const handleToggleNode = () => {
+    if (allNodeAssuntos.length > 0) {
+      onToggleMultiple(allNodeAssuntos, !isFullySelected);
+    }
+  };
+
+  const paddingLeft = 8 + level * 14;
+
+  return (
+    <div>
+      <div
+        className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors hover:bg-white/5 ${
+          isFullySelected ? 'bg-brand-yellow/10' : ''
+        }`}
+        style={{ paddingLeft }}
+      >
+        {/* Botão de expandir */}
+        {hasChildren ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleExpanded(nodeId);
+            }}
+            className="p-0.5 hover:bg-white/10 rounded flex-shrink-0"
+          >
+            {isExpanded ? (
+              <ChevronDown size={10} className="text-gray-500" />
+            ) : (
+              <ChevronRight size={10} className="text-gray-500" />
+            )}
+          </button>
+        ) : (
+          <span className="w-[14px] flex-shrink-0" />
+        )}
+
+        {/* Checkbox */}
+        <button
+          onClick={handleToggleNode}
+          className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+            isFullySelected
+              ? 'bg-brand-yellow border-brand-yellow'
+              : isPartiallySelected
+              ? 'bg-brand-yellow/50 border-brand-yellow'
+              : 'border-gray-600 hover:border-gray-500'
+          }`}
+        >
+          {(isFullySelected || isPartiallySelected) && (
+            <Check size={8} className="text-black" />
+          )}
+        </button>
+
+        {/* Nome do nó */}
+        <span
+          onClick={handleToggleNode}
+          className={`flex-1 text-xs leading-tight ${
+            isFullySelected ? 'text-brand-yellow' : 'text-gray-300'
+          }`}
+        >
+          {node.nome}
+        </span>
+
+        {/* Badge com contagem */}
+        {allNodeAssuntos.length > 0 && (
+          <span className="text-[10px] text-gray-600 bg-white/5 px-1 py-0.5 rounded">
+            {selectedCount > 0 ? `${selectedCount}/` : ''}{allNodeAssuntos.length}
+          </span>
+        )}
+      </div>
+
+      {/* Filhos */}
+      {isExpanded && hasChildren && (
+        <div>
+          {node.filhos.map((filho) => (
+            <TaxonomyTreeNode
+              key={`${filho.materia}-${filho.id}`}
+              node={filho}
+              selectedAssuntos={selectedAssuntos}
+              onToggleMultiple={onToggleMultiple}
+              expandedNodes={expandedNodes}
+              toggleExpanded={toggleExpanded}
+              searchTerm={searchTerm}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Componente dropdown de assuntos com opção de trocar matéria (COM HIERARQUIA)
 interface AssuntoDropdownProps {
   value: string[];
   parentMaterias: string[];
@@ -242,8 +389,10 @@ const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
   const [isSelectingMateria, setIsSelectingMateria] = useState(false);
   const [customMateria, setCustomMateria] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [assuntos, setAssuntos] = useState<string[]>([]);
+  const [taxonomy, setTaxonomy] = useState<TaxonomyNode[]>([]);
+  const [flatAssuntos, setFlatAssuntos] = useState<string[]>([]); // Fallback
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Matéria efetiva (custom ou parent)
@@ -263,26 +412,55 @@ const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Carregar assuntos quando abrir ou trocar matéria
+  // Carregar taxonomia quando abrir ou trocar matéria
   useEffect(() => {
     if (isOpen && !isSelectingMateria && effectiveMateria) {
       setIsLoading(true);
-      loadAssuntos([effectiveMateria])
-        .then(data => setAssuntos(data))
-        .catch(err => console.error('Erro ao carregar assuntos:', err))
+
+      // Tentar carregar taxonomia hierárquica
+      editalService.fetchTaxonomiaByMaterias([effectiveMateria])
+        .then(taxonomyMap => {
+          const nodes = taxonomyMap.get(effectiveMateria) || [];
+          setTaxonomy(nodes);
+
+          // Expandir todos os nós por padrão
+          const getAllNodeIds = (nodeList: TaxonomyNode[]): string[] => {
+            const ids: string[] = [];
+            for (const node of nodeList) {
+              if (node.filhos && node.filhos.length > 0) {
+                ids.push(`${effectiveMateria}-${node.id}`);
+                ids.push(...getAllNodeIds(node.filhos));
+              }
+            }
+            return ids;
+          };
+          const allIds = getAllNodeIds(nodes);
+          if (allIds.length > 0) {
+            setExpandedNodes(new Set(allIds));
+          }
+
+          // Se não houver taxonomia, carregar lista plana como fallback
+          if (nodes.length === 0) {
+            return loadAssuntos([effectiveMateria]).then(data => {
+              setFlatAssuntos(data);
+            });
+          }
+          setFlatAssuntos([]);
+        })
+        .catch(err => {
+          console.error('Erro ao carregar taxonomia:', err);
+          // Fallback para lista plana
+          loadAssuntos([effectiveMateria])
+            .then(data => setFlatAssuntos(data))
+            .catch(() => setFlatAssuntos([]));
+        })
         .finally(() => setIsLoading(false));
     }
-  }, [isOpen, isSelectingMateria, effectiveMateria]);
+  }, [isOpen, isSelectingMateria, effectiveMateria, loadAssuntos]);
 
   const normalizeText = (text: string): string => {
     return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   };
-
-  const filteredAssuntos = useMemo(() => {
-    if (!search.trim()) return assuntos;
-    const searchNorm = normalizeText(search.trim());
-    return assuntos.filter(opt => normalizeText(opt).includes(searchNorm));
-  }, [assuntos, search]);
 
   const filteredMaterias = useMemo(() => {
     if (!search.trim()) return allMaterias;
@@ -290,14 +468,45 @@ const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
     return allMaterias.filter(opt => normalizeText(opt).includes(searchNorm));
   }, [allMaterias, search]);
 
+  // Filtrar assuntos flat pela busca
+  const filteredFlatAssuntos = useMemo(() => {
+    if (!search.trim()) return flatAssuntos;
+    const searchNorm = normalizeText(search.trim());
+    return flatAssuntos.filter(opt => normalizeText(opt).includes(searchNorm));
+  }, [flatAssuntos, search]);
+
+  // Toggle múltiplos assuntos
+  const toggleMultipleAssuntos = (assuntos: string[], select: boolean) => {
+    if (select) {
+      const newAssuntos = assuntos.filter(a => !value.includes(a));
+      onChange([...value, ...newAssuntos]);
+    } else {
+      onChange(value.filter(a => !assuntos.includes(a)));
+    }
+  };
+
   const toggleAssunto = (assunto: string) => {
     onChange(value.includes(assunto) ? value.filter(v => v !== assunto) : [...value, assunto]);
+  };
+
+  const toggleExpanded = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
   };
 
   const selectMateria = (materia: string) => {
     setCustomMateria(materia);
     setIsSelectingMateria(false);
     setSearch('');
+    setTaxonomy([]);
+    setFlatAssuntos([]);
     onChange([]); // Limpar assuntos selecionados ao trocar matéria
   };
 
@@ -306,6 +515,8 @@ const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
     : value.length === 1
       ? (value[0].length > 20 ? value[0].substring(0, 20) + '...' : value[0])
       : `${value.length} selecionados`;
+
+  const hasTaxonomy = taxonomy.length > 0;
 
   return (
     <div ref={dropdownRef} className="relative min-w-[200px]">
@@ -391,7 +602,7 @@ const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
           </div>
 
           {/* Content */}
-          <div className="max-h-[250px] overflow-y-auto">
+          <div className="max-h-[300px] overflow-y-auto">
             {isSelectingMateria ? (
               // Lista de matérias
               filteredMaterias.length === 0 ? (
@@ -418,18 +629,32 @@ const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
                 })
               )
             ) : (
-              // Lista de assuntos
+              // Lista de assuntos (hierárquica ou plana)
               isLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 size={14} className="animate-spin text-brand-yellow" />
                   <span className="ml-2 text-xs text-gray-400">Carregando...</span>
                 </div>
-              ) : filteredAssuntos.length === 0 ? (
+              ) : hasTaxonomy ? (
+                // Taxonomia hierárquica
+                taxonomy.map(node => (
+                  <TaxonomyTreeNode
+                    key={`${node.materia}-${node.id}`}
+                    node={node}
+                    selectedAssuntos={value}
+                    onToggleMultiple={toggleMultipleAssuntos}
+                    expandedNodes={expandedNodes}
+                    toggleExpanded={toggleExpanded}
+                    searchTerm={search}
+                  />
+                ))
+              ) : filteredFlatAssuntos.length === 0 ? (
                 <p className="text-gray-500 text-xs text-center py-4">
-                  {assuntos.length === 0 ? 'Nenhum assunto disponível' : 'Nenhum resultado'}
+                  {flatAssuntos.length === 0 ? 'Nenhum assunto disponível' : 'Nenhum resultado'}
                 </p>
               ) : (
-                filteredAssuntos.map(assunto => {
+                // Fallback: Lista plana
+                filteredFlatAssuntos.map(assunto => {
                   const isSelected = value.includes(assunto);
                   return (
                     <button
