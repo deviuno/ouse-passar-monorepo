@@ -3,9 +3,12 @@ import { Outlet } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { MusicSidebar } from './MusicSidebar';
 import { useUIStore } from '../../stores';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export const MusicLayout: React.FC = () => {
     const { setSidebarOpen, isSidebarOpen } = useUIStore();
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
     const previousSidebarState = useRef<boolean | null>(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -31,7 +34,9 @@ export const MusicLayout: React.FC = () => {
     }, []);
 
     return (
-        <div className="flex min-h-[calc(100vh-80px)] lg:h-screen bg-black text-white overflow-hidden">
+        <div className={`flex min-h-[calc(100vh-80px)] lg:h-screen overflow-hidden ${
+            isDark ? 'bg-black text-white' : 'bg-[#F8F8F6] text-gray-900'
+        }`}>
             {/* Music Sidebar - Desktop only */}
             <div className="hidden lg:flex flex-col h-full z-20">
                 <MusicSidebar />
@@ -40,7 +45,11 @@ export const MusicLayout: React.FC = () => {
             {/* Mobile Menu Button - Fixed position */}
             <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="lg:hidden fixed top-4 right-4 z-30 p-2 bg-white/10 backdrop-blur-sm rounded-full text-white hover:bg-white/20 transition-colors"
+                className={`lg:hidden fixed top-4 right-4 z-30 p-2 backdrop-blur-sm rounded-full transition-colors ${
+                    isDark
+                        ? 'bg-white/10 text-white hover:bg-white/20'
+                        : 'bg-black/5 text-gray-700 hover:bg-black/10'
+                }`}
                 aria-label="Abrir menu"
             >
                 <Menu className="w-6 h-6" />
@@ -51,16 +60,20 @@ export const MusicLayout: React.FC = () => {
                 <>
                     {/* Backdrop */}
                     <div
-                        className="lg:hidden fixed inset-0 bg-black/60 z-40"
+                        className={`lg:hidden fixed inset-0 z-40 ${isDark ? 'bg-black/60' : 'bg-black/40'}`}
                         onClick={() => setIsMobileMenuOpen(false)}
                     />
 
                     {/* Drawer */}
-                    <div className="lg:hidden fixed top-0 right-0 h-full w-72 bg-black z-50 shadow-2xl animate-slide-in-right">
+                    <div className={`lg:hidden fixed top-0 right-0 h-full w-72 z-50 shadow-2xl animate-slide-in-right ${
+                        isDark ? 'bg-black' : 'bg-white'
+                    }`}>
                         {/* Close button */}
                         <button
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition-colors"
+                            className={`absolute top-4 right-4 p-2 transition-colors ${
+                                isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                            }`}
                             aria-label="Fechar menu"
                         >
                             <X className="w-6 h-6" />
@@ -73,12 +86,20 @@ export const MusicLayout: React.FC = () => {
             )}
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 relative bg-[#121212] lg:rounded-lg lg:my-2 lg:mr-2 overflow-hidden">
+            <div className={`flex-1 flex flex-col min-w-0 relative lg:rounded-lg lg:my-2 lg:mr-2 overflow-hidden ${
+                isDark ? 'bg-[#121212]' : 'bg-white'
+            }`}>
                 {/* Top Gradient Overlay */}
-                <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-emerald-900/40 to-[#121212] pointer-events-none z-0" />
+                <div className={`absolute top-0 left-0 right-0 h-64 pointer-events-none z-0 ${
+                    isDark
+                        ? 'bg-gradient-to-b from-emerald-900/40 to-[#121212]'
+                        : 'bg-gradient-to-b from-[#FFB800]/10 to-white'
+                }`} />
 
                 {/* Scrollable Content */}
-                <main className="flex-1 overflow-y-auto relative z-10 scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent">
+                <main className={`flex-1 overflow-y-auto relative z-10 scrollbar-thin ${
+                    isDark ? 'scrollbar-thumb-gray-800' : 'scrollbar-thumb-gray-300'
+                } scrollbar-track-transparent`}>
                     <Outlet />
                 </main>
             </div>

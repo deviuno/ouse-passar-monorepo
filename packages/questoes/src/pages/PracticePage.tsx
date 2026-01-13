@@ -391,8 +391,19 @@ export default function PracticePage() {
   // Modal de visualização de filtros
   const [viewingNotebookFilters, setViewingNotebookFilters] = useState<Caderno | null>(null);
 
-  // Controle de visibilidade dos filtros (oculto por padrão)
-  const [showFilters, setShowFilters] = useState(false);
+  // Controle de visibilidade dos filtros (oculto por padrão, exceto se showFilters=true na URL)
+  const [showFilters, setShowFilters] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('showFilters') === 'true';
+  });
+
+  // Sincronizar showFilters com o parâmetro da URL (garante que funcione com React Router)
+  useEffect(() => {
+    const showFiltersParam = searchParams.get('showFilters');
+    if (showFiltersParam === 'true') {
+      setShowFilters(true);
+    }
+  }, [searchParams]);
 
   // Controle de visibilidade dos filtros no modo practicing
   const [showPracticingFilters, setShowPracticingFilters] = useState(false);
@@ -408,7 +419,8 @@ export default function PracticePage() {
     const params = new URLSearchParams(window.location.search);
     const hasFilterParams = params.has('materia') || params.has('materias') ||
                            params.has('assunto') || params.has('assuntos') ||
-                           params.has('banca') || params.has('autostart');
+                           params.has('banca') || params.has('autostart') ||
+                           params.has('showFilters') || params.has('editNotebook'); // Não auto-iniciar se os filtros devem estar abertos
     return !hasFilterParams; // Auto-start apenas se não houver filtros na URL
   });
 
@@ -418,6 +430,31 @@ export default function PracticePage() {
       loadNotebooks();
     }
   }, [user?.id]);
+
+  // Processar parâmetro editNotebook da URL para carregar caderno para edição
+  useEffect(() => {
+    const editNotebookId = searchParams.get('editNotebook');
+    if (!editNotebookId || notebooks.length === 0 || editingNotebook) return;
+
+    const notebookToEdit = notebooks.find(nb => nb.id === editNotebookId);
+    if (notebookToEdit) {
+      console.log('[PracticePage] Carregando caderno para edição:', notebookToEdit.title);
+
+      // Load notebook filters
+      if (notebookToEdit.filters) setFilters(notebookToEdit.filters);
+      if (notebookToEdit.settings?.toggleFilters) setToggleFilters(notebookToEdit.settings.toggleFilters);
+      if (notebookToEdit.settings?.questionCount) setQuestionCount(notebookToEdit.settings.questionCount);
+      if (notebookToEdit.settings?.studyMode) setStudyMode(notebookToEdit.settings.studyMode as PracticeMode);
+
+      // Set editing mode
+      setEditingNotebook(notebookToEdit);
+      setEditingTitle(notebookToEdit.title);
+      setEditingDescription(notebookToEdit.description || '');
+
+      // Ensure filters are visible
+      setShowFilters(true);
+    }
+  }, [searchParams, notebooks, editingNotebook]);
 
   // Verificar se é assinante do Ouse Questões (bateria ilimitada nesta rota)
   useEffect(() => {
@@ -593,12 +630,16 @@ export default function PracticePage() {
 
   // Auto-iniciar prática com questões aleatórias quando não houver filtros na URL
   useEffect(() => {
+    // Não auto-iniciar se showFilters=true (usuário quer ver os filtros)
+    const showFiltersParam = searchParams.get('showFilters');
+    if (showFiltersParam === 'true') return;
+
     if (shouldAutoStart && !isLoadingFilters && !isLoadingCount && mode === 'selection' && !isLoading) {
       console.log('[PracticePage] Auto-iniciando prática com questões aleatórias (modo Zen)');
       setShouldAutoStart(false);
       startPractice();
     }
-  }, [shouldAutoStart, isLoadingFilters, isLoadingCount, mode, isLoading]);
+  }, [shouldAutoStart, isLoadingFilters, isLoadingCount, mode, isLoading, searchParams]);
 
   // Resetar autoStartPending quando entrar no modo 'practicing'
   useEffect(() => {
@@ -1722,7 +1763,10 @@ export default function PracticePage() {
   // ==========================================
   // RENDER: LOADING STATE (Auto-start or Trail auto-start)
   // ==========================================
-  const isAutoStarting = shouldAutoStart || autoStartPending;
+  // Não mostrar loading se showFilters=true ou editNotebook (usuário quer configurar filtros)
+  const showFiltersParam = searchParams.get('showFilters') === 'true';
+  const editNotebookParam = searchParams.get('editNotebook');
+  const isAutoStarting = (shouldAutoStart || autoStartPending) && !showFiltersParam && !editNotebookParam;
   if (isAutoStarting && (isLoadingFilters || isLoadingCount || isLoading || mode === 'selection')) {
     return (
       <div className="min-h-screen bg-[var(--color-bg-main)] flex flex-col items-center justify-center font-sans text-[var(--color-text-main)] theme-transition">
@@ -2198,11 +2242,12 @@ export default function PracticePage() {
               className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
             />
             <motion.div
-              initial={{ opacity: 0, y: 100 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 100 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed bottom-[114px] left-0 right-0 mx-4 w-auto max-w-md bg-[var(--color-bg-elevated)] rounded-3xl p-8 shadow-2xl z-50 border border-[var(--color-border)] lg:left-1/2 lg:right-auto lg:-translate-x-1/2 theme-transition"
+              className="fixed left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-[var(--color-bg-elevated)] rounded-3xl p-6 md:p-8 shadow-2xl z-[60] border border-[var(--color-border)] theme-transition
+                bottom-24 md:bottom-auto md:top-1/2 md:-translate-y-1/2"
             >
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-3 bg-[var(--color-brand)]/10 rounded-xl">

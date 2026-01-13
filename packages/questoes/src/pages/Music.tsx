@@ -6,12 +6,15 @@ import { useTrailStore } from '../stores/useTrailStore';
 import { useMusicPlayerStore } from '../stores/useMusicPlayerStore';
 import { musicService, type MusicTrack, type MusicPlaylist, type MusicCategory } from '../services/musicService';
 import { PlaylistCard, TrackRow, CategoryCard } from '../components/music';
+import { useTheme } from '../contexts/ThemeContext';
 
 export const Music: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     const { currentTrail } = useTrailStore();
     const { setQueue, play } = useMusicPlayerStore();
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
 
     const [loading, setLoading] = useState(true); // Começa como true
     const [recentTracks, setRecentTracks] = useState<MusicTrack[]>([]);
@@ -114,7 +117,7 @@ export const Music: React.FC = () => {
             {/* Header */}
             <div className="p-8">
                 <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-2xl md:text-3xl font-bold text-white">
+                    <h1 className={`text-2xl md:text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {getGreeting()}, {user?.user_metadata?.name?.split(' ')[0] || 'Aluno'}!
                     </h1>
                 </div>
@@ -122,13 +125,19 @@ export const Music: React.FC = () => {
                 {/* Search */}
                 <form onSubmit={handleSearch} className="max-w-md">
                     <div className="relative">
-                        <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
+                        <Search className={`w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none ${
+                            isDark ? 'text-gray-400' : 'text-gray-500'
+                        }`} />
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="O que voce quer ouvir?"
-                            className="w-full pl-12 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-[#FFB800]/50 focus:bg-white/15 transition-all"
+                            className={`w-full pl-12 pr-4 py-3 backdrop-blur-sm rounded-full focus:outline-none transition-all ${
+                                isDark
+                                    ? 'bg-white/10 border border-white/10 text-white placeholder-gray-400 focus:border-[#FFB800]/50 focus:bg-white/15'
+                                    : 'bg-gray-100 border border-gray-200 text-gray-900 placeholder-gray-500 focus:border-[#FFB800]/50 focus:bg-white'
+                            }`}
                         />
                     </div>
                 </form>
@@ -139,7 +148,7 @@ export const Music: React.FC = () => {
                 {recentTracks.length > 0 && (
                     <section>
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-white">Tocados recentemente</h2>
+                            <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Tocados recentemente</h2>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                             {recentTracks.slice(0, 5).map((track) => (
@@ -149,20 +158,26 @@ export const Music: React.FC = () => {
                                         setQueue([track], 0);
                                         play(track);
                                     }}
-                                    className="group bg-[#181818] hover:bg-[#282828] p-3 rounded-lg flex items-center gap-3 transition-all"
+                                    className={`group p-3 rounded-lg flex items-center gap-3 transition-all ${
+                                        isDark
+                                            ? 'bg-[#181818] hover:bg-[#282828]'
+                                            : 'bg-gray-50 hover:bg-gray-100 border border-gray-100'
+                                    }`}
                                 >
-                                    <div className="w-12 h-12 bg-[#282828] rounded flex-shrink-0 overflow-hidden">
+                                    <div className={`w-12 h-12 rounded flex-shrink-0 overflow-hidden ${
+                                        isDark ? 'bg-[#282828]' : 'bg-gray-200'
+                                    }`}>
                                         {track.cover_url ? (
                                             <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center">
-                                                <Play className="w-5 h-5 text-gray-500" />
+                                                <Play className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
                                             </div>
                                         )}
                                     </div>
                                     <div className="min-w-0 text-left">
-                                        <p className="text-white font-medium truncate">{track.title}</p>
-                                        <p className="text-gray-400 text-sm truncate">{track.artist || 'Artista'}</p>
+                                        <p className={`font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{track.title}</p>
+                                        <p className={`text-sm truncate ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{track.artist || 'Artista'}</p>
                                     </div>
                                 </button>
                             ))}
@@ -174,13 +189,15 @@ export const Music: React.FC = () => {
                 {lessonPodcastsMaterias.length > 0 && (
                     <section>
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Mic2 className="w-5 h-5 text-purple-400" />
+                            <h2 className={`text-xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                <Mic2 className="w-5 h-5 text-purple-500" />
                                 Podcasts das Aulas
                             </h2>
                             <Link
                                 to="/music/aulas"
-                                className="text-gray-400 hover:text-white text-sm flex items-center gap-1 transition-colors"
+                                className={`text-sm flex items-center gap-1 transition-colors ${
+                                    isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                                }`}
                             >
                                 Ver todos
                                 <ChevronRight className="w-4 h-4" />
@@ -191,7 +208,11 @@ export const Music: React.FC = () => {
                                 <Link
                                     key={materia}
                                     to={`/music/aulas?materia=${encodeURIComponent(materia)}`}
-                                    className="bg-gradient-to-br from-purple-600 to-purple-900 p-4 rounded-lg hover:scale-105 transition-transform"
+                                    className={`p-4 rounded-lg hover:scale-105 transition-transform ${
+                                        isDark
+                                            ? 'bg-gradient-to-br from-purple-600 to-purple-900'
+                                            : 'bg-gradient-to-br from-purple-500 to-purple-700'
+                                    }`}
                                 >
                                     <h3 className="text-white font-bold truncate">{materia}</h3>
                                     <p className="text-white/70 text-sm mt-1">{count} podcasts</p>
@@ -205,7 +226,7 @@ export const Music: React.FC = () => {
                 {categories.length > 0 && (
                     <section>
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-white">Categorias</h2>
+                            <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Categorias</h2>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {categories.map((category) => (
@@ -219,7 +240,7 @@ export const Music: React.FC = () => {
                 {allTracks.filter(t => !t.is_podcast).length > 0 && (
                     <section>
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <h2 className={`text-xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                                 <MusicIcon className="w-5 h-5 text-[#FFB800]" />
                                 Músicas Educativas
                             </h2>
@@ -232,13 +253,23 @@ export const Music: React.FC = () => {
                                         setQueue([track], 0);
                                         play(track);
                                     }}
-                                    className="group bg-[#181818] hover:bg-[#282828] p-4 rounded-lg text-left transition-all"
+                                    className={`group p-4 rounded-lg text-left transition-all ${
+                                        isDark
+                                            ? 'bg-[#181818] hover:bg-[#282828]'
+                                            : 'bg-white hover:bg-gray-50 border border-gray-100 shadow-sm'
+                                    }`}
                                 >
-                                    <div className="aspect-square bg-[#282828] rounded-md mb-3 overflow-hidden relative">
+                                    <div className={`aspect-square rounded-md mb-3 overflow-hidden relative ${
+                                        isDark ? 'bg-[#282828]' : 'bg-gray-100'
+                                    }`}>
                                         {track.cover_url ? (
                                             <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#FFB800]/20 to-orange-500/20">
+                                            <div className={`w-full h-full flex items-center justify-center ${
+                                                isDark
+                                                    ? 'bg-gradient-to-br from-[#FFB800]/20 to-orange-500/20'
+                                                    : 'bg-gradient-to-br from-[#FFB800]/10 to-orange-500/10'
+                                            }`}>
                                                 <MusicIcon className="w-12 h-12 text-[#FFB800]/50" />
                                             </div>
                                         )}
@@ -246,8 +277,8 @@ export const Music: React.FC = () => {
                                             <Play className="w-5 h-5 text-black ml-0.5" fill="black" />
                                         </div>
                                     </div>
-                                    <p className="text-white font-medium truncate">{track.title}</p>
-                                    <p className="text-gray-400 text-sm truncate">{track.materia || track.artist || 'Música'}</p>
+                                    <p className={`font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{track.title}</p>
+                                    <p className={`text-sm truncate ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{track.materia || track.artist || 'Música'}</p>
                                 </button>
                             ))}
                         </div>
@@ -258,8 +289,8 @@ export const Music: React.FC = () => {
                 {allTracks.filter(t => t.is_podcast).length > 0 && (
                     <section>
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Mic2 className="w-5 h-5 text-purple-400" />
+                            <h2 className={`text-xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                <Mic2 className="w-5 h-5 text-purple-500" />
                                 Podcasts
                             </h2>
                         </div>
@@ -271,13 +302,23 @@ export const Music: React.FC = () => {
                                         setQueue([track], 0);
                                         play(track);
                                     }}
-                                    className="group bg-[#181818] hover:bg-[#282828] p-4 rounded-lg text-left transition-all"
+                                    className={`group p-4 rounded-lg text-left transition-all ${
+                                        isDark
+                                            ? 'bg-[#181818] hover:bg-[#282828]'
+                                            : 'bg-white hover:bg-gray-50 border border-gray-100 shadow-sm'
+                                    }`}
                                 >
-                                    <div className="aspect-square bg-[#282828] rounded-md mb-3 overflow-hidden relative">
+                                    <div className={`aspect-square rounded-md mb-3 overflow-hidden relative ${
+                                        isDark ? 'bg-[#282828]' : 'bg-gray-100'
+                                    }`}>
                                         {track.cover_url ? (
                                             <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600/20 to-purple-900/20">
+                                            <div className={`w-full h-full flex items-center justify-center ${
+                                                isDark
+                                                    ? 'bg-gradient-to-br from-purple-600/20 to-purple-900/20'
+                                                    : 'bg-gradient-to-br from-purple-500/10 to-purple-700/10'
+                                            }`}>
                                                 <Mic2 className="w-12 h-12 text-purple-400/50" />
                                             </div>
                                         )}
@@ -285,8 +326,8 @@ export const Music: React.FC = () => {
                                             <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
                                         </div>
                                     </div>
-                                    <p className="text-white font-medium truncate">{track.title}</p>
-                                    <p className="text-gray-400 text-sm truncate">{track.materia || 'Podcast'}</p>
+                                    <p className={`font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{track.title}</p>
+                                    <p className={`text-sm truncate ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{track.materia || 'Podcast'}</p>
                                 </button>
                             ))}
                         </div>
@@ -297,7 +338,7 @@ export const Music: React.FC = () => {
                 {playlists.length > 0 && (
                     <section>
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-white">Playlists do Preparatorio</h2>
+                            <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Playlists do Preparatorio</h2>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                             {playlists.map((playlist) => (
@@ -315,7 +356,11 @@ export const Music: React.FC = () => {
                 <section>
                     <Link
                         to="/music/solicitar"
-                        className="block bg-gradient-to-r from-[#FFB800]/20 via-[#FFB800]/10 to-purple-500/20 border border-[#FFB800]/30 rounded-2xl p-6 hover:border-[#FFB800]/50 hover:scale-[1.01] transition-all group"
+                        className={`block rounded-2xl p-6 hover:scale-[1.01] transition-all group ${
+                            isDark
+                                ? 'bg-gradient-to-r from-[#FFB800]/20 via-[#FFB800]/10 to-purple-500/20 border border-[#FFB800]/30 hover:border-[#FFB800]/50'
+                                : 'bg-gradient-to-r from-[#FFB800]/10 via-[#FFB800]/5 to-purple-500/10 border border-[#FFB800]/20 hover:border-[#FFB800]/40'
+                        }`}
                     >
                         <div className="flex items-center gap-6">
                             {/* Icon */}
@@ -325,13 +370,17 @@ export const Music: React.FC = () => {
 
                             {/* Content */}
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                                <h3 className={`text-xl font-bold mb-1 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                                     Solicitar Audio
-                                    <span className="text-xs bg-[#FFB800]/20 text-[#FFB800] px-2 py-0.5 rounded-full font-medium">
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                        isDark
+                                            ? 'bg-[#FFB800]/20 text-[#FFB800]'
+                                            : 'bg-[#FFB800]/15 text-[#D49800]'
+                                    }`}>
                                         Novo
                                     </span>
                                 </h3>
-                                <p className="text-gray-400 text-sm">
+                                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                                     Nao encontrou o que procurava? Solicite uma musica ou podcast sobre qualquer tema do seu preparatorio!
                                 </p>
                             </div>
@@ -344,17 +393,19 @@ export const Music: React.FC = () => {
                         </div>
 
                         {/* Features */}
-                        <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-white/10">
-                            <div className="flex items-center gap-2 text-gray-400 text-sm">
+                        <div className={`flex flex-wrap gap-3 mt-4 pt-4 border-t ${
+                            isDark ? 'border-white/10' : 'border-black/5'
+                        }`}>
+                            <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                                 <MusicIcon className="w-4 h-4 text-[#FFB800]" />
                                 <span>Musicas educativas</span>
                             </div>
-                            <div className="flex items-center gap-2 text-gray-400 text-sm">
-                                <Mic2 className="w-4 h-4 text-purple-400" />
+                            <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                <Mic2 className="w-4 h-4 text-purple-500" />
                                 <span>Podcasts explicativos</span>
                             </div>
-                            <div className="flex items-center gap-2 text-gray-400 text-sm">
-                                <Sparkles className="w-4 h-4 text-green-400" />
+                            <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                <Sparkles className="w-4 h-4 text-green-500" />
                                 <span>Gerado com IA</span>
                             </div>
                         </div>
@@ -364,11 +415,13 @@ export const Music: React.FC = () => {
                 {/* Empty state */}
                 {playlists.length === 0 && categories.length === 0 && recentTracks.length === 0 && lessonPodcastsMaterias.length === 0 && allTracks.length === 0 && (
                     <div className="text-center py-16">
-                        <div className="w-24 h-24 bg-[#282828] rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Play className="w-12 h-12 text-gray-500" />
+                        <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ${
+                            isDark ? 'bg-[#282828]' : 'bg-gray-100'
+                        }`}>
+                            <Play className={`w-12 h-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">Nada por aqui ainda</h2>
-                        <p className="text-gray-400 max-w-md mx-auto">
+                        <h2 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Nada por aqui ainda</h2>
+                        <p className={`max-w-md mx-auto ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                             O preparatorio ainda nao adicionou conteudo ao modulo de musica.
                             Volte mais tarde!
                         </p>

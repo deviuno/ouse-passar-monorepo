@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Play, ListMusic } from 'lucide-react';
 import { useMusicPlayerStore } from '../../stores/useMusicPlayerStore';
 import type { MusicPlaylist } from '../../services/musicService';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface PlaylistCardProps {
   playlist: MusicPlaylist;
@@ -11,6 +12,8 @@ interface PlaylistCardProps {
 
 export const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, onPlay }) => {
   const { play, setQueue } = useMusicPlayerStore();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   const handlePlayClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -23,7 +26,11 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, onPlay }) 
   return (
     <Link
       to={`/music/playlist/${playlist.id}`}
-      className="group bg-[#181818]/60 hover:bg-[#282828] p-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:-translate-y-1 block"
+      className={`group p-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:-translate-y-1 block ${
+        isDark
+          ? 'bg-[#181818]/60 hover:bg-[#282828]'
+          : 'bg-white hover:bg-gray-50 border border-gray-100 shadow-sm'
+      }`}
     >
       {/* Cover */}
       <div className="relative aspect-square mb-4 rounded-md overflow-hidden shadow-lg">
@@ -34,8 +41,12 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, onPlay }) 
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#282828] to-[#121212] flex items-center justify-center">
-            <ListMusic className="w-12 h-12 text-gray-500" />
+          <div className={`w-full h-full flex items-center justify-center ${
+            isDark
+              ? 'bg-gradient-to-br from-[#282828] to-[#121212]'
+              : 'bg-gradient-to-br from-gray-100 to-gray-200'
+          }`}>
+            <ListMusic className={`w-12 h-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
           </div>
         )}
 
@@ -49,8 +60,8 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, onPlay }) 
       </div>
 
       {/* Info */}
-      <h3 className="text-white font-bold truncate">{playlist.name}</h3>
-      <p className="text-gray-400 text-sm mt-1 line-clamp-2">
+      <h3 className={`font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{playlist.name}</h3>
+      <p className={`text-sm mt-1 line-clamp-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
         {playlist.description || `${playlist.track_count} faixas`}
       </p>
     </Link>

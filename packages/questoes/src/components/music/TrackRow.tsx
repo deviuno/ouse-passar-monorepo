@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Heart, Clock, ListPlus, Share2, Trash2, Music, Mic2 } from 'lucide-react';
 import { MusicTrack, useMusicPlayerStore, formatTime } from '../../stores/useMusicPlayerStore';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface TrackRowProps {
   track: MusicTrack;
@@ -32,6 +33,8 @@ export const TrackRow: React.FC<TrackRowProps> = ({
   tracks,
 }) => {
   const { currentTrack, isPlaying, play, pause, setQueue } = useMusicPlayerStore();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -112,13 +115,16 @@ export const TrackRow: React.FC<TrackRowProps> = ({
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleDoubleClick}
-        className={`group flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer select-none hover:bg-white/10 ${isCurrentTrack ? 'bg-white/5' : ''
-          }`}
+        className={`group flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer select-none ${
+          isDark
+            ? `hover:bg-white/10 ${isCurrentTrack ? 'bg-white/5' : ''}`
+            : `hover:bg-black/5 ${isCurrentTrack ? 'bg-black/5' : ''}`
+        }`}
       >
         {/* Index / Play indicator */}
         {showIndex && (
           <div className="w-6 text-center flex-shrink-0">
-            <span className={`group-hover:hidden ${isCurrentTrack ? 'text-[#FFB800]' : 'text-gray-400'} text-sm`}>
+            <span className={`group-hover:hidden ${isCurrentTrack ? 'text-[#FFB800]' : isDark ? 'text-gray-400' : 'text-gray-500'} text-sm`}>
               {isThisPlaying ? (
                 <span className="flex items-center justify-center gap-0.5">
                   <span className="w-0.5 h-3 bg-[#FFB800] animate-pulse" />
@@ -129,11 +135,11 @@ export const TrackRow: React.FC<TrackRowProps> = ({
                 index + 1
               )}
             </span>
-            <span className="hidden group-hover:flex items-center justify-center text-white">
+            <span className={`hidden group-hover:flex items-center justify-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
               {isThisPlaying ? (
-                <Pause className="w-4 h-4" fill="white" />
+                <Pause className="w-4 h-4" fill={isDark ? 'white' : 'currentColor'} />
               ) : (
-                <Play className="w-4 h-4" fill="white" />
+                <Play className="w-4 h-4" fill={isDark ? 'white' : 'currentColor'} />
               )}
             </span>
           </div>
@@ -141,7 +147,7 @@ export const TrackRow: React.FC<TrackRowProps> = ({
 
         {/* Cover */}
         {showCover && (
-          <div className="w-10 h-10 bg-[#282828] rounded overflow-hidden flex-shrink-0">
+          <div className={`w-10 h-10 rounded overflow-hidden flex-shrink-0 ${isDark ? 'bg-[#282828]' : 'bg-gray-100'}`}>
             {track.cover_url ? (
               <img
                 src={track.cover_url}
@@ -151,9 +157,9 @@ export const TrackRow: React.FC<TrackRowProps> = ({
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 {track.is_podcast || track.materia ? (
-                  <Mic2 className="w-4 h-4 text-purple-400" />
+                  <Mic2 className="w-4 h-4 text-purple-500" />
                 ) : (
-                  <Music className="w-4 h-4 text-gray-600" />
+                  <Music className={`w-4 h-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
                 )}
               </div>
             )}
@@ -162,10 +168,10 @@ export const TrackRow: React.FC<TrackRowProps> = ({
 
         {/* Track info - takes all available space */}
         <div className="flex-1 min-w-0 mr-2">
-          <p className={`font-medium truncate ${isCurrentTrack ? 'text-[#FFB800]' : 'text-white'}`}>
+          <p className={`font-medium truncate ${isCurrentTrack ? 'text-[#FFB800]' : isDark ? 'text-white' : 'text-gray-900'}`}>
             {track.assunto || track.title}
           </p>
-          <p className="text-gray-400 text-sm truncate">
+          <p className={`text-sm truncate ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             {track.materia || track.artist || 'Artista desconhecido'}
           </p>
         </div>
@@ -175,14 +181,14 @@ export const TrackRow: React.FC<TrackRowProps> = ({
           <Heart
             className={`w-4 h-4 flex-shrink-0 transition-opacity ${isFavorite
                 ? 'text-[#FFB800] fill-current opacity-100'
-                : 'text-gray-400 opacity-0 group-hover:opacity-100'
+                : `${isDark ? 'text-gray-400' : 'text-gray-500'} opacity-0 group-hover:opacity-100`
               }`}
           />
         )}
 
         {/* Duration */}
         {showDuration && (
-          <span className="text-gray-400 text-sm flex-shrink-0 tabular-nums">
+          <span className={`text-sm flex-shrink-0 tabular-nums ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             {formatTime(track.duration_seconds)}
           </span>
         )}
@@ -192,12 +198,18 @@ export const TrackRow: React.FC<TrackRowProps> = ({
       {showContextMenu && (
         <div
           ref={contextMenuRef}
-          className="fixed bg-[#282828] border border-white/10 rounded-lg shadow-xl z-50 py-1 min-w-[180px]"
+          className={`fixed rounded-lg shadow-xl z-50 py-1 min-w-[180px] ${
+            isDark
+              ? 'bg-[#282828] border border-white/10'
+              : 'bg-white border border-gray-200'
+          }`}
           style={{ left: contextMenuPosition.x, top: contextMenuPosition.y }}
         >
           <button
             onClick={() => handleContextAction('favorite')}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-white hover:bg-white/10 transition-colors"
+            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+              isDark ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-gray-50'
+            }`}
           >
             <Heart className={`w-4 h-4 ${isFavorite ? 'text-[#FFB800] fill-current' : ''}`} />
             <span className="text-sm">{isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}</span>
@@ -205,7 +217,9 @@ export const TrackRow: React.FC<TrackRowProps> = ({
 
           <button
             onClick={() => handleContextAction('addToPlaylist')}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-white hover:bg-white/10 transition-colors"
+            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+              isDark ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-gray-50'
+            }`}
           >
             <ListPlus className="w-4 h-4" />
             <span className="text-sm">Adicionar a playlist</span>
@@ -214,18 +228,22 @@ export const TrackRow: React.FC<TrackRowProps> = ({
           {isInPlaylist && (
             <button
               onClick={() => handleContextAction('removeFromPlaylist')}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-red-400 hover:bg-white/10 transition-colors"
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-red-500 transition-colors ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-gray-50'
+              }`}
             >
               <Trash2 className="w-4 h-4" />
               <span className="text-sm">Remover da playlist</span>
             </button>
           )}
 
-          <div className="border-t border-white/10 my-1" />
+          <div className={`border-t my-1 ${isDark ? 'border-white/10' : 'border-gray-200'}`} />
 
           <button
             onClick={() => handleContextAction('share')}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-white hover:bg-white/10 transition-colors"
+            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+              isDark ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-gray-50'
+            }`}
           >
             <Share2 className="w-4 h-4" />
             <span className="text-sm">Copiar nome da musica</span>

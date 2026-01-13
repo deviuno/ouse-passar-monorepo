@@ -159,9 +159,14 @@ const TaxonomyNodeItem: React.FC<{
   };
 
   const allNodeAssuntos = getAllAssuntos(node);
-  const selectedCount = allNodeAssuntos.filter(a => selectedAssuntos.includes(a)).length;
-  const isPartiallySelected = selectedCount > 0 && selectedCount < allNodeAssuntos.length;
-  const isFullySelected = selectedCount === allNodeAssuntos.length && allNodeAssuntos.length > 0;
+
+  // Se o nó não tem assuntos mapeados (nem ele nem seus filhos), usa o nome do nó como assunto
+  // Isso permite selecionar nós da taxonomia que ainda não foram mapeados
+  const selectableAssuntos = allNodeAssuntos.length > 0 ? allNodeAssuntos : [node.nome];
+
+  const selectedCount = selectableAssuntos.filter(a => selectedAssuntos.includes(a)).length;
+  const isPartiallySelected = selectedCount > 0 && selectedCount < selectableAssuntos.length;
+  const isFullySelected = selectedCount === selectableAssuntos.length && selectableAssuntos.length > 0;
 
   // Verificar se o nó ou seus filhos correspondem à busca (fuzzy match)
   const matchesSearch = (n: TaxonomyNode): boolean => {
@@ -177,9 +182,8 @@ const TaxonomyNodeItem: React.FC<{
   if (!matchesSearch(node)) return null;
 
   const handleToggleNode = () => {
-    if (allNodeAssuntos.length > 0) {
-      onToggleMultiple(allNodeAssuntos, !isFullySelected);
-    }
+    // Sempre permite selecionar usando selectableAssuntos (que usa o nome do nó como fallback)
+    onToggleMultiple(selectableAssuntos, !isFullySelected);
   };
 
   const paddingLeft = 8 + level * 12;

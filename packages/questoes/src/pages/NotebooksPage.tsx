@@ -121,9 +121,10 @@ export const NotebooksPage: React.FC = () => {
   };
 
   const handleEditNotebook = (notebook: Caderno) => {
-    // Navigate to practice page with notebook for editing
+    // Navigate to practice page with notebook for editing (filters open)
     const params = new URLSearchParams();
     params.set('editNotebook', notebook.id);
+    params.set('showFilters', 'true');
     navigate(`/praticar?${params.toString()}`);
   };
 
@@ -190,7 +191,7 @@ export const NotebooksPage: React.FC = () => {
             </div>
           </div>
           <Button
-            onClick={() => navigate('/praticar')}
+            onClick={() => navigate('/praticar?showFilters=true')}
             leftIcon={<Plus size={18} />}
           >
             Novo Caderno
@@ -212,7 +213,7 @@ export const NotebooksPage: React.FC = () => {
               Crie seu primeiro caderno configurando filtros na página de prática e salvando para
               acessar rapidamente.
             </p>
-            <Button onClick={() => navigate('/praticar')}>
+            <Button onClick={() => navigate('/praticar?showFilters=true')}>
               Criar meu primeiro caderno
             </Button>
           </motion.div>
