@@ -1190,7 +1190,8 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
 
   // Função para agregar filtros de múltiplos itens do edital
   // Agora também herda filtro_materias do item pai (matéria) se o próprio item não tiver
-  const agregarFiltrosEdital = (items: EditalItem[]): FiltrosSugeridos | null => {
+  // Aceita materiasLookup opcional para evitar problemas de estado assíncrono
+  const agregarFiltrosEdital = (items: EditalItem[], materiasLookup?: EditalItem[]): FiltrosSugeridos | null => {
     console.log('[agregarFiltrosEdital] Items recebidos:', items.length);
     if (items.length === 0) return null;
 
@@ -1198,11 +1199,14 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
     const assuntos = new Set<string>();
 
     // Criar mapa de matérias por ID para lookup rápido
+    // Usa materiasLookup se fornecido, senão usa o estado (pode estar desatualizado)
     const materiasMap = new Map<string, EditalItem>();
-    materiasEdital.forEach(m => materiasMap.set(m.id, m));
+    const materiasSource = materiasLookup || materiasEdital;
+    console.log('[agregarFiltrosEdital] MateriasSource length:', materiasSource.length);
+    materiasSource.forEach(m => materiasMap.set(m.id, m));
 
     items.forEach(item => {
-      console.log('[agregarFiltrosEdital] Item:', item.titulo, '| filtro_materias:', item.filtro_materias, '| filtro_assuntos:', item.filtro_assuntos);
+      console.log('[agregarFiltrosEdital] Item:', item.titulo, '| filtro_materias:', item.filtro_materias, '| filtro_assuntos:', item.filtro_assuntos, '| parent_id:', item.parent_id);
 
       // Adicionar filtros de matérias
       if (item.filtro_materias && item.filtro_materias.length > 0) {
@@ -1210,6 +1214,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
       } else if (item.parent_id) {
         // Se não tem filtro_materias próprio, tentar herdar do pai (matéria)
         const parentMateria = materiasMap.get(item.parent_id);
+        console.log('[agregarFiltrosEdital] Parent lookup para', item.parent_id, ':', parentMateria?.titulo);
         if (parentMateria?.filtro_materias && parentMateria.filtro_materias.length > 0) {
           console.log('[agregarFiltrosEdital] Herdando filtro_materias do pai:', parentMateria.titulo, parentMateria.filtro_materias);
           parentMateria.filtro_materias.forEach(m => materias.add(m));
@@ -1269,7 +1274,8 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
             setSelectedEditalItems(validItems);
 
             // Calcular filtros herdados dos itens
-            const filtrosHerdadosCalculados = agregarFiltrosEdital(validItems);
+            // Passa materias diretamente pois o state ainda não foi atualizado
+            const filtrosHerdadosCalculados = agregarFiltrosEdital(validItems, materias);
             setFiltrosHerdados(filtrosHerdadosCalculados);
           }
 
@@ -1322,7 +1328,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
       setSelectedEditalItems(validItems);
 
       // Agregar filtros dos itens selecionados
-      const filtros = agregarFiltrosEdital(validItems);
+      const filtros = agregarFiltrosEdital(validItems, materiasEdital);
       setFiltrosHerdados(filtros);
     } else {
       setSelectedEditalItems([]);
@@ -1336,7 +1342,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
     setSelectedEditalItems(newItems);
 
     // Recalcular filtros herdados
-    const filtros = agregarFiltrosEdital(newItems);
+    const filtros = agregarFiltrosEdital(newItems, materiasEdital);
     setFiltrosHerdados(filtros);
   };
 
@@ -1385,7 +1391,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
       // Se for tipo estudo, verificar filtros herdados ou buscar sugestao com IA
       if (isTipoEstudo) {
         // Recalcular filtros herdados dos itens selecionados
-        const filtrosDoEdital = agregarFiltrosEdital(selectedEditalItems);
+        const filtrosDoEdital = agregarFiltrosEdital(selectedEditalItems, materiasEdital);
         setFiltrosHerdados(filtrosDoEdital);
 
         // Se há filtros herdados dos itens do edital, usar eles diretamente
