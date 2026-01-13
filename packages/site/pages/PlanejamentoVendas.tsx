@@ -13,7 +13,8 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { preparatoriosService } from '../services/preparatoriosService';
-import { Preparatorio } from '../lib/database.types';
+import { Tables } from '../lib/database.types';
+type Preparatorio = Tables<'preparatorios'>;
 import { SEOHead } from '../components/SEOHead';
 
 export const PlanejamentoVendas: React.FC = () => {
@@ -124,7 +125,7 @@ export const PlanejamentoVendas: React.FC = () => {
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight mb-6">
                 Planejamento
-                <span className="block" style={{ color: preparatorio.cor }}>
+                <span className="block" style={{ color: (preparatorio.cor || undefined) }}>
                   {preparatorio.nome}
                 </span>
               </h1>

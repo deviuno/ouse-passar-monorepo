@@ -29,7 +29,7 @@ export async function getAllSettings(): Promise<SystemSetting[]> {
       .order('key', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    return (data as any) || [];
   } catch (error) {
     console.error('Error fetching settings:', error);
     return [];
@@ -46,7 +46,7 @@ export async function getSettingsByCategory(category: string): Promise<SystemSet
       .order('key', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    return (data as any) || [];
   } catch (error) {
     console.error('Error fetching settings by category:', error);
     return [];

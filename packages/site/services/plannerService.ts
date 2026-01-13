@@ -1,5 +1,16 @@
 import { supabase } from '../lib/supabase';
-import { PlannerDiario, PlannerSemanal, SemaforoCor } from '../lib/database.types';
+import { Tables } from '../lib/database.types';
+
+export type PlannerDiario = Tables<'planner_diario'>;
+export type SemaforoCor = 'verde' | 'amarelo' | 'vermelho';
+
+export interface PlannerSemanal {
+  diasVerdes: number;
+  horasEstudadas: number;
+  missoesTotal: number;
+  questoesTotal: number;
+  mediaAcertos: number | null;
+}
 
 // Helper para formatar data como YYYY-MM-DD
 const formatDate = (date: Date): string => {

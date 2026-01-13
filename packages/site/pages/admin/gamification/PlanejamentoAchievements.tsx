@@ -16,10 +16,27 @@ import {
   planejamentoConquistasService,
   REQUISITO_TIPO_LABELS,
 } from '../../../services/planejamentoConquistasService';
-import {
-  PlanejamentoConquista,
-  PlanejamentoConquistaRequisitoTipo,
-} from '../../../lib/database.types';
+import { Database, Tables, Enums } from '../../../lib/database.types';
+
+// Fallback types since they are missing in database.types.ts
+type PlanejamentoConquistaRequisitoTipo = 'missoes_completadas' | 'rodadas_completadas' | 'dias_consecutivos' | 'porcentagem_edital' | 'missoes_por_dia' | 'tempo_estudo' | 'primeiro_acesso' | 'semana_perfeita' | 'mes_perfeito' | 'custom';
+
+interface PlanejamentoConquista {
+  id: string;
+  nome: string;
+  descricao: string;
+  icone: string;
+  requisito_tipo: PlanejamentoConquistaRequisitoTipo;
+  requisito_valor: number;
+  xp_recompensa: number;
+  moedas_recompensa: number;
+  is_active: boolean;
+  is_hidden: boolean;
+  ordem: number;
+  mensagem_desbloqueio: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
 
 const REQUISITO_TIPOS: { value: PlanejamentoConquistaRequisitoTipo; label: string }[] = [
   { value: 'missoes_completadas', label: 'Missoes Completadas' },
@@ -265,11 +282,10 @@ export const PlanejamentoAchievementsPage: React.FC = () => {
       <div className="mb-6 flex gap-2 flex-wrap">
         <button
           onClick={() => setFilterTipo('')}
-          className={`px-3 py-1.5 text-xs font-bold uppercase rounded-sm border transition-colors ${
-            filterTipo === ''
-              ? 'border-brand-yellow text-brand-yellow bg-brand-yellow/10'
-              : 'border-white/10 text-gray-400 hover:border-white/20'
-          }`}
+          className={`px-3 py-1.5 text-xs font-bold uppercase rounded-sm border transition-colors ${filterTipo === ''
+            ? 'border-brand-yellow text-brand-yellow bg-brand-yellow/10'
+            : 'border-white/10 text-gray-400 hover:border-white/20'
+            }`}
         >
           Todas ({conquistas.length})
         </button>
@@ -277,11 +293,10 @@ export const PlanejamentoAchievementsPage: React.FC = () => {
           <button
             key={tipo.value}
             onClick={() => setFilterTipo(tipo.value)}
-            className={`px-3 py-1.5 text-xs font-bold uppercase rounded-sm border transition-colors ${
-              filterTipo === tipo.value
-                ? 'border-brand-yellow text-brand-yellow bg-brand-yellow/10'
-                : 'border-white/10 text-gray-400 hover:border-white/20'
-            }`}
+            className={`px-3 py-1.5 text-xs font-bold uppercase rounded-sm border transition-colors ${filterTipo === tipo.value
+              ? 'border-brand-yellow text-brand-yellow bg-brand-yellow/10'
+              : 'border-white/10 text-gray-400 hover:border-white/20'
+              }`}
           >
             {tipo.label} ({tipoCounts[tipo.value] || 0})
           </button>
@@ -442,9 +457,8 @@ export const PlanejamentoAchievementsPage: React.FC = () => {
         {filteredConquistas.map((conquista) => (
           <div
             key={conquista.id}
-            className={`bg-brand-card border rounded-sm overflow-hidden ${
-              conquista.is_active ? 'border-white/5' : 'border-gray-700/50 opacity-60'
-            }`}
+            className={`bg-brand-card border rounded-sm overflow-hidden ${conquista.is_active ? 'border-white/5' : 'border-gray-700/50 opacity-60'
+              }`}
           >
             {/* Preview */}
             <div className="p-4 flex items-center gap-4 bg-brand-dark/30">

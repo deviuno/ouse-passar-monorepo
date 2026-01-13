@@ -40,7 +40,7 @@ export const MusicPlaylists: React.FC = () => {
     try {
       const [playlistsData, tracksData] = await Promise.all([
         musicAdminService.getPlaylists(), // Sem filtro de preparatorio
-        musicAdminService.getTracks(), // Sem filtro de preparatorio
+        musicAdminService.getTracks(undefined), // Sem filtro de preparatorio
       ]);
       setPlaylists(playlistsData);
       setTracks(tracksData);
@@ -77,18 +77,18 @@ export const MusicPlaylists: React.FC = () => {
       let coverUrl = editingPlaylist?.cover_url;
 
       if (coverFile) {
-        coverUrl = await musicAdminService.uploadCoverImage(coverFile);
+        coverUrl = await musicAdminService.uploadCoverImage(undefined, coverFile);
       }
 
       if (editingPlaylist) {
         await musicAdminService.updatePlaylist(editingPlaylist.id, {
           ...formData,
-          cover_url: coverUrl,
+          cover_url: coverUrl || undefined,
         });
       } else {
         await musicAdminService.createPlaylist(undefined, {
           ...formData,
-          cover_url: coverUrl,
+          cover_url: coverUrl || undefined,
           is_public: true,
         });
       }
@@ -397,11 +397,10 @@ export const MusicPlaylists: React.FC = () => {
                               ? handleRemoveTrack(selectedPlaylistId, track.id)
                               : handleAddTrack(track.id)
                           }
-                          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            isInPlaylist
-                              ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                              : 'bg-brand-yellow text-brand-darker hover:bg-brand-yellow/90'
-                          }`}
+                          className={`px-4 py-2 rounded-lg font-medium transition-colors ${isInPlaylist
+                            ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                            : 'bg-brand-yellow text-brand-darker hover:bg-brand-yellow/90'
+                            }`}
                         >
                           {isInPlaylist ? 'Remover' : 'Adicionar'}
                         </button>

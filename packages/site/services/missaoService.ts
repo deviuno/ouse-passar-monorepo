@@ -37,7 +37,7 @@ export const missaoService = {
             .single();
 
         if (error) throw error;
-        return data;
+        return data as any;
     },
 
     /**
@@ -76,7 +76,7 @@ export const missaoService = {
             .order('missao_numero');
 
         if (error) throw error;
-        return data || [];
+        return (data as any[] || []);
     },
 
     /**

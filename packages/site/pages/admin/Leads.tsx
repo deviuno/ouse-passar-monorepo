@@ -2,10 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Trash2, User, Calendar, List, LayoutGrid, ChevronLeft, ChevronRight, GripVertical, Phone, X, Clock, Briefcase, GraduationCap, Target, AlertCircle, Filter, Video, PlayCircle, UserCog, ChevronDown, Loader2, Copy, MessageCircle, Key } from 'lucide-react';
 import { leadsService, LeadWithVendedor, adminUsersService } from '../../services/adminUsersService';
-import { LeadDifficulty, EducationLevel, LeadGender, AdminUser, AgendamentoWithDetails } from '../../lib/database.types';
+import { Database, Tables, Enums } from '../../lib/database.types';
+
+type LeadDifficulty = Enums<'lead_difficulty'>;
+type EducationLevel = Enums<'education_level'>;
+type LeadGender = Enums<'lead_gender'>;
+type AdminUser = Tables<'admin_users'>;
+// import { AgendamentoWithDetails } from '../../lib/database.types'; // Kept for reference but likely unused if missing
 import { agendamentosService } from '../../services/schedulingService';
 import { useAuth } from '../../lib/AuthContext';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
+// Fallback types
+interface AgendamentoWithDetails {
+    id: string;
+    data_hora: string;
+    duracao_minutos: number;
+    status: string;
+    notas?: string;
+    preparatorio?: { slug: string };
+    vendedor?: { name: string; email: string };
+}
 import { generateInviteMessage, generateWhatsAppUrl } from '../../services/studentService';
 
 // Status do Kanban
@@ -523,11 +539,11 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                                 <div className="flex justify-between mb-4 pb-3 border-b border-white/5">
                                     <div className="text-center flex-1">
                                         <span className="text-[10px] text-gray-600 uppercase block">Acorda</span>
-                                        <span className="text-brand-yellow font-bold text-sm">{formatTimeHHMM(lead.hora_acordar) || '06:00'}</span>
+                                        <span className="text-brand-yellow font-bold text-sm">{formatTimeHHMM(lead.hora_acordar || null) || '06:00'}</span>
                                     </div>
                                     <div className="text-center flex-1">
                                         <span className="text-[10px] text-gray-600 uppercase block">Dorme</span>
-                                        <span className="text-brand-yellow font-bold text-sm">{formatTimeHHMM(lead.hora_dormir) || '22:00'}</span>
+                                        <span className="text-brand-yellow font-bold text-sm">{formatTimeHHMM(lead.hora_dormir || null) || '22:00'}</span>
                                     </div>
                                 </div>
                             )}
@@ -593,7 +609,7 @@ const LeadDetailsSidebar: React.FC<LeadDetailsSidebarProps> = ({
                         <div className="flex justify-between text-xs">
                             <span className="text-gray-600">Cadastrado em</span>
                             <span className="text-gray-400">
-                                {new Date(lead.created_at).toLocaleDateString('pt-BR', {
+                                {new Date(lead.created_at || new Date().toISOString()).toLocaleDateString('pt-BR', {
                                     day: '2-digit',
                                     month: '2-digit',
                                     year: 'numeric',
@@ -799,7 +815,7 @@ const LeadCard: React.FC<LeadCardProps> = ({ lead, agendamento, onDragStart, onD
 
             <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/5">
                 <span className="text-[10px] text-gray-600">
-                    {new Date(lead.created_at).toLocaleDateString('pt-BR')}
+                    {new Date(lead.created_at || new Date().toISOString()).toLocaleDateString('pt-BR')}
                 </span>
                 <div className="flex items-center gap-1">
                     {lead.planejamento_id && (
@@ -983,7 +999,7 @@ export const Leads: React.FC = () => {
 
             // Filtrar por data
             const filteredData = data.filter(lead => {
-                const leadDate = new Date(lead.created_at).toISOString().split('T')[0];
+                const leadDate = new Date(lead.created_at || new Date().toISOString()).toISOString().split('T')[0];
                 return leadDate === selectedDate;
             });
 
@@ -997,7 +1013,7 @@ export const Leads: React.FC = () => {
                     agendamentoIds.map(id => agendamentosService.getById(id))
                 );
                 const map: Record<string, AgendamentoWithDetails> = {};
-                agendamentos.forEach(ag => {
+                agendamentos.forEach((ag: AgendamentoWithDetails | null) => {
                     if (ag) {
                         map[ag.id] = ag;
                     }
@@ -1495,7 +1511,7 @@ export const Leads: React.FC = () => {
                                         <td className="p-4">
                                             <div className="flex items-center text-gray-400 text-sm">
                                                 <Calendar className="w-4 h-4 mr-2" />
-                                                {formatDate(lead.created_at)}
+                                                {formatDate(lead.created_at || new Date().toISOString())}
                                             </div>
                                         </td>
                                         <td className="p-4">

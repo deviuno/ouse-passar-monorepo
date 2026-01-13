@@ -472,6 +472,10 @@ export async function getAvailablePreparatorios(): Promise<{
 
 /**
  * Add preparatorio products to a user
+ *
+ * IMPORTANTE: O userId recebido é do admin_users, mas para produtos que usam
+ * user_trails (turma_elite, trilha_questoes, reta_final, plataforma_completa),
+ * precisamos usar o ID do auth.users correspondente ao mesmo email.
  */
 export async function addUserPreparatorio(
   userId: string,
@@ -480,6 +484,29 @@ export async function addUserPreparatorio(
 ): Promise<{ success: boolean; error: string | null }> {
   try {
     const errors: string[] = [];
+
+    // Buscar o email do admin_users para encontrar o ID correspondente no auth.users
+    const { data: adminUser, error: adminError } = await supabase
+      .from('admin_users')
+      .select('email')
+      .eq('id', userId)
+      .single();
+
+    if (adminError || !adminUser) {
+      return { success: false, error: 'Usuário não encontrado no admin' };
+    }
+
+    // Buscar o ID do auth.users pelo email
+    // Usamos uma RPC function pois não temos acesso direto ao auth.users via client
+    const { data: authUserData, error: authError } = await (supabase as any)
+      .rpc('get_auth_user_id_by_email', { p_email: adminUser.email });
+
+    // Se não encontrar no auth.users, usar o userId do admin_users como fallback
+    const authUserId = authUserData || userId;
+
+    if (!authUserData) {
+      console.warn(`[userDetailsService] User ${adminUser.email} not found in auth.users, using admin_users ID`);
+    }
 
     for (const productType of productTypes) {
       let insertError = null;
@@ -511,10 +538,11 @@ export async function addUserPreparatorio(
         case 'turma_elite':
         case 'trilha_questoes':
           // Check if user already has a trail for this preparatorio
+          // Usa authUserId para garantir compatibilidade com o app de questões
           const { data: existingTrail } = await supabase
             .from('user_trails' as any)
             .select('id, purchased_products')
-            .eq('user_id', userId)
+            .eq('user_id', authUserId)
             .eq('preparatorio_id', preparatorioId)
             .single();
 
@@ -533,10 +561,11 @@ export async function addUserPreparatorio(
             }
           } else {
             // Create new trail with product
+            // Usa authUserId para garantir compatibilidade com o app de questões
             const { error: trailError } = await supabase
               .from('user_trails' as any)
               .insert({
-                user_id: userId,
+                user_id: authUserId,
                 preparatorio_id: preparatorioId,
                 is_reta_final: false,
                 battery_current: 100,
@@ -551,10 +580,11 @@ export async function addUserPreparatorio(
 
         case 'reta_final':
           // Check if user already has a trail for this preparatorio
+          // Usa authUserId para garantir compatibilidade com o app de questões
           const { data: existingRetaTrail } = await supabase
             .from('user_trails' as any)
             .select('id, purchased_products')
-            .eq('user_id', userId)
+            .eq('user_id', authUserId)
             .eq('preparatorio_id', preparatorioId)
             .single();
 
@@ -576,7 +606,7 @@ export async function addUserPreparatorio(
             const { error: retaError } = await supabase
               .from('user_trails' as any)
               .insert({
-                user_id: userId,
+                user_id: authUserId,
                 preparatorio_id: preparatorioId,
                 is_reta_final: true,
                 battery_current: 100,
@@ -600,20 +630,22 @@ export async function addUserPreparatorio(
             .single();
 
           if (simuladoCourse) {
+            // Usa authUserId para garantir compatibilidade
             const { error } = await supabase
               .from('user_courses' as any)
               .upsert({
-                user_id: userId,
+                user_id: authUserId,
                 course_id: (simuladoCourse as any).id,
                 purchased_at: new Date().toISOString(),
               } as any, { onConflict: 'user_id,course_id' });
             insertError = error;
           } else {
             // If no course exists, add to user_trails as fallback
+            // Usa authUserId para garantir compatibilidade com o app de questões
             const { error } = await supabase
               .from('user_trails' as any)
               .upsert({
-                user_id: userId,
+                user_id: authUserId,
                 preparatorio_id: preparatorioId,
                 is_reta_final: false,
                 battery_current: 100,
@@ -627,10 +659,11 @@ export async function addUserPreparatorio(
 
         case 'plataforma_completa':
           // Check if user already has a trail for this preparatorio
+          // Usa authUserId para garantir compatibilidade com o app de questões
           const { data: existingPlataformaTrail } = await supabase
             .from('user_trails' as any)
             .select('id, purchased_products')
-            .eq('user_id', userId)
+            .eq('user_id', authUserId)
             .eq('preparatorio_id', preparatorioId)
             .single();
 
@@ -648,10 +681,11 @@ export async function addUserPreparatorio(
               insertError = updatePlataformaError;
             }
           } else {
+            // Usa authUserId para garantir compatibilidade com o app de questões
             const { error: plataformaError } = await supabase
               .from('user_trails' as any)
               .insert({
-                user_id: userId,
+                user_id: authUserId,
                 preparatorio_id: preparatorioId,
                 is_reta_final: false,
                 battery_current: 100,

@@ -188,11 +188,11 @@ export const CourseContent: React.FC = () => {
     try {
       const moduleData = {
         title: moduleForm.title,
-        description: moduleForm.description || null,
+        description: moduleForm.description || undefined,
         isFree: moduleForm.isFree,
         isActive: moduleForm.isActive,
         isLocked: moduleForm.isLocked,
-        releaseAfterDays: moduleForm.releaseAfterDays ? parseInt(moduleForm.releaseAfterDays) : null,
+        releaseAfterDays: moduleForm.releaseAfterDays ? parseInt(moduleForm.releaseAfterDays) : undefined,
       };
 
       if (editingModule) {
@@ -234,11 +234,11 @@ export const CourseContent: React.FC = () => {
       const lessonData = {
         title: lessonForm.title,
         slug,
-        description: lessonForm.description || null,
+        description: lessonForm.description || undefined,
         contentType: lessonForm.contentType,
-        videoUrl: lessonForm.videoUrl || null,
-        videoDurationSeconds: lessonForm.videoDurationSeconds || null,
-        textContent: lessonForm.textContent || null,
+        videoUrl: lessonForm.videoUrl || undefined,
+        videoDurationSeconds: lessonForm.videoDurationSeconds || undefined,
+        textContent: lessonForm.textContent || undefined,
         isFree: lessonForm.isFree,
         isActive: lessonForm.isActive,
         pointsOnComplete: lessonForm.pointsOnComplete,

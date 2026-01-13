@@ -2,10 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Plus, Edit2, Trash2, X, User, Shield, ShoppingBag, Calendar, ChevronRight, ChevronLeft, Camera, Loader2, Search, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
-import { adminUsersService } from '../../services/adminUsersService';
-import { vendedorScheduleService } from '../../services/schedulingService';
-import { AdminUser, UserRole, UserGender } from '../../lib/database.types';
+import { Tables } from '../../lib/database.types';
+import { adminUsersService, UserRole, UserGender, AdminUser } from '../../services/adminUsersService';
 import { useAuth } from '../../lib/AuthContext';
+import { vendedorScheduleService } from '../../services/schedulingService';
 import { SellerScheduleConfig } from '../../components/admin/SellerScheduleConfig';
 import { supabase } from '../../lib/supabase';
 
@@ -518,7 +518,7 @@ export const Users: React.FC = () => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleToggleActive(user.id, user.is_active);
+                                                        handleToggleActive(user.id, !!user.is_active);
                                                     }}
                                                     disabled={user.id === currentUser?.id}
                                                     className={`px-3 py-1 rounded text-xs font-bold uppercase transition-colors ${user.is_active

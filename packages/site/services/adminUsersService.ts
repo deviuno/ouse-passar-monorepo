@@ -1,5 +1,13 @@
 import { supabase } from '../lib/supabase';
-import { AdminUser, UserRole, UserGender, Lead, LeadDifficulty, LeadGender, EducationLevel } from '../lib/database.types';
+import { Tables, Enums } from '../lib/database.types';
+
+export type AdminUser = Tables<'admin_users'>;
+export type UserRole = Enums<'user_role'>;
+export type Lead = Tables<'leads'>;
+export type LeadDifficulty = Enums<'lead_difficulty'>;
+export type LeadGender = Enums<'lead_gender'>;
+export type EducationLevel = Enums<'education_level'>;
+export type UserGender = string;
 
 // ==================== ADMIN USERS ====================
 
@@ -38,7 +46,7 @@ export const adminUsersService = {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data as any) || [];
   },
 
   async getById(id: string): Promise<AdminUser | null> {
@@ -49,7 +57,7 @@ export const adminUsersService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as any;
   },
 
   async create(input: CreateUserInput): Promise<AdminUser> {
@@ -85,7 +93,7 @@ export const adminUsersService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as any;
   },
 
   async update(id: string, input: UpdateUserInput): Promise<AdminUser> {
@@ -115,7 +123,7 @@ export const adminUsersService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as any;
   },
 
   async delete(id: string): Promise<void> {
@@ -215,7 +223,7 @@ export const leadsService = {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data as any) || [];
   },
 
   async getByVendedor(vendedorId: string): Promise<Lead[]> {
@@ -226,7 +234,7 @@ export const leadsService = {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data as any) || [];
   },
 
   async getById(id: string): Promise<Lead | null> {
@@ -237,7 +245,7 @@ export const leadsService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as any;
   },
 
   async create(input: CreateLeadInput): Promise<Lead> {
@@ -272,7 +280,7 @@ export const leadsService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as any;
   },
 
   async update(id: string, input: UpdateLeadInput): Promise<Lead> {
@@ -284,7 +292,7 @@ export const leadsService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as any;
   },
 
   async delete(id: string): Promise<void> {
@@ -321,6 +329,6 @@ export const leadsService = {
       .limit(limit);
 
     if (error) throw error;
-    return data || [];
+    return (data as any) || [];
   }
 };

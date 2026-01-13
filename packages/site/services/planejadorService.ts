@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabase';
-import { AtividadeTipo, AtividadeUsuario, PlanejadorSlot } from '../lib/database.types';
+import { Tables } from '../lib/database.types';
+
+type AtividadeTipo = Tables<'atividade_tipos'>;
+type AtividadeUsuario = Tables<'atividade_tipos_usuario'>;
+type PlanejadorSlot = Tables<'planejador_semanal'>;
 
 // Helper para normalizar formato de hora (remove segundos se houver)
 const normalizeTime = (time: string): string => {

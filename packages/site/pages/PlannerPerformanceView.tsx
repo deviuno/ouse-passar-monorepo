@@ -38,8 +38,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SEOHead } from '../components/SEOHead';
-import { plannerService, SavePlannerInput } from '../services/plannerService';
-import { PlannerDiario, PlannerSemanal, Planejamento, SemaforoCor } from '../lib/database.types';
+import { PlannerDiario, PlannerSemanal, SemaforoCor, plannerService, SavePlannerInput } from '../services/plannerService';
+import { Tables } from '../lib/database.types';
+type Planejamento = Tables<'planejamentos'>;
 import { useQueryClient } from '@tanstack/react-query';
 import {
   usePlannerToday,
@@ -97,7 +98,7 @@ const ContributionCalendar: React.FC<{
     const registro = historico.find(h => h.data === dataStr);
     dias.push({
       data: dataStr,
-      semaforo: registro?.semaforo || null,
+      semaforo: (registro?.semaforo as any) || null,
       isHoje: i === 0,
       date: new Date(d)
     });
@@ -750,7 +751,7 @@ export const PlannerPerformanceView: React.FC = () => {
 
   // Atualizar campo do planner
   const updateField = useCallback(<K extends keyof PlannerDiario>(field: K, value: PlannerDiario[K]) => {
-    setPlanner(prev => ({ ...prev, [field]: value }));
+    setPlanner((prev: Partial<PlannerDiario>) => ({ ...prev, [field]: value }));
     setHasChanges(true);
   }, []);
 
@@ -784,9 +785,11 @@ export const PlannerPerformanceView: React.FC = () => {
         planejamento_id: id,
         data: today.toISOString().split('T')[0],
         horas_planejadas: horasPlanejadas,
-        ...planner
+        horas_estudadas: planner.horas_estudadas ?? undefined,
+        missoes_concluidas: planner.missoes_concluidas ?? undefined,
+        questoes_feitas: planner.questoes_feitas ?? undefined,
+        ...planner as any
       };
-
       const saved = await plannerService.save(input);
       setPlanner(saved);
       setHasChanges(false);
@@ -1232,7 +1235,7 @@ export const PlannerPerformanceView: React.FC = () => {
 
                 <div className="flex flex-col md:flex-row md:items-center gap-6">
                   <SemaforoPicker
-                    value={planner.semaforo ?? null}
+                    value={(planner.semaforo as any) ?? null}
                     onChange={v => updateField('semaforo', v)}
                   />
 

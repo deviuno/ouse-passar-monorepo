@@ -601,7 +601,7 @@ async function updatePlaylistStats(playlistId: string): Promise<void> {
     .eq('playlist_id', playlistId);
 
   const trackCount = tracks?.length || 0;
-  const totalDuration = (tracks || []).reduce((sum, t) => {
+  const totalDuration = (tracks || []).reduce((sum: number, t: any) => {
     const track = t.track as unknown as { duration_seconds: number };
     return sum + (track?.duration_seconds || 0);
   }, 0);
@@ -949,7 +949,7 @@ export const musicAdminService = {
   reorderCategories,
 
   // Tracks
-  getTracks: async (preparatorioId: string, filters?: TrackFilters) => {
+  getTracks: async (preparatorioId?: string, filters?: TrackFilters) => {
     const result = await getTracks(preparatorioId, filters);
     return result.tracks;
   },
@@ -958,10 +958,10 @@ export const musicAdminService = {
   updateTrack,
   deleteTrack,
   toggleTrackActive,
-  uploadAudioFile: async (preparatorioId: string, file: File) => {
+  uploadAudioFile: async (preparatorioId: string | undefined, file: File) => {
     return uploadAudioFile(file, preparatorioId);
   },
-  uploadCoverImage: async (preparatorioId: string, file: File, folder = 'covers') => {
+  uploadCoverImage: async (preparatorioId: string | undefined, file: File, folder = 'covers') => {
     return uploadCoverImage(file, preparatorioId);
   },
 

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Target, Book, ArrowRight, Sparkles } from 'lucide-react';
 import { preparatoriosService } from '../services/preparatoriosService';
-import { Preparatorio } from '../lib/database.types';
+import { Tables } from '../lib/database.types';
+type Preparatorio = Tables<'preparatorios'>;
 import { SEOHead } from '../components/SEOHead';
 import { PageHero } from '../components/PageHero';
 
@@ -85,7 +86,7 @@ export const Planejamentos: React.FC = () => {
                           className="w-full h-full flex items-center justify-center"
                           style={{ backgroundColor: `${prep.cor}20` }}
                         >
-                          <Book className="w-16 h-16" style={{ color: prep.cor }} />
+                          <Book className="w-16 h-16" style={{ color: (prep.cor || undefined) }} />
                         </div>
                       )}
                       {/* Overlay gradient */}
@@ -103,7 +104,7 @@ export const Planejamentos: React.FC = () => {
                     <div className="p-6">
                       <div
                         className="w-12 h-1 mb-4 transition-all duration-300 group-hover:w-20"
-                        style={{ backgroundColor: prep.cor }}
+                        style={{ backgroundColor: (prep.cor || undefined) }}
                       />
 
                       <h3 className="text-xl font-black text-white uppercase mb-2 tracking-tight">
@@ -137,7 +138,7 @@ export const Planejamentos: React.FC = () => {
                       )}
 
                       {/* CTA */}
-                      <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition-colors" style={{ color: prep.cor }}>
+                      <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition-colors" style={{ color: (prep.cor || undefined) }}>
                         <span>Ver detalhes</span>
                         <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-2" />
                       </div>

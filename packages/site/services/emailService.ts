@@ -52,7 +52,7 @@ export async function getEmailTemplates(): Promise<EmailTemplate[]> {
     throw error;
   }
 
-  return data || [];
+  return (data as any) || [];
 }
 
 export async function getEmailTemplateByProduto(produto: string): Promise<EmailTemplate | null> {
@@ -68,7 +68,7 @@ export async function getEmailTemplateByProduto(produto: string): Promise<EmailT
     throw error;
   }
 
-  return data;
+  return data as any;
 }
 
 export async function updateEmailTemplate(
@@ -90,7 +90,7 @@ export async function updateEmailTemplate(
     throw error;
   }
 
-  return data;
+  return data as any;
 }
 
 // ============================================================================
@@ -174,7 +174,7 @@ export async function getEmailLogs(limit: number = 50): Promise<EmailLog[]> {
     throw error;
   }
 
-  return data || [];
+  return (data as any) || [];
 }
 
 // ============================================================================

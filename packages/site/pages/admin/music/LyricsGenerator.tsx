@@ -778,11 +778,11 @@ export const MusicLyricsGenerator: React.FC = () => {
           title: trackTitle,
           artist: 'Ouse Passar IA',
           audio_url: track.audioUrl || track.streamAudioUrl,
-          cover_url: track.imageUrl || null,
+          cover_url: track.imageUrl || undefined,
           duration_seconds: duration || track.duration || 0,
           is_podcast: false,
-          materia: materia || null,
-          assunto: assunto || null,
+          materia: materia || undefined,
+          assunto: assunto || undefined,
         });
 
         // Complete the request and notify the student
@@ -796,11 +796,11 @@ export const MusicLyricsGenerator: React.FC = () => {
           title: trackTitle,
           artist: 'Ouse Passar IA',
           audio_url: track.audioUrl || track.streamAudioUrl,
-          cover_url: track.imageUrl || null,
+          cover_url: track.imageUrl || undefined,
           duration_seconds: duration || track.duration || 0,
           is_podcast: false,
-          materia: materia || null,
-          assunto: assunto || null,
+          materia: materia || undefined,
+          assunto: assunto || undefined,
         });
         console.log('[LyricsGenerator] Música auto-salva (inativa):', trackTitle);
       }
@@ -939,11 +939,11 @@ export const MusicLyricsGenerator: React.FC = () => {
         title: track.title || musicTitle,
         artist: 'Ouse Passar IA',
         audio_url: track.audioUrl || track.streamAudioUrl,
-        cover_url: track.imageUrl || null,
+        cover_url: track.imageUrl || undefined,
         duration_seconds: duration || track.duration || 0,
         is_podcast: false,
-        materia: materia || null,
-        assunto: assunto || null,
+        materia: materia || undefined,
+        assunto: assunto || undefined,
       });
 
       console.log('[LyricsGenerator] Música aprovada e salva (inativa):', track.title);
@@ -1020,7 +1020,7 @@ export const MusicLyricsGenerator: React.FC = () => {
               title,
               artist: 'Diego & Glau',
               audio_url: dataUrl,
-              cover_url: null,
+              cover_url: undefined,
               duration_seconds: 0,
               is_podcast: true,
               materia: materia || 'Geral',
@@ -1038,7 +1038,7 @@ export const MusicLyricsGenerator: React.FC = () => {
               title,
               artist: 'Diego & Glau',
               audio_url: dataUrl, // Using data URL for persistence
-              cover_url: null,
+              cover_url: undefined,
               duration_seconds: 0, // Will be updated when metadata loads
               is_podcast: true,
               materia: materia || 'Geral',
@@ -1152,7 +1152,7 @@ export const MusicLyricsGenerator: React.FC = () => {
         title,
         artist: 'Diego & Glau',
         audio_url: podcastAudioUrl, // This is a blob URL - will need backend upload
-        cover_url: null,
+        cover_url: undefined,
         duration_seconds: Math.round(podcastDuration),
         is_podcast: true,
         materia: categoryMateria,
@@ -1264,11 +1264,10 @@ export const MusicLyricsGenerator: React.FC = () => {
                   setAudioType('musica');
                   setGeneratedPodcastScript('');
                 }}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all ${
-                  audioType === 'musica'
-                    ? 'bg-brand-yellow text-brand-dark border-brand-yellow font-bold'
-                    : 'bg-brand-dark text-gray-300 border-white/10 hover:border-white/20'
-                }`}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all ${audioType === 'musica'
+                  ? 'bg-brand-yellow text-brand-dark border-brand-yellow font-bold'
+                  : 'bg-brand-dark text-gray-300 border-white/10 hover:border-white/20'
+                  }`}
               >
                 <Music className="w-5 h-5" />
                 Música
@@ -1279,11 +1278,10 @@ export const MusicLyricsGenerator: React.FC = () => {
                   setAudioType('podcast');
                   setGeneratedLyrics('');
                 }}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all ${
-                  audioType === 'podcast'
-                    ? 'bg-brand-yellow text-brand-dark border-brand-yellow font-bold'
-                    : 'bg-brand-dark text-gray-300 border-white/10 hover:border-white/20'
-                }`}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all ${audioType === 'podcast'
+                  ? 'bg-brand-yellow text-brand-dark border-brand-yellow font-bold'
+                  : 'bg-brand-dark text-gray-300 border-white/10 hover:border-white/20'
+                  }`}
               >
                 <Mic className="w-5 h-5" />
                 Podcast
@@ -1355,11 +1353,10 @@ export const MusicLyricsGenerator: React.FC = () => {
                     key={d.value}
                     type="button"
                     onClick={() => setDuracao(d.value)}
-                    className={`flex flex-col items-center justify-center px-3 py-3 rounded-lg border transition-all ${
-                      duracao === d.value
-                        ? 'bg-brand-yellow/10 text-brand-yellow border-brand-yellow'
-                        : 'bg-brand-dark text-gray-300 border-white/10 hover:border-white/20'
-                    }`}
+                    className={`flex flex-col items-center justify-center px-3 py-3 rounded-lg border transition-all ${duracao === d.value
+                      ? 'bg-brand-yellow/10 text-brand-yellow border-brand-yellow'
+                      : 'bg-brand-dark text-gray-300 border-white/10 hover:border-white/20'
+                      }`}
                   >
                     <div className="flex items-center gap-1 font-medium">
                       <Clock className="w-4 h-4" />
@@ -1575,8 +1572,8 @@ export const MusicLyricsGenerator: React.FC = () => {
                         animate={{
                           width: musicStatus === 'PENDING' ? '20%'
                             : musicStatus === 'TEXT_SUCCESS' ? '50%'
-                            : musicStatus === 'FIRST_SUCCESS' ? '75%'
-                            : '90%'
+                              : musicStatus === 'FIRST_SUCCESS' ? '75%'
+                                : '90%'
                         }}
                         transition={{ duration: 0.5 }}
                       />

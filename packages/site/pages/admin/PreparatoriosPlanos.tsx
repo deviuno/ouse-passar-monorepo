@@ -2,7 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, List, Book, ChevronRight, MessageSquare, LayoutGrid, LayoutList, FileText, Sparkles, Target } from 'lucide-react';
 import { preparatoriosService } from '../../services/preparatoriosService';
-import { Preparatorio } from '../../lib/database.types';
+// import { Preparatorio } from '../../lib/database.types';
+interface Preparatorio {
+  id: string;
+  nome: string;
+  slug: string;
+  descricao?: string;
+  cor?: string;
+  is_active: boolean;
+  ordem?: number;
+  content_types?: string[];
+  created_at?: string;
+  updated_at?: string;
+}
 import { QuickCreatePreparatorioModal } from '../../components/admin/QuickCreatePreparatorioModal';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
 
@@ -119,22 +131,20 @@ export const PreparatoriosPlanos: React.FC = () => {
           <div className="flex bg-brand-dark border border-white/10 rounded-sm overflow-hidden">
             <button
               onClick={() => setViewMode('card')}
-              className={`p-2 transition-colors ${
-                viewMode === 'card'
+              className={`p-2 transition-colors ${viewMode === 'card'
                   ? 'bg-brand-yellow text-brand-darker'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
+                }`}
               title="Visualização em Cards"
             >
               <LayoutGrid className="w-5 h-5" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 transition-colors ${
-                viewMode === 'list'
+              className={`p-2 transition-colors ${viewMode === 'list'
                   ? 'bg-brand-yellow text-brand-darker'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
+                }`}
               title="Visualização em Lista"
             >
               <LayoutList className="w-5 h-5" />
@@ -324,9 +334,8 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
   handleDelete
 }) => (
   <div
-    className={`bg-brand-card border rounded-sm transition-all duration-300 ${
-      prep.is_active ? 'border-white/10 hover:border-brand-yellow/30' : 'border-white/5 opacity-60'
-    }`}
+    className={`bg-brand-card border rounded-sm transition-all duration-300 ${prep.is_active ? 'border-white/10 hover:border-brand-yellow/30' : 'border-white/5 opacity-60'
+      }`}
   >
     {/* Header */}
     <div
@@ -350,15 +359,13 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
         <button
           onClick={() => handleToggleActive(prep.id, prep.is_active)}
           disabled={togglingId === prep.id}
-          className={`relative w-10 h-5 rounded-full transition-colors ${
-            prep.is_active ? 'bg-green-500' : 'bg-gray-600'
-          } ${togglingId === prep.id ? 'opacity-50' : ''}`}
+          className={`relative w-10 h-5 rounded-full transition-colors ${prep.is_active ? 'bg-green-500' : 'bg-gray-600'
+            } ${togglingId === prep.id ? 'opacity-50' : ''}`}
           title={prep.is_active ? 'Clique para despublicar' : 'Clique para publicar'}
         >
           <div
-            className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
-              prep.is_active ? 'translate-x-5' : 'translate-x-0.5'
-            }`}
+            className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${prep.is_active ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
           />
         </button>
         <Link
@@ -380,11 +387,10 @@ const PreparatorioCard: React.FC<PreparatorioCardProps> = ({
 
     {/* Status Badge + Content Types */}
     <div className="px-4 py-2 border-b border-white/5 flex flex-wrap gap-2">
-      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold uppercase rounded ${
-        prep.is_active
+      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold uppercase rounded ${prep.is_active
           ? 'bg-green-500/20 text-green-400 border border-green-500/30'
           : 'bg-gray-500/20 text-gray-500 border border-gray-500/30'
-      }`}>
+        }`}>
         {prep.is_active ? 'Ativo' : 'Inativo'}
       </span>
       {/* Edital Status Badge */}
@@ -532,15 +538,13 @@ const PreparatorioListRow: React.FC<PreparatorioListRowProps> = ({
         <button
           onClick={() => handleToggleActive(prep.id, prep.is_active)}
           disabled={togglingId === prep.id}
-          className={`relative w-10 h-5 rounded-full transition-colors ${
-            prep.is_active ? 'bg-green-500' : 'bg-gray-600'
-          } ${togglingId === prep.id ? 'opacity-50' : ''}`}
+          className={`relative w-10 h-5 rounded-full transition-colors ${prep.is_active ? 'bg-green-500' : 'bg-gray-600'
+            } ${togglingId === prep.id ? 'opacity-50' : ''}`}
           title={prep.is_active ? 'Clique para despublicar' : 'Clique para publicar'}
         >
           <div
-            className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
-              prep.is_active ? 'translate-x-5' : 'translate-x-0.5'
-            }`}
+            className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${prep.is_active ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
           />
         </button>
         <Link

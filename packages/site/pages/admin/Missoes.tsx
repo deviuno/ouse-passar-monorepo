@@ -4,7 +4,12 @@ import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, Copy, BookOpen, RotateCc
 import { preparatoriosService, rodadasService, missoesService, QuestaoFiltrosData, MissaoQuestaoFiltros, PreparatorioWithRodadas, MultiTurmaTarget } from '../../services/preparatoriosService';
 import { MultiTurmaSelector } from '../../components/admin/MultiTurmaSelector';
 import { editalService, EditalItem } from '../../services/editalService';
-import { Preparatorio, Rodada, Missao, MissaoTipo } from '../../lib/database.types';
+import { Tables, Enums } from '../../lib/database.types';
+
+type Preparatorio = Tables<'preparatorios'>;
+type Rodada = Tables<'rodadas'>;
+type Missao = Tables<'missoes'>;
+type MissaoTipo = Enums<'missao_tipo'>;
 import { EditalTopicSelector } from '../../components/admin/EditalTopicSelector';
 import { QuestionFilterSelector } from '../../components/admin/QuestionFilterSelector';
 import { QuestionFilters, getQuestionsForFilters, ExternalQuestion, getMateriasByAssuntos } from '../../services/externalQuestionsService';
@@ -191,43 +196,39 @@ export const MissoesAdmin: React.FC = () => {
       <div className="flex flex-wrap gap-2 mb-6">
         <button
           onClick={() => setFilterTipo('todos')}
-          className={`px-4 py-2 text-sm font-bold uppercase transition-colors ${
-            filterTipo === 'todos'
+          className={`px-4 py-2 text-sm font-bold uppercase transition-colors ${filterTipo === 'todos'
               ? 'bg-brand-yellow text-brand-darker'
               : 'bg-brand-card border border-white/10 text-gray-400 hover:text-white'
-          }`}
+            }`}
         >
           Todos ({missoes.length})
         </button>
         <button
           onClick={() => setFilterTipo('padrao')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase transition-colors ${
-            filterTipo === 'padrao'
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase transition-colors ${filterTipo === 'padrao'
               ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
               : 'bg-brand-card border border-white/10 text-gray-400 hover:text-white'
-          }`}
+            }`}
         >
           <BookOpen className="w-4 h-4" />
           Padrao ({missoes.filter(m => m.tipo === 'padrao').length})
         </button>
         <button
           onClick={() => setFilterTipo('revisao')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase transition-colors ${
-            filterTipo === 'revisao'
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase transition-colors ${filterTipo === 'revisao'
               ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
               : 'bg-brand-card border border-white/10 text-gray-400 hover:text-white'
-          }`}
+            }`}
         >
           <RotateCcw className="w-4 h-4" />
           Revisao ({missoes.filter(m => m.tipo === 'revisao').length})
         </button>
         <button
           onClick={() => setFilterTipo('acao')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase transition-colors ${
-            filterTipo === 'acao'
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase transition-colors ${filterTipo === 'acao'
               ? 'bg-orange-500/20 text-orange-400 border border-orange-500/50'
               : 'bg-brand-card border border-white/10 text-gray-400 hover:text-white'
-          }`}
+            }`}
         >
           <Zap className="w-4 h-4" />
           Acao ({missoes.filter(m => m.tipo === 'acao').length})
@@ -318,11 +319,10 @@ export const MissoesAdmin: React.FC = () => {
                   {(missao.tipo === 'padrao' || missao.tipo === 'estudo') && (
                     <button
                       onClick={() => setContentPreviewMissao(missao)}
-                      className={`p-2 rounded transition-colors ${
-                        missoesComConteudo.has(missao.id)
+                      className={`p-2 rounded transition-colors ${missoesComConteudo.has(missao.id)
                           ? 'text-green-400 bg-green-500/10 hover:bg-green-500/20'
                           : 'text-gray-500 hover:text-green-400 hover:bg-green-500/10'
-                      }`}
+                        }`}
                       title={missoesComConteudo.has(missao.id) ? "Ver Conteúdo" : "Gerar Conteúdo"}
                     >
                       <FileText className="w-4 h-4" />
@@ -1020,9 +1020,8 @@ const QuestionsPreviewModal: React.FC<QuestionsPreviewModalProps> = ({ missao, o
                         </p>
                       </div>
                       <ChevronDown
-                        className={`w-5 h-5 text-gray-500 flex-shrink-0 transition-transform ${
-                          isExpanded ? 'rotate-180' : ''
-                        }`}
+                        className={`w-5 h-5 text-gray-500 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''
+                          }`}
                       />
                     </button>
 
@@ -1042,18 +1041,16 @@ const QuestionsPreviewModal: React.FC<QuestionsPreviewModalProps> = ({ missao, o
                             return (
                               <div
                                 key={letra}
-                                className={`flex items-start gap-2 p-2 rounded ${
-                                  isCorrect
+                                className={`flex items-start gap-2 p-2 rounded ${isCorrect
                                     ? 'bg-green-500/10 border border-green-500/30'
                                     : 'bg-white/5'
-                                }`}
+                                  }`}
                               >
                                 <span
-                                  className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                                    isCorrect
+                                  className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isCorrect
                                       ? 'bg-green-500 text-white'
                                       : 'bg-gray-700 text-gray-300'
-                                  }`}
+                                    }`}
                                 >
                                   {letra.toUpperCase()}
                                 </span>
@@ -1710,11 +1707,10 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
                                 setFormData({ ...formData, materia: materia.titulo });
                                 setShowMateriaDropdown(false);
                               }}
-                              className={`w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors ${
-                                formData.materia === materia.titulo
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors ${formData.materia === materia.titulo
                                   ? 'bg-brand-yellow/20 text-brand-yellow'
                                   : 'text-gray-300'
-                              }`}
+                                }`}
                             >
                               {materia.titulo}
                             </button>
@@ -1722,10 +1718,10 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
                         }
                         {formData.materia &&
                           !materiasEdital.some(m => m.titulo.toLowerCase() === formData.materia.toLowerCase()) && (
-                          <div className="px-3 py-2 text-xs text-gray-500 border-t border-white/10">
-                            Pressione Enter para usar: "{formData.materia}"
-                          </div>
-                        )}
+                            <div className="px-3 py-2 text-xs text-gray-500 border-t border-white/10">
+                              Pressione Enter para usar: "{formData.materia}"
+                            </div>
+                          )}
                       </div>
                     )}
                   </div>
@@ -1808,17 +1804,14 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
                 <button
                   type="button"
                   onClick={() => setMultiTurmaMode(!multiTurmaMode)}
-                  className={`w-full flex items-center justify-between p-3 transition-colors ${
-                    multiTurmaMode ? 'bg-[#FFB800]/10' : 'bg-brand-dark hover:bg-white/5'
-                  }`}
+                  className={`w-full flex items-center justify-between p-3 transition-colors ${multiTurmaMode ? 'bg-[#FFB800]/10' : 'bg-brand-dark hover:bg-white/5'
+                    }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-5 rounded-full relative transition-colors ${
-                      multiTurmaMode ? 'bg-[#FFB800]' : 'bg-gray-600'
-                    }`}>
-                      <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${
-                        multiTurmaMode ? 'right-0.5' : 'left-0.5'
-                      }`} />
+                    <div className={`w-10 h-5 rounded-full relative transition-colors ${multiTurmaMode ? 'bg-[#FFB800]' : 'bg-gray-600'
+                      }`}>
+                      <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${multiTurmaMode ? 'right-0.5' : 'left-0.5'
+                        }`} />
                     </div>
                     <div className="text-left">
                       <span className="text-white font-medium">Criar em múltiplos preparatórios</span>

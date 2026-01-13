@@ -51,7 +51,7 @@ export async function getCategories(includeInactive = false): Promise<EadCategor
   const { data, error } = await query;
 
   if (error) throw error;
-  return (data || []).map(categoryRowToCategory);
+  return (data as any[] || []).map(categoryRowToCategory);
 }
 
 export async function getCategoryBySlug(slug: string): Promise<EadCategory | null> {
@@ -65,7 +65,7 @@ export async function getCategoryBySlug(slug: string): Promise<EadCategory | nul
     if (error.code === 'PGRST116') return null;
     throw error;
   }
-  return data ? categoryRowToCategory(data) : null;
+  return data ? categoryRowToCategory(data as any) : null;
 }
 
 export async function getCategoryById(id: string): Promise<EadCategory | null> {
@@ -79,32 +79,32 @@ export async function getCategoryById(id: string): Promise<EadCategory | null> {
     if (error.code === 'PGRST116') return null;
     throw error;
   }
-  return data ? categoryRowToCategory(data) : null;
+  return data ? categoryRowToCategory(data as any) : null;
 }
 
 export async function createCategory(category: Partial<EadCategory>): Promise<EadCategory> {
   const row = categoryToRow(category);
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('ead_categories')
-    .insert(row)
+    .insert(row as any)
     .select()
     .single();
 
   if (error) throw error;
-  return categoryRowToCategory(data);
+  return categoryRowToCategory(data as any);
 }
 
 export async function updateCategory(id: string, category: Partial<EadCategory>): Promise<EadCategory> {
   const row = categoryToRow(category);
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('ead_categories')
-    .update(row)
+    .update(row as any)
     .eq('id', id)
     .select()
     .single();
 
   if (error) throw error;
-  return categoryRowToCategory(data);
+  return categoryRowToCategory(data as any);
 }
 
 export async function deleteCategory(id: string): Promise<void> {
@@ -225,9 +225,9 @@ export async function getCourseBySlug(slug: string, includeModulesAndLessons = f
 
   if (!data) return null;
 
-  const course = courseRowToCourse(data);
+  const course = courseRowToCourse(data as any);
   if (data.category) {
-    course.category = categoryRowToCategory(data.category);
+    course.category = categoryRowToCategory(data.category as any);
   }
 
   if (includeModulesAndLessons) {
@@ -251,9 +251,9 @@ export async function getCourseById(id: string, includeModulesAndLessons = false
 
   if (!data) return null;
 
-  const course = courseRowToCourse(data);
+  const course = courseRowToCourse(data as any);
   if (data.category) {
-    course.category = categoryRowToCategory(data.category);
+    course.category = categoryRowToCategory(data.category as any);
   }
 
   if (includeModulesAndLessons) {
@@ -265,17 +265,17 @@ export async function getCourseById(id: string, includeModulesAndLessons = false
 
 export async function createCourse(course: Partial<EadCourse>): Promise<EadCourse> {
   const row = courseToRow(course);
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('ead_courses')
-    .insert(row)
+    .insert(row as any)
     .select('*, category:ead_categories(*)')
     .single();
 
   if (error) throw error;
 
-  const created = courseRowToCourse(data);
+  const created = courseRowToCourse(data as any);
   if (data.category) {
-    created.category = categoryRowToCategory(data.category);
+    created.category = categoryRowToCategory(data.category as any);
   }
   return created;
 }
@@ -301,7 +301,7 @@ export async function updateCourse(id: string, course: Partial<EadCourse>): Prom
 
   if (error) throw error;
 
-  const updated = courseRowToCourse(data);
+  const updated = courseRowToCourse(data as any);
 
   // Fetch category separately if needed
   if (data.category_id) {
@@ -312,7 +312,7 @@ export async function updateCourse(id: string, course: Partial<EadCourse>): Prom
       .single();
 
     if (categoryData) {
-      updated.category = categoryRowToCategory(categoryData);
+      updated.category = categoryRowToCategory(categoryData as any);
     }
   }
 
@@ -338,7 +338,7 @@ export async function getFeaturedCourses(limit = 5): Promise<EadCourse[]> {
 
   if (error) throw error;
 
-  return (data || []).map((row: any) => {
+  return (data as any[] || []).map((row: any) => {
     const course = courseRowToCourse(row);
     if (row.category) {
       course.category = categoryRowToCategory(row.category);
@@ -358,7 +358,7 @@ export async function getFreeCourses(limit = 10): Promise<EadCourse[]> {
 
   if (error) throw error;
 
-  return (data || []).map((row: any) => {
+  return (data as any[] || []).map((row: any) => {
     const course = courseRowToCourse(row);
     if (row.category) {
       course.category = categoryRowToCategory(row.category);
@@ -380,7 +380,7 @@ export async function getModulesByCourse(courseId: string, includeLessons = fals
 
   if (error) throw error;
 
-  const modules = (data || []).map(moduleRowToModule);
+  const modules = (data as any[] || []).map(moduleRowToModule);
 
   if (includeLessons) {
     for (const mod of modules) {
@@ -403,7 +403,7 @@ export async function getModuleById(id: string): Promise<EadModule | null> {
     if (error.code === 'PGRST116') return null;
     throw error;
   }
-  return data ? moduleRowToModule(data) : null;
+  return data ? moduleRowToModule(data as any) : null;
 }
 
 export async function createModule(courseId: string, module: Partial<EadModule>): Promise<EadModule> {
@@ -415,7 +415,7 @@ export async function createModule(courseId: string, module: Partial<EadModule>)
     .order('sort_order', { ascending: false })
     .limit(1);
 
-  const nextOrder = existing && existing.length > 0 ? existing[0].sort_order + 1 : 0;
+  const nextOrder = existing && existing.length > 0 ? (existing[0] as any).sort_order + 1 : 0;
 
   const row = {
     ...moduleToRow(module),
@@ -425,25 +425,25 @@ export async function createModule(courseId: string, module: Partial<EadModule>)
 
   const { data, error } = await supabase
     .from('ead_modules')
-    .insert(row)
+    .insert(row as any)
     .select()
     .single();
 
   if (error) throw error;
-  return moduleRowToModule(data);
+  return moduleRowToModule(data as any);
 }
 
 export async function updateModule(id: string, module: Partial<EadModule>): Promise<EadModule> {
   const row = moduleToRow(module);
   const { data, error } = await supabase
     .from('ead_modules')
-    .update(row)
+    .update(row as any)
     .eq('id', id)
     .select()
     .single();
 
   if (error) throw error;
-  return moduleRowToModule(data);
+  return moduleRowToModule(data as any);
 }
 
 export async function deleteModule(id: string): Promise<void> {
@@ -478,7 +478,7 @@ export async function getLessonsByModule(moduleId: string): Promise<EadLesson[]>
     .order('sort_order', { ascending: true });
 
   if (error) throw error;
-  return (data || []).map(lessonRowToLesson);
+  return (data as any[] || []).map(lessonRowToLesson);
 }
 
 export async function getLessonById(id: string): Promise<EadLesson | null> {
@@ -492,7 +492,7 @@ export async function getLessonById(id: string): Promise<EadLesson | null> {
     if (error.code === 'PGRST116') return null;
     throw error;
   }
-  return data ? lessonRowToLesson(data) : null;
+  return data ? lessonRowToLesson(data as any) : null;
 }
 
 export async function getLessonBySlug(moduleId: string, slug: string): Promise<EadLesson | null> {
@@ -507,7 +507,7 @@ export async function getLessonBySlug(moduleId: string, slug: string): Promise<E
     if (error.code === 'PGRST116') return null;
     throw error;
   }
-  return data ? lessonRowToLesson(data) : null;
+  return data ? lessonRowToLesson(data as any) : null;
 }
 
 export async function createLesson(moduleId: string, lesson: Partial<EadLesson>): Promise<EadLesson> {
@@ -519,7 +519,7 @@ export async function createLesson(moduleId: string, lesson: Partial<EadLesson>)
     .order('sort_order', { ascending: false })
     .limit(1);
 
-  const nextOrder = existing && existing.length > 0 ? existing[0].sort_order + 1 : 0;
+  const nextOrder = existing && existing.length > 0 ? (existing[0] as any).sort_order + 1 : 0;
 
   const row = {
     ...lessonToRow(lesson),
@@ -529,25 +529,25 @@ export async function createLesson(moduleId: string, lesson: Partial<EadLesson>)
 
   const { data, error } = await supabase
     .from('ead_lessons')
-    .insert(row)
+    .insert(row as any)
     .select()
     .single();
 
   if (error) throw error;
-  return lessonRowToLesson(data);
+  return lessonRowToLesson(data as any);
 }
 
 export async function updateLesson(id: string, lesson: Partial<EadLesson>): Promise<EadLesson> {
   const row = lessonToRow(lesson);
   const { data, error } = await supabase
     .from('ead_lessons')
-    .update(row)
+    .update(row as any)
     .eq('id', id)
     .select()
     .single();
 
   if (error) throw error;
-  return lessonRowToLesson(data);
+  return lessonRowToLesson(data as any);
 }
 
 export async function deleteLesson(id: string): Promise<void> {
@@ -575,7 +575,7 @@ export async function reorderLessons(lessons: { id: string; sortOrder: number }[
 // ============================================
 
 export async function getMaterialsByLesson(lessonId: string): Promise<EadMaterial[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('ead_materials')
     .select('*')
     .eq('lesson_id', lessonId)
@@ -583,11 +583,11 @@ export async function getMaterialsByLesson(lessonId: string): Promise<EadMateria
     .order('sort_order', { ascending: true });
 
   if (error) throw error;
-  return (data || []).map(materialRowToMaterial);
+  return (data as any[] || []).map(materialRowToMaterial);
 }
 
 export async function getMaterialsByCourse(courseId: string): Promise<EadMaterial[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('ead_materials')
     .select('*')
     .eq('course_id', courseId)
@@ -595,7 +595,7 @@ export async function getMaterialsByCourse(courseId: string): Promise<EadMateria
     .order('sort_order', { ascending: true });
 
   if (error) throw error;
-  return (data || []).map(materialRowToMaterial);
+  return (data as any[] || []).map(materialRowToMaterial);
 }
 
 export async function createMaterial(material: Partial<EadMaterial> & { courseId?: string; lessonId?: string }): Promise<EadMaterial> {
@@ -605,31 +605,31 @@ export async function createMaterial(material: Partial<EadMaterial> & { courseId
     lesson_id: material.lessonId,
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('ead_materials')
-    .insert(row)
+    .insert(row as any)
     .select()
     .single();
 
   if (error) throw error;
-  return materialRowToMaterial(data);
+  return materialRowToMaterial(data as any);
 }
 
 export async function updateMaterial(id: string, material: Partial<EadMaterial>): Promise<EadMaterial> {
   const row = materialToRow(material);
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('ead_materials')
-    .update(row)
+    .update(row as any)
     .eq('id', id)
     .select()
     .single();
 
   if (error) throw error;
-  return materialRowToMaterial(data);
+  return materialRowToMaterial(data as any);
 }
 
 export async function deleteMaterial(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('ead_materials')
     .delete()
     .eq('id', id);
@@ -638,20 +638,20 @@ export async function deleteMaterial(id: string): Promise<void> {
 }
 
 export async function incrementMaterialDownload(id: string): Promise<void> {
-  const { error } = await supabase.rpc('increment_material_download', { material_id: id });
+  const { error } = await (supabase as any).rpc('increment_material_download', { material_id: id });
 
   // Se a função RPC não existir, fazer update manual
   if (error) {
-    const { data: material } = await supabase
+    const { data: material } = await (supabase as any)
       .from('ead_materials')
       .select('download_count')
       .eq('id', id)
       .single();
 
     if (material) {
-      await supabase
+      await (supabase as any)
         .from('ead_materials')
-        .update({ download_count: (material.download_count || 0) + 1 })
+        .update({ download_count: ((material as any).download_count || 0) + 1 })
         .eq('id', id);
     }
   }
@@ -694,7 +694,7 @@ export async function getEnrollment(userId: string, courseId: string): Promise<E
     if (error.code === 'PGRST116') return null;
     throw error;
   }
-  return data ? enrollmentRowToEnrollment(data) : null;
+  return data ? enrollmentRowToEnrollment(data as any) : null;
 }
 
 export async function createEnrollment(
@@ -722,7 +722,7 @@ export async function createEnrollment(
     .single();
 
   if (error) throw error;
-  return enrollmentRowToEnrollment(data);
+  return enrollmentRowToEnrollment(data as any);
 }
 
 export async function updateEnrollmentStatus(
@@ -743,7 +743,7 @@ export async function updateEnrollmentStatus(
     .single();
 
   if (error) throw error;
-  return enrollmentRowToEnrollment(data);
+  return enrollmentRowToEnrollment(data as any);
 }
 
 // ============================================
@@ -762,7 +762,7 @@ export async function getLessonProgress(userId: string, lessonId: string): Promi
     if (error.code === 'PGRST116') return null;
     throw error;
   }
-  return data ? lessonProgressRowToProgress(data) : null;
+  return data ? lessonProgressRowToProgress(data as any) : null;
 }
 
 export async function getProgressByEnrollment(enrollmentId: string): Promise<EadLessonProgress[]> {
@@ -772,7 +772,7 @@ export async function getProgressByEnrollment(enrollmentId: string): Promise<Ead
     .eq('enrollment_id', enrollmentId);
 
   if (error) throw error;
-  return (data || []).map(lessonProgressRowToProgress);
+  return (data as any[] || []).map(lessonProgressRowToProgress);
 }
 
 export async function updateLessonProgress(
@@ -816,7 +816,7 @@ export async function updateLessonProgress(
     .single();
 
   if (error) throw error;
-  return lessonProgressRowToProgress(data);
+  return lessonProgressRowToProgress(data as any);
 }
 
 export async function markLessonComplete(
@@ -836,18 +836,18 @@ export async function markLessonComplete(
 
 export async function getCertificatesByUser(userId: string): Promise<EadCertificate[]> {
   const { data, error } = await supabase
-    .from('ead_certificates')
+    .from('ead_certificates' as any)
     .select('*, course:ead_courses(*)')
     .eq('user_id', userId)
     .order('issued_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  return (data as any) || [];
 }
 
 export async function getCertificateByCode(code: string): Promise<EadCertificate | null> {
   const { data, error } = await supabase
-    .from('ead_certificates')
+    .from('ead_certificates' as any)
     .select('*, course:ead_courses(*)')
     .eq('certificate_code', code)
     .single();
@@ -856,7 +856,7 @@ export async function getCertificateByCode(code: string): Promise<EadCertificate
     if (error.code === 'PGRST116') return null;
     throw error;
   }
-  return data;
+  return data as any;
 }
 
 // ============================================

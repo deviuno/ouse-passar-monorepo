@@ -1,11 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, User, Calendar, Clock, Target, Check, ExternalLink } from 'lucide-react';
 import { LeadWithVendedor } from '../../services/adminUsersService';
-import { AgendamentoWithDetails, Preparatorio } from '../../lib/database.types';
+// import { AgendamentoWithDetails, Preparatorio } from '../../lib/database.types'; // REMOVED
 import { planejamentosService, preparatoriosService, mensagensIncentivoService } from '../../services/preparatoriosService';
 import { agendamentosService } from '../../services/schedulingService';
 import { leadsService } from '../../services/adminUsersService';
 import { studentService, generateRandomPassword } from '../../services/studentService';
+
+// Local definitions to fix missing exports
+interface Preparatorio {
+  id: string;
+  nome: string;
+  slug: string;
+  descricao?: string;
+  cor?: string;
+  icone?: string;
+  is_active: boolean;
+  ordem?: number;
+  created_at?: string;
+}
+
+interface AgendamentoWithDetails {
+  id: string;
+  data_hora: string;
+  duracao_minutos: number;
+  notas?: string | null;
+  preparatorio_id: string;
+  vendedor?: { name: string } | null;
+  status: string;
+}
 
 interface PlanejamentoPopupProps {
   lead: LeadWithVendedor;

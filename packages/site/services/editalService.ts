@@ -61,7 +61,7 @@ export const editalService = {
       .order('ordem');
 
     if (error) throw error;
-    return data || [];
+    return (data as any) || [];
   },
 
   // Buscar itens organizados em árvore
@@ -109,7 +109,7 @@ export const editalService = {
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    return data;
+    return data as any;
   },
 
   // Criar novo item
@@ -148,7 +148,7 @@ export const editalService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as any;
   },
 
   // Atualizar item
@@ -161,7 +161,7 @@ export const editalService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as any;
   },
 
   // Deletar item (e todos os filhos)
@@ -306,7 +306,7 @@ export const editalService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as any;
   },
 
   // Buscar matérias distintas do banco de questões

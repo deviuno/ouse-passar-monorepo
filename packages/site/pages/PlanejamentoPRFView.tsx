@@ -23,10 +23,30 @@ import { supabase } from '../lib/supabase';
 import { planejamentoPRF, Rodada as RodadaStatic, Missao as MissaoStatic } from '../lib/planejamentoPRF';
 import { SEOHead } from '../components/SEOHead';
 import { preparatoriosService, planejamentosService } from '../services/preparatoriosService';
-import { PreparatorioCompleto, RodadaComMissoes, Missao as MissaoDB, AdminUser, Planejamento } from '../lib/database.types';
+import { Tables } from '../lib/database.types';
 import { useAuth } from '../lib/AuthContext';
 import { studentService } from '../services/studentService';
 import { missaoService } from '../services/missaoService';
+import { AdminUser } from '../services/adminUsersService';
+
+type Planejamento = Tables<'planejamentos'>;
+type Preparatorio = Tables<'preparatorios'>;
+type RodadaDB = any;
+type MissaoDB = any;
+
+interface RodadaComMissoes {
+  numero: number;
+  titulo: string;
+  nota?: string;
+  missoes: MissaoDB[];
+}
+
+interface PreparatorioCompleto {
+  id: string;
+  nome: string;
+  cor?: string;
+  rodadas: RodadaComMissoes[];
+}
 
 // Tipo do contexto do layout
 interface PlannerContext {
@@ -702,7 +722,7 @@ export const PlanejamentoPRFView: React.FC = () => {
             }));
 
             setRodadas(rodadasUnificadas);
-            setPlanejamento(data);
+            setPlanejamento(data as any);
           }
         }
       } catch (err: any) {

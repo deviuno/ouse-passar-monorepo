@@ -16,7 +16,7 @@ export const MusicSettings: React.FC = () => {
     price_cents: null,
     allow_user_playlists: true,
     show_lesson_podcasts: true,
-  });
+  } as any);
 
   useEffect(() => {
     if (preparatorioId) {
@@ -47,7 +47,7 @@ export const MusicSettings: React.FC = () => {
     setSaving(true);
     setSaved(false);
     try {
-      await musicAdminService.updateSettings(preparatorioId, settings);
+      await musicAdminService.updateSettings(preparatorioId, settings as any);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (error) {
@@ -98,14 +98,12 @@ export const MusicSettings: React.FC = () => {
                 className="sr-only"
               />
               <div
-                className={`w-14 h-8 rounded-full transition-colors ${
-                  settings.is_enabled ? 'bg-brand-yellow' : 'bg-gray-600'
-                }`}
+                className={`w-14 h-8 rounded-full transition-colors ${settings.is_enabled ? 'bg-brand-yellow' : 'bg-gray-600'
+                  }`}
               >
                 <div
-                  className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${
-                    settings.is_enabled ? 'translate-x-7' : 'translate-x-1'
-                  } mt-1`}
+                  className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${settings.is_enabled ? 'translate-x-7' : 'translate-x-1'
+                    } mt-1`}
                 />
               </div>
             </div>
@@ -210,14 +208,12 @@ export const MusicSettings: React.FC = () => {
                   className="sr-only"
                 />
                 <div
-                  className={`w-14 h-8 rounded-full transition-colors ${
-                    settings.allow_user_playlists ? 'bg-brand-yellow' : 'bg-gray-600'
-                  }`}
+                  className={`w-14 h-8 rounded-full transition-colors ${settings.allow_user_playlists ? 'bg-brand-yellow' : 'bg-gray-600'
+                    }`}
                 >
                   <div
-                    className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${
-                      settings.allow_user_playlists ? 'translate-x-7' : 'translate-x-1'
-                    } mt-1`}
+                    className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${settings.allow_user_playlists ? 'translate-x-7' : 'translate-x-1'
+                      } mt-1`}
                   />
                 </div>
               </div>
@@ -238,14 +234,12 @@ export const MusicSettings: React.FC = () => {
                   className="sr-only"
                 />
                 <div
-                  className={`w-14 h-8 rounded-full transition-colors ${
-                    settings.show_lesson_podcasts ? 'bg-brand-yellow' : 'bg-gray-600'
-                  }`}
+                  className={`w-14 h-8 rounded-full transition-colors ${settings.show_lesson_podcasts ? 'bg-brand-yellow' : 'bg-gray-600'
+                    }`}
                 >
                   <div
-                    className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${
-                      settings.show_lesson_podcasts ? 'translate-x-7' : 'translate-x-1'
-                    } mt-1`}
+                    className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${settings.show_lesson_podcasts ? 'translate-x-7' : 'translate-x-1'
+                      } mt-1`}
                   />
                 </div>
               </div>

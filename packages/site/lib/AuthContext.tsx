@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from './supabase';
-import { UserRole } from './database.types';
+// import { UserRole } from './database.types'; // REMOVED
+import { Enums } from './database.types';
+
+type UserRole = 'admin' | 'vendedor' | 'cliente';
 
 interface User {
   id: string;

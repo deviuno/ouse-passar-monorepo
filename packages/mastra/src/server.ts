@@ -6545,16 +6545,16 @@ app.get('/api/comentarios/fila-formatacao/status', async (req, res) => {
             // Fallback: calcular manualmente se a função não existir
             console.log('[ComentarioFormatter] Função RPC não existe, calculando manualmente...');
 
-            // Contar total de questões com comentário
+            // Contar total de questões com comentário (usar 'estimated' pois 'exact' faz timeout)
             const { count: totalComComentario } = await questionsDb
                 .from('questoes_concurso')
-                .select('*', { count: 'exact', head: true })
+                .select('*', { count: 'estimated', head: true })
                 .not('comentario', 'is', null);
 
             // Contar formatadas
             const { count: formatadas } = await questionsDb
                 .from('questoes_concurso')
-                .select('*', { count: 'exact', head: true })
+                .select('*', { count: 'estimated', head: true })
                 .eq('comentario_formatado', true);
 
             // Contar da fila (para processando)
@@ -6921,15 +6921,15 @@ app.post('/api/comentarios/fila-formatacao/resetar-falhas', async (req, res) => 
 // Status da fila de formatação de enunciados
 app.get('/api/enunciados/fila-formatacao/status', async (req, res) => {
     try {
-        // Contar total de questões
+        // Contar total de questões (usar 'estimated' pois 'exact' faz timeout em tabelas grandes)
         const { count: total } = await questionsDb
             .from('questoes_concurso')
-            .select('*', { count: 'exact', head: true });
+            .select('*', { count: 'estimated', head: true });
 
         // Contar formatadas
         const { count: formatadas } = await questionsDb
             .from('questoes_concurso')
-            .select('*', { count: 'exact', head: true })
+            .select('*', { count: 'estimated', head: true })
             .eq('enunciado_formatado', true);
 
         // Contar da fila (para processando e falhas)

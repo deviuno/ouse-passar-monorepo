@@ -15,7 +15,10 @@ import {
 } from 'lucide-react';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { editalService } from '../../services/editalService';
-import { Preparatorio, PreparatorioContentType } from '../../lib/database.types';
+import { Tables } from '../../lib/database.types';
+
+type Preparatorio = Tables<'preparatorios'>;
+type PreparatorioContentType = 'plano' | 'questoes' | 'preparatorio';
 import { useToast } from '../../components/ui/Toast';
 import { QuickCreatePreparatorioModal } from '../../components/admin/QuickCreatePreparatorioModal';
 
@@ -327,7 +330,7 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
                           questoes: { label: 'Questões', bgClass: 'bg-brand-yellow/20', textClass: 'text-brand-yellow' },
                           preparatorio: { label: 'Prep.', bgClass: 'bg-blue-500/20', textClass: 'text-blue-400' },
                         };
-                        const config = typeConfig[type];
+                        const config = typeConfig[type as PreparatorioContentType];
                         return (
                           <span
                             key={type}
@@ -371,15 +374,13 @@ Esta ação NÃO pode ser desfeita. Deseja continuar?`;
                       <button
                         onClick={() => handleToggleActive(prep)}
                         disabled={togglingId === prep.id}
-                        className={`relative w-10 h-5 rounded-full transition-colors ${
-                          prep.is_active ? 'bg-green-500' : 'bg-gray-600'
-                        } ${togglingId === prep.id ? 'opacity-50' : ''}`}
+                        className={`relative w-10 h-5 rounded-full transition-colors ${prep.is_active ? 'bg-green-500' : 'bg-gray-600'
+                          } ${togglingId === prep.id ? 'opacity-50' : ''}`}
                         title={prep.is_active ? 'Clique para despublicar' : 'Clique para publicar'}
                       >
                         <div
-                          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
-                            prep.is_active ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
+                          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${prep.is_active ? 'translate-x-5' : 'translate-x-0.5'
+                            }`}
                         />
                       </button>
 

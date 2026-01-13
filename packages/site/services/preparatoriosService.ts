@@ -1095,7 +1095,7 @@ export const missoesService = {
    * Tenta fazer correspondência fuzzy dos itens do edital
    */
   async cloneToMultipleRodadas(
-    missaoData: CreateMissaoInput,
+    missaoData: Omit<CreateMissaoInput, 'rodada_id'>,
     questaoFiltros: QuestaoFiltrosData | null,
     questoesCount: number,
     targets: MultiTurmaTarget[],

@@ -6,7 +6,74 @@ import { useToast } from '../../components/ui/Toast';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { mensagensIncentivoService } from '../../services/mensagensIncentivoService';
 import { editalService } from '../../services/editalService';
-import { Preparatorio } from '../../lib/database.types';
+// import { Preparatorio } from '../../lib/database.types'; // REMOVED
+
+interface Preparatorio {
+  id: string;
+  nome: string;
+  slug: string;
+  descricao?: string;
+  cor?: string;
+  icone?: string;
+  is_active: boolean;
+  ordem?: number;
+  created_at?: string;
+  updated_at?: string;
+  banca?: string | null;
+  orgao?: string | null;
+  cargo?: string | null;
+  nivel?: string | null;
+  escolaridade?: string | null;
+  modalidade?: string | null;
+  regiao?: string | null;
+  salario?: number | null;
+  carga_horaria?: string | null;
+  vagas?: number | null;
+  taxa_inscricao?: number | null;
+  inscricoes_inicio?: string | null;
+  inscricoes_fim?: string | null;
+  data_prevista?: string | null;
+  ano_previsto?: number | null;
+  preco?: number | null;
+  preco_desconto?: number | null;
+  checkout_url?: string | null;
+  descricao_curta?: string | null;
+  descricao_vendas?: string | null;
+  imagem_capa?: string | null;
+  logo_url?: string | null;
+  raio_x?: unknown;
+
+  // Novos campos de preço
+  preco_planejador?: number | null;
+  preco_planejador_desconto?: number | null;
+  checkout_planejador?: string | null;
+  guru_product_id_planejador?: string | null;
+
+  preco_8_questoes?: number | null;
+  preco_8_questoes_desconto?: number | null;
+  checkout_ouse_questoes?: string | null;
+  guru_product_id_8_questoes?: string | null;
+
+  preco_simulados?: number | null;
+  preco_simulados_desconto?: number | null;
+  checkout_simulados?: string | null;
+  guru_product_id_simulados?: string | null;
+
+  preco_reta_final?: number | null;
+  preco_reta_final_desconto?: number | null;
+  checkout_reta_final?: string | null;
+  guru_product_id_reta_final?: string | null;
+
+  preco_plataforma_completa?: number | null;
+  preco_plataforma_completa_desconto?: number | null;
+  checkout_plataforma_completa?: string | null;
+  guru_product_id_plataforma_completa?: string | null;
+
+  preco_trilhas?: number | null;
+  preco_trilhas_desconto?: number | null;
+  checkout_trilhas?: string | null;
+  guru_product_id_trilhas?: string | null;
+}
 
 interface RaioXDistribuicao {
   materia: string;
@@ -356,11 +423,10 @@ export const EditPreparatorioNew: React.FC = () => {
           )}
           <Link
             to={`/admin/preparatorios/${id}/edital`}
-            className={`px-4 py-2 rounded-sm transition-colors flex items-center gap-2 ${
-              editalItemsCount > 0
-                ? 'text-green-400 hover:bg-green-500/10'
-                : 'text-red-400 hover:bg-red-500/10 animate-pulse'
-            }`}
+            className={`px-4 py-2 rounded-sm transition-colors flex items-center gap-2 ${editalItemsCount > 0
+              ? 'text-green-400 hover:bg-green-500/10'
+              : 'text-red-400 hover:bg-red-500/10 animate-pulse'
+              }`}
             title={editalItemsCount > 0 ? 'Gerenciar Edital' : 'Configurar Edital (Recomendado)'}
           >
             <FileText className="w-4 h-4" />
@@ -373,16 +439,15 @@ export const EditPreparatorioNew: React.FC = () => {
           </Link>
           <button
             onClick={() => setShowRaioXModal(true)}
-            className={`px-4 py-2 rounded-sm transition-colors flex items-center gap-2 ${
-              preparatorio?.raio_x
-                ? 'text-purple-400 hover:bg-purple-500/10'
-                : 'text-gray-500 hover:bg-gray-500/10'
-            }`}
+            className={`px-4 py-2 rounded-sm transition-colors flex items-center gap-2 ${preparatorio?.raio_x
+              ? 'text-purple-400 hover:bg-purple-500/10'
+              : 'text-gray-500 hover:bg-gray-500/10'
+              }`}
             title={preparatorio?.raio_x ? 'Ver análise da prova anterior' : 'Raio X não disponível'}
           >
             <BarChart3 className="w-4 h-4" />
             Raio X
-            {preparatorio?.raio_x && (
+            {!!preparatorio?.raio_x && (
               <span className="text-xs bg-purple-500/20 px-1.5 py-0.5 rounded">
                 ✓
               </span>
@@ -582,22 +647,22 @@ export const EditPreparatorioNew: React.FC = () => {
                       {[...provaAnterior.distribuicao]
                         .sort((a, b) => b.quantidade - a.quantidade)
                         .map((item, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-3 bg-brand-dark/50 rounded-sm p-3 border border-white/5"
-                        >
-                          <span className="text-purple-400 font-bold text-sm w-6">{index + 1}.</span>
-                          <div className="flex-1">
-                            <span className="text-white">{item.materia}</span>
+                          <div
+                            key={index}
+                            className="flex items-center gap-3 bg-brand-dark/50 rounded-sm p-3 border border-white/5"
+                          >
+                            <span className="text-purple-400 font-bold text-sm w-6">{index + 1}.</span>
+                            <div className="flex-1">
+                              <span className="text-white">{item.materia}</span>
+                            </div>
+                            {/* Info do Raio-X (igual ao fluxo de criação) */}
+                            <div className="flex items-center gap-1 bg-purple-500/20 px-2 py-1 rounded text-xs">
+                              <span className="text-purple-300 font-medium">{item.quantidade}</span>
+                              <span className="text-purple-400/70">questões</span>
+                              <span className="text-purple-400/50">({item.percentual}%)</span>
+                            </div>
                           </div>
-                          {/* Info do Raio-X (igual ao fluxo de criação) */}
-                          <div className="flex items-center gap-1 bg-purple-500/20 px-2 py-1 rounded text-xs">
-                            <span className="text-purple-300 font-medium">{item.quantidade}</span>
-                            <span className="text-purple-400/70">questões</span>
-                            <span className="text-purple-400/50">({item.percentual}%)</span>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
 

@@ -24,7 +24,9 @@ import {
 import { supabase } from '../lib/supabase';
 import { SEOHead } from '../components/SEOHead';
 import { plannerService } from '../services/plannerService';
-import { Planejamento } from '../lib/database.types';
+import { Tables } from '../lib/database.types';
+type Planejamento = Tables<'planejamentos'>;
+type Preparatorio = Tables<'preparatorios'>;
 import { useTheme } from '../lib/ThemeContext';
 
 // Tipo do contexto do layout
@@ -517,49 +519,43 @@ export const PlannerPerfilView: React.FC = () => {
 
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
             {/* Conquista: Primeiro Dia Verde */}
-            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.diasVerdes >= 1 ? 'bg-green-500/20 border border-green-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
-            }`}>
+            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${stats.diasVerdes >= 1 ? 'bg-green-500/20 border border-green-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
+              }`}>
               <span className="text-2xl mb-1">🌱</span>
               <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">Primeiro Passo</span>
             </div>
 
             {/* Conquista: 7 Dias Verdes */}
-            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.diasVerdes >= 7 ? 'bg-green-500/20 border border-green-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
-            }`}>
+            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${stats.diasVerdes >= 7 ? 'bg-green-500/20 border border-green-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
+              }`}>
               <span className="text-2xl mb-1">🔥</span>
               <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">Semana Verde</span>
             </div>
 
             {/* Conquista: 30 Dias Verdes */}
-            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.diasVerdes >= 30 ? 'bg-green-500/20 border border-green-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
-            }`}>
+            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${stats.diasVerdes >= 30 ? 'bg-green-500/20 border border-green-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
+              }`}>
               <span className="text-2xl mb-1">⭐</span>
               <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">Mês Verde</span>
             </div>
 
             {/* Conquista: 10 horas de estudo */}
-            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.horasEstudadas >= 10 ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
-            }`}>
+            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${stats.horasEstudadas >= 10 ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
+              }`}>
               <span className="text-2xl mb-1">📚</span>
               <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">10 Horas</span>
             </div>
 
             {/* Conquista: 50 horas de estudo */}
-            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.horasEstudadas >= 50 ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
-            }`}>
+            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${stats.horasEstudadas >= 50 ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
+              }`}>
               <span className="text-2xl mb-1">🎓</span>
               <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">50 Horas</span>
             </div>
 
             {/* Conquista: 100 questões */}
-            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${
-              stats.questoesTotal >= 100 ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
-            }`}>
+            <div className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 ${stats.questoesTotal >= 100 ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-[var(--color-bg-hover)] border border-[var(--color-border-light)] opacity-40'
+              }`}>
               <span className="text-2xl mb-1">💯</span>
               <span className="text-[10px] text-center text-[var(--color-text-secondary)] font-medium">100 Questões</span>
             </div>
@@ -591,14 +587,12 @@ export const PlannerPerfilView: React.FC = () => {
 
             <button
               onClick={toggleTheme}
-              className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${
-                theme === 'dark' ? 'bg-indigo-500' : 'bg-yellow-400'
-              }`}
+              className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${theme === 'dark' ? 'bg-indigo-500' : 'bg-yellow-400'
+                }`}
             >
               <div
-                className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 flex items-center justify-center ${
-                  theme === 'dark' ? 'left-1' : 'left-7'
-                }`}
+                className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 flex items-center justify-center ${theme === 'dark' ? 'left-1' : 'left-7'
+                  }`}
               >
                 {theme === 'dark' ? (
                   <Moon className="w-3.5 h-3.5 text-indigo-500" />

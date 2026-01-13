@@ -3,7 +3,23 @@ import { useParams, Link } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, EyeOff, GripVertical, ArrowLeft, MessageSquare, Sparkles, Loader2, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import { preparatoriosService, mensagensIncentivoService } from '../../services/preparatoriosService';
 import { mensagensIncentivoService as mensagensAIService } from '../../services/mensagensIncentivoService';
-import { Preparatorio, MensagemIncentivo } from '../../lib/database.types';
+// import { Preparatorio, MensagemIncentivo } from '../../lib/database.types'; // REMOVED
+
+interface Preparatorio {
+  id: string;
+  nome: string;
+  cor?: string;
+  cargo?: string | null;
+  orgao?: string | null;
+}
+
+interface MensagemIncentivo {
+  id: string;
+  preparatorio_id: string;
+  mensagem: string;
+  is_active: boolean;
+  created_at?: string;
+}
 import { useToast } from '../../components/ui/Toast';
 
 export const MensagensIncentivoAdmin: React.FC = () => {
@@ -214,9 +230,8 @@ export const MensagensIncentivoAdmin: React.FC = () => {
           {mensagens.map((mensagem, index) => (
             <div
               key={mensagem.id}
-              className={`bg-brand-card border rounded-sm p-4 flex items-center gap-4 transition-all ${
-                mensagem.is_active ? 'border-white/10' : 'border-white/5 opacity-60'
-              }`}
+              className={`bg-brand-card border rounded-sm p-4 flex items-center gap-4 transition-all ${mensagem.is_active ? 'border-white/10' : 'border-white/5 opacity-60'
+                }`}
             >
               <div className="text-gray-600 cursor-grab">
                 <GripVertical className="w-5 h-5" />
@@ -225,11 +240,10 @@ export const MensagensIncentivoAdmin: React.FC = () => {
               <div className="flex-1">
                 <p className="text-white">{mensagem.mensagem}</p>
                 <div className="flex items-center gap-2 mt-2">
-                  <span className={`text-xs px-2 py-0.5 rounded ${
-                    mensagem.is_active
+                  <span className={`text-xs px-2 py-0.5 rounded ${mensagem.is_active
                       ? 'bg-green-500/20 text-green-400'
                       : 'bg-gray-500/20 text-gray-500'
-                  }`}>
+                    }`}>
                     {mensagem.is_active ? 'Ativa' : 'Inativa'}
                   </span>
                   <span className="text-xs text-gray-600">#{index + 1}</span>

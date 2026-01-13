@@ -107,7 +107,7 @@ export const StudentDashboardView: React.FC = () => {
 
                 // Calcular Streak
                 // Lógica simples: Dias consecutivos únicos
-                const uniqueDays = [...new Set(executions.map(e => new Date(e.completed_at).toDateString()))];
+                const uniqueDays = [...new Set(executions.map(e => new Date(e.completed_at || '').toDateString()))];
                 // TODO: Implementar lógica robusta de streak (checando lacunas)
                 // Para MVP: count total days active
                 const activeDays = uniqueDays.length;
@@ -124,7 +124,7 @@ export const StudentDashboardView: React.FC = () => {
                 }
 
                 executions.forEach(e => {
-                    const dateKey = new Date(e.completed_at).toDateString();
+                    const dateKey = new Date(e.completed_at || '').toDateString();
                     if (last7DaysMap.has(dateKey)) {
                         last7DaysMap.get(dateKey).uv += 1;
                     }

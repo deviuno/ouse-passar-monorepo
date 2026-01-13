@@ -26,7 +26,19 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { preparatoriosService } from '../../services/preparatoriosService';
 import { editalService, EditalItem, EditalItemWithChildren, EditalItemTipo, TaxonomyNode } from '../../services/editalService';
-import { Preparatorio } from '../../lib/database.types';
+// import { Preparatorio } from '../../lib/database.types'; // REMOVED
+
+interface Preparatorio {
+  id: string;
+  nome: string;
+  slug: string;
+  descricao?: string;
+  cor?: string;
+  icone?: string;
+  is_active: boolean;
+  ordem?: number;
+  created_at?: string;
+}
 import { ImportEditalModal } from '../../components/admin/ImportEditalModal';
 import { ParsedEdital, EditalExistsAction } from '../../services/editalAIService';
 
@@ -288,9 +300,8 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
   return (
     <div>
       <div
-        className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors hover:bg-white/5 ${
-          isFullySelected ? 'bg-brand-yellow/10' : ''
-        }`}
+        className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors hover:bg-white/5 ${isFullySelected ? 'bg-brand-yellow/10' : ''
+          }`}
         style={{ paddingLeft }}
       >
         {/* Botão de expandir */}
@@ -315,13 +326,12 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
         {/* Checkbox */}
         <button
           onClick={handleToggleNode}
-          className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-            isFullySelected
+          className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${isFullySelected
               ? 'bg-brand-yellow border-brand-yellow'
               : isPartiallySelected
-              ? 'bg-brand-yellow/50 border-brand-yellow'
-              : 'border-gray-600 hover:border-gray-500'
-          }`}
+                ? 'bg-brand-yellow/50 border-brand-yellow'
+                : 'border-gray-600 hover:border-gray-500'
+            }`}
         >
           {(isFullySelected || isPartiallySelected) && (
             <Check size={8} className="text-black" />
@@ -331,9 +341,8 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
         {/* Nome do nó */}
         <span
           onClick={handleToggleNode}
-          className={`flex-1 text-xs leading-tight ${
-            isFullySelected ? 'text-brand-yellow' : 'text-gray-300'
-          }`}
+          className={`flex-1 text-xs leading-tight ${isFullySelected ? 'text-brand-yellow' : 'text-gray-300'
+            }`}
         >
           {node.nome}
         </span>
@@ -1177,9 +1186,8 @@ export const EditalAdmin: React.FC = () => {
     return (
       <div key={item.id}>
         <div
-          className={`flex items-center gap-2 py-2 px-3 hover:bg-white/[0.02] border-b border-white/5 group transition-colors ${
-            isDragging ? 'bg-brand-yellow/10 border-brand-yellow/30' : ''
-          }`}
+          className={`flex items-center gap-2 py-2 px-3 hover:bg-white/[0.02] border-b border-white/5 group transition-colors ${isDragging ? 'bg-brand-yellow/10 border-brand-yellow/30' : ''
+            }`}
           style={{ paddingLeft: `${indent + 12}px` }}
         >
           {/* Expand/Collapse */}
@@ -1626,8 +1634,8 @@ const EditalItemModal: React.FC<EditalItemModalProps> = ({
               className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
               placeholder={
                 tipo === 'bloco' ? 'Ex: Conhecimentos Básicos' :
-                tipo === 'materia' ? 'Ex: Língua Portuguesa' :
-                'Ex: Compreensão e interpretação de textos'
+                  tipo === 'materia' ? 'Ex: Língua Portuguesa' :
+                    'Ex: Compreensão e interpretação de textos'
               }
               autoFocus
               required

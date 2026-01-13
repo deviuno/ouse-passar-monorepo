@@ -1,7 +1,9 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { AdminUser } from '../lib/database.types';
+import { Tables } from '../lib/database.types';
+
+type AdminUser = Tables<'admin_users'>;
 
 interface StudentProtectedRouteProps {
   children: React.ReactNode;

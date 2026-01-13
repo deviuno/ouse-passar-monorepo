@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { Check, Calendar, Clock, User, Phone, ChevronLeft, ChevronRight, Loader2, CheckCircle, Mail } from 'lucide-react';
 import { schedulingService, slotsService } from '../services/schedulingService';
 import { preparatoriosService } from '../services/preparatoriosService';
-import { Preparatorio, TimeSlot } from '../lib/database.types';
+import { Tables } from '../lib/database.types';
+type Preparatorio = Tables<'preparatorios'>;
+type TimeSlot = any;
 
 // Etapas do formulário
 type Step = 'info' | 'schedule' | 'success';
@@ -45,8 +47,8 @@ export const Obrigado: React.FC = () => {
 
   // Dados do formulário - Etapa 2
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [slots, setSlots] = useState<TimeSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
+  const [slots, setSlots] = useState<any[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Dados de confirmação
@@ -431,8 +433,9 @@ export const Obrigado: React.FC = () => {
                                     onClick={() => {
                                       // Load Balancing (Round Robin simplificado via Random)
                                       // Escolhe aleatoriamente um dos vendedores disponíveis neste horário
-                                      const randomIndex = Math.floor(Math.random() * availableSlots.length);
-                                      setSelectedSlot(availableSlots[randomIndex]);
+                                      const slots = availableSlots as TimeSlot[];
+                                      const randomIndex = Math.floor(Math.random() * slots.length);
+                                      setSelectedSlot(slots[randomIndex]);
                                     }}
                                     className={`py-2 px-3 rounded border text-sm font-medium transition-all ${isSelected
                                       ? 'border-brand-yellow bg-brand-yellow text-brand-darker'
@@ -469,8 +472,9 @@ export const Obrigado: React.FC = () => {
                                     key={time}
                                     onClick={() => {
                                       // Load Balancing (Round Robin simplificado via Random)
-                                      const randomIndex = Math.floor(Math.random() * availableSlots.length);
-                                      setSelectedSlot(availableSlots[randomIndex]);
+                                      const slots = availableSlots as TimeSlot[];
+                                      const randomIndex = Math.floor(Math.random() * slots.length);
+                                      setSelectedSlot(slots[randomIndex]);
                                     }}
                                     className={`py-2 px-3 rounded border text-sm font-medium transition-all ${isSelected
                                       ? 'border-brand-yellow bg-brand-yellow text-brand-darker'

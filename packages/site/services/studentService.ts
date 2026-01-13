@@ -1,5 +1,8 @@
 import { supabase } from '../lib/supabase';
-import { AdminUser, Lead } from '../lib/database.types';
+import { Tables } from '../lib/database.types';
+
+type AdminUser = Tables<'admin_users'>;
+type Lead = Tables<'leads'>;
 
 // Gera uma senha aleatória de 8 caracteres
 export const generateRandomPassword = (): string => {
@@ -87,7 +90,7 @@ export const studentService = {
             .single();
 
         if (error) throw error;
-        return data;
+        return data as any;
     },
 
     // Verifica se já existe um usuário com este email
@@ -112,7 +115,7 @@ export const studentService = {
             .maybeSingle();
 
         if (error) throw error;
-        return data;
+        return data as any;
     },
 
     // Busca o lead associado a um usuário
@@ -124,7 +127,7 @@ export const studentService = {
             .maybeSingle();
 
         if (error) throw error;
-        return data;
+        return data as any;
     },
 
     // Atualiza o lead com o user_id e senha temporária
@@ -161,7 +164,7 @@ export const studentService = {
                 .eq('id', data.id);
         }
 
-        return data;
+        return data as any;
     },
 
     // Verifica se um usuário tem acesso a um planejamento

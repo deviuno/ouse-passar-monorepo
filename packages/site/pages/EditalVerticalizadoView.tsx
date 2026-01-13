@@ -7,15 +7,15 @@ import { SEOHead } from '../components/SEOHead';
 import { useAuth } from '../lib/AuthContext';
 import { planejamentosService } from '../services/preparatoriosService';
 import { studentService } from '../services/studentService';
-import { AdminUser } from '../lib/database.types';
-
+import { Tables } from '../lib/database.types';
+import { AdminUser } from '../services/adminUsersService';
 interface EditalItem {
     id: string;
     tipo: 'bloco' | 'materia' | 'topico';
     titulo: string;
     ordem: number;
     parent_id: string | null;
-    items?: EditalItem[]; // Estrutura aninhada em memória
+    items?: EditalItem[];
 }
 
 interface EditalProgress {
@@ -159,7 +159,7 @@ export const EditalVerticalizadoView: React.FC = () => {
                 const progressMap: Record<string, EditalProgress> = {};
                 progressData?.forEach(p => {
                     if (p.item_id) {
-                        progressMap[p.item_id] = p;
+                        progressMap[p.item_id] = p as any;
                     }
                 });
                 setProgress(progressMap);

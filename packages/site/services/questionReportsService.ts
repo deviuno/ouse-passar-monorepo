@@ -112,7 +112,7 @@ export const questionReportsService = {
     const reports = data || [];
 
     // Buscar informações dos usuários separadamente
-    const userIds = [...new Set(reports.map(r => r.user_id).filter(Boolean))];
+    const userIds = [...new Set(reports.map(r => r.user_id).filter(Boolean))] as string[];
     let userProfiles: Record<string, { name: string | null; email: string | null }> = {};
 
     if (userIds.length > 0) {
@@ -132,7 +132,7 @@ export const questionReportsService = {
     return reports.map(report => ({
       ...report,
       user_profile: report.user_id ? userProfiles[report.user_id] || { name: null, email: null } : { name: null, email: null },
-    })) as QuestionReport[];
+    })) as unknown as QuestionReport[];
   },
 
   /**
@@ -164,7 +164,7 @@ export const questionReportsService = {
       }
     }
 
-    return { ...data, user_profile: userProfile } as QuestionReport;
+    return { ...data, user_profile: userProfile } as unknown as QuestionReport;
   },
 
   /**

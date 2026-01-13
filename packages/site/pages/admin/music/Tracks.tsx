@@ -55,11 +55,11 @@ export const MusicTracks: React.FC = () => {
     try {
       console.log('[MusicTracks] Chamando getTracks e getCategories...');
       const [tracksData, categoriesData] = await Promise.all([
-        musicAdminService.getTracks(), // Sem filtro de preparatorio
+        musicAdminService.getTracks(undefined), // Sem filtro de preparatorio
         musicAdminService.getCategories(), // Sem filtro de preparatorio
       ]);
       console.log('[MusicTracks] Dados recebidos:', { tracksCount: tracksData.length, categoriesCount: categoriesData.length });
-      setTracks(tracksData);
+      setTracks((tracksData as any).tracks || tracksData || []);
       setCategories(categoriesData);
     } catch (error) {
       console.error('[MusicTracks] ERRO ao carregar dados:', error);
@@ -124,7 +124,7 @@ export const MusicTracks: React.FC = () => {
       // Upload audio if new file
       if (audioFile) {
         setUploadProgress(10);
-        const result = await musicAdminService.uploadAudioFile(audioFile);
+        const result = await musicAdminService.uploadAudioFile(undefined, audioFile);
         audioUrl = result.url;
         duration = result.duration;
         setUploadProgress(50);
@@ -132,7 +132,7 @@ export const MusicTracks: React.FC = () => {
 
       // Upload cover if new file
       if (coverFile) {
-        coverUrl = await musicAdminService.uploadCoverImage(coverFile);
+        coverUrl = await musicAdminService.uploadCoverImage(undefined, coverFile);
         setUploadProgress(75);
       }
 
@@ -141,7 +141,7 @@ export const MusicTracks: React.FC = () => {
         await musicAdminService.updateTrack(editingTrack.id, {
           ...formData,
           audio_url: audioUrl,
-          cover_url: coverUrl,
+          cover_url: coverUrl || undefined,
           duration_seconds: duration,
         });
       } else {
@@ -155,7 +155,7 @@ export const MusicTracks: React.FC = () => {
         await musicAdminService.createTrack(undefined, {
           ...formData,
           audio_url: audioUrl,
-          cover_url: coverUrl,
+          cover_url: coverUrl || undefined,
           duration_seconds: duration,
         });
       }

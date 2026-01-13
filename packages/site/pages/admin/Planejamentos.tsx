@@ -2,7 +2,28 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, X, Check, User, Clock, Target, Minus, Shield, Award, Book, Loader2, Search } from 'lucide-react';
 import { leadsService, CreateLeadInput } from '../../services/adminUsersService';
-import { LeadDifficulty, LeadGender, EducationLevel, Lead, Preparatorio } from '../../lib/database.types';
+import { Database, Tables, Enums } from '../../lib/database.types';
+
+type LeadDifficulty = Enums<'lead_difficulty'>;
+type LeadGender = Enums<'lead_gender'>;
+type EducationLevel = Enums<'education_level'>;
+type Lead = Tables<'leads'>;
+
+// Fallback for Preparatorio since it might be missing in database.types.ts
+interface Preparatorio {
+    id: string;
+    nome: string;
+    slug: string;
+    descricao?: string;
+    descricao_curta?: string | null;
+    imagem_capa?: string | null;
+    cor?: string;
+    is_active: boolean;
+    ordem?: number;
+    content_types?: string[];
+    created_at?: string;
+    updated_at?: string;
+}
 
 // Utilitário para máscara de telefone brasileiro
 const formatPhoneBR = (value: string): string => {
@@ -344,8 +365,8 @@ interface SuccessCardProps {
 
 const SuccessCard: React.FC<SuccessCardProps> = ({ lead, planejamentoId, slug, onClose }) => {
     const firstName = lead.nome.split(' ')[0];
-    const totalMinutos = lead.minutos_domingo + lead.minutos_segunda + lead.minutos_terca +
-        lead.minutos_quarta + lead.minutos_quinta + lead.minutos_sexta + lead.minutos_sabado;
+    const totalMinutos = (lead.minutos_domingo || 0) + (lead.minutos_segunda || 0) + (lead.minutos_terca || 0) +
+        (lead.minutos_quarta || 0) + (lead.minutos_quinta || 0) + (lead.minutos_sexta || 0) + (lead.minutos_sabado || 0);
 
     return (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-40 p-4">
@@ -1265,8 +1286,8 @@ export const Planejamentos: React.FC = () => {
                     title: prep.slug.toUpperCase(),
                     subtitle: prep.nome,
                     description: prep.descricao || `Planejamento completo e personalizado para aprovação no concurso. Metodologia exclusiva Ouse Passar com foco em resultados.`,
-                    descricao_curta: prep.descricao_curta,
-                    imagem_capa: prep.imagem_capa,
+                    descricao_curta: prep.descricao_curta || null,
+                    imagem_capa: prep.imagem_capa || null,
                     icon: getIconForPreparatorio(prep.nome),
                     features: [
                         'Cronograma personalizado',
@@ -1277,7 +1298,7 @@ export const Planejamentos: React.FC = () => {
                     ],
                     concurso: prep.nome,
                     available: prep.is_active,
-                    cor: prep.cor
+                    cor: prep.cor || '#FCD34D'
                 }));
 
                 setPlanejamentos(mapped);

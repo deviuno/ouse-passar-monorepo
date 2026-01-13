@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, ChevronLeft, List, ChevronRight, GripVertical, Sparkles, Eye } from 'lucide-react';
 import { preparatoriosService, rodadasService } from '../../services/preparatoriosService';
-import { PreparatorioComN8N, Rodada } from '../../lib/database.types';
+import { Tables } from '../../lib/database.types';
+
+type PreparatorioComN8N = Tables<'preparatorios'>;
+type Rodada = Tables<'rodadas'>;
 import { GerarRodadasModal } from '../../components/admin/GerarRodadasModal';
 
 interface RodadaWithCount extends Rodada {
@@ -104,7 +107,7 @@ export const RodadasAdmin: React.FC = () => {
           </Link>
           <h2 className="text-3xl font-black text-white font-display uppercase">Rodadas</h2>
           <p className="text-gray-500 mt-1">
-            Gerencie as rodadas de <span style={{ color: preparatorio.cor }}>{preparatorio.nome}</span>
+            Gerencie as rodadas de <span style={{ color: preparatorio.cor ?? undefined }}>{preparatorio.nome}</span>
           </p>
         </div>
         <div className="flex items-center gap-3">

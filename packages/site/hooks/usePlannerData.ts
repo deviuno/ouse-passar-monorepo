@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { plannerService, SavePlannerInput } from '../services/plannerService';
 import { planejadorService } from '../services/planejadorService';
-import { PlannerDiario } from '../lib/database.types';
+// import { PlannerDiario } from '../lib/database.types'; // REMOVED
 
 // Keys para cache
 export const plannerKeys = {

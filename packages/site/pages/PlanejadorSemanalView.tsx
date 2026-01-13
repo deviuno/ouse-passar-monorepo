@@ -33,12 +33,12 @@ import {
 import { supabase } from '../lib/supabase';
 import { SEOHead } from '../components/SEOHead';
 import { planejadorService } from '../services/planejadorService';
-import {
-  AtividadeTipo,
-  AtividadeUsuario,
-  PlanejadorSlot,
-  Planejamento
-} from '../lib/database.types';
+import { Tables } from '../lib/database.types';
+
+type AtividadeTipo = Tables<'atividade_tipos'>;
+type AtividadeUsuario = Tables<'atividade_tipos_usuario'>;
+type PlanejadorSlot = Tables<'planejador_semanal'>;
+type Planejamento = Tables<'planejamentos'>;
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useDefaultActivities,
@@ -299,11 +299,10 @@ const NewActivityModal: React.FC<{
                     type="button"
                     onClick={() => setIcone(item.id)}
                     title={item.nome}
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                      isSelected
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${isSelected
                         ? 'bg-white/20 ring-2 ring-white scale-110'
                         : 'bg-white/5 hover:bg-white/10'
-                    }`}
+                      }`}
                   >
                     <IconComponent
                       className="w-5 h-5"
@@ -472,11 +471,10 @@ const EditActivityModal: React.FC<{
                     type="button"
                     onClick={() => setIcone(item.id)}
                     title={item.nome}
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                      isSelected
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${isSelected
                         ? 'bg-white/20 ring-2 ring-white scale-110'
                         : 'bg-white/5 hover:bg-white/10'
-                    }`}
+                      }`}
                   >
                     <IconComponent
                       className="w-5 h-5"
@@ -1114,11 +1112,10 @@ export const PlanejadorSemanalView: React.FC = () => {
             <Tooltip content="Remover marcações">
               <button
                 onClick={handleEraserMode}
-                className={`flex items-center justify-center w-10 h-10 rounded-lg border-2 transition-all duration-200 ${
-                  eraserMode
+                className={`flex items-center justify-center w-10 h-10 rounded-lg border-2 transition-all duration-200 ${eraserMode
                     ? 'border-white bg-white/10 shadow-lg scale-105'
                     : 'border-white/10 hover:border-white/30'
-                }`}
+                  }`}
               >
                 <Eraser className={`w-5 h-5 ${eraserMode ? 'text-white' : 'text-gray-400'}`} />
               </button>
@@ -1206,89 +1203,86 @@ export const PlanejadorSemanalView: React.FC = () => {
             {horariosAgrupados.map((grupo, grupoIdx) => {
               const isCurrentTime = isCurrentTimeGroup(grupo.inicio);
               return (
-              <div
-                key={grupo.inicio}
-                className={`grid grid-cols-[60px_repeat(7,1fr)] ${
-                  isCurrentTime
-                    ? 'border-y-2 border-[var(--color-accent)]'
-                    : isFullHour(grupo.inicio)
-                      ? 'border-t-2 border-[var(--color-border)]'
-                      : 'border-t border-[var(--color-border-light)]'
-                }`}
-              >
-                {/* Coluna de hora - Mostra :00 e :30 */}
-                <div className={`border-r flex items-center justify-center ${
-                  isCurrentTime
-                    ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)]/30'
-                    : 'bg-[var(--color-bg-secondary)]/20 border-[var(--color-border-light)]'
-                }`}>
-                  <span className={`text-[10px] font-mono font-bold ${
-                    isCurrentTime ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'
-                  }`}>{grupo.inicio}</span>
-                </div>
+                <div
+                  key={grupo.inicio}
+                  className={`grid grid-cols-[60px_repeat(7,1fr)] ${isCurrentTime
+                      ? 'border-y-2 border-[var(--color-accent)]'
+                      : isFullHour(grupo.inicio)
+                        ? 'border-t-2 border-[var(--color-border)]'
+                        : 'border-t border-[var(--color-border-light)]'
+                    }`}
+                >
+                  {/* Coluna de hora - Mostra :00 e :30 */}
+                  <div className={`border-r flex items-center justify-center ${isCurrentTime
+                      ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)]/30'
+                      : 'bg-[var(--color-bg-secondary)]/20 border-[var(--color-border-light)]'
+                    }`}>
+                    <span className={`text-[10px] font-mono font-bold ${isCurrentTime ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'
+                      }`}>{grupo.inicio}</span>
+                  </div>
 
-                {/* Slots de cada dia - 2 linhas de 15 min por grupo */}
-                {DIAS_SEMANA.map((_, colIdx) => {
-                  const dbDayIndex = getDbDayIndex(colIdx);
-                  return (
-                    <div
-                      key={colIdx}
-                      className={`flex flex-col border-r border-[var(--color-border-light)] last:border-r-0 ${colIdx === currentDay ? 'bg-black/30' : ''}`}
-                    >
-                      {grupo.slots.map((hora, slotIdx) => {
-                        const slotColor = getSlotColor(dbDayIndex, hora);
-                        const marked = isSlotMarked(dbDayIndex, hora);
-                        const activityName = marked ? getSlotActivityName(dbDayIndex, hora) : null;
-                        const isSelected = selectedActivity !== null;
-                        // Cor efetiva: se marcado, usa a cor do slot (ou amarelo). Se não marcado, null.
-                        const effectiveColor = marked ? (slotColor || '#FFB800') : null;
+                  {/* Slots de cada dia - 2 linhas de 15 min por grupo */}
+                  {DIAS_SEMANA.map((_, colIdx) => {
+                    const dbDayIndex = getDbDayIndex(colIdx);
+                    return (
+                      <div
+                        key={colIdx}
+                        className={`flex flex-col border-r border-[var(--color-border-light)] last:border-r-0 ${colIdx === currentDay ? 'bg-black/30' : ''}`}
+                      >
+                        {grupo.slots.map((hora, slotIdx) => {
+                          const slotColor = getSlotColor(dbDayIndex, hora);
+                          const marked = isSlotMarked(dbDayIndex, hora);
+                          const activityName = marked ? getSlotActivityName(dbDayIndex, hora) : null;
+                          const isSelected = selectedActivity !== null;
+                          // Cor efetiva: se marcado, usa a cor do slot (ou amarelo). Se não marcado, null.
+                          const effectiveColor = marked ? (slotColor || '#FFB800') : null;
 
-                        // Determinar classes do slot
-                        const slotClasses = [
-                          'h-5 relative select-none',
-                          slotIdx !== 0 && 'border-t border-[var(--color-border-light)]',
-                          isSelected && `cursor-pointer slot-hover-${selectedActivity.id}`,
-                          eraserMode && marked && 'cursor-pointer eraser-mode-slot',
-                          !isSelected && !eraserMode && 'cursor-default transition-all duration-150 active:bg-[var(--color-error)]/10',
-                        ].filter(Boolean).join(' ');
+                          // Determinar classes do slot
+                          const slotClasses = [
+                            'h-5 relative select-none',
+                            slotIdx !== 0 && 'border-t border-[var(--color-border-light)]',
+                            isSelected && `cursor-pointer slot-hover-${selectedActivity.id}`,
+                            eraserMode && marked && 'cursor-pointer eraser-mode-slot',
+                            !isSelected && !eraserMode && 'cursor-default transition-all duration-150 active:bg-[var(--color-error)]/10',
+                          ].filter(Boolean).join(' ');
 
-                        const slotElement = (
-                          <div
-                            onMouseDown={(e) => handleSlotMouseDown(dbDayIndex, hora, e)}
-                            onMouseEnter={() => handleSlotMouseEnter(dbDayIndex, hora)}
-                            onMouseUp={handleSlotMouseUp}
-                            className={slotClasses}
-                            style={{
-                              backgroundColor: effectiveColor ? addAlpha(effectiveColor, 0.4) : undefined,
-                            }}
-                          >
-                            {marked && activityName && (
-                              <span
-                                className="absolute inset-0 flex items-center justify-center text-[8px] font-medium uppercase tracking-wider truncate px-0.5 pointer-events-none"
-                                style={{ color: effectiveColor ? effectiveColor : undefined, opacity: 0.7 }}
-                              >
-                                {activityName}
-                              </span>
-                            )}
-                          </div>
-                        );
-
-                        // Se slot está marcado, envolve com tooltip
-                        if (marked && activityName) {
-                          return (
-                            <Tooltip key={`${dbDayIndex}-${hora}`} content={activityName}>
-                              {slotElement}
-                            </Tooltip>
+                          const slotElement = (
+                            <div
+                              onMouseDown={(e) => handleSlotMouseDown(dbDayIndex, hora, e)}
+                              onMouseEnter={() => handleSlotMouseEnter(dbDayIndex, hora)}
+                              onMouseUp={handleSlotMouseUp}
+                              className={slotClasses}
+                              style={{
+                                backgroundColor: effectiveColor ? addAlpha(effectiveColor, 0.4) : undefined,
+                              }}
+                            >
+                              {marked && activityName && (
+                                <span
+                                  className="absolute inset-0 flex items-center justify-center text-[8px] font-medium uppercase tracking-wider truncate px-0.5 pointer-events-none"
+                                  style={{ color: effectiveColor ? effectiveColor : undefined, opacity: 0.7 }}
+                                >
+                                  {activityName}
+                                </span>
+                              )}
+                            </div>
                           );
-                        }
 
-                        return <React.Fragment key={`${dbDayIndex}-${hora}`}>{slotElement}</React.Fragment>;
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            );
+                          // Se slot está marcado, envolve com tooltip
+                          if (marked && activityName) {
+                            return (
+                              <Tooltip key={`${dbDayIndex}-${hora}`} content={activityName}>
+                                {slotElement}
+                              </Tooltip>
+                            );
+                          }
+
+                          return <React.Fragment key={`${dbDayIndex}-${hora}`}>{slotElement}</React.Fragment>;
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
             })}
           </div>
 
