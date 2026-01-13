@@ -361,13 +361,8 @@ export default function HomePage() {
       const selectedPrep = userPreparatorios.find((p) => p.id === selectedPreparatorioId);
       if (!selectedPrep) return;
 
-      // Se já tem rounds carregados para este preparatório e não acabou de completar missão, não recarregar
-      // Se acabou de completar uma missão (justCompletedMissionId), precisa recarregar para atualizar status
-      if (rounds.length > 0 && preparatorio?.id === selectedPrep.preparatorio_id && !justCompletedMissionId) {
-        console.log('[HomePage] Trilha já carregada, pulando fetch');
-        setLoading(false);
-        return;
-      }
+      // Sempre recarregar a trilha para garantir que novas missões apareçam
+      // O cache anterior causava problemas quando admin adicionava novas missões
 
       console.log('[HomePage] Carregando trilha...');
       setLoading(true);
