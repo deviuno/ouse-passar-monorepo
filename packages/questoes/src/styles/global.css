@@ -1008,19 +1008,12 @@ button,
     0 8px 16px -4px rgba(245, 158, 11, 0.20);
 }
 
-/* Disabled button states */
-[data-theme="light"] button:disabled {
+/* Disabled button states - exclude question alternatives (.rounded-xl.border-2) */
+[data-theme="light"] button:disabled:not(.rounded-xl) {
   background-color: var(--color-button-disabled-bg) !important;
   border-color: var(--color-border) !important;
   color: var(--color-button-disabled-text) !important;
   opacity: 1 !important;
-}
-
-/* Question alternatives - preserve feedback border colors when disabled */
-[data-theme="light"] button.rounded-xl.border-2:disabled {
-  background-color: inherit !important;
-  border-color: inherit !important;
-  color: inherit !important;
 }
 
 /* Secondary buttons */
