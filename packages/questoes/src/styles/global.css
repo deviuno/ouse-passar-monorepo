@@ -1130,3 +1130,10 @@ button,
   background-color: rgba(217, 119, 6, 0.24);
   color: #0F172A;
 }
+
+/* Remove any diagonal lines pattern from trail area */
+[data-theme="light"] .min-h-full,
+[data-theme="light"] .min-h-screen {
+  background-image: none !important;
+  background-color: var(--color-bg-main);
+}
