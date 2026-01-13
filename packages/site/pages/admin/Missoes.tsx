@@ -15,6 +15,7 @@ import { QuestionFilterSelector } from '../../components/admin/QuestionFilterSel
 import { QuestionFilters, getQuestionsForFilters, ExternalQuestion, getMateriasByAssuntos } from '../../services/externalQuestionsService';
 import { supabase } from '../../lib/supabase';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export const MissoesAdmin: React.FC = () => {
   const { preparatorioId, rodadaId } = useParams<{ preparatorioId: string; rodadaId: string }>();
@@ -29,6 +30,8 @@ export const MissoesAdmin: React.FC = () => {
   const [contentPreviewMissao, setContentPreviewMissao] = useState<Missao | null>(null);
   const [questionsPreviewMissao, setQuestionsPreviewMissao] = useState<Missao | null>(null);
   const [missoesComConteudo, setMissoesComConteudo] = useState<Set<string>>(new Set());
+  const [deleteConfirmMissao, setDeleteConfirmMissao] = useState<Missao | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadData = async () => {
     if (!preparatorioId || !rodadaId) return;
@@ -78,17 +81,23 @@ export const MissoesAdmin: React.FC = () => {
     loadData();
   }, [preparatorioId, rodadaId]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta missao?')) {
-      return;
-    }
+  const handleDeleteClick = (missao: Missao) => {
+    setDeleteConfirmMissao(missao);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmMissao) return;
 
     try {
-      await missoesService.delete(id);
+      setDeleting(true);
+      await missoesService.delete(deleteConfirmMissao.id);
+      setDeleteConfirmMissao(null);
       await loadData();
     } catch (error) {
       console.error('Erro ao excluir:', error);
       alert('Erro ao excluir missao');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -356,7 +365,7 @@ export const MissoesAdmin: React.FC = () => {
                     <Copy className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(missao.id)}
+                    onClick={() => handleDeleteClick(missao)}
                     className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                     title="Excluir"
                   >
@@ -407,6 +416,66 @@ export const MissoesAdmin: React.FC = () => {
           missao={questionsPreviewMissao}
           onClose={() => setQuestionsPreviewMissao(null)}
         />
+      )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      {deleteConfirmMissao && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-card border border-white/10 w-full max-w-md rounded-sm">
+            {/* Header */}
+            <div className="flex items-center gap-3 p-6 border-b border-white/10">
+              <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Excluir Missão</h3>
+                <p className="text-sm text-gray-500">Esta ação não pode ser desfeita</p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <p className="text-gray-300">
+                Tem certeza que deseja excluir a missão{' '}
+                <span className="font-bold text-white">
+                  {deleteConfirmMissao.numero}{deleteConfirmMissao.materia ? ` - ${deleteConfirmMissao.materia}` : ''}{deleteConfirmMissao.assunto ? `: ${deleteConfirmMissao.assunto}` : ''}
+                </span>
+                ?
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                Todos os dados relacionados a esta missão serão removidos permanentemente.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 p-6 border-t border-white/10 bg-brand-dark/30">
+              <button
+                onClick={() => setDeleteConfirmMissao(null)}
+                disabled={deleting}
+                className="px-6 py-2 text-gray-400 font-bold uppercase text-sm hover:text-white transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                className="flex items-center gap-2 bg-red-600 text-white px-6 py-2 font-bold uppercase text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Excluir
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -571,6 +640,7 @@ const ContentPreviewModal: React.FC<ContentPreviewModalProps> = ({ missao, hasCo
           assunto: missao.assunto,
           instrucoes: missao.instrucoes,
           instrucoesAdicionais: instructions,
+          gerarImagem: missao.gerar_imagem ?? false,
         }),
       });
 
@@ -741,7 +811,7 @@ const ContentPreviewModal: React.FC<ContentPreviewModalProps> = ({ missao, hasCo
   // Mostrar conteúdo existente com opção de regenerar
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-brand-card border border-white/10 w-full max-w-3xl rounded-sm my-8 max-h-[90vh] flex flex-col relative">
+      <div className="bg-brand-card border border-white/10 w-full max-w-4xl rounded-sm my-8 max-h-[90vh] flex flex-col relative">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-white/10 flex-shrink-0">
           <div>
@@ -802,9 +872,119 @@ const ContentPreviewModal: React.FC<ContentPreviewModalProps> = ({ missao, hasCo
                 </div>
               )}
 
-              {/* Texto Content */}
-              <div className="prose prose-invert prose-sm max-w-none">
-                <ReactMarkdown>{content.texto}</ReactMarkdown>
+              {/* Texto Content - Formatação completa */}
+              <div className="mission-content-preview">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: (props: any) => (
+                      <h1 className="text-2xl font-bold text-brand-yellow mt-6 mb-4">{props.children}</h1>
+                    ),
+                    h2: (props: any) => (
+                      <h2 className="text-xl font-bold text-brand-yellow mt-5 mb-3">{props.children}</h2>
+                    ),
+                    h3: (props: any) => (
+                      <h3 className="text-lg font-semibold text-brand-yellow mt-4 mb-2">{props.children}</h3>
+                    ),
+                    h4: (props: any) => (
+                      <h4 className="text-base font-semibold text-white mt-3 mb-2">{props.children}</h4>
+                    ),
+                    p: (props: any) => (
+                      <p className="text-gray-300 mb-4 leading-relaxed">{props.children}</p>
+                    ),
+                    ul: (props: any) => (
+                      <ul className="list-disc list-inside mb-4 space-y-2 text-gray-300 ml-4">{props.children}</ul>
+                    ),
+                    ol: (props: any) => (
+                      <ol className="list-decimal list-inside mb-4 space-y-2 text-gray-300 ml-4">{props.children}</ol>
+                    ),
+                    li: (props: any) => (
+                      <li className="text-gray-300">{props.children}</li>
+                    ),
+                    blockquote: (props: any) => (
+                      <blockquote className="border-l-4 border-brand-yellow pl-4 py-2 my-4 bg-brand-dark rounded-r-lg text-gray-400 italic">
+                        {props.children}
+                      </blockquote>
+                    ),
+                    strong: (props: any) => (
+                      <strong className="font-semibold text-brand-yellow">{props.children}</strong>
+                    ),
+                    em: (props: any) => (
+                      <em className="italic text-gray-400">{props.children}</em>
+                    ),
+                    a: (props: any) => (
+                      <a href={props.href} className="text-brand-yellow hover:underline" target="_blank" rel="noopener noreferrer">
+                        {props.children}
+                      </a>
+                    ),
+                    hr: () => (
+                      <hr className="border-white/10 my-6" />
+                    ),
+                    img: (props: any) => (
+                      <figure className="my-6">
+                        <img
+                          src={props.src}
+                          alt={props.alt || 'Imagem educacional'}
+                          className="max-w-full h-auto rounded-lg border border-white/10 mx-auto"
+                          style={{ maxHeight: '500px' }}
+                        />
+                        {props.alt && props.alt !== 'Imagem' && (
+                          <figcaption className="text-center text-gray-500 text-sm mt-2 italic">
+                            {props.alt}
+                          </figcaption>
+                        )}
+                      </figure>
+                    ),
+                    code: (props: any) => {
+                      const { className, children } = props;
+                      const match = /language-(\w+)/.exec(className || '');
+                      const language = match ? match[1] : '';
+                      const codeContent = String(children).replace(/\n$/, '');
+
+                      if (language) {
+                        return (
+                          <pre className="bg-brand-dark rounded-lg p-4 overflow-x-auto my-4 border border-white/10">
+                            <code className={`language-${language} text-sm text-gray-300`}>
+                              {codeContent}
+                            </code>
+                          </pre>
+                        );
+                      }
+
+                      return (
+                        <code className="bg-brand-dark px-1.5 py-0.5 rounded text-brand-yellow text-sm font-mono">
+                          {children}
+                        </code>
+                      );
+                    },
+                    table: (props: any) => (
+                      <div className="overflow-x-auto my-4">
+                        <table className="min-w-full border border-white/10 rounded-lg overflow-hidden">
+                          {props.children}
+                        </table>
+                      </div>
+                    ),
+                    thead: (props: any) => (
+                      <thead className="bg-brand-dark">{props.children}</thead>
+                    ),
+                    tbody: (props: any) => (
+                      <tbody className="divide-y divide-white/10">{props.children}</tbody>
+                    ),
+                    tr: (props: any) => (
+                      <tr className="hover:bg-white/5">{props.children}</tr>
+                    ),
+                    th: (props: any) => (
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-brand-yellow border-b border-white/10">
+                        {props.children}
+                      </th>
+                    ),
+                    td: (props: any) => (
+                      <td className="px-4 py-3 text-sm text-gray-300">{props.children}</td>
+                    ),
+                  }}
+                >
+                  {content.texto}
+                </ReactMarkdown>
               </div>
             </div>
           )}
@@ -1161,6 +1341,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
 
   // Estado para dropdown de matérias do edital
   const [materiasEdital, setMateriasEdital] = useState<EditalItem[]>([]);
+  const [allEditalItems, setAllEditalItems] = useState<EditalItem[]>([]); // Todos os itens para lookup de parent_id
   const [showMateriaDropdown, setShowMateriaDropdown] = useState(false);
   const [materiaFilter, setMateriaFilter] = useState('');
 
@@ -1189,37 +1370,52 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
   } | null>(null);
 
   // Função para agregar filtros de múltiplos itens do edital
-  // Agora também herda filtro_materias do item pai (matéria) se o próprio item não tiver
-  // Aceita materiasLookup opcional para evitar problemas de estado assíncrono
-  const agregarFiltrosEdital = (items: EditalItem[], materiasLookup?: EditalItem[]): FiltrosSugeridos | null => {
+  // Percorre a árvore de parents até encontrar um item com filtro_materias
+  // Aceita allItemsLookup opcional para evitar problemas de estado assíncrono
+  const agregarFiltrosEdital = (items: EditalItem[], allItemsLookup?: EditalItem[]): FiltrosSugeridos | null => {
     console.log('[agregarFiltrosEdital] Items recebidos:', items.length);
     if (items.length === 0) return null;
 
     const materias = new Set<string>();
     const assuntos = new Set<string>();
 
-    // Criar mapa de matérias por ID para lookup rápido
-    // Usa materiasLookup se fornecido, senão usa o estado (pode estar desatualizado)
-    const materiasMap = new Map<string, EditalItem>();
-    const materiasSource = materiasLookup || materiasEdital;
-    console.log('[agregarFiltrosEdital] MateriasSource length:', materiasSource.length);
-    materiasSource.forEach(m => materiasMap.set(m.id, m));
+    // Criar mapa de TODOS os itens por ID para poder percorrer a árvore de parents
+    const allItemsMap = new Map<string, EditalItem>();
+    const itemsSource = allItemsLookup || allEditalItems;
+    console.log('[agregarFiltrosEdital] ItemsSource length:', itemsSource.length);
+    itemsSource.forEach(i => allItemsMap.set(i.id, i));
+
+    // Função auxiliar para encontrar filtro_materias percorrendo a árvore
+    const findFiltroMaterias = (item: EditalItem, visited = new Set<string>()): string[] => {
+      // Evitar loops infinitos
+      if (visited.has(item.id)) return [];
+      visited.add(item.id);
+
+      // Se o item tem filtro_materias, retornar
+      if (item.filtro_materias && item.filtro_materias.length > 0) {
+        console.log('[findFiltroMaterias] Encontrado em:', item.titulo, item.filtro_materias);
+        return item.filtro_materias;
+      }
+
+      // Se tem parent, continuar buscando
+      if (item.parent_id) {
+        const parent = allItemsMap.get(item.parent_id);
+        if (parent) {
+          console.log('[findFiltroMaterias] Subindo para parent:', parent.titulo);
+          return findFiltroMaterias(parent, visited);
+        }
+      }
+
+      // Não encontrou
+      return [];
+    };
 
     items.forEach(item => {
       console.log('[agregarFiltrosEdital] Item:', item.titulo, '| filtro_materias:', item.filtro_materias, '| filtro_assuntos:', item.filtro_assuntos, '| parent_id:', item.parent_id);
 
-      // Adicionar filtros de matérias
-      if (item.filtro_materias && item.filtro_materias.length > 0) {
-        item.filtro_materias.forEach(m => materias.add(m));
-      } else if (item.parent_id) {
-        // Se não tem filtro_materias próprio, tentar herdar do pai (matéria)
-        const parentMateria = materiasMap.get(item.parent_id);
-        console.log('[agregarFiltrosEdital] Parent lookup para', item.parent_id, ':', parentMateria?.titulo);
-        if (parentMateria?.filtro_materias && parentMateria.filtro_materias.length > 0) {
-          console.log('[agregarFiltrosEdital] Herdando filtro_materias do pai:', parentMateria.titulo, parentMateria.filtro_materias);
-          parentMateria.filtro_materias.forEach(m => materias.add(m));
-        }
-      }
+      // Buscar filtros de matérias (do próprio item ou subindo na árvore)
+      const filtroMaterias = findFiltroMaterias(item);
+      filtroMaterias.forEach(m => materias.add(m));
 
       // Adicionar filtros de assuntos
       if (item.filtro_assuntos && item.filtro_assuntos.length > 0) {
@@ -1255,8 +1451,9 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
         const usedIds = await missoesService.getUsedEditalItemIds(preparatorioId);
         setUsedEditalItemIds(usedIds);
 
-        // Carregar todas as matérias do edital para o dropdown
+        // Carregar todos os itens do edital (para lookup) e matérias (para dropdown)
         const allItems = await editalService.getByPreparatorio(preparatorioId);
+        setAllEditalItems(allItems); // Guardar todos para poder percorrer a árvore de parents
         const materias = allItems.filter(item => item.tipo === 'materia');
         setMateriasEdital(materias);
 
@@ -1274,8 +1471,8 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
             setSelectedEditalItems(validItems);
 
             // Calcular filtros herdados dos itens
-            // Passa materias diretamente pois o state ainda não foi atualizado
-            const filtrosHerdadosCalculados = agregarFiltrosEdital(validItems, materias);
+            // Passa allItems diretamente pois o state ainda não foi atualizado
+            const filtrosHerdadosCalculados = agregarFiltrosEdital(validItems, allItems);
             setFiltrosHerdados(filtrosHerdadosCalculados);
           }
 
@@ -1328,7 +1525,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
       setSelectedEditalItems(validItems);
 
       // Agregar filtros dos itens selecionados
-      const filtros = agregarFiltrosEdital(validItems, materiasEdital);
+      const filtros = agregarFiltrosEdital(validItems, allEditalItems);
       setFiltrosHerdados(filtros);
     } else {
       setSelectedEditalItems([]);
@@ -1342,7 +1539,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
     setSelectedEditalItems(newItems);
 
     // Recalcular filtros herdados
-    const filtros = agregarFiltrosEdital(newItems, materiasEdital);
+    const filtros = agregarFiltrosEdital(newItems, allEditalItems);
     setFiltrosHerdados(filtros);
   };
 
@@ -1391,7 +1588,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
       // Se for tipo estudo, verificar filtros herdados ou buscar sugestao com IA
       if (isTipoEstudo) {
         // Recalcular filtros herdados dos itens selecionados
-        const filtrosDoEdital = agregarFiltrosEdital(selectedEditalItems, materiasEdital);
+        const filtrosDoEdital = agregarFiltrosEdital(selectedEditalItems, allEditalItems);
         setFiltrosHerdados(filtrosDoEdital);
 
         // Se há filtros herdados dos itens do edital, usar eles diretamente
