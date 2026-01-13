@@ -287,12 +287,14 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
     }
   };
 
-  const getOptionStyle = (letter: string) => {
+  const getOptionStyle = (letter: string): { className: string; style?: React.CSSProperties } => {
     // Basic Selection Style
     if (!isSubmitted) {
-      return selectedAlt === letter
-        ? `border-[var(--color-brand)] bg-gradient-to-br from-[var(--color-brand)]/10 via-transparent to-[var(--color-brand)]/5 text-[var(--color-text-main)] backdrop-blur-sm`
-        : `border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-main)]`;
+      return {
+        className: selectedAlt === letter
+          ? `border-[var(--color-brand)] bg-gradient-to-br from-[var(--color-brand)]/10 via-transparent to-[var(--color-brand)]/5 text-[var(--color-text-main)] backdrop-blur-sm`
+          : `border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-main)]`
+      };
     }
 
     // Feedback Style - Apenas a alternativa selecionada pelo usuário recebe a borda colorida
@@ -300,19 +302,28 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
     if (selectedAlt === letter) {
       if (letter === question.gabarito) {
         // Usuário acertou - borda verde
-        return `!border-[#059669] !border-[3px] bg-[#059669]/10 text-[var(--color-text-main)] font-bold`;
+        return {
+          className: 'font-bold',
+          style: { borderColor: '#059669', borderWidth: '3px', backgroundColor: 'rgba(5, 150, 105, 0.1)' }
+        };
       } else {
         // Usuário errou - borda vermelha
-        return `!border-[#dc2626] !border-[3px] bg-[#dc2626]/10 text-[var(--color-text-main)] font-bold`;
+        return {
+          className: 'font-bold',
+          style: { borderColor: '#dc2626', borderWidth: '3px', backgroundColor: 'rgba(220, 38, 38, 0.1)' }
+        };
       }
     }
 
     // Mostrar resposta correta quando usuário errou (destaque mais sutil)
     if (letter === question.gabarito && selectedAlt !== letter) {
-      return `border-[#059669] border-2 bg-[#059669]/5 text-[var(--color-text-main)]`;
+      return {
+        className: '',
+        style: { borderColor: '#059669', backgroundColor: 'rgba(5, 150, 105, 0.05)' }
+      };
     }
 
-    return `border-[var(--color-border)] opacity-40`;
+    return { className: 'border-[var(--color-border)] opacity-40' };
   };
 
   // Build stats data from real statistics or use fallback
@@ -462,11 +473,14 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
 
       {/* Alternatives */}
       <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
-        {question.parsedAlternativas.map((alt) => (
+        {question.parsedAlternativas.map((alt) => {
+          const optionStyle = getOptionStyle(alt.letter);
+          return (
           <button
             key={alt.letter}
             onClick={() => handleSelect(alt.letter)}
-            className={`w-full p-3 md:p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start group relative ${getOptionStyle(alt.letter)}`}
+            className={`w-full p-3 md:p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start group relative ${optionStyle.className}`}
+            style={optionStyle.style}
             disabled={isSubmitted}
           >
             <span className={`font-bold mr-2 md:mr-3 w-5 md:w-6 shrink-0 text-sm md:text-base ${isSubmitted && alt.letter === question.gabarito ? 'text-[#059669]' : isSubmitted && selectedAlt === alt.letter && alt.letter !== question.gabarito ? 'text-[#DC2626]' : ''}`}>
@@ -479,7 +493,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
               </div>
             )}
           </button>
-        ))}
+          );
+        })}
       </div>
 
       {/* Actions / Feedback Area */}
