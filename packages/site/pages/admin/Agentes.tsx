@@ -33,6 +33,38 @@ import { ScrapingSection } from './Settings';
 // COMPONENTES AUXILIARES
 // ============================================================================
 
+// Componente para mostrar tempo decorrido com atualização ao vivo
+const ElapsedTime: React.FC<{ startTime: Date | null }> = ({ startTime }) => {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startTime) {
+      setElapsed(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTime.getTime()) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  if (!startTime) return null;
+
+  const hours = Math.floor(elapsed / 3600);
+  const minutes = Math.floor((elapsed % 3600) / 60);
+  const seconds = elapsed % 60;
+
+  const formatNumber = (n: number) => n.toString().padStart(2, '0');
+
+  return (
+    <span className="font-mono text-sm">
+      {hours > 0 && `${hours}:`}{formatNumber(minutes)}:{formatNumber(seconds)}
+    </span>
+  );
+};
+
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
     pendente: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', label: 'Pendente' },
@@ -99,6 +131,14 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   const [isProcessingComentarios, setIsProcessingComentarios] = useState(false);
   const [isProcessingEnunciados, setIsProcessingEnunciados] = useState(false);
   const [processedCount, setProcessedCount] = useState({ comentarios: 0, enunciados: 0 });
+  const [processingStartTime, setProcessingStartTime] = useState<{ comentarios: Date | null; enunciados: Date | null }>({
+    comentarios: null,
+    enunciados: null,
+  });
+  const [lastBatchResult, setLastBatchResult] = useState<{
+    comentarios: { sucesso: number; falha: number } | null;
+    enunciados: { sucesso: number; falha: number; ignorado: number } | null;
+  }>({ comentarios: null, enunciados: null });
 
   // Refs para controle de parada (necessário para loops async)
   const shouldStopComentariosRef = useRef(false);
@@ -194,19 +234,15 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
     setIsProcessingComentarios(true);
     shouldStopComentariosRef.current = false;
     setProcessedCount(prev => ({ ...prev, comentarios: 0 }));
+    setProcessingStartTime(prev => ({ ...prev, comentarios: new Date() }));
+    setLastBatchResult(prev => ({ ...prev, comentarios: null }));
 
     const BATCH_SIZE = 50;
     let totalProcessed = 0;
+    let totalFailed = 0;
     let consecutiveEmpty = 0;
 
     while (!shouldStopComentariosRef.current) {
-      setOperationStatus({
-        type: 'processing',
-        message: 'Formatando comentários...',
-        details: `${totalProcessed} processados até agora. Processando lote de ${BATCH_SIZE}...`,
-        timestamp: new Date(),
-      });
-
       try {
         const result = await agentesService.processarPendentes(BATCH_SIZE);
 
@@ -222,7 +258,9 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
 
         const processed = (result.sucesso || 0) + (result.falha || 0);
         totalProcessed += result.sucesso || 0;
+        totalFailed += result.falha || 0;
         setProcessedCount(prev => ({ ...prev, comentarios: totalProcessed }));
+        setLastBatchResult(prev => ({ ...prev, comentarios: { sucesso: result.sucesso || 0, falha: result.falha || 0 } }));
 
         // Se não processou nada, incrementa contador de vazios
         if (processed === 0) {
@@ -232,7 +270,7 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
             setOperationStatus({
               type: 'success',
               message: 'Processamento concluído!',
-              details: `Total: ${totalProcessed} comentários formatados. Não há mais pendentes.`,
+              details: `Total: ${totalProcessed} comentários formatados, ${totalFailed} falhas. Não há mais pendentes.`,
               timestamp: new Date(),
             });
             break;
@@ -259,11 +297,12 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
     }
 
     setIsProcessingComentarios(false);
+    setProcessingStartTime(prev => ({ ...prev, comentarios: null }));
     if (shouldStopComentariosRef.current) {
       setOperationStatus({
         type: 'success',
         message: 'Processamento pausado',
-        details: `${totalProcessed} comentários formatados antes da pausa.`,
+        details: `${totalProcessed} comentários formatados, ${totalFailed} falhas antes da pausa.`,
         timestamp: new Date(),
       });
     }
@@ -279,19 +318,16 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
     setIsProcessingEnunciados(true);
     shouldStopEnunciadosRef.current = false;
     setProcessedCount(prev => ({ ...prev, enunciados: 0 }));
+    setProcessingStartTime(prev => ({ ...prev, enunciados: new Date() }));
+    setLastBatchResult(prev => ({ ...prev, enunciados: null }));
 
     const BATCH_SIZE = 30;
     let totalProcessed = 0;
+    let totalFailed = 0;
+    let totalIgnored = 0;
     let consecutiveEmpty = 0;
 
     while (!shouldStopEnunciadosRef.current) {
-      setOperationStatus({
-        type: 'processing',
-        message: 'Formatando enunciados...',
-        details: `${totalProcessed} processados até agora. Processando lote de ${BATCH_SIZE}...`,
-        timestamp: new Date(),
-      });
-
       try {
         const result = await agentesService.processarEnunciados(BATCH_SIZE);
 
@@ -307,7 +343,13 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
 
         const processed = (result.sucesso || 0) + (result.falha || 0) + (result.ignorado || 0);
         totalProcessed += (result.sucesso || 0);
+        totalFailed += (result.falha || 0);
+        totalIgnored += (result.ignorado || 0);
         setProcessedCount(prev => ({ ...prev, enunciados: totalProcessed }));
+        setLastBatchResult(prev => ({
+          ...prev,
+          enunciados: { sucesso: result.sucesso || 0, falha: result.falha || 0, ignorado: result.ignorado || 0 }
+        }));
 
         // Se não processou nada, incrementa contador de vazios
         if (processed === 0) {
@@ -317,7 +359,7 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
             setOperationStatus({
               type: 'success',
               message: 'Processamento concluído!',
-              details: `Total: ${totalProcessed} enunciados formatados. Não há mais pendentes.`,
+              details: `Total: ${totalProcessed} formatados, ${totalFailed} falhas, ${totalIgnored} ignorados.`,
               timestamp: new Date(),
             });
             break;
@@ -344,11 +386,12 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
     }
 
     setIsProcessingEnunciados(false);
+    setProcessingStartTime(prev => ({ ...prev, enunciados: null }));
     if (shouldStopEnunciadosRef.current) {
       setOperationStatus({
         type: 'success',
         message: 'Processamento pausado',
-        details: `${totalProcessed} enunciados formatados antes da pausa.`,
+        details: `${totalProcessed} formatados, ${totalFailed} falhas, ${totalIgnored} ignorados antes da pausa.`,
         timestamp: new Date(),
       });
     }
@@ -471,15 +514,85 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
       {/* Tab Content */}
       {activeTab === 'comentarios' && (
         <div className="space-y-6">
-          {/* Ações */}
-          <div className="bg-brand-card border border-white/5 rounded-sm p-6">
-            <h3 className="text-white font-bold mb-4">Processar Comentários</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              O agente de IA irá formatar todos os comentários das questões automaticamente, processando em lotes até concluir.
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Botão Iniciar/Parar */}
-              {!isProcessingComentarios ? (
+          {/* Card de Processamento Ativo */}
+          {isProcessingComentarios && (
+            <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg p-6 ">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-500/30 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-lg">Formatando Comentários</h3>
+                    <p className="text-blue-300 text-sm">Agente de IA trabalhando...</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handlePararComentarios}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-colors"
+                >
+                  <Square className="w-4 h-4" />
+                  Parar
+                </button>
+              </div>
+
+              {/* Contador principal */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="bg-black/30 rounded-lg p-4 text-center">
+                  <div className="text-4xl font-bold text-green-400 tabular-nums">
+                    {processedCount.comentarios.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-green-400/70 uppercase tracking-wider mt-1">Formatados</div>
+                </div>
+                <div className="bg-black/30 rounded-lg p-4 text-center">
+                  <div className="text-4xl font-bold text-yellow-400 tabular-nums">
+                    {queueStats?.pendente?.toLocaleString() || '—'}
+                  </div>
+                  <div className="text-xs text-yellow-400/70 uppercase tracking-wider mt-1">Pendentes</div>
+                </div>
+                <div className="bg-black/30 rounded-lg p-4 text-center">
+                  <div className="text-4xl font-bold text-blue-400">
+                    <ElapsedTime startTime={processingStartTime.comentarios} />
+                  </div>
+                  <div className="text-xs text-blue-400/70 uppercase tracking-wider mt-1">Tempo</div>
+                </div>
+                <div className="bg-black/30 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-300">
+                    {lastBatchResult.comentarios ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="text-green-400">+{lastBatchResult.comentarios.sucesso}</span>
+                        {lastBatchResult.comentarios.falha > 0 && (
+                          <span className="text-red-400">-{lastBatchResult.comentarios.falha}</span>
+                        )}
+                      </span>
+                    ) : '—'}
+                  </div>
+                  <div className="text-xs text-gray-400/70 uppercase tracking-wider mt-1">Último Lote</div>
+                </div>
+              </div>
+
+              {/* Barra de progresso animada */}
+              {queueStats && (queueStats.pendente + queueStats.concluido) > 0 && (
+                <div className="h-2 bg-black/30 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-500"
+                    style={{
+                      width: `${(queueStats.concluido / (queueStats.pendente + queueStats.concluido + queueStats.processando)) * 100}%`,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Ações (quando não está processando) */}
+          {!isProcessingComentarios && (
+            <div className="bg-brand-card border border-white/5 rounded-sm p-6">
+              <h3 className="text-white font-bold mb-4">Processar Comentários</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                O agente de IA irá formatar todos os comentários das questões automaticamente, processando em lotes até concluir.
+              </p>
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   onClick={handleIniciarComentarios}
                   disabled={queueStats?.pendente === 0}
@@ -488,38 +601,22 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
                   <Play className="w-4 h-4" />
                   Iniciar Formatação
                 </button>
-              ) : (
-                <button
-                  onClick={handlePararComentarios}
-                  className="flex items-center gap-2 px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-colors"
-                >
-                  <Square className="w-4 h-4" />
-                  Parar
-                </button>
-              )}
 
-              {/* Status de processamento */}
-              {isProcessingComentarios && (
-                <span className="text-blue-400 text-sm flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {processedCount.comentarios} formatados...
-                </span>
-              )}
-
-              {/* Info de pendentes */}
-              {!isProcessingComentarios && queueStats && queueStats.pendente > 0 && (
-                <span className="text-yellow-400 text-sm">
-                  {queueStats.pendente.toLocaleString()} pendentes
-                </span>
-              )}
-              {!isProcessingComentarios && queueStats && queueStats.pendente === 0 && (
-                <span className="text-green-400 text-sm flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Todos os comentários foram formatados!
-                </span>
-              )}
+                {/* Info de pendentes */}
+                {queueStats && queueStats.pendente > 0 && (
+                  <span className="text-yellow-400 text-sm">
+                    {queueStats.pendente.toLocaleString()} pendentes
+                  </span>
+                )}
+                {queueStats && queueStats.pendente === 0 && (
+                  <span className="text-green-400 text-sm flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Todos os comentários foram formatados!
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Card de Estatísticas da Fila */}
           {queueStats && (
@@ -855,15 +952,96 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
 
       {activeTab === 'enunciados' && (
         <div className="space-y-6">
-          {/* Ações de Enunciados */}
-          <div className="bg-brand-card border border-white/5 rounded-sm p-6">
-            <h3 className="text-white font-bold mb-4">Processar Enunciados</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              O agente de IA irá formatar todos os enunciados automaticamente, convertendo para Markdown com parágrafos, títulos, citações e imagens embedadas.
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Botão Iniciar/Parar */}
-              {!isProcessingEnunciados ? (
+          {/* Card de Processamento Ativo */}
+          {isProcessingEnunciados && (
+            <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-6 ">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-purple-500/30 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-lg">Formatando Enunciados</h3>
+                    <p className="text-purple-300 text-sm">Agente de IA trabalhando...</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handlePararEnunciados}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-colors"
+                >
+                  <Square className="w-4 h-4" />
+                  Parar
+                </button>
+              </div>
+
+              {/* Contador principal */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                <div className="bg-black/30 rounded-lg p-4 text-center">
+                  <div className="text-4xl font-bold text-green-400 tabular-nums">
+                    {processedCount.enunciados.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-green-400/70 uppercase tracking-wider mt-1">Formatados</div>
+                </div>
+                <div className="bg-black/30 rounded-lg p-4 text-center">
+                  <div className="text-4xl font-bold text-yellow-400 tabular-nums">
+                    {enunciadoStats?.pendente?.toLocaleString() || '—'}
+                  </div>
+                  <div className="text-xs text-yellow-400/70 uppercase tracking-wider mt-1">Pendentes</div>
+                </div>
+                <div className="bg-black/30 rounded-lg p-4 text-center">
+                  <div className="text-4xl font-bold text-purple-400">
+                    <ElapsedTime startTime={processingStartTime.enunciados} />
+                  </div>
+                  <div className="text-xs text-purple-400/70 uppercase tracking-wider mt-1">Tempo</div>
+                </div>
+                <div className="bg-black/30 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-300">
+                    {lastBatchResult.enunciados ? (
+                      <span className="flex items-center justify-center gap-1 text-lg">
+                        <span className="text-green-400">+{lastBatchResult.enunciados.sucesso}</span>
+                        {lastBatchResult.enunciados.falha > 0 && (
+                          <span className="text-red-400">-{lastBatchResult.enunciados.falha}</span>
+                        )}
+                        {lastBatchResult.enunciados.ignorado > 0 && (
+                          <span className="text-gray-400">~{lastBatchResult.enunciados.ignorado}</span>
+                        )}
+                      </span>
+                    ) : '—'}
+                  </div>
+                  <div className="text-xs text-gray-400/70 uppercase tracking-wider mt-1">Último Lote</div>
+                </div>
+                <div className="bg-black/30 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-400 tabular-nums">
+                    {processingStartTime.enunciados && processedCount.enunciados > 0 ? (
+                      Math.round(processedCount.enunciados / ((Date.now() - processingStartTime.enunciados.getTime()) / 60000))
+                    ) : '—'}
+                  </div>
+                  <div className="text-xs text-blue-400/70 uppercase tracking-wider mt-1">por min</div>
+                </div>
+              </div>
+
+              {/* Barra de progresso animada */}
+              {enunciadoStats && enunciadoStats.total > 0 && (
+                <div className="h-2 bg-black/30 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-purple-500 to-pink-400 transition-all duration-500"
+                    style={{
+                      width: `${(enunciadoStats.concluido / enunciadoStats.total) * 100}%`,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Ações de Enunciados (quando não está processando) */}
+          {!isProcessingEnunciados && (
+            <div className="bg-brand-card border border-white/5 rounded-sm p-6">
+              <h3 className="text-white font-bold mb-4">Processar Enunciados</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                O agente de IA irá formatar todos os enunciados automaticamente, convertendo para Markdown com parágrafos, títulos, citações e imagens embedadas.
+              </p>
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   onClick={handleIniciarEnunciados}
                   disabled={enunciadoStats?.pendente === 0}
@@ -872,38 +1050,22 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
                   <Play className="w-4 h-4" />
                   Iniciar Formatação
                 </button>
-              ) : (
-                <button
-                  onClick={handlePararEnunciados}
-                  className="flex items-center gap-2 px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-colors"
-                >
-                  <Square className="w-4 h-4" />
-                  Parar
-                </button>
-              )}
 
-              {/* Status de processamento */}
-              {isProcessingEnunciados && (
-                <span className="text-blue-400 text-sm flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {processedCount.enunciados} formatados...
-                </span>
-              )}
-
-              {/* Info de pendentes */}
-              {!isProcessingEnunciados && enunciadoStats && enunciadoStats.pendente > 0 && (
-                <span className="text-yellow-400 text-sm">
-                  {enunciadoStats.pendente.toLocaleString()} pendentes
-                </span>
-              )}
-              {!isProcessingEnunciados && enunciadoStats && enunciadoStats.pendente === 0 && (
-                <span className="text-green-400 text-sm flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Todos os enunciados foram formatados!
-                </span>
-              )}
+                {/* Info de pendentes */}
+                {enunciadoStats && enunciadoStats.pendente > 0 && (
+                  <span className="text-yellow-400 text-sm">
+                    {enunciadoStats.pendente.toLocaleString()} pendentes
+                  </span>
+                )}
+                {enunciadoStats && enunciadoStats.pendente === 0 && (
+                  <span className="text-green-400 text-sm flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Todos os enunciados foram formatados!
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Card de Estatísticas de Enunciados */}
           {enunciadoStats && (
