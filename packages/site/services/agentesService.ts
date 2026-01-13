@@ -63,8 +63,18 @@ export interface ProcessarFilaResponse {
   success: boolean;
   sucesso?: number;
   falha?: number;
+  ignorado?: number;
   message?: string;
   error?: string;
+}
+
+export interface EnunciadoFormatStats {
+  total: number;
+  pendente: number;
+  processando: number;
+  concluido: number;
+  falha: number;
+  ignorado: number;
 }
 
 export interface PopularFilaResponse {
@@ -245,6 +255,56 @@ export const agentesService = {
     }
 
     return data.questao;
+  },
+
+  // ============================================================================
+  // FORMATADOR DE ENUNCIADOS (via Mastra API)
+  // ============================================================================
+
+  // --------------------------------------------------------------------------
+  // Estatísticas do Formatador de Enunciados
+  // --------------------------------------------------------------------------
+  async getEnunciadoStats(): Promise<EnunciadoFormatStats> {
+    const response = await fetch(`${MASTRA_URL}/api/enunciados/fila-formatacao/status`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Erro ao buscar estatísticas de enunciados');
+    }
+
+    return {
+      total: data.total || 0,
+      pendente: data.pendente || 0,
+      processando: data.processando || 0,
+      concluido: data.concluido || 0,
+      falha: data.falha || 0,
+      ignorado: data.ignorado || 0,
+    };
+  },
+
+  // --------------------------------------------------------------------------
+  // Processar enunciados pendentes
+  // --------------------------------------------------------------------------
+  async processarEnunciados(limite: number = 50): Promise<ProcessarFilaResponse> {
+    const response = await fetch(`${MASTRA_URL}/api/enunciados/processar-pendentes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limite }),
+    });
+
+    return response.json();
+  },
+
+  // --------------------------------------------------------------------------
+  // Resetar falhas de enunciados
+  // --------------------------------------------------------------------------
+  async resetarFalhasEnunciados(): Promise<{ success: boolean; resetadas?: number; error?: string }> {
+    const response = await fetch(`${MASTRA_URL}/api/enunciados/fila-formatacao/resetar-falhas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    return response.json();
   },
 };
 

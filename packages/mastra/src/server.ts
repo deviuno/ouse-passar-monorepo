@@ -6915,6 +6915,489 @@ app.post('/api/comentarios/fila-formatacao/resetar-falhas', async (req, res) => 
 });
 
 // ============================================================================
+// ENUNCIADO FORMATTER - Endpoints para formatação de enunciados
+// ============================================================================
+
+// Status da fila de formatação de enunciados
+app.get('/api/enunciados/fila-formatacao/status', async (req, res) => {
+    try {
+        // Contar total de questões
+        const { count: total } = await questionsDb
+            .from('questoes_concurso')
+            .select('*', { count: 'exact', head: true });
+
+        // Contar formatadas
+        const { count: formatadas } = await questionsDb
+            .from('questoes_concurso')
+            .select('*', { count: 'exact', head: true })
+            .eq('enunciado_formatado', true);
+
+        // Contar da fila (para processando e falhas)
+        const { data: filaStatus } = await questionsDb
+            .from('enunciados_pendentes_formatacao')
+            .select('status');
+
+        let processando = 0;
+        let falha = 0;
+        let ignorado = 0;
+        for (const item of filaStatus || []) {
+            if (item.status === 'processando') processando++;
+            if (item.status === 'falha') falha++;
+            if (item.status === 'ignorado') ignorado++;
+        }
+
+        const pendentes = (total || 0) - (formatadas || 0) - ignorado;
+
+        return res.json({
+            success: true,
+            total: total || 0,
+            pendente: Math.max(0, pendentes),
+            processando,
+            concluido: formatadas || 0,
+            falha,
+            ignorado
+        });
+
+    } catch (error: any) {
+        console.error("[EnunciadoFormatter] Erro ao buscar status:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Processar enunciados pendentes
+app.post('/api/enunciados/processar-pendentes', async (req, res) => {
+    try {
+        const { limite = 50 } = req.body;
+
+        console.log(`[EnunciadoFormatter] Processando ${limite} questões pendentes...`);
+
+        // Buscar questões que precisam ser formatadas (incluindo imagens)
+        const { data: questoes, error: fetchError } = await questionsDb
+            .from('questoes_concurso')
+            .select('id, enunciado, materia, imagens_enunciado')
+            .not('enunciado', 'is', null)
+            .or('enunciado_formatado.is.null,enunciado_formatado.eq.false')
+            .limit(limite);
+
+        if (fetchError) {
+            console.error('[EnunciadoFormatter] Erro ao buscar questões:', fetchError);
+            return res.status(500).json({
+                success: false,
+                error: 'Erro ao buscar questões pendentes'
+            });
+        }
+
+        if (!questoes || questoes.length === 0) {
+            return res.json({
+                success: true,
+                message: 'Nenhuma questão pendente para processar',
+                sucesso: 0,
+                falha: 0,
+                ignorado: 0,
+                total: 0
+            });
+        }
+
+        console.log(`[EnunciadoFormatter] Encontradas ${questoes.length} questões para processar`);
+
+        const agent = mastra.getAgent("enunciadoFormatterAgent");
+        if (!agent) {
+            console.error('[EnunciadoFormatter] Agente não encontrado');
+            return res.status(500).json({
+                success: false,
+                error: "Agente de formatação de enunciados não encontrado"
+            });
+        }
+
+        let sucesso = 0;
+        let falha = 0;
+        let ignorado = 0;
+
+        for (const questao of questoes) {
+            try {
+                if (!questao.enunciado || questao.enunciado.trim() === '') {
+                    ignorado++;
+                    continue;
+                }
+
+                // Verificar se precisa de formatação:
+                // - Tem HTML (tags, comentários Angular)
+                // - Tem imagens não embedadas
+                // - É texto corrido (poucas quebras de linha)
+                const hasHtml = /<[^>]+>|<!--/.test(questao.enunciado);
+                const hasImages = questao.imagens_enunciado &&
+                    questao.imagens_enunciado !== '[]' &&
+                    questao.imagens_enunciado !== '{}' &&
+                    !questao.imagens_enunciado.includes('icone-aviso');
+                const lineBreaks = (questao.enunciado.match(/\n/g) || []).length;
+
+                // Só pular se já está bem formatado E não tem HTML E não tem imagens pendentes
+                if (lineBreaks > 3 && !hasHtml && !hasImages) {
+                    await questionsDb
+                        .from('questoes_concurso')
+                        .update({ enunciado_formatado: true })
+                        .eq('id', questao.id);
+                    ignorado++;
+                    continue;
+                }
+
+                // Preparar lista de imagens
+                let imagensArray: string[] = [];
+                if (questao.imagens_enunciado) {
+                    try {
+                        // Pode vir como array JSON ou como string com chaves
+                        let imgStr = questao.imagens_enunciado;
+                        if (imgStr.startsWith('{') && imgStr.endsWith('}')) {
+                            // Formato: {url1,url2}
+                            imgStr = '[' + imgStr.slice(1, -1).split(',').map((u: string) => `"${u.trim()}"`).join(',') + ']';
+                        }
+                        imagensArray = JSON.parse(imgStr);
+                        // Filtrar ícones de aviso
+                        imagensArray = imagensArray.filter((url: string) => !url.includes('icone-aviso'));
+                    } catch (e) {
+                        // Ignorar erro de parse
+                    }
+                }
+
+                // Montar prompt com imagens
+                let prompt = `Formate o seguinte enunciado de questão de concurso:
+
+ENUNCIADO:
+${questao.enunciado}`;
+
+                if (imagensArray.length > 0) {
+                    prompt += `
+
+IMAGENS (embede no local apropriado do texto):
+${JSON.stringify(imagensArray)}`;
+                }
+
+                const response = await agent.generate(prompt);
+                const responseText = typeof response.text === 'string' ? response.text : String(response.text);
+
+                // Limpar resposta e fazer parse do JSON
+                let cleanedResponse = responseText
+                    .replace(/```json\s*/g, '')
+                    .replace(/```\s*/g, '')
+                    .trim();
+
+                let result;
+                try {
+                    result = JSON.parse(cleanedResponse);
+                } catch (parseError) {
+                    console.error(`[EnunciadoFormatter] Erro ao parsear resposta para questão ${questao.id}`);
+                    falha++;
+
+                    await questionsDb
+                        .from('enunciados_pendentes_formatacao')
+                        .update({
+                            status: 'falha',
+                            erro: 'Erro ao parsear resposta da IA',
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', questao.id);
+                    continue;
+                }
+
+                // Verificar se temos um enunciado formatado válido
+                if (!result.enunciadoFormatado || result.confianca < 0.5) {
+                    // Confiança baixa - ignorar
+                    await questionsDb
+                        .from('enunciados_pendentes_formatacao')
+                        .update({
+                            status: 'ignorado',
+                            erro: `Confiança baixa: ${result.confianca}`,
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', questao.id);
+
+                    // Marcar como formatado para não reprocessar
+                    await questionsDb
+                        .from('questoes_concurso')
+                        .update({ enunciado_formatado: true })
+                        .eq('id', questao.id);
+
+                    ignorado++;
+                    continue;
+                }
+
+                // Atualizar questão com enunciado formatado
+                const { error: updateError } = await questionsDb
+                    .from('questoes_concurso')
+                    .update({
+                        enunciado: result.enunciadoFormatado,
+                        enunciado_formatado: true
+                    })
+                    .eq('id', questao.id);
+
+                if (updateError) {
+                    console.error(`[EnunciadoFormatter] Erro ao atualizar questão ${questao.id}:`, updateError);
+
+                    await questionsDb
+                        .from('enunciados_pendentes_formatacao')
+                        .update({
+                            status: 'falha',
+                            erro: 'Erro ao salvar no banco',
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', questao.id);
+
+                    falha++;
+                } else {
+                    await questionsDb
+                        .from('enunciados_pendentes_formatacao')
+                        .update({
+                            status: 'concluido',
+                            erro: null,
+                            processed_at: new Date().toISOString()
+                        })
+                        .eq('questao_id', questao.id);
+
+                    sucesso++;
+                }
+
+            } catch (itemError: any) {
+                console.error(`[EnunciadoFormatter] Erro na questão ${questao.id}:`, itemError);
+                falha++;
+            }
+        }
+
+        console.log(`[EnunciadoFormatter] Processamento concluído: ${sucesso} sucesso, ${falha} falhas, ${ignorado} ignorados`);
+
+        return res.json({
+            success: true,
+            sucesso,
+            falha,
+            ignorado,
+            total: questoes.length,
+            message: `Processadas ${sucesso} questões com sucesso`
+        });
+
+    } catch (error: any) {
+        console.error("[EnunciadoFormatter] Erro geral:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Formatar um enunciado específico
+app.post('/api/enunciado/formatar', async (req, res) => {
+    try {
+        const { questaoId } = req.body;
+
+        if (!questaoId) {
+            return res.status(400).json({
+                success: false,
+                error: "ID da questão é obrigatório"
+            });
+        }
+
+        console.log(`[EnunciadoFormatter] Processando questão ${questaoId}...`);
+
+        // Buscar dados da questão (incluindo imagens)
+        const { data: questao, error: fetchError } = await questionsDb
+            .from('questoes_concurso')
+            .select('id, enunciado, enunciado_formatado, materia, imagens_enunciado')
+            .eq('id', questaoId)
+            .single();
+
+        if (fetchError || !questao) {
+            console.error('[EnunciadoFormatter] Questão não encontrada:', fetchError);
+            return res.status(404).json({
+                success: false,
+                error: "Questão não encontrada"
+            });
+        }
+
+        if (!questao.enunciado || questao.enunciado.trim() === '') {
+            return res.json({
+                success: true,
+                formatted: false,
+                reason: "Questão sem enunciado"
+            });
+        }
+
+        if (questao.enunciado_formatado) {
+            return res.json({
+                success: true,
+                formatted: false,
+                reason: "Enunciado já foi formatado"
+            });
+        }
+
+        // Chamar agente de IA
+        const agent = mastra.getAgent("enunciadoFormatterAgent");
+        if (!agent) {
+            console.error('[EnunciadoFormatter] Agente não encontrado');
+            return res.status(500).json({
+                success: false,
+                error: "Agente não encontrado"
+            });
+        }
+
+        // Preparar lista de imagens
+        let imagensArray: string[] = [];
+        if (questao.imagens_enunciado) {
+            try {
+                let imgStr = questao.imagens_enunciado;
+                if (imgStr.startsWith('{') && imgStr.endsWith('}')) {
+                    imgStr = '[' + imgStr.slice(1, -1).split(',').map((u: string) => `"${u.trim()}"`).join(',') + ']';
+                }
+                imagensArray = JSON.parse(imgStr);
+                imagensArray = imagensArray.filter((url: string) => !url.includes('icone-aviso'));
+            } catch (e) {
+                // Ignorar erro de parse
+            }
+        }
+
+        // Montar prompt com imagens
+        let prompt = `Formate o seguinte enunciado de questão de concurso:
+
+ENUNCIADO:
+${questao.enunciado}`;
+
+        if (imagensArray.length > 0) {
+            prompt += `
+
+IMAGENS (embede no local apropriado do texto):
+${JSON.stringify(imagensArray)}`;
+        }
+
+        const response = await agent.generate(prompt);
+        const responseText = typeof response.text === 'string' ? response.text : String(response.text);
+
+        // Limpar resposta e fazer parse do JSON
+        let cleanedResponse = responseText
+            .replace(/```json\s*/g, '')
+            .replace(/```\s*/g, '')
+            .trim();
+
+        let result;
+        try {
+            result = JSON.parse(cleanedResponse);
+        } catch (parseError) {
+            console.error('[EnunciadoFormatter] Erro ao parsear resposta:', parseError);
+            return res.json({
+                success: true,
+                formatted: false,
+                reason: "Erro ao parsear resposta da IA"
+            });
+        }
+
+        // Verificar se temos um enunciado formatado válido
+        if (!result.enunciadoFormatado || result.confianca < 0.5) {
+            return res.json({
+                success: true,
+                formatted: false,
+                reason: result.motivo || "Formatação com baixa confiança"
+            });
+        }
+
+        // Atualizar questão com enunciado formatado
+        const { error: updateError } = await questionsDb
+            .from('questoes_concurso')
+            .update({
+                enunciado: result.enunciadoFormatado,
+                enunciado_formatado: true
+            })
+            .eq('id', questaoId);
+
+        if (updateError) {
+            console.error('[EnunciadoFormatter] Erro ao atualizar questão:', updateError);
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao salvar no banco"
+            });
+        }
+
+        return res.json({
+            success: true,
+            formatted: true,
+            alteracoes: result.alteracoes,
+            confianca: result.confianca
+        });
+
+    } catch (error: any) {
+        console.error("[EnunciadoFormatter] Erro:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Resetar falhas para reprocessamento
+app.post('/api/enunciados/fila-formatacao/resetar-falhas', async (req, res) => {
+    try {
+        const { limite = 500 } = req.body;
+
+        // Buscar questões com falha
+        const { data: falhas, error: fetchError } = await questionsDb
+            .from('enunciados_pendentes_formatacao')
+            .select('questao_id')
+            .eq('status', 'falha')
+            .limit(limite);
+
+        if (fetchError) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao buscar falhas"
+            });
+        }
+
+        if (!falhas || falhas.length === 0) {
+            return res.json({
+                success: true,
+                message: "Nenhuma falha para resetar",
+                resetadas: 0
+            });
+        }
+
+        // Resetar para pendente
+        const { error: updateError } = await questionsDb
+            .from('enunciados_pendentes_formatacao')
+            .update({
+                status: 'pendente',
+                erro: null,
+                processed_at: null
+            })
+            .in('questao_id', falhas.map(f => f.questao_id));
+
+        if (updateError) {
+            return res.status(500).json({
+                success: false,
+                error: "Erro ao resetar falhas"
+            });
+        }
+
+        // Também resetar a flag nas questões
+        await questionsDb
+            .from('questoes_concurso')
+            .update({ enunciado_formatado: false })
+            .in('id', falhas.map(f => f.questao_id));
+
+        console.log(`[EnunciadoFormatter] ${falhas.length} falhas resetadas para reprocessamento`);
+
+        return res.json({
+            success: true,
+            resetadas: falhas.length
+        });
+
+    } catch (error: any) {
+        console.error("[EnunciadoFormatter] Erro ao resetar falhas:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// ============================================================================
 // ADMIN PANEL - Endpoints para interface de monitoramento
 // ============================================================================
 

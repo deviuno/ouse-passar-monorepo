@@ -10,6 +10,7 @@ import { provaAnalyzerAgent } from "./agents/provaAnalyzerAgent.js";
 import { filtrosAdapterAgent } from "./agents/filtrosAdapterAgent.js";
 import { gabaritoExtractorAgent } from "./agents/gabaritoExtractorAgent.js";
 import { comentarioFormatterAgent } from "./agents/comentarioFormatterAgent.js";
+import { enunciadoFormatterAgent } from "./agents/enunciadoFormatterAgent.js";
 import { assuntosTaxonomiaAgent } from "./agents/assuntosTaxonomiaAgent.js";
 import { editalFilterAutoConfigAgent } from "./agents/editalFilterAutoConfigAgent.js";
 import { questionGeneratorAgent } from "./agents/questionGeneratorAgent.js";
@@ -29,6 +30,7 @@ export const mastra = new Mastra({
         filtrosAdapterAgent,
         gabaritoExtractorAgent,
         comentarioFormatterAgent,
+        enunciadoFormatterAgent,
         assuntosTaxonomiaAgent,
         editalFilterAutoConfigAgent,
         questionGeneratorAgent,

@@ -82,10 +82,23 @@ import {
   planejamentoConquistasService,
   REQUISITO_TIPO_LABELS,
 } from '../../services/planejamentoConquistasService';
-import {
-  PlanejamentoConquista,
-  PlanejamentoConquistaRequisitoTipo,
-} from '../../lib/database.types';
+
+// Defining locally as they are missing in database.types
+interface PlanejamentoConquista {
+  id: string;
+  nome: string;
+  descricao?: string;
+  icone: string;
+  cor: string;
+  requisito_tipo: string;
+  requisito_valor: number;
+  xp_recompensa: number;
+  moedas_recompensa: number;
+  is_active: boolean;
+  is_hidden: boolean;
+}
+type PlanejamentoConquistaRequisitoTipo = string;
+
 import {
   getAllLegalTexts,
   updateLegalText,
@@ -137,8 +150,8 @@ interface SystemSetting {
   key: string;
   value: any;
   description: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 interface BlogSettings {
@@ -541,9 +554,8 @@ function TutorialSection({ tabId }: { tabId: string }) {
           </span>
         </div>
         <ChevronDown
-          className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
-          }`}
+          className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''
+            }`}
         />
       </button>
       {isOpen && (
@@ -1052,11 +1064,10 @@ function EmailsSection() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-bold uppercase tracking-wide whitespace-nowrap transition-colors border-b-2 -mb-px ${
-                isActive
-                  ? 'text-brand-yellow border-brand-yellow'
-                  : 'text-gray-400 border-transparent hover:text-white hover:border-white/20'
-              }`}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-bold uppercase tracking-wide whitespace-nowrap transition-colors border-b-2 -mb-px ${isActive
+                ? 'text-brand-yellow border-brand-yellow'
+                : 'text-gray-400 border-transparent hover:text-white hover:border-white/20'
+                }`}
             >
               <Icon className="w-4 h-4" />
               {tab.label}
@@ -1075,15 +1086,13 @@ function EmailsSection() {
               <label className="flex items-center gap-3 cursor-pointer">
                 <span className="text-gray-400 text-sm">E-mails ativos</span>
                 <div
-                  className={`relative w-12 h-6 rounded-full transition-colors ${
-                    settings.emails_ativos ? 'bg-green-500' : 'bg-gray-600'
-                  }`}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${settings.emails_ativos ? 'bg-green-500' : 'bg-gray-600'
+                    }`}
                   onClick={() => setSettings({ ...settings, emails_ativos: !settings.emails_ativos })}
                 >
                   <div
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                      settings.emails_ativos ? 'translate-x-7' : 'translate-x-1'
-                    }`}
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${settings.emails_ativos ? 'translate-x-7' : 'translate-x-1'
+                      }`}
                   />
                 </div>
               </label>
@@ -1207,22 +1216,20 @@ function EmailsSection() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setPreviewTemplate(previewTemplate?.id === template.id ? null : template)}
-                    className={`p-2 rounded transition-colors ${
-                      previewTemplate?.id === template.id
-                        ? 'bg-brand-yellow/20 text-brand-yellow'
-                        : 'text-gray-400 hover:text-white hover:bg-white/10'
-                    }`}
+                    className={`p-2 rounded transition-colors ${previewTemplate?.id === template.id
+                      ? 'bg-brand-yellow/20 text-brand-yellow'
+                      : 'text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
                     title="Visualizar"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setEditingTemplate(editingTemplate?.id === template.id ? null : template)}
-                    className={`p-2 rounded transition-colors ${
-                      editingTemplate?.id === template.id
-                        ? 'bg-blue-500/20 text-blue-400'
-                        : 'text-gray-400 hover:text-white hover:bg-white/10'
-                    }`}
+                    className={`p-2 rounded transition-colors ${editingTemplate?.id === template.id
+                      ? 'bg-blue-500/20 text-blue-400'
+                      : 'text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
                     title="Editar"
                   >
                     <Pencil className="w-4 h-4" />
@@ -1382,11 +1389,10 @@ function EmailsSection() {
                         <button
                           type="button"
                           onClick={() => setShowPlainTextPreview(false)}
-                          className={`px-3 py-1 text-xs font-bold uppercase rounded-sm transition-colors ${
-                            !showPlainTextPreview
-                              ? 'bg-brand-yellow text-brand-darker'
-                              : 'text-gray-400 hover:text-white'
-                          }`}
+                          className={`px-3 py-1 text-xs font-bold uppercase rounded-sm transition-colors ${!showPlainTextPreview
+                            ? 'bg-brand-yellow text-brand-darker'
+                            : 'text-gray-400 hover:text-white'
+                            }`}
                         >
                           <Pencil className="w-3 h-3 inline mr-1" />
                           Editar
@@ -1394,11 +1400,10 @@ function EmailsSection() {
                         <button
                           type="button"
                           onClick={() => setShowPlainTextPreview(true)}
-                          className={`px-3 py-1 text-xs font-bold uppercase rounded-sm transition-colors ${
-                            showPlainTextPreview
-                              ? 'bg-brand-yellow text-brand-darker'
-                              : 'text-gray-400 hover:text-white'
-                          }`}
+                          className={`px-3 py-1 text-xs font-bold uppercase rounded-sm transition-colors ${showPlainTextPreview
+                            ? 'bg-brand-yellow text-brand-darker'
+                            : 'text-gray-400 hover:text-white'
+                            }`}
                         >
                           <Eye className="w-3 h-3 inline mr-1" />
                           Preview
@@ -1500,10 +1505,9 @@ function EmailsSection() {
                     <p className="text-gray-500 text-sm truncate">{log.assunto}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className={`text-sm font-medium ${
-                      log.status === 'sent' ? 'text-green-500' :
+                    <p className={`text-sm font-medium ${log.status === 'sent' ? 'text-green-500' :
                       log.status === 'failed' ? 'text-red-500' : 'text-yellow-500'
-                    }`}>
+                      }`}>
                       {log.status === 'sent' ? 'Enviado' : log.status === 'failed' ? 'Falhou' : 'Pendente'}
                     </p>
                     <p className="text-gray-600 text-xs">
@@ -2460,33 +2464,30 @@ export function ScrapingSection() {
         <div className="flex border-b border-white/10">
           <button
             onClick={() => setActiveTab('cadernos')}
-            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
-              activeTab === 'cadernos'
-                ? 'text-brand-yellow border-b-2 border-brand-yellow bg-brand-yellow/5'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${activeTab === 'cadernos'
+              ? 'text-brand-yellow border-b-2 border-brand-yellow bg-brand-yellow/5'
+              : 'text-gray-400 hover:text-white'
+              }`}
           >
             <FolderOpen className="w-4 h-4" />
             Cadernos
           </button>
           <button
             onClick={() => setActiveTab('contas')}
-            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
-              activeTab === 'contas'
-                ? 'text-brand-yellow border-b-2 border-brand-yellow bg-brand-yellow/5'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${activeTab === 'contas'
+              ? 'text-brand-yellow border-b-2 border-brand-yellow bg-brand-yellow/5'
+              : 'text-gray-400 hover:text-white'
+              }`}
           >
             <Users className="w-4 h-4" />
             Contas
           </button>
           <button
             onClick={() => setActiveTab('configuracoes')}
-            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
-              activeTab === 'configuracoes'
-                ? 'text-brand-yellow border-b-2 border-brand-yellow bg-brand-yellow/5'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${activeTab === 'configuracoes'
+              ? 'text-brand-yellow border-b-2 border-brand-yellow bg-brand-yellow/5'
+              : 'text-gray-400 hover:text-white'
+              }`}
           >
             <SettingsIcon className="w-4 h-4" />
             Configurações
@@ -2839,15 +2840,13 @@ export function ScrapingSection() {
                             type="button"
                             onClick={() => handleToggleAccountActive(account.id, account.is_active)}
                             disabled={actionLoading === account.id}
-                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                              account.is_active ? 'bg-green-500' : 'bg-white/20'
-                            } ${actionLoading === account.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${account.is_active ? 'bg-green-500' : 'bg-white/20'
+                              } ${actionLoading === account.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                             title={account.is_active ? 'Desativar conta' : 'Ativar conta'}
                           >
                             <span
-                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                                account.is_active ? 'translate-x-5' : 'translate-x-1'
-                              }`}
+                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${account.is_active ? 'translate-x-5' : 'translate-x-1'
+                                }`}
                             />
                           </button>
                           <span className={`text-xs ${account.is_active ? 'text-green-400' : 'text-gray-500'}`}>
@@ -3006,14 +3005,12 @@ export function ScrapingSection() {
                     <button
                       type="button"
                       onClick={() => updateSetting('randomize_accounts', !settings.randomize_accounts)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.randomize_accounts ? 'bg-brand-yellow' : 'bg-white/20'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.randomize_accounts ? 'bg-brand-yellow' : 'bg-white/20'
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          settings.randomize_accounts ? 'translate-x-6' : 'translate-x-1'
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.randomize_accounts ? 'translate-x-6' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                   </label>
@@ -3025,14 +3022,12 @@ export function ScrapingSection() {
                     <button
                       type="button"
                       onClick={() => updateSetting('randomize_cadernos', !settings.randomize_cadernos)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.randomize_cadernos ? 'bg-brand-yellow' : 'bg-white/20'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.randomize_cadernos ? 'bg-brand-yellow' : 'bg-white/20'
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          settings.randomize_cadernos ? 'translate-x-6' : 'translate-x-1'
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.randomize_cadernos ? 'translate-x-6' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                   </label>
@@ -3084,14 +3079,12 @@ export function ScrapingSection() {
                     <button
                       type="button"
                       onClick={() => updateSetting('retry_on_error', !settings.retry_on_error)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.retry_on_error ? 'bg-brand-yellow' : 'bg-white/20'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.retry_on_error ? 'bg-brand-yellow' : 'bg-white/20'
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          settings.retry_on_error ? 'translate-x-6' : 'translate-x-1'
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.retry_on_error ? 'translate-x-6' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                   </label>
@@ -3135,14 +3128,12 @@ export function ScrapingSection() {
                     <button
                       type="button"
                       onClick={() => updateSetting('auto_start_enabled', !settings.auto_start_enabled)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.auto_start_enabled ? 'bg-brand-yellow' : 'bg-white/20'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.auto_start_enabled ? 'bg-brand-yellow' : 'bg-white/20'
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          settings.auto_start_enabled ? 'translate-x-6' : 'translate-x-1'
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.auto_start_enabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                   </label>
@@ -3330,11 +3321,10 @@ function GamificationSection() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-bold uppercase tracking-wide whitespace-nowrap transition-colors border-b-2 -mb-px ${
-                isActive
-                  ? 'text-brand-yellow border-brand-yellow'
-                  : 'text-gray-400 border-transparent hover:text-white hover:border-white/20'
-              }`}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-bold uppercase tracking-wide whitespace-nowrap transition-colors border-b-2 -mb-px ${isActive
+                ? 'text-brand-yellow border-brand-yellow'
+                : 'text-gray-400 border-transparent hover:text-white hover:border-white/20'
+                }`}
             >
               <Icon className="w-4 h-4" />
               {tab.label}
@@ -3458,14 +3448,14 @@ function GamificationSection() {
       {activeTab === 'niveis' && (
         <div>
           <LevelsTab
-          levels={levels}
-          setLevels={setLevels}
-          editingId={levelEditingId}
-          setEditingId={setLevelEditingId}
-          isCreating={levelCreating}
-          setIsCreating={setLevelCreating}
-          formData={levelForm}
-          setFormData={setLevelForm}
+            levels={levels}
+            setLevels={setLevels}
+            editingId={levelEditingId}
+            setEditingId={setLevelEditingId}
+            isCreating={levelCreating}
+            setIsCreating={setLevelCreating}
+            formData={levelForm}
+            setFormData={setLevelForm}
           />
           <TutorialSection tabId="niveis" />
         </div>
@@ -3474,14 +3464,14 @@ function GamificationSection() {
       {activeTab === 'ligas' && (
         <div>
           <LeaguesTab
-          tiers={tiers}
-          setTiers={setTiers}
-          editingId={tierEditingId}
-          setEditingId={setTierEditingId}
-          isCreating={tierCreating}
-          setIsCreating={setTierCreating}
-          formData={tierForm}
-          setFormData={setTierForm}
+            tiers={tiers}
+            setTiers={setTiers}
+            editingId={tierEditingId}
+            setEditingId={setTierEditingId}
+            isCreating={tierCreating}
+            setIsCreating={setTierCreating}
+            formData={tierForm}
+            setFormData={setTierForm}
           />
           <TutorialSection tabId="ligas" />
         </div>
@@ -3490,16 +3480,16 @@ function GamificationSection() {
       {activeTab === 'conquistas' && (
         <div>
           <AchievementsTab
-          achievements={achievements}
-          setAchievements={setAchievements}
-          editingId={achievementEditingId}
-          setEditingId={setAchievementEditingId}
-          isCreating={achievementCreating}
-          setIsCreating={setAchievementCreating}
-          formData={achievementForm}
-          setFormData={setAchievementForm}
-          filterCategory={achievementFilter}
-          setFilterCategory={setAchievementFilter}
+            achievements={achievements}
+            setAchievements={setAchievements}
+            editingId={achievementEditingId}
+            setEditingId={setAchievementEditingId}
+            isCreating={achievementCreating}
+            setIsCreating={setAchievementCreating}
+            formData={achievementForm}
+            setFormData={setAchievementForm}
+            filterCategory={achievementFilter}
+            setFilterCategory={setAchievementFilter}
           />
           <TutorialSection tabId="conquistas" />
         </div>
@@ -3508,16 +3498,16 @@ function GamificationSection() {
       {activeTab === 'conquistas-planejamento' && (
         <div>
           <PlanejamentoConquistasTab
-          conquistas={planejamentoConquistas}
-          setConquistas={setPlanejamentoConquistas}
-          editingId={planejamentoEditingId}
-          setEditingId={setPlanejamentoEditingId}
-          isCreating={planejamentoCreating}
-          setIsCreating={setPlanejamentoCreating}
-          formData={planejamentoForm}
-          setFormData={setPlanejamentoForm}
-          filterTipo={planejamentoFilter}
-          setFilterTipo={setPlanejamentoFilter}
+            conquistas={planejamentoConquistas}
+            setConquistas={setPlanejamentoConquistas}
+            editingId={planejamentoEditingId}
+            setEditingId={setPlanejamentoEditingId}
+            isCreating={planejamentoCreating}
+            setIsCreating={setPlanejamentoCreating}
+            formData={planejamentoForm}
+            setFormData={setPlanejamentoForm}
+            filterTipo={planejamentoFilter}
+            setFilterTipo={setPlanejamentoFilter}
           />
           <TutorialSection tabId="conquistas-planejamento" />
         </div>
@@ -4160,11 +4150,10 @@ export const Settings: React.FC = () => {
             <button
               onClick={handleSaveSystemSettings}
               disabled={saving || !hasChanges}
-              className={`flex items-center gap-2 px-4 py-2 rounded-sm font-bold transition-colors ${
-                hasChanges
-                  ? 'bg-brand-yellow text-black hover:bg-brand-yellow/90'
-                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-sm font-bold transition-colors ${hasChanges
+                ? 'bg-brand-yellow text-black hover:bg-brand-yellow/90'
+                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                }`}
             >
               {saving ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -4207,11 +4196,10 @@ export const Settings: React.FC = () => {
                 <button
                   key={category}
                   onClick={() => setActiveCategory(category)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                    isActive
-                      ? 'bg-brand-yellow/10 text-brand-yellow border-l-2 border-brand-yellow'
-                      : 'text-gray-400 hover:bg-white/5 hover:text-white border-l-2 border-transparent'
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isActive
+                    ? 'bg-brand-yellow/10 text-brand-yellow border-l-2 border-brand-yellow'
+                    : 'text-gray-400 hover:bg-white/5 hover:text-white border-l-2 border-transparent'
+                    }`}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
                   <span className="font-medium">{config.label}</span>
@@ -4290,9 +4278,8 @@ export const Settings: React.FC = () => {
                     return (
                       <div
                         key={setting.id}
-                        className={`p-4 flex items-center justify-between ${
-                          isModified ? 'bg-brand-yellow/5' : ''
-                        }`}
+                        className={`p-4 flex items-center justify-between ${isModified ? 'bg-brand-yellow/5' : ''
+                          }`}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2">

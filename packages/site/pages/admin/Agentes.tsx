@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MarkdownPreview } from '../../components/admin/MarkdownPreview';
 import {
   Brain,
   RefreshCw,
   Play,
+  Square,
   CheckCircle,
   Loader2,
   Database,
   MessageSquare,
+  FileText,
   X,
   ExternalLink,
   ChevronLeft,
@@ -23,6 +25,7 @@ import {
   agentesService,
   ComentarioFormatItem,
   QuestaoDetalhes,
+  EnunciadoFormatStats,
 } from '../../services/agentesService';
 import { ScrapingSection } from './Settings';
 
@@ -68,7 +71,7 @@ interface AgentesProps {
 
 const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // Estado
-  const [activeTab, setActiveTab] = useState<'comentarios' | 'scraper'>('comentarios');
+  const [activeTab, setActiveTab] = useState<'comentarios' | 'enunciados' | 'scraper'>('comentarios');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -91,7 +94,18 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
 
   // Ações
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [processarQuantidade, setProcessarQuantidade] = useState(100);
+
+  // Processamento contínuo
+  const [isProcessingComentarios, setIsProcessingComentarios] = useState(false);
+  const [isProcessingEnunciados, setIsProcessingEnunciados] = useState(false);
+  const [processedCount, setProcessedCount] = useState({ comentarios: 0, enunciados: 0 });
+
+  // Refs para controle de parada (necessário para loops async)
+  const shouldStopComentariosRef = useRef(false);
+  const shouldStopEnunciadosRef = useRef(false);
+
+  // Enunciados stats
+  const [enunciadoStats, setEnunciadoStats] = useState<EnunciadoFormatStats | null>(null);
 
   // Status da operação (feedback visual)
   const [operationStatus, setOperationStatus] = useState<{
@@ -122,9 +136,10 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   const loadData = async (page: number = currentPage) => {
     try {
       // Carregar fila e estatísticas em paralelo
-      const [queueResult, statsResult] = await Promise.all([
+      const [queueResult, statsResult, enunciadoStatsResult] = await Promise.all([
         agentesService.getComentarioQueue(statusFilter, page, ITEMS_PER_PAGE),
         agentesService.getComentarioStats().catch(() => null),
+        agentesService.getEnunciadoStats().catch(() => null),
       ]);
 
       setComentarioQueue(queueResult.items);
@@ -140,6 +155,10 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
           falha: statsResult.falha,
           ignorado: statsResult.ignorado,
         });
+      }
+
+      if (enunciadoStatsResult) {
+        setEnunciadoStats(enunciadoStatsResult);
       }
     } catch (error) {
       console.warn('Erro ao carregar queue:', error);
@@ -170,42 +189,174 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // --------------------------------------------------------------------------
   // Ações do Formatador
   // --------------------------------------------------------------------------
-  const handleProcessarPendentes = async () => {
-    setActionLoading('processar');
-    setOperationStatus({
-      type: 'processing',
-      message: `Formatando ${processarQuantidade} comentários...`,
-      details: 'O agente de IA está processando as questões pendentes',
-      timestamp: new Date(),
-    });
-    try {
-      const result = await agentesService.processarPendentes(processarQuantidade);
-      if (result.success) {
-        setOperationStatus({
-          type: 'success',
-          message: 'Processamento concluído!',
-          details: `${result.sucesso || 0} formatados com sucesso, ${result.falha || 0} falhas`,
-          timestamp: new Date(),
-        });
-        loadData();
-      } else {
-        setOperationStatus({
-          type: 'error',
-          message: 'Erro no processamento',
-          details: result.error || 'Erro desconhecido',
-          timestamp: new Date(),
-        });
-      }
-    } catch (error) {
+  // Processamento contínuo de comentários
+  const handleIniciarComentarios = async () => {
+    setIsProcessingComentarios(true);
+    shouldStopComentariosRef.current = false;
+    setProcessedCount(prev => ({ ...prev, comentarios: 0 }));
+
+    const BATCH_SIZE = 50;
+    let totalProcessed = 0;
+    let consecutiveEmpty = 0;
+
+    while (!shouldStopComentariosRef.current) {
       setOperationStatus({
-        type: 'error',
-        message: 'Erro ao processar',
-        details: error instanceof Error ? error.message : 'Erro de conexão',
+        type: 'processing',
+        message: 'Formatando comentários...',
+        details: `${totalProcessed} processados até agora. Processando lote de ${BATCH_SIZE}...`,
         timestamp: new Date(),
       });
-    } finally {
-      setActionLoading(null);
+
+      try {
+        const result = await agentesService.processarPendentes(BATCH_SIZE);
+
+        if (!result.success) {
+          setOperationStatus({
+            type: 'error',
+            message: 'Erro no processamento',
+            details: result.error || 'Erro desconhecido',
+            timestamp: new Date(),
+          });
+          break;
+        }
+
+        const processed = (result.sucesso || 0) + (result.falha || 0);
+        totalProcessed += result.sucesso || 0;
+        setProcessedCount(prev => ({ ...prev, comentarios: totalProcessed }));
+
+        // Se não processou nada, incrementa contador de vazios
+        if (processed === 0) {
+          consecutiveEmpty++;
+          if (consecutiveEmpty >= 2) {
+            // Terminou - não há mais pendentes
+            setOperationStatus({
+              type: 'success',
+              message: 'Processamento concluído!',
+              details: `Total: ${totalProcessed} comentários formatados. Não há mais pendentes.`,
+              timestamp: new Date(),
+            });
+            break;
+          }
+        } else {
+          consecutiveEmpty = 0;
+        }
+
+        // Atualizar stats
+        loadData();
+
+        // Pequena pausa entre lotes
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+      } catch (error) {
+        setOperationStatus({
+          type: 'error',
+          message: 'Erro ao processar',
+          details: error instanceof Error ? error.message : 'Erro de conexão',
+          timestamp: new Date(),
+        });
+        break;
+      }
     }
+
+    setIsProcessingComentarios(false);
+    if (shouldStopComentariosRef.current) {
+      setOperationStatus({
+        type: 'success',
+        message: 'Processamento pausado',
+        details: `${totalProcessed} comentários formatados antes da pausa.`,
+        timestamp: new Date(),
+      });
+    }
+    shouldStopComentariosRef.current = false;
+  };
+
+  const handlePararComentarios = () => {
+    shouldStopComentariosRef.current = true;
+  };
+
+  // Processamento contínuo de enunciados
+  const handleIniciarEnunciados = async () => {
+    setIsProcessingEnunciados(true);
+    shouldStopEnunciadosRef.current = false;
+    setProcessedCount(prev => ({ ...prev, enunciados: 0 }));
+
+    const BATCH_SIZE = 30;
+    let totalProcessed = 0;
+    let consecutiveEmpty = 0;
+
+    while (!shouldStopEnunciadosRef.current) {
+      setOperationStatus({
+        type: 'processing',
+        message: 'Formatando enunciados...',
+        details: `${totalProcessed} processados até agora. Processando lote de ${BATCH_SIZE}...`,
+        timestamp: new Date(),
+      });
+
+      try {
+        const result = await agentesService.processarEnunciados(BATCH_SIZE);
+
+        if (!result.success) {
+          setOperationStatus({
+            type: 'error',
+            message: 'Erro no processamento',
+            details: result.error || 'Erro desconhecido',
+            timestamp: new Date(),
+          });
+          break;
+        }
+
+        const processed = (result.sucesso || 0) + (result.falha || 0) + (result.ignorado || 0);
+        totalProcessed += (result.sucesso || 0);
+        setProcessedCount(prev => ({ ...prev, enunciados: totalProcessed }));
+
+        // Se não processou nada, incrementa contador de vazios
+        if (processed === 0) {
+          consecutiveEmpty++;
+          if (consecutiveEmpty >= 2) {
+            // Terminou
+            setOperationStatus({
+              type: 'success',
+              message: 'Processamento concluído!',
+              details: `Total: ${totalProcessed} enunciados formatados. Não há mais pendentes.`,
+              timestamp: new Date(),
+            });
+            break;
+          }
+        } else {
+          consecutiveEmpty = 0;
+        }
+
+        // Atualizar stats
+        loadData();
+
+        // Pausa entre lotes
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+      } catch (error) {
+        setOperationStatus({
+          type: 'error',
+          message: 'Erro ao processar',
+          details: error instanceof Error ? error.message : 'Erro de conexão',
+          timestamp: new Date(),
+        });
+        break;
+      }
+    }
+
+    setIsProcessingEnunciados(false);
+    if (shouldStopEnunciadosRef.current) {
+      setOperationStatus({
+        type: 'success',
+        message: 'Processamento pausado',
+        details: `${totalProcessed} enunciados formatados antes da pausa.`,
+        timestamp: new Date(),
+      });
+    }
+    shouldStopEnunciadosRef.current = false;
+  };
+
+  const handlePararEnunciados = () => {
+    shouldStopEnunciadosRef.current = true;
   };
 
   // --------------------------------------------------------------------------
@@ -293,6 +444,17 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
             Formatador de Comentários
           </button>
           <button
+            onClick={() => setActiveTab('enunciados')}
+            className={`pb-4 px-1 font-bold uppercase text-sm tracking-wider transition-colors ${
+              activeTab === 'enunciados'
+                ? 'text-brand-yellow border-b-2 border-brand-yellow'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <FileText className="w-4 h-4 inline mr-2" />
+            Formatador de Enunciados
+          </button>
+          <button
             onClick={() => setActiveTab('scraper')}
             className={`pb-4 px-1 font-bold uppercase text-sm tracking-wider transition-colors ${
               activeTab === 'scraper'
@@ -313,43 +475,44 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
           <div className="bg-brand-card border border-white/5 rounded-sm p-6">
             <h3 className="text-white font-bold mb-4">Processar Comentários</h3>
             <p className="text-gray-400 text-sm mb-4">
-              O agente de IA irá formatar os comentários das questões pendentes, convertendo para Markdown organizado.
+              O agente de IA irá formatar todos os comentários das questões automaticamente, processando em lotes até concluir.
             </p>
             <div className="flex flex-wrap items-center gap-4">
-              {/* Quantidade */}
-              <div className="flex items-center gap-2">
-                <label className="text-gray-400 text-sm">Quantidade:</label>
-                <input
-                  type="number"
-                  value={processarQuantidade}
-                  onChange={(e) => setProcessarQuantidade(Number(e.target.value))}
-                  className="w-24 px-3 py-2 bg-brand-dark border border-white/10 rounded text-white"
-                  min={1}
-                  max={500}
-                />
-              </div>
-
-              {/* Botão Processar */}
-              <button
-                onClick={handleProcessarPendentes}
-                disabled={actionLoading === 'processar' || (queueStats?.pendente === 0)}
-                className="flex items-center gap-2 px-6 py-2 bg-brand-yellow text-black font-bold rounded hover:bg-brand-yellow/90 transition-colors disabled:opacity-50"
-              >
-                {actionLoading === 'processar' ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
+              {/* Botão Iniciar/Parar */}
+              {!isProcessingComentarios ? (
+                <button
+                  onClick={handleIniciarComentarios}
+                  disabled={queueStats?.pendente === 0}
+                  className="flex items-center gap-2 px-6 py-2 bg-brand-yellow text-black font-bold rounded hover:bg-brand-yellow/90 transition-colors disabled:opacity-50"
+                >
                   <Play className="w-4 h-4" />
-                )}
-                Formatar Comentários
-              </button>
+                  Iniciar Formatação
+                </button>
+              ) : (
+                <button
+                  onClick={handlePararComentarios}
+                  className="flex items-center gap-2 px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-colors"
+                >
+                  <Square className="w-4 h-4" />
+                  Parar
+                </button>
+              )}
+
+              {/* Status de processamento */}
+              {isProcessingComentarios && (
+                <span className="text-blue-400 text-sm flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {processedCount.comentarios} formatados...
+                </span>
+              )}
 
               {/* Info de pendentes */}
-              {queueStats && queueStats.pendente > 0 && (
+              {!isProcessingComentarios && queueStats && queueStats.pendente > 0 && (
                 <span className="text-yellow-400 text-sm">
                   {queueStats.pendente.toLocaleString()} pendentes
                 </span>
               )}
-              {queueStats && queueStats.pendente === 0 && (
+              {!isProcessingComentarios && queueStats && queueStats.pendente === 0 && (
                 <span className="text-green-400 text-sm flex items-center gap-1">
                   <CheckCircle2 className="w-4 h-4" />
                   Todos os comentários foram formatados!
@@ -686,6 +849,258 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'enunciados' && (
+        <div className="space-y-6">
+          {/* Ações de Enunciados */}
+          <div className="bg-brand-card border border-white/5 rounded-sm p-6">
+            <h3 className="text-white font-bold mb-4">Processar Enunciados</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              O agente de IA irá formatar todos os enunciados automaticamente, convertendo para Markdown com parágrafos, títulos, citações e imagens embedadas.
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Botão Iniciar/Parar */}
+              {!isProcessingEnunciados ? (
+                <button
+                  onClick={handleIniciarEnunciados}
+                  disabled={enunciadoStats?.pendente === 0}
+                  className="flex items-center gap-2 px-6 py-2 bg-brand-yellow text-black font-bold rounded hover:bg-brand-yellow/90 transition-colors disabled:opacity-50"
+                >
+                  <Play className="w-4 h-4" />
+                  Iniciar Formatação
+                </button>
+              ) : (
+                <button
+                  onClick={handlePararEnunciados}
+                  className="flex items-center gap-2 px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-colors"
+                >
+                  <Square className="w-4 h-4" />
+                  Parar
+                </button>
+              )}
+
+              {/* Status de processamento */}
+              {isProcessingEnunciados && (
+                <span className="text-blue-400 text-sm flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {processedCount.enunciados} formatados...
+                </span>
+              )}
+
+              {/* Info de pendentes */}
+              {!isProcessingEnunciados && enunciadoStats && enunciadoStats.pendente > 0 && (
+                <span className="text-yellow-400 text-sm">
+                  {enunciadoStats.pendente.toLocaleString()} pendentes
+                </span>
+              )}
+              {!isProcessingEnunciados && enunciadoStats && enunciadoStats.pendente === 0 && (
+                <span className="text-green-400 text-sm flex items-center gap-1">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Todos os enunciados foram formatados!
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Card de Estatísticas de Enunciados */}
+          {enunciadoStats && (
+            <div className="bg-brand-card border border-white/5 rounded-sm p-6">
+              <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-brand-yellow" />
+                Estatísticas de Formatação de Enunciados
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {/* Pendente */}
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-yellow-400">
+                    {enunciadoStats.pendente.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-yellow-400/70 uppercase tracking-wider mt-1">
+                    Pendente
+                  </div>
+                </div>
+
+                {/* Processando */}
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-blue-400 flex items-center justify-center gap-2">
+                    {enunciadoStats.processando > 0 && (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    )}
+                    {enunciadoStats.processando.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-blue-400/70 uppercase tracking-wider mt-1">
+                    Processando
+                  </div>
+                </div>
+
+                {/* Concluído */}
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-green-400">
+                    {enunciadoStats.concluido.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-green-400/70 uppercase tracking-wider mt-1">
+                    Concluído
+                  </div>
+                </div>
+
+                {/* Falha */}
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-red-400">
+                    {enunciadoStats.falha.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-red-400/70 uppercase tracking-wider mt-1">
+                    Falha
+                  </div>
+                </div>
+
+                {/* Ignorado */}
+                <div className="bg-gray-500/10 border border-gray-500/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-gray-400">
+                    {enunciadoStats.ignorado.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-gray-400/70 uppercase tracking-wider mt-1">
+                    Ignorado
+                  </div>
+                </div>
+              </div>
+
+              {/* Barra de progresso */}
+              {enunciadoStats.total > 0 && (
+                <div className="mt-4">
+                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden flex">
+                    {enunciadoStats.concluido > 0 && (
+                      <div
+                        className="h-full bg-green-500"
+                        style={{
+                          width: `${(enunciadoStats.concluido / enunciadoStats.total) * 100}%`,
+                        }}
+                      />
+                    )}
+                    {enunciadoStats.processando > 0 && (
+                      <div
+                        className="h-full bg-blue-500"
+                        style={{
+                          width: `${(enunciadoStats.processando / enunciadoStats.total) * 100}%`,
+                        }}
+                      />
+                    )}
+                    {enunciadoStats.pendente > 0 && (
+                      <div
+                        className="h-full bg-yellow-500"
+                        style={{
+                          width: `${(enunciadoStats.pendente / enunciadoStats.total) * 100}%`,
+                        }}
+                      />
+                    )}
+                    {enunciadoStats.falha > 0 && (
+                      <div
+                        className="h-full bg-red-500"
+                        style={{
+                          width: `${(enunciadoStats.falha / enunciadoStats.total) * 100}%`,
+                        }}
+                      />
+                    )}
+                    {enunciadoStats.ignorado > 0 && (
+                      <div
+                        className="h-full bg-gray-500"
+                        style={{
+                          width: `${(enunciadoStats.ignorado / enunciadoStats.total) * 100}%`,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2 text-right">
+                    Total: {enunciadoStats.total.toLocaleString()} questões
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Status da Operação */}
+          {operationStatus.type !== 'idle' && (
+            <div
+              className={`border rounded-sm p-4 flex items-start gap-4 transition-all ${
+                operationStatus.type === 'processing'
+                  ? 'bg-blue-500/10 border-blue-500/30'
+                  : operationStatus.type === 'success'
+                  ? 'bg-green-500/10 border-green-500/30'
+                  : 'bg-red-500/10 border-red-500/30'
+              }`}
+            >
+              {/* Ícone */}
+              <div className="flex-shrink-0 mt-0.5">
+                {operationStatus.type === 'processing' ? (
+                  <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+                ) : operationStatus.type === 'success' ? (
+                  <CheckCircle2 className="w-6 h-6 text-green-400" />
+                ) : (
+                  <XCircle className="w-6 h-6 text-red-400" />
+                )}
+              </div>
+
+              {/* Conteúdo */}
+              <div className="flex-1 min-w-0">
+                <h4
+                  className={`font-bold ${
+                    operationStatus.type === 'processing'
+                      ? 'text-blue-400'
+                      : operationStatus.type === 'success'
+                      ? 'text-green-400'
+                      : 'text-red-400'
+                  }`}
+                >
+                  {operationStatus.message}
+                </h4>
+                {operationStatus.details && (
+                  <p className="text-sm text-gray-400 mt-1">{operationStatus.details}</p>
+                )}
+                {operationStatus.timestamp && (
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {operationStatus.timestamp.toLocaleTimeString('pt-BR')}
+                  </p>
+                )}
+              </div>
+
+              {/* Botão fechar (apenas para sucesso e erro) */}
+              {operationStatus.type !== 'processing' && (
+                <button
+                  onClick={() => setOperationStatus({ type: 'idle', message: '' })}
+                  className="flex-shrink-0 text-gray-500 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Informações sobre o processo */}
+          <div className="bg-brand-card border border-white/5 rounded-sm p-6">
+            <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+              <Info className="w-5 h-5 text-brand-yellow" />
+              Sobre a Formatação de Enunciados
+            </h3>
+            <div className="text-gray-400 text-sm space-y-2">
+              <p>
+                O agente de formatação de enunciados transforma textos corridos em textos bem estruturados,
+                identificando automaticamente:
+              </p>
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>Títulos de textos de apoio</li>
+                <li>Parágrafos separados</li>
+                <li>Citações e referências bibliográficas</li>
+                <li>Comando da questão (pergunta)</li>
+                <li>Fórmulas matemáticas (preservadas intactas)</li>
+              </ul>
+              <p className="mt-4 text-yellow-400/80">
+                <strong>Nota:</strong> Questões que já possuem 4+ quebras de linha são consideradas
+                formatadas e são automaticamente ignoradas.
+              </p>
+            </div>
           </div>
         </div>
       )}
