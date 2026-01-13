@@ -44,6 +44,7 @@ import { createTecConcursosScraperRoutes } from './routes/tecConcursosScraper.js
 import { startImageProcessorCron, getImageProcessorStatus } from './cron/imageProcessor.js';
 import { startQuestionReviewerCron, getQuestionReviewerStatus } from './cron/questionReviewer.js';
 import { startGabaritoExtractorCron, getGabaritoExtractorStatus } from './cron/gabaritoExtractor.js';
+import { startComentarioFormatterCron, startEnunciadoFormatterCron, getFormatterProcessorStatus } from './cron/formatterProcessor.js';
 import {
     questionGeneratorAgent,
     fetchReferenceQuestions,
@@ -8652,6 +8653,7 @@ app.get('/api/scraper/cron-status', (req, res) => {
     const imageStatus = getImageProcessorStatus();
     const reviewerStatus = getQuestionReviewerStatus();
     const gabaritoStatus = getGabaritoExtractorStatus();
+    const formatterStatus = getFormatterProcessorStatus();
 
     res.json({
         success: true,
@@ -8669,6 +8671,18 @@ app.get('/api/scraper/cron-status', (req, res) => {
             isProcessing: gabaritoStatus.isProcessing,
             lastRun: gabaritoStatus.lastRun,
             stats: gabaritoStatus.stats,
+        },
+        comentarioFormatter: {
+            isProcessing: formatterStatus.comentarios.isProcessing,
+            lastRun: formatterStatus.comentarios.lastRun,
+            totalProcessed: formatterStatus.comentarios.totalProcessed,
+            totalFailed: formatterStatus.comentarios.totalFailed,
+        },
+        enunciadoFormatter: {
+            isProcessing: formatterStatus.enunciados.isProcessing,
+            lastRun: formatterStatus.enunciados.lastRun,
+            totalProcessed: formatterStatus.enunciados.totalProcessed,
+            totalFailed: formatterStatus.enunciados.totalFailed,
         },
     });
 });
@@ -9252,7 +9266,25 @@ const gabaritoExtractorInterval = startGabaritoExtractorCron(
     5 * 60 * 1000 // 5 minutos
 );
 
-console.log('[Server] Cron jobs de scraping iniciados');
+// Cron job para formatação de comentários (a cada 2 minutos, 50 por lote)
+startComentarioFormatterCron(
+    questionsDbUrl,
+    questionsDbKey,
+    mastra,
+    2 * 60 * 1000, // 2 minutos
+    50 // 50 questões por lote (~1500/hora)
+);
+
+// Cron job para formatação de enunciados (a cada 2 minutos, 50 por lote)
+startEnunciadoFormatterCron(
+    questionsDbUrl,
+    questionsDbKey,
+    mastra,
+    2 * 60 * 1000, // 2 minutos
+    50 // 50 questões por lote (~1500/hora)
+);
+
+console.log('[Server] Cron jobs de scraping e formatação iniciados');
 
 // ============================================
 // Cron job para atualizar caches de filtros (a cada 1 hora)
