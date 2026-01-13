@@ -1016,6 +1016,13 @@ button,
   opacity: 1 !important;
 }
 
+/* Question alternatives - preserve feedback border colors when disabled */
+[data-theme="light"] button.rounded-xl.border-2:disabled {
+  background-color: inherit !important;
+  border-color: inherit !important;
+  color: inherit !important;
+}
+
 /* Secondary buttons */
 [data-theme="light"] .bg-transparent.border {
   background-color: var(--color-bg-card);
