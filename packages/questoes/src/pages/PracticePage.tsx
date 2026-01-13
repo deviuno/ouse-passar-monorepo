@@ -304,6 +304,11 @@ export default function PracticePage() {
   // Estado do modo (agora 'selection', 'practicing' ou 'results')
   const [mode, setMode] = useState<'selection' | 'practicing' | 'results'>('selection');
 
+  // Debug: log mode changes
+  React.useEffect(() => {
+    console.log('[PracticePage] Mode changed to:', mode);
+  }, [mode]);
+
   // Controle de tempo da sessão
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
 
@@ -1272,9 +1277,12 @@ export default function PracticePage() {
   };
 
   const handleNext = async () => {
+    console.log('[PracticePage] handleNext called', { currentIndex, questionsLength: questions.length, isLast: currentIndex >= questions.length - 1 });
+
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
+      console.log('[PracticePage] Finalizando sessão...');
       // Finalizar sessão
       const timeSpent = sessionStartTime ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
 
@@ -1308,7 +1316,9 @@ export default function PracticePage() {
       }
 
       // Mostrar tela de resultados (sempre executa)
+      console.log('[PracticePage] Chamando setMode("results")');
       setMode('results');
+      console.log('[PracticePage] setMode("results") chamado com sucesso');
     }
   };
 

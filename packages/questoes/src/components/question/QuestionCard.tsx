@@ -295,13 +295,13 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
         : `border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-main)]`;
     }
 
-    // Feedback Style (Only for Zen/Reta Final) - More visible in light mode
+    // Feedback Style (Only for Zen/Reta Final) - VERY visible borders
     if (letter === question.gabarito) {
-      return `border-[var(--color-success)] border-[3px] bg-[var(--color-success)]/20 text-[var(--color-success)] font-semibold shadow-[0_0_12px_rgba(5,150,105,0.3)]`;
+      return `!border-[#10B981] !border-[3px] bg-[#10B981]/25 text-[#059669] font-bold shadow-[0_0_20px_rgba(16,185,129,0.4),inset_0_0_0_1px_rgba(16,185,129,0.3)]`;
     }
 
     if (selectedAlt === letter && letter !== question.gabarito) {
-      return `border-[var(--color-error)] border-[3px] bg-[var(--color-error)]/20 text-[var(--color-error)] font-semibold shadow-[0_0_12px_rgba(220,38,38,0.3)]`;
+      return `!border-[#EF4444] !border-[3px] bg-[#EF4444]/25 text-[#DC2626] font-bold shadow-[0_0_20px_rgba(239,68,68,0.4),inset_0_0_0_1px_rgba(239,68,68,0.3)]`;
     }
 
     return `border-[var(--color-border)] opacity-40`;
@@ -461,7 +461,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
             className={`w-full p-3 md:p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start group relative ${getOptionStyle(alt.letter)}`}
             disabled={isSubmitted}
           >
-            <span className={`font-bold mr-2 md:mr-3 w-5 md:w-6 shrink-0 text-sm md:text-base ${isSubmitted && alt.letter === question.gabarito ? 'text-[#2ECC71]' : ''}`}>
+            <span className={`font-bold mr-2 md:mr-3 w-5 md:w-6 shrink-0 text-sm md:text-base ${isSubmitted && alt.letter === question.gabarito ? 'text-[#059669]' : isSubmitted && selectedAlt === alt.letter && alt.letter !== question.gabarito ? 'text-[#DC2626]' : ''}`}>
               {alt.letter}
             </span>
             <span className="text-xs md:text-sm flex-1">{alt.text}</span>
@@ -539,6 +539,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
               <RippleEffect className="flex-1 rounded-xl">
                 <button
                   onClick={() => {
+                    console.log('[QuestionCard] Botão Próxima/Finalizar clicado (nav)', { isLastQuestion });
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     onNext();
                   }}
@@ -652,6 +653,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
               {/* Botão Próxima Questão - estilo primário */}
               <button
                 onClick={() => {
+                  console.log('[QuestionCard] Botão Próxima/Finalizar clicado (bottom)', { isLastQuestion });
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                   onNext();
                 }}
