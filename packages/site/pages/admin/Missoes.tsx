@@ -1189,6 +1189,7 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
   } | null>(null);
 
   // Função para agregar filtros de múltiplos itens do edital
+  // Agora também herda filtro_materias do item pai (matéria) se o próprio item não tiver
   const agregarFiltrosEdital = (items: EditalItem[]): FiltrosSugeridos | null => {
     console.log('[agregarFiltrosEdital] Items recebidos:', items.length);
     if (items.length === 0) return null;
@@ -1196,12 +1197,25 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
     const materias = new Set<string>();
     const assuntos = new Set<string>();
 
+    // Criar mapa de matérias por ID para lookup rápido
+    const materiasMap = new Map<string, EditalItem>();
+    materiasEdital.forEach(m => materiasMap.set(m.id, m));
+
     items.forEach(item => {
       console.log('[agregarFiltrosEdital] Item:', item.titulo, '| filtro_materias:', item.filtro_materias, '| filtro_assuntos:', item.filtro_assuntos);
+
       // Adicionar filtros de matérias
       if (item.filtro_materias && item.filtro_materias.length > 0) {
         item.filtro_materias.forEach(m => materias.add(m));
+      } else if (item.parent_id) {
+        // Se não tem filtro_materias próprio, tentar herdar do pai (matéria)
+        const parentMateria = materiasMap.get(item.parent_id);
+        if (parentMateria?.filtro_materias && parentMateria.filtro_materias.length > 0) {
+          console.log('[agregarFiltrosEdital] Herdando filtro_materias do pai:', parentMateria.titulo, parentMateria.filtro_materias);
+          parentMateria.filtro_materias.forEach(m => materias.add(m));
+        }
       }
+
       // Adicionar filtros de assuntos
       if (item.filtro_assuntos && item.filtro_assuntos.length > 0) {
         item.filtro_assuntos.forEach(a => assuntos.add(a));
