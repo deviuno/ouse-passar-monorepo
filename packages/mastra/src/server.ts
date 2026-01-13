@@ -578,6 +578,262 @@ Você pode continuar estudando sem direção, torcendo para dar certo. Ou pode s
     }
 }
 
+// ==================== GERAÇÃO DE IMAGENS EDUCACIONAIS (IMAGEN 3.0) ====================
+
+/**
+ * Interface para conceito de imagem a ser gerada
+ */
+interface ImageConceptForGeneration {
+    conceito: string;
+    descricao: string;
+    posicaoNoTexto: string; // Trecho do texto onde inserir
+}
+
+/**
+ * Gera uma imagem educacional (infográfico ou diagrama) usando Imagen 3.0
+ * @param concept Conceito a ser ilustrado
+ * @param materia Matéria relacionada para contexto
+ * @param missaoId ID da missão para naming
+ * @returns URL da imagem no Supabase Storage ou null se falhar
+ */
+async function gerarImagemEducacional(
+    concept: ImageConceptForGeneration,
+    materia: string,
+    missaoId: string
+): Promise<string | null> {
+    const client = getGeminiClient();
+    if (!client) {
+        console.warn('[ImagemEducacional] API key não configurada');
+        return null;
+    }
+
+    try {
+        console.log(`[ImagemEducacional] Gerando imagem para: ${concept.conceito}`);
+
+        // Construir prompt otimizado para infográficos educacionais
+        const prompt = `Create a clean, professional educational infographic or diagram about "${concept.conceito}".
+
+Context: ${concept.descricao}
+Subject area: ${materia}
+
+Requirements:
+- Professional, minimalist design with clean lines
+- Clear visual hierarchy with sections and labels
+- Use icons and simple illustrations (not photos)
+- Color palette: blue (#3B82F6), orange (#F59E0B), gray (#6B7280), white
+- Include key terms as labels in Portuguese (Brazil)
+- Suitable for educational content, like a textbook illustration
+- 16:9 aspect ratio, suitable for embedding in content
+- NO text in English, use Portuguese labels only
+- NO photographs, only vector-style illustrations`;
+
+        // Timeout de 90 segundos para Imagen 3.0
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Timeout: geração de imagem demorou mais de 90 segundos')), 90000);
+        });
+
+        const generatePromise = client.models.generateContent({
+            model: 'imagen-3.0-generate-002',
+            contents: prompt,
+            config: {
+                responseModalities: ['image'],
+            },
+        });
+
+        const response = await Promise.race([generatePromise, timeoutPromise]);
+
+        // Extrair imagem da resposta
+        const parts = response.candidates?.[0]?.content?.parts || [];
+        let imageData: string | null = null;
+
+        for (const part of parts) {
+            if (part.inlineData?.data) {
+                imageData = part.inlineData.data;
+                break;
+            }
+        }
+
+        if (!imageData) {
+            console.warn('[ImagemEducacional] Nenhuma imagem gerada na resposta');
+            return null;
+        }
+
+        console.log('[ImagemEducacional] Imagem gerada, fazendo upload...');
+
+        // Upload para Supabase Storage
+        const slugConceito = concept.conceito
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .substring(0, 30);
+        const fileName = `edu-${missaoId}-${slugConceito}-${Date.now()}.png`;
+        const buffer = Buffer.from(imageData, 'base64');
+
+        const { error: uploadError } = await supabase.storage
+            .from('missao-imagens')
+            .upload(fileName, buffer, {
+                contentType: 'image/png',
+                upsert: true,
+            });
+
+        if (uploadError) {
+            console.error('[ImagemEducacional] Erro no upload:', uploadError);
+            return null;
+        }
+
+        // Obter URL pública
+        const { data: publicUrlData } = supabase.storage
+            .from('missao-imagens')
+            .getPublicUrl(fileName);
+
+        const imageUrl = publicUrlData?.publicUrl || null;
+        console.log(`[ImagemEducacional] Upload concluído: ${imageUrl}`);
+
+        return imageUrl;
+
+    } catch (error: any) {
+        console.error('[ImagemEducacional] Erro ao gerar imagem:', error.message || error);
+        return null;
+    }
+}
+
+/**
+ * Analisa o conteúdo gerado e identifica conceitos que se beneficiariam de imagens
+ * @param textoContent Conteúdo em Markdown gerado pelo agent
+ * @param materia Matéria da missão
+ * @returns Lista de conceitos para geração de imagens (máx 3)
+ */
+async function analisarConceitosParaImagens(
+    textoContent: string,
+    materia: string
+): Promise<ImageConceptForGeneration[]> {
+    const client = getGeminiClient();
+    if (!client) return [];
+
+    try {
+        console.log('[ImagemEducacional] Analisando conteúdo para identificar conceitos visuais...');
+
+        const prompt = `Analise o seguinte conteúdo educacional e identifique de 1 a 3 conceitos-chave que se beneficiariam de uma IMAGEM EDUCACIONAL (infográfico, diagrama, fluxograma, ou ilustração esquemática).
+
+MATÉRIA: ${materia}
+
+CONTEÚDO:
+${textoContent.substring(0, 6000)}
+
+CRITÉRIOS para escolher conceitos:
+1. Conceitos abstratos que ficam mais claros com visualização
+2. Processos ou fluxos que podem ser diagramados
+3. Comparações ou classificações que podem virar infográficos
+4. Relações entre elementos que podem ser ilustradas
+5. EVITE: conceitos muito simples, definições textuais, listas de itens
+
+IMPORTANTE: Retorne APENAS um JSON válido (sem markdown, sem explicação), no formato:
+[
+  {
+    "conceito": "Nome curto do conceito (max 50 chars)",
+    "descricao": "Descrição detalhada do que a imagem deve mostrar (100-200 chars)",
+    "posicaoNoTexto": "Copie uma frase EXATA do texto onde a imagem deve ser inserida (após essa frase)"
+  }
+]
+
+Se não houver conceitos adequados para imagens, retorne: []`;
+
+        const response = await client.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt,
+        });
+
+        const responseText = response.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+
+        // Extrair JSON da resposta (pode vir com markdown)
+        let jsonStr = responseText;
+        const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+            jsonStr = jsonMatch[0];
+        }
+
+        const concepts = JSON.parse(jsonStr) as ImageConceptForGeneration[];
+        console.log(`[ImagemEducacional] ${concepts.length} conceitos identificados para imagens`);
+
+        return concepts.slice(0, 3); // Máximo 3 imagens por missão
+
+    } catch (error: any) {
+        console.error('[ImagemEducacional] Erro ao analisar conceitos:', error.message || error);
+        return [];
+    }
+}
+
+/**
+ * Gera imagens educacionais e as incorpora no conteúdo Markdown
+ * @param textoContent Conteúdo original em Markdown
+ * @param materia Matéria da missão
+ * @param missaoId ID da missão
+ * @returns Conteúdo atualizado com imagens incorporadas
+ */
+async function gerarEIncorporarImagensEducacionais(
+    textoContent: string,
+    materia: string,
+    missaoId: string
+): Promise<{ textoContent: string; imagensGeradas: string[] }> {
+    const imagensGeradas: string[] = [];
+
+    try {
+        // 1. Analisar conteúdo para identificar conceitos
+        const conceitos = await analisarConceitosParaImagens(textoContent, materia);
+
+        if (conceitos.length === 0) {
+            console.log('[ImagemEducacional] Nenhum conceito identificado para imagens');
+            return { textoContent, imagensGeradas };
+        }
+
+        // 2. Gerar imagens em paralelo (máx 3)
+        const imagensPromises = conceitos.map(async (conceito) => {
+            const imageUrl = await gerarImagemEducacional(conceito, materia, missaoId);
+            return { conceito, imageUrl };
+        });
+
+        const resultados = await Promise.all(imagensPromises);
+
+        // 3. Incorporar imagens no conteúdo
+        let textoAtualizado = textoContent;
+
+        for (const { conceito, imageUrl } of resultados) {
+            if (!imageUrl) continue;
+
+            imagensGeradas.push(imageUrl);
+
+            // Encontrar posição e inserir imagem
+            const posicao = conceito.posicaoNoTexto;
+            if (posicao && textoAtualizado.includes(posicao)) {
+                // Inserir imagem após o trecho especificado
+                const imageMarkdown = `\n\n![${conceito.conceito}](${imageUrl})\n*Ilustração: ${conceito.conceito}*\n`;
+                textoAtualizado = textoAtualizado.replace(
+                    posicao,
+                    posicao + imageMarkdown
+                );
+                console.log(`[ImagemEducacional] Imagem incorporada após: "${posicao.substring(0, 50)}..."`);
+            } else {
+                // Fallback: inserir antes do resumo ou no final
+                const resumoIndex = textoAtualizado.indexOf('## 📝 Resumo');
+                const dicasIndex = textoAtualizado.indexOf('## 🎓 Dicas');
+                const insertIndex = resumoIndex > 0 ? resumoIndex : (dicasIndex > 0 ? dicasIndex : textoAtualizado.length);
+
+                const imageMarkdown = `\n\n### 🖼️ ${conceito.conceito}\n\n![${conceito.conceito}](${imageUrl})\n*${conceito.descricao}*\n\n`;
+                textoAtualizado = textoAtualizado.slice(0, insertIndex) + imageMarkdown + textoAtualizado.slice(insertIndex);
+                console.log(`[ImagemEducacional] Imagem incorporada como seção separada: ${conceito.conceito}`);
+            }
+        }
+
+        console.log(`[ImagemEducacional] ${imagensGeradas.length} imagens incorporadas ao conteúdo`);
+        return { textoContent: textoAtualizado, imagensGeradas };
+
+    } catch (error: any) {
+        console.error('[ImagemEducacional] Erro geral:', error.message || error);
+        return { textoContent, imagensGeradas };
+    }
+}
+
 // ==================== ENDPOINT PARA GERAÇÃO DE IMAGEM DE CAPA ====================
 
 /**
@@ -2219,9 +2475,23 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
 
         console.log(`[BackgroundContent] Gerando texto para missão ${missaoId}...`);
         const contentResult = await contentAgent.generate([{ role: 'user', content: prompt }]);
-        const textoContent = contentResult.text || '';
+        let textoContent = contentResult.text || '';
 
         console.log(`[BackgroundContent] Texto gerado (${textoContent.length} chars) para missão ${missaoId}`);
+
+        // 6.5. Gerar e incorporar imagens educacionais (se habilitado)
+        let imagensGeradas: string[] = [];
+        if (missaoInfo.gerar_imagem !== false && textoContent.length > 500) {
+            console.log(`[BackgroundContent] Gerando imagens educacionais para missão ${missaoId}...`);
+            const imageResult = await gerarEIncorporarImagensEducacionais(
+                textoContent,
+                missaoInfo.materia || 'Concursos',
+                missaoId
+            );
+            textoContent = imageResult.textoContent;
+            imagensGeradas = imageResult.imagensGeradas;
+            console.log(`[BackgroundContent] ${imagensGeradas.length} imagens incorporadas ao conteúdo`);
+        }
 
         // 7. Gerar roteiro para áudio
         const audioAgent = mastra.getAgent("audioScriptAgent");
@@ -2324,6 +2594,7 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
                 audio_url: audioUrl,
                 topicos_analisados: topicos,
                 questoes_analisadas: questoes.map(q => q.numero),
+                imagens_educacionais: imagensGeradas,
                 status: 'completed',
                 modelo_audio: audioUrl ? 'google-tts' : null,
             })
@@ -5516,9 +5787,23 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
 
         console.log(`[GerarConteudo] Gerando texto para missão ${missaoId}...`);
         const contentResult = await contentAgent.generate([{ role: 'user', content: prompt }]);
-        const textoContent = contentResult.text || '';
+        let textoContent = contentResult.text || '';
 
         console.log(`[GerarConteudo] Texto gerado (${textoContent.length} chars) para missão ${missaoId}`);
+
+        // 7.5. Gerar e incorporar imagens educacionais (se habilitado)
+        let imagensGeradas: string[] = [];
+        if (missaoInfo.gerar_imagem !== false && textoContent.length > 500) {
+            console.log(`[GerarConteudo] Gerando imagens educacionais para missão ${missaoId}...`);
+            const imageResult = await gerarEIncorporarImagensEducacionais(
+                textoContent,
+                materia || missaoInfo.materia || 'Concursos',
+                missaoId
+            );
+            textoContent = imageResult.textoContent;
+            imagensGeradas = imageResult.imagensGeradas;
+            console.log(`[GerarConteudo] ${imagensGeradas.length} imagens incorporadas ao conteúdo`);
+        }
 
         // 8. Gerar roteiro para áudio
         const audioAgent = mastra.getAgent("audioScriptAgent");
@@ -5632,6 +5917,7 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
                 texto_content: textoContent,
                 topicos_analisados: topicos,
                 questoes_analisadas: questoes.map(q => q.numero),
+                imagens_educacionais: imagensGeradas,
                 status: 'completed',
             })
             .eq('id', contentId);
@@ -5648,6 +5934,7 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
             audioUrl: audioUrl,
             audioProcessing: audioProcessing,
             questoesAnalisadas: questoes.length,
+            imagensGeradas: imagensGeradas.length,
         });
 
     } catch (error: any) {

@@ -2805,6 +2805,7 @@ export type Database = {
           assuntos_ids: string[] | null
           created_at: string | null
           extra: string[] | null
+          gerar_imagem: boolean | null
           id: string
           instrucoes: string | null
           materia: string | null
@@ -2828,6 +2829,7 @@ export type Database = {
           assuntos_ids?: string[] | null
           created_at?: string | null
           extra?: string[] | null
+          gerar_imagem?: boolean | null
           id?: string
           instrucoes?: string | null
           materia?: string | null
@@ -2851,6 +2853,7 @@ export type Database = {
           assuntos_ids?: string[] | null
           created_at?: string | null
           extra?: string[] | null
+          gerar_imagem?: boolean | null
           id?: string
           instrucoes?: string | null
           materia?: string | null

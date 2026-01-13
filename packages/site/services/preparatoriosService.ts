@@ -638,6 +638,7 @@ export interface CreateMissaoInput {
   extra?: string[] | null;
   obs?: string | null;
   ordem?: number;
+  gerar_imagem?: boolean;
 }
 
 export interface UpdateMissaoInput {
@@ -651,6 +652,7 @@ export interface UpdateMissaoInput {
   extra?: string[] | null;
   obs?: string | null;
   ordem?: number;
+  gerar_imagem?: boolean;
 }
 
 export const missoesService = {
@@ -747,7 +749,8 @@ export const missoesService = {
         acao: input.acao,
         extra: input.extra,
         obs: input.obs,
-        ordem: input.ordem ?? 0
+        ordem: input.ordem ?? 0,
+        gerar_imagem: input.gerar_imagem ?? true
       })
       .select()
       .single();
@@ -805,7 +808,8 @@ export const missoesService = {
         acao: missao.acao,
         extra: missao.extra,
         obs: missao.obs,
-        ordem: missao.ordem + 1
+        ordem: missao.ordem + 1,
+        gerar_imagem: missao.gerar_imagem ?? true
       })
       .select()
       .single();

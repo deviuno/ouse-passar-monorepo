@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, Copy, BookOpen, RotateCcw, Zap, GripVertical, FileText, X, Filter, ArrowRight, ArrowLeft, Check, Sparkles, Loader2, Volume2, ListChecks, Play, Pause, ChevronDown } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, Copy, BookOpen, RotateCcw, Zap, GripVertical, FileText, X, Filter, ArrowRight, ArrowLeft, Check, Sparkles, Loader2, Volume2, ListChecks, Play, Pause, ChevronDown, Image as ImageIcon } from 'lucide-react';
 import { preparatoriosService, rodadasService, missoesService, QuestaoFiltrosData, MissaoQuestaoFiltros, PreparatorioWithRodadas, MultiTurmaTarget } from '../../services/preparatoriosService';
 import { MultiTurmaSelector } from '../../components/admin/MultiTurmaSelector';
 import { editalService, EditalItem } from '../../services/editalService';
@@ -1148,7 +1148,8 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
     acao: missao?.acao || '',
     extra: missao?.extra || [],
     obs: missao?.obs || '',
-    ordem: missao?.ordem ?? parseInt(nextNumero)
+    ordem: missao?.ordem ?? parseInt(nextNumero),
+    gerar_imagem: missao?.gerar_imagem ?? true
   });
 
   // Estado para topicos do edital
@@ -1797,6 +1798,33 @@ const MissaoModal: React.FC<MissaoModalProps> = ({ preparatorioId, rodadaId, pre
                 placeholder="Ex: o aluno deve escolher entre Ingles ou Espanhol."
               />
             </div>
+
+            {/* Toggle Gerar Imagem (apenas para tipos estudo/padrao) */}
+            {(formData.tipo === 'padrao' || formData.tipo === 'estudo') && (
+              <div className="border border-white/10 rounded-sm overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, gerar_imagem: !formData.gerar_imagem })}
+                  className={`w-full flex items-center justify-between p-3 transition-colors ${formData.gerar_imagem ? 'bg-purple-500/10' : 'bg-brand-dark hover:bg-white/5'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-5 rounded-full relative transition-colors ${formData.gerar_imagem ? 'bg-purple-500' : 'bg-gray-600'
+                      }`}>
+                      <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${formData.gerar_imagem ? 'right-0.5' : 'left-0.5'
+                        }`} />
+                    </div>
+                    <div className="text-left">
+                      <span className="text-white font-medium">Gerar imagens com IA</span>
+                      <p className="text-gray-500 text-xs mt-0.5">
+                        Inclui infográficos e ilustrações demonstrativas no conteúdo
+                      </p>
+                    </div>
+                  </div>
+                  <ImageIcon className={`w-5 h-5 ${formData.gerar_imagem ? 'text-purple-400' : 'text-gray-500'}`} />
+                </button>
+              </div>
+            )}
 
             {/* Toggle Multi-Turma (apenas para novas missões) */}
             {!missao && (
