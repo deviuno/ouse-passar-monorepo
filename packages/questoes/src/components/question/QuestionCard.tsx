@@ -295,13 +295,21 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
         : `border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-main)]`;
     }
 
-    // Feedback Style (Only for Zen/Reta Final) - VERY visible borders
-    if (letter === question.gabarito) {
-      return `!border-[#10B981] !border-[3px] bg-[#10B981]/25 text-[#059669] font-bold shadow-[0_0_20px_rgba(16,185,129,0.4),inset_0_0_0_1px_rgba(16,185,129,0.3)]`;
+    // Feedback Style - Apenas a alternativa selecionada pelo usuário recebe a borda colorida
+    // Acertou: borda verde #059669 | Errou: borda vermelha #dc2626
+    if (selectedAlt === letter) {
+      if (letter === question.gabarito) {
+        // Usuário acertou - borda verde
+        return `!border-[#059669] !border-[3px] bg-[#059669]/10 text-[var(--color-text-main)] font-bold`;
+      } else {
+        // Usuário errou - borda vermelha
+        return `!border-[#dc2626] !border-[3px] bg-[#dc2626]/10 text-[var(--color-text-main)] font-bold`;
+      }
     }
 
-    if (selectedAlt === letter && letter !== question.gabarito) {
-      return `!border-[#EF4444] !border-[3px] bg-[#EF4444]/25 text-[#DC2626] font-bold shadow-[0_0_20px_rgba(239,68,68,0.4),inset_0_0_0_1px_rgba(239,68,68,0.3)]`;
+    // Mostrar resposta correta quando usuário errou (destaque mais sutil)
+    if (letter === question.gabarito && selectedAlt !== letter) {
+      return `border-[#059669] border-2 bg-[#059669]/5 text-[var(--color-text-main)]`;
     }
 
     return `border-[var(--color-border)] opacity-40`;
