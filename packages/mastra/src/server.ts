@@ -632,9 +632,9 @@ Requirements:
             setTimeout(() => reject(new Error('Timeout: geração de imagem demorou mais de 90 segundos')), 90000);
         });
 
-        // Usar Gemini 2.0 Flash com suporte a geração de imagens
+        // Usar Gemini 3 Pro Image Preview para geração de imagens 1K
         const generatePromise = client.models.generateContent({
-            model: 'gemini-2.0-flash-exp',
+            model: 'gemini-3-pro-image-preview',
             contents: prompt,
             config: {
                 responseModalities: ['IMAGE', 'TEXT'],
