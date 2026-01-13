@@ -610,22 +610,26 @@ async function gerarImagemEducacional(
     try {
         console.log(`[ImagemEducacional] Gerando imagem para: ${concept.conceito}`);
 
-        // Construir prompt otimizado para infográficos educacionais
+        // Construir prompt otimizado para infográficos educacionais - Branding Ouse Passar
         const prompt = `Create a clean, professional educational infographic or diagram about "${concept.conceito}".
 
 Context: ${concept.descricao}
 Subject area: ${materia}
+Brand: Ouse Passar (educational platform)
 
 Requirements:
 - Professional, minimalist design with clean lines
 - Clear visual hierarchy with sections and labels
 - Use icons and simple illustrations (not photos)
-- Color palette: blue (#3B82F6), orange (#F59E0B), gray (#6B7280), white
+- Color palette: blue (#3B82F6), orange/amber (#F59E0B), gray (#6B7280), white
 - Include key terms as labels in Portuguese (Brazil)
 - Suitable for educational content, like a textbook illustration
 - 16:9 aspect ratio, suitable for embedding in content
 - NO text in English, use Portuguese labels only
-- NO photographs, only vector-style illustrations`;
+- NO photographs, only vector-style illustrations
+- If any watermark, credit, or brand name is needed, use "Ouse Passar" only
+- NEVER use the word "concurso" or "material para concurso" anywhere in the image
+- NEVER include generic educational branding - only "Ouse Passar" if brand text is needed`;
 
         // Timeout de 90 segundos para geração de imagem
         const timeoutPromise = new Promise<never>((_, reject) => {
