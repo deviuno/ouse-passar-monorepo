@@ -666,7 +666,7 @@ const ContentPreviewModal: React.FC<ContentPreviewModalProps> = ({ missao, hasCo
       setGenerationProgress(100);
       setGenerationStatus('Conteúdo gerado com sucesso!');
 
-      // Atualizar o conteúdo localmente
+      // Atualizar o conteúdo localmente com o texto
       setContent({
         texto: result.texto || '',
         audioUrl: result.audioUrl || null
@@ -678,6 +678,41 @@ const ContentPreviewModal: React.FC<ContentPreviewModalProps> = ({ missao, hasCo
       // Pequeno delay para mostrar mensagem de sucesso
       await new Promise(resolve => setTimeout(resolve, 1000));
       setIsGenerating(false);
+
+      // Se o áudio está sendo processado em background, fazer polling para atualizar
+      if (result.audioProcessing) {
+        let pollCount = 0;
+        const maxPolls = 30; // Max 1.5 minutos (30 * 3s)
+
+        const pollForAudio = async () => {
+          try {
+            const { data } = await supabase
+              .from('missao_conteudos')
+              .select('texto_content, audio_url')
+              .eq('missao_id', missao.id)
+              .single();
+
+            if (data?.audio_url) {
+              setContent({
+                texto: data.texto_content || result.texto || '',
+                audioUrl: data.audio_url
+              });
+              console.log('[ContentPreview] Áudio carregado:', data.audio_url);
+              return; // Stop polling
+            }
+
+            pollCount++;
+            if (pollCount < maxPolls) {
+              setTimeout(pollForAudio, 3000);
+            }
+          } catch (err) {
+            console.warn('[ContentPreview] Erro ao fazer polling de áudio:', err);
+          }
+        };
+
+        // Iniciar polling após 5 segundos
+        setTimeout(pollForAudio, 5000);
+      }
 
     } catch (err: any) {
       console.error('Erro ao gerar conteúdo:', err);

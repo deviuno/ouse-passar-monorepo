@@ -627,16 +627,17 @@ Requirements:
 - NO text in English, use Portuguese labels only
 - NO photographs, only vector-style illustrations`;
 
-        // Timeout de 90 segundos para Imagen 3.0
+        // Timeout de 90 segundos para geração de imagem
         const timeoutPromise = new Promise<never>((_, reject) => {
             setTimeout(() => reject(new Error('Timeout: geração de imagem demorou mais de 90 segundos')), 90000);
         });
 
+        // Usar Gemini 2.0 Flash com suporte a geração de imagens
         const generatePromise = client.models.generateContent({
-            model: 'imagen-3.0-generate-002',
+            model: 'gemini-2.0-flash-exp',
             contents: prompt,
             config: {
-                responseModalities: ['image'],
+                responseModalities: ['IMAGE', 'TEXT'],
             },
         });
 
