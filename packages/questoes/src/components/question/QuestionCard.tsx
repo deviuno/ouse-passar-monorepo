@@ -579,13 +579,9 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
                 <h3 className={`font-bold ${selectedAlt === question.gabarito ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
                   {selectedAlt === question.gabarito ? 'Excelente! 🎯' : 'Não foi dessa vez... ❌'}
                 </h3>
-                {questionStats && questionStats.totalAnswers > 0 ? (
+                {questionStats && questionStats.totalAnswers > 0 && (
                   <span className="text-xs text-[var(--color-text-sec)]">
                     {questionStats.accuracyRate}% da comunidade acertou ({questionStats.totalAnswers} respostas)
-                  </span>
-                ) : (
-                  <span className="text-xs text-[var(--color-text-muted)]">
-                    Seja o primeiro a responder!
                   </span>
                 )}
               </div>
