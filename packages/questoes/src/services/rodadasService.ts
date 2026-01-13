@@ -47,11 +47,43 @@ export async function getRodadasByPreparatorio(
       console.error('[RodadasService] Erro ao buscar missões:', missoesError);
     }
 
-    // Agrupar missões por rodada
+    // Buscar itens do edital vinculados às missões
+    const missaoIds = (missoes || []).map((m) => m.id);
+    const editalItemsPorMissao = new Map<string, string[]>();
+
+    if (missaoIds.length > 0) {
+      const { data: editalVinculos, error: editalError } = await supabase
+        .from('missao_edital_items')
+        .select(`
+          missao_id,
+          edital_verticalizado_items!inner(titulo)
+        `)
+        .in('missao_id', missaoIds);
+
+      if (editalError) {
+        console.error('[RodadasService] Erro ao buscar itens do edital:', editalError);
+      } else if (editalVinculos) {
+        // Agrupar títulos dos itens do edital por missão
+        editalVinculos.forEach((vinculo: any) => {
+          const titulos = editalItemsPorMissao.get(vinculo.missao_id) || [];
+          if (vinculo.edital_verticalizado_items?.titulo) {
+            titulos.push(vinculo.edital_verticalizado_items.titulo);
+          }
+          editalItemsPorMissao.set(vinculo.missao_id, titulos);
+        });
+      }
+    }
+
+    // Agrupar missões por rodada e adicionar títulos do edital
     const missoesPorRodada = new Map<string, Missao[]>();
     (missoes || []).forEach((m) => {
       const list = missoesPorRodada.get(m.rodada_id) || [];
-      list.push(m);
+      // Adicionar títulos do edital à missão
+      const editalTitulos = editalItemsPorMissao.get(m.id) || [];
+      list.push({
+        ...m,
+        _editalTitulos: editalTitulos,
+      });
       missoesPorRodada.set(m.rodada_id, list);
     });
 
@@ -396,11 +428,19 @@ export function missaoToTrailMission(missao: MissaoComProgresso, indexInRound?: 
   }
 
   // Criar nome do assunto baseado nos dados da missão
+  // Prioridade: assunto manual > matéria manual > títulos do edital > fallback
   let nomeAssunto = '';
+
+  // Pegar títulos do edital se disponíveis (campo adicionado em getRodadasByPreparatorio)
+  const editalTitulos = (missao as any)._editalTitulos as string[] | undefined;
+  const editalTexto = editalTitulos && editalTitulos.length > 0
+    ? editalTitulos.join(', ')
+    : null;
+
   if (missao.tipo === 'padrao' || missao.tipo === 'estudo') {
-    nomeAssunto = missao.assunto || missao.materia || 'Estudo';
+    nomeAssunto = missao.assunto || missao.materia || editalTexto || 'Estudo';
   } else if (missao.tipo === 'revisao') {
-    nomeAssunto = missao.tema || missao.materia || 'Revisão';
+    nomeAssunto = missao.tema || missao.materia || editalTexto || 'Revisão';
   } else if (missao.tipo === 'tecnicas') {
     nomeAssunto = missao.tema || 'Técnicas Ouse Passar';
   } else if (missao.tipo === 'simulado') {
