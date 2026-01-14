@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Filter,
   Play,
@@ -29,17 +29,27 @@ import {
   PenLine,
   Eye,
   Edit,
-} from 'lucide-react';
-import { Button, Card, Progress, ConfirmModal } from '../components/ui';
-import { BatteryEmptyModal } from '../components/battery';
-import { QuestionCard } from '../components/question';
-import QuestionErrorBoundary from '../components/question/QuestionErrorBoundary';
-import { MentorChat } from '../components/question/MentorChat';
-import { FloatingChatButton } from '../components/ui';
-import { ParsedQuestion, RawQuestion, PracticeMode, Alternative } from '../types';
-import { MOCK_QUESTIONS } from '../constants';
-import { useUserStore, useUIStore, useBatteryStore, useTrailStore } from '../stores';
-import { useAuthStore } from '../stores/useAuthStore';
+} from "lucide-react";
+import { Button, Card, Progress, ConfirmModal } from "../components/ui";
+import { BatteryEmptyModal } from "../components/battery";
+import { QuestionCard } from "../components/question";
+import QuestionErrorBoundary from "../components/question/QuestionErrorBoundary";
+import { MentorChat } from "../components/question/MentorChat";
+import { FloatingChatButton } from "../components/ui";
+import {
+  ParsedQuestion,
+  RawQuestion,
+  PracticeMode,
+  Alternative,
+} from "../types";
+import { MOCK_QUESTIONS } from "../constants";
+import {
+  useUserStore,
+  useUIStore,
+  useBatteryStore,
+  useTrailStore,
+} from "../stores";
+import { useAuthStore } from "../stores/useAuthStore";
 import {
   fetchQuestions,
   fetchFilterOptions,
@@ -52,26 +62,29 @@ import {
   OPTIONS_ESCOLARIDADE,
   OPTIONS_MODALIDADE,
   OPTIONS_DIFICULDADE,
-} from '../services/questionsService';
-import { HierarchicalAssuntosDropdown } from '../components/practice/HierarchicalAssuntosDropdown';
-import { EditalSidebar } from '../components/practice/EditalSidebar';
+} from "../services/questionsService";
+import { HierarchicalAssuntosDropdown } from "../components/practice/HierarchicalAssuntosDropdown";
+import { EditalSidebar } from "../components/practice/EditalSidebar";
 import {
   createNotebook,
   getUserNotebooks,
   deleteNotebook,
-} from '../services/notebooksService';
-import { supabase } from '../services/supabase';
-import { Caderno } from '../types';
+} from "../services/notebooksService";
+import { supabase } from "../services/supabase";
+import { Caderno } from "../types";
 import {
   saveUserAnswer,
   saveDifficultyRating,
   DifficultyRating,
-} from '../services/questionFeedbackService';
-import { createPracticeSession } from '../services/practiceSessionService';
-import { SessionResultsScreen } from '../components/practice/SessionResultsScreen';
-import { getGamificationSettings, GamificationSettings } from '../services/gamificationSettingsService';
-import { formatBancaDisplay, sortBancas } from '../utils/bancaFormatter';
-import { isOuseQuestoesSubscriber } from '../services/subscriptionService';
+} from "../services/questionFeedbackService";
+import { createPracticeSession } from "../services/practiceSessionService";
+import { SessionResultsScreen } from "../components/practice/SessionResultsScreen";
+import {
+  getGamificationSettings,
+  GamificationSettings,
+} from "../services/gamificationSettingsService";
+import { formatBancaDisplay, sortBancas } from "../utils/bancaFormatter";
+import { isOuseQuestoesSubscriber } from "../services/subscriptionService";
 
 interface FilterOptions {
   materia: string[];
@@ -92,18 +105,28 @@ interface ToggleFilters {
 
 // Valores padrao de fallback
 const DEFAULT_MATERIAS = [
-  'Lingua Portuguesa',
-  'Direito Constitucional',
-  'Direito Administrativo',
-  'Direito Penal',
-  'Informatica',
-  'Raciocinio Logico',
-  'Atualidades',
+  "Lingua Portuguesa",
+  "Direito Constitucional",
+  "Direito Administrativo",
+  "Direito Penal",
+  "Informatica",
+  "Raciocinio Logico",
+  "Atualidades",
 ];
 
-const DEFAULT_BANCAS = ['CEBRASPE', 'FGV', 'FCC', 'VUNESP', 'IDECAN', 'CESGRANRIO'];
-const DEFAULT_ORGAOS = ['PF - Policia Federal', 'PRF - Policia Rodoviaria Federal'];
-const DEFAULT_ANOS = ['2024', '2023', '2022', '2021', '2020'];
+const DEFAULT_BANCAS = [
+  "CEBRASPE",
+  "FGV",
+  "FCC",
+  "VUNESP",
+  "IDECAN",
+  "CESGRANRIO",
+];
+const DEFAULT_ORGAOS = [
+  "PF - Policia Federal",
+  "PRF - Policia Rodoviaria Federal",
+];
+const DEFAULT_ANOS = ["2024", "2023", "2022", "2021", "2020"];
 
 // Componente de dropdown multi-select com busca
 interface MultiSelectDropdownProps {
@@ -126,36 +149,41 @@ function MultiSelectDropdown({
   selected,
   onToggle,
   onClear,
-  placeholder = 'Selecionar...',
+  placeholder = "Selecionar...",
   isLoading = false,
   disabled = false,
   displayFormatter,
 }: MultiSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   // Função para formatar item para exibição
-  const formatItem = (item: string) => displayFormatter ? displayFormatter(item) : item;
+  const formatItem = (item: string) =>
+    displayFormatter ? displayFormatter(item) : item;
 
   // Fechar ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const filteredItems = useMemo(() => {
     if (!search.trim()) return items;
     const searchLower = search.toLowerCase();
     // Buscar tanto no valor original quanto no formatado
-    return items.filter((item) =>
-      item.toLowerCase().includes(searchLower) ||
-      formatItem(item).toLowerCase().includes(searchLower)
+    return items.filter(
+      (item) =>
+        item.toLowerCase().includes(searchLower) ||
+        formatItem(item).toLowerCase().includes(searchLower)
     );
   }, [items, search, displayFormatter]);
 
@@ -164,13 +192,17 @@ function MultiSelectDropdown({
       {/* Label */}
       <div className="flex items-center gap-2 mb-1.5">
         <span className="text-[var(--color-brand)]">{icon}</span>
-        <span className="text-[var(--color-text-main)] text-sm font-medium">{label}</span>
+        <span className="text-[var(--color-text-main)] text-sm font-medium">
+          {label}
+        </span>
         {selected.length > 0 && (
           <span className="px-1.5 py-0.5 bg-[var(--color-brand)] text-black text-xs font-bold rounded">
             {selected.length}
           </span>
         )}
-        <span className="text-[var(--color-text-muted)] text-xs">({items.length})</span>
+        <span className="text-[var(--color-text-muted)] text-xs">
+          ({items.length})
+        </span>
       </div>
 
       {/* Trigger Button */}
@@ -179,23 +211,34 @@ function MultiSelectDropdown({
         disabled={disabled}
         className={`
           w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-colors theme-transition
-          ${disabled
-            ? 'bg-[var(--color-bg-main)] border-[var(--color-bg-elevated)] text-[var(--color-text-muted)] cursor-not-allowed'
-            : isOpen
-              ? 'bg-[var(--color-bg-card)] border-[var(--color-brand)] text-[var(--color-text-main)]'
-              : 'bg-[var(--color-bg-card)] border-[var(--color-border)] text-[var(--color-text-main)] hover:border-[var(--color-text-muted)]'
+          ${
+            disabled
+              ? "bg-[var(--color-bg-main)] border-[var(--color-bg-elevated)] text-[var(--color-text-muted)] cursor-not-allowed"
+              : isOpen
+              ? "bg-[var(--color-bg-card)] border-[var(--color-brand)] text-[var(--color-text-main)]"
+              : "bg-[var(--color-bg-card)] border-[var(--color-border)] text-[var(--color-text-main)] hover:border-[var(--color-text-muted)]"
           }
         `}
       >
-        <span className={selected.length === 0 ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-main)] truncate'}>
+        <span
+          className={
+            selected.length === 0
+              ? "text-[var(--color-text-muted)]"
+              : "text-[var(--color-text-main)] truncate"
+          }
+        >
           {selected.length === 0
             ? placeholder
             : selected.length === 1
-              ? formatItem(selected[0])
-              : `${selected.length} selecionados`
-          }
+            ? formatItem(selected[0])
+            : `${selected.length} selecionados`}
         </span>
-        <ChevronDown size={16} className={`text-[var(--color-text-muted)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          size={16}
+          className={`text-[var(--color-text-muted)] transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
       </button>
 
       {/* Dropdown */}
@@ -211,7 +254,10 @@ function MultiSelectDropdown({
             {/* Search */}
             <div className="p-2 border-b border-[var(--color-border)]">
               <div className="relative">
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                <Search
+                  size={14}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+                />
                 <input
                   type="text"
                   value={search}
@@ -227,11 +273,18 @@ function MultiSelectDropdown({
             <div className="max-h-[300px] overflow-y-auto">
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
-                  <Loader2 size={16} className="animate-spin text-[var(--color-brand)]" />
-                  <span className="ml-2 text-[var(--color-text-muted)] text-xs">Carregando...</span>
+                  <Loader2
+                    size={16}
+                    className="animate-spin text-[var(--color-brand)]"
+                  />
+                  <span className="ml-2 text-[var(--color-text-muted)] text-xs">
+                    Carregando...
+                  </span>
                 </div>
               ) : filteredItems.length === 0 ? (
-                <p className="text-[var(--color-text-muted)] text-xs text-center py-4">Nenhum resultado</p>
+                <p className="text-[var(--color-text-muted)] text-xs text-center py-4">
+                  Nenhum resultado
+                </p>
               ) : (
                 filteredItems.map((item) => {
                   const isSelected = selected.includes(item);
@@ -241,16 +294,30 @@ function MultiSelectDropdown({
                       onClick={() => onToggle(item)}
                       className={`
                         w-full flex items-start gap-2 px-3 py-2 text-left text-sm transition-colors
-                        ${isSelected ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]' : 'text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)]'}
+                        ${
+                          isSelected
+                            ? "bg-[var(--color-brand)]/10 text-[var(--color-brand)]"
+                            : "text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)]"
+                        }
                       `}
                     >
-                      <div className={`
+                      <div
+                        className={`
                         w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5
-                        ${isSelected ? 'bg-[var(--color-brand)] border-[var(--color-brand)]' : 'border-[var(--color-text-muted)]'}
-                      `}>
-                        {isSelected && <Check size={10} className="text-black" />}
+                        ${
+                          isSelected
+                            ? "bg-[var(--color-brand)] border-[var(--color-brand)]"
+                            : "border-[var(--color-text-muted)]"
+                        }
+                      `}
+                      >
+                        {isSelected && (
+                          <Check size={10} className="text-black" />
+                        )}
                       </div>
-                      <span className="break-words whitespace-normal leading-tight">{formatItem(item)}</span>
+                      <span className="break-words whitespace-normal leading-tight">
+                        {formatItem(item)}
+                      </span>
                     </button>
                   );
                 })
@@ -260,9 +327,14 @@ function MultiSelectDropdown({
             {/* Footer */}
             {selected.length > 0 && (
               <div className="p-2 border-t border-[var(--color-border)] flex justify-between items-center">
-                <span className="text-[var(--color-text-muted)] text-xs">{selected.length} selecionado(s)</span>
+                <span className="text-[var(--color-text-muted)] text-xs">
+                  {selected.length} selecionado(s)
+                </span>
                 <button
-                  onClick={() => { onClear(); setSearch(''); }}
+                  onClick={() => {
+                    onClear();
+                    setSearch("");
+                  }}
                   className="text-[var(--color-error)] text-xs hover:underline"
                 >
                   Limpar
@@ -282,7 +354,8 @@ export default function PracticePage() {
   const { user, profile, fetchProfile } = useAuthStore();
   const { incrementStats } = useUserStore();
   const { addToast, setPracticeMode, clearPracticeMode } = useUIStore();
-  const { selectedPreparatorioId, getSelectedPreparatorio, userPreparatorios } = useTrailStore();
+  const { selectedPreparatorioId, getSelectedPreparatorio, userPreparatorios } =
+    useTrailStore();
   const {
     batteryStatus,
     isEmptyModalOpen,
@@ -296,17 +369,19 @@ export default function PracticePage() {
   // Inicializar autoStartPending baseado na URL para evitar flash da tela de seleção
   const [autoStartPending, setAutoStartPending] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('autostart') === 'true';
+    return params.get("autostart") === "true";
   });
   // Ref para evitar múltiplas execuções do autostart
   const autoStartTriggeredRef = React.useRef(false);
 
   // Estado do modo (agora 'selection', 'practicing' ou 'results')
-  const [mode, setMode] = useState<'selection' | 'practicing' | 'results'>('selection');
+  const [mode, setMode] = useState<"selection" | "practicing" | "results">(
+    "selection"
+  );
 
   // Debug: log mode changes
   React.useEffect(() => {
-    console.log('[PracticePage] Mode changed to:', mode);
+    console.log("[PracticePage] Mode changed to:", mode);
   }, [mode]);
 
   // Controle de tempo da sessão
@@ -323,13 +398,20 @@ export default function PracticePage() {
   // Dados do banco
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [filteredCount, setFilteredCount] = useState(0);
-  const [availableMaterias, setAvailableMaterias] = useState<string[]>(DEFAULT_MATERIAS);
+  const [availableMaterias, setAvailableMaterias] =
+    useState<string[]>(DEFAULT_MATERIAS);
   const [availableAssuntos, setAvailableAssuntos] = useState<string[]>([]);
-  const [taxonomyByMateria, setTaxonomyByMateria] = useState<Map<string, TaxonomyNode[]>>(new Map());
-  const [globalTaxonomy, setGlobalTaxonomy] = useState<Map<string, TaxonomyNode[]>>(new Map());
+  const [taxonomyByMateria, setTaxonomyByMateria] = useState<
+    Map<string, TaxonomyNode[]>
+  >(new Map());
+  const [globalTaxonomy, setGlobalTaxonomy] = useState<
+    Map<string, TaxonomyNode[]>
+  >(new Map());
   const [isLoadingTaxonomy, setIsLoadingTaxonomy] = useState(false);
-  const [availableBancas, setAvailableBancas] = useState<string[]>(DEFAULT_BANCAS);
-  const [availableOrgaos, setAvailableOrgaos] = useState<string[]>(DEFAULT_ORGAOS);
+  const [availableBancas, setAvailableBancas] =
+    useState<string[]>(DEFAULT_BANCAS);
+  const [availableOrgaos, setAvailableOrgaos] =
+    useState<string[]>(DEFAULT_ORGAOS);
   const [availableCargos, setAvailableCargos] = useState<string[]>([]);
   const [availableAnos, setAvailableAnos] = useState<string[]>(DEFAULT_ANOS);
   const [usingMockData, setUsingMockData] = useState(false);
@@ -354,53 +436,63 @@ export default function PracticePage() {
   const [questionCount, setQuestionCount] = useState(10);
 
   // Modo de estudo (padrão: zen)
-  const [studyMode, setStudyMode] = useState<PracticeMode>('zen');
+  const [studyMode, setStudyMode] = useState<PracticeMode>("zen");
 
   // Estado da sessao de pratica
   const [questions, setQuestions] = useState<ParsedQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Map<number, { letter: string; correct: boolean }>>(new Map());
+  const [answers, setAnswers] = useState<
+    Map<number, { letter: string; correct: boolean }>
+  >(new Map());
   const [showMentorChat, setShowMentorChat] = useState(false);
 
   // Rastreamento de tempo por questão
-  const [questionStartTime, setQuestionStartTime] = useState<number | null>(null);
+  const [questionStartTime, setQuestionStartTime] = useState<number | null>(
+    null
+  );
 
   // Estatisticas da sessao
   const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
 
   // Modais de confirmação
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [deleteNotebookConfirm, setDeleteNotebookConfirm] = useState<string | null>(null);
+  const [deleteNotebookConfirm, setDeleteNotebookConfirm] = useState<
+    string | null
+  >(null);
 
   // Gamification settings (loaded from database)
-  const [gamificationSettings, setGamificationSettings] = useState<GamificationSettings | null>(null);
+  const [gamificationSettings, setGamificationSettings] =
+    useState<GamificationSettings | null>(null);
 
   // Notebooks (Cadernos)
   const [notebooks, setNotebooks] = useState<Caderno[]>([]);
   const [showSaveNotebookModal, setShowSaveNotebookModal] = useState(false);
-  const [newNotebookName, setNewNotebookName] = useState('');
-  const [newNotebookDescription, setNewNotebookDescription] = useState('');
+  const [newNotebookName, setNewNotebookName] = useState("");
+  const [newNotebookDescription, setNewNotebookDescription] = useState("");
   const [isSavingNotebook, setIsSavingNotebook] = useState(false);
   const [editingNotebook, setEditingNotebook] = useState<Caderno | null>(null);
-  const [editingTitle, setEditingTitle] = useState('');
-  const [editingDescription, setEditingDescription] = useState('');
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingDescription, setEditingDescription] = useState("");
 
   // Estado local para configurações editáveis de cada caderno
-  const [notebookSettings, setNotebookSettings] = useState<Record<string, { questionCount: number; studyMode: PracticeMode }>>({});
+  const [notebookSettings, setNotebookSettings] = useState<
+    Record<string, { questionCount: number; studyMode: PracticeMode }>
+  >({});
 
   // Modal de visualização de filtros
-  const [viewingNotebookFilters, setViewingNotebookFilters] = useState<Caderno | null>(null);
+  const [viewingNotebookFilters, setViewingNotebookFilters] =
+    useState<Caderno | null>(null);
 
   // Controle de visibilidade dos filtros (oculto por padrão, exceto se showFilters=true na URL)
   const [showFilters, setShowFilters] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('showFilters') === 'true';
+    return params.get("showFilters") === "true";
   });
 
   // Sincronizar showFilters com o parâmetro da URL (garante que funcione com React Router)
   useEffect(() => {
-    const showFiltersParam = searchParams.get('showFilters');
-    if (showFiltersParam === 'true') {
+    const showFiltersParam = searchParams.get("showFilters");
+    if (showFiltersParam === "true") {
       setShowFilters(true);
     }
   }, [searchParams]);
@@ -410,17 +502,22 @@ export default function PracticePage() {
 
   // Sidebar do edital (para modo trilha)
   const [showEditalSidebar, setShowEditalSidebar] = useState(false);
-  const trailPreparatorioId = searchParams.get('preparatorioId');
-  const editalItemTitle = searchParams.get('editalItemTitle');
-  const preparatorioSlug = searchParams.get('preparatorioSlug');
+  const trailPreparatorioId = searchParams.get("preparatorioId");
+  const editalItemTitle = searchParams.get("editalItemTitle");
+  const preparatorioSlug = searchParams.get("preparatorioSlug");
 
   // Auto-iniciar prática com questões aleatórias (true se não houver query params)
   const [shouldAutoStart, setShouldAutoStart] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const hasFilterParams = params.has('materia') || params.has('materias') ||
-                           params.has('assunto') || params.has('assuntos') ||
-                           params.has('banca') || params.has('autostart') ||
-                           params.has('showFilters') || params.has('editNotebook'); // Não auto-iniciar se os filtros devem estar abertos
+    const hasFilterParams =
+      params.has("materia") ||
+      params.has("materias") ||
+      params.has("assunto") ||
+      params.has("assuntos") ||
+      params.has("banca") ||
+      params.has("autostart") ||
+      params.has("showFilters") ||
+      params.has("editNotebook"); // Não auto-iniciar se os filtros devem estar abertos
     return !hasFilterParams; // Auto-start apenas se não houver filtros na URL
   });
 
@@ -433,23 +530,29 @@ export default function PracticePage() {
 
   // Processar parâmetro editNotebook da URL para carregar caderno para edição
   useEffect(() => {
-    const editNotebookId = searchParams.get('editNotebook');
+    const editNotebookId = searchParams.get("editNotebook");
     if (!editNotebookId || notebooks.length === 0 || editingNotebook) return;
 
-    const notebookToEdit = notebooks.find(nb => nb.id === editNotebookId);
+    const notebookToEdit = notebooks.find((nb) => nb.id === editNotebookId);
     if (notebookToEdit) {
-      console.log('[PracticePage] Carregando caderno para edição:', notebookToEdit.title);
+      console.log(
+        "[PracticePage] Carregando caderno para edição:",
+        notebookToEdit.title
+      );
 
       // Load notebook filters
       if (notebookToEdit.filters) setFilters(notebookToEdit.filters);
-      if (notebookToEdit.settings?.toggleFilters) setToggleFilters(notebookToEdit.settings.toggleFilters);
-      if (notebookToEdit.settings?.questionCount) setQuestionCount(notebookToEdit.settings.questionCount);
-      if (notebookToEdit.settings?.studyMode) setStudyMode(notebookToEdit.settings.studyMode as PracticeMode);
+      if (notebookToEdit.settings?.toggleFilters)
+        setToggleFilters(notebookToEdit.settings.toggleFilters);
+      if (notebookToEdit.settings?.questionCount)
+        setQuestionCount(notebookToEdit.settings.questionCount);
+      if (notebookToEdit.settings?.studyMode)
+        setStudyMode(notebookToEdit.settings.studyMode as PracticeMode);
 
       // Set editing mode
       setEditingNotebook(notebookToEdit);
       setEditingTitle(notebookToEdit.title);
-      setEditingDescription(notebookToEdit.description || '');
+      setEditingDescription(notebookToEdit.description || "");
 
       // Ensure filters are visible
       setShowFilters(true);
@@ -462,7 +565,7 @@ export default function PracticePage() {
       if (user?.id) {
         const subscriberStatus = await isOuseQuestoesSubscriber(user.id);
         setIsSubscriber(subscriberStatus);
-        console.log('[PracticePage] Subscriber status:', subscriberStatus);
+        console.log("[PracticePage] Subscriber status:", subscriberStatus);
       }
     };
     checkSubscription();
@@ -474,9 +577,12 @@ export default function PracticePage() {
       try {
         const settings = await getGamificationSettings();
         setGamificationSettings(settings);
-        console.log('[PracticePage] Gamification settings loaded:', settings);
+        console.log("[PracticePage] Gamification settings loaded:", settings);
       } catch (error) {
-        console.error('[PracticePage] Error loading gamification settings:', error);
+        console.error(
+          "[PracticePage] Error loading gamification settings:",
+          error
+        );
       }
     };
     loadGamificationSettings();
@@ -484,17 +590,17 @@ export default function PracticePage() {
 
   // Sync practice mode with UIStore for Header integration
   useEffect(() => {
-    if (mode === 'practicing') {
+    if (mode === "practicing") {
       setPracticeMode({
         isActive: true,
         correctCount: sessionStats.correct,
         wrongCount: sessionStats.total - sessionStats.correct,
         showFilters: showPracticingFilters,
         onBack: handleBack,
-        onToggleFilters: () => setShowPracticingFilters(prev => !prev),
+        onToggleFilters: () => setShowPracticingFilters((prev) => !prev),
         // Trail mode
         isTrailMode: !!trailPreparatorioId,
-        onToggleEdital: () => setShowEditalSidebar(prev => !prev),
+        onToggleEdital: () => setShowEditalSidebar((prev) => !prev),
         // Custom title and back path (for trail practice)
         title: editalItemTitle,
         backPath: preparatorioSlug ? `/trilhas/${preparatorioSlug}` : null,
@@ -502,7 +608,14 @@ export default function PracticePage() {
     } else {
       clearPracticeMode();
     }
-  }, [mode, sessionStats, showPracticingFilters, trailPreparatorioId, editalItemTitle, preparatorioSlug]);
+  }, [
+    mode,
+    sessionStats,
+    showPracticingFilters,
+    trailPreparatorioId,
+    editalItemTitle,
+    preparatorioSlug,
+  ]);
 
   // Clean up practice mode when unmounting
   useEffect(() => {
@@ -513,7 +626,7 @@ export default function PracticePage() {
 
   // Iniciar timer quando a questão muda ou quando entra no modo practicing
   useEffect(() => {
-    if (mode === 'practicing' && questions.length > 0) {
+    if (mode === "practicing" && questions.length > 0) {
       setQuestionStartTime(Date.now());
     }
   }, [mode, currentIndex, questions.length]);
@@ -521,12 +634,12 @@ export default function PracticePage() {
   // Processar query params para aplicar filtros automaticamente
   useEffect(() => {
     // Suporta tanto parâmetros simples quanto arrays JSON
-    const materiaParam = searchParams.get('materia');
-    const materiasParam = searchParams.get('materias'); // JSON array
-    const assuntoParam = searchParams.get('assunto');
-    const assuntosParam = searchParams.get('assuntos'); // JSON array
-    const bancaParam = searchParams.get('banca');
-    const autostart = searchParams.get('autostart');
+    const materiaParam = searchParams.get("materia");
+    const materiasParam = searchParams.get("materias"); // JSON array
+    const assuntoParam = searchParams.get("assunto");
+    const assuntosParam = searchParams.get("assuntos"); // JSON array
+    const bancaParam = searchParams.get("banca");
+    const autostart = searchParams.get("autostart");
 
     // Parsear arrays JSON ou usar valores simples
     let newMaterias: string[] = [];
@@ -536,7 +649,7 @@ export default function PracticePage() {
       try {
         newMaterias = JSON.parse(materiasParam);
       } catch (e) {
-        console.error('[PracticePage] Erro ao parsear materias:', e);
+        console.error("[PracticePage] Erro ao parsear materias:", e);
       }
     } else if (materiaParam) {
       newMaterias = [materiaParam];
@@ -546,17 +659,22 @@ export default function PracticePage() {
       try {
         newAssuntos = JSON.parse(assuntosParam);
       } catch (e) {
-        console.error('[PracticePage] Erro ao parsear assuntos:', e);
+        console.error("[PracticePage] Erro ao parsear assuntos:", e);
       }
     } else if (assuntoParam) {
       newAssuntos = [assuntoParam];
     }
 
     if (newMaterias.length > 0 || newAssuntos.length > 0 || bancaParam) {
-      console.log('[PracticePage] Query params detectados:', { newMaterias, newAssuntos, bancaParam, autostart });
+      console.log("[PracticePage] Query params detectados:", {
+        newMaterias,
+        newAssuntos,
+        bancaParam,
+        autostart,
+      });
 
       // Aplicar filtros dos query params
-      setFilters(prev => ({
+      setFilters((prev) => ({
         ...prev,
         materia: newMaterias.length > 0 ? newMaterias : prev.materia,
         assunto: newAssuntos.length > 0 ? newAssuntos : prev.assunto,
@@ -564,7 +682,7 @@ export default function PracticePage() {
       }));
 
       // Se autostart=true, marcar para iniciar automaticamente após carregar
-      if (autostart === 'true') {
+      if (autostart === "true") {
         setAutoStartPending(true);
       }
     }
@@ -578,19 +696,26 @@ export default function PracticePage() {
     // Esperar filtros carregarem
     if (isLoadingFilters || isLoadingCount) return;
 
-    const materiaParam = searchParams.get('materia');
-    const materiasParam = searchParams.get('materias');
-    const assuntoParam = searchParams.get('assunto');
-    const assuntosParam = searchParams.get('assuntos');
-    const bancaParam = searchParams.get('banca');
+    const materiaParam = searchParams.get("materia");
+    const materiasParam = searchParams.get("materias");
+    const assuntoParam = searchParams.get("assunto");
+    const assuntosParam = searchParams.get("assuntos");
+    const bancaParam = searchParams.get("banca");
 
     // Verificar se há filtros na URL (além de autostart)
-    const hasFilterParams = materiaParam || materiasParam || assuntoParam || assuntosParam || bancaParam;
+    const hasFilterParams =
+      materiaParam ||
+      materiasParam ||
+      assuntoParam ||
+      assuntosParam ||
+      bancaParam;
 
     if (!hasFilterParams) {
       // Sem filtros: iniciar prática com questões aleatórias
       autoStartTriggeredRef.current = true;
-      console.log('[PracticePage] Auto-iniciando prática com questões aleatórias (autostart sem filtros)');
+      console.log(
+        "[PracticePage] Auto-iniciando prática com questões aleatórias (autostart sem filtros)"
+      );
       startPractice();
       return;
     }
@@ -600,50 +725,84 @@ export default function PracticePage() {
     let expectedAssuntos: string[] = [];
 
     if (materiasParam) {
-      try { expectedMaterias = JSON.parse(materiasParam); } catch (e) { /* ignore */ }
+      try {
+        expectedMaterias = JSON.parse(materiasParam);
+      } catch (e) {
+        /* ignore */
+      }
     } else if (materiaParam) {
       expectedMaterias = [materiaParam];
     }
 
     if (assuntosParam) {
-      try { expectedAssuntos = JSON.parse(assuntosParam); } catch (e) { /* ignore */ }
+      try {
+        expectedAssuntos = JSON.parse(assuntosParam);
+      } catch (e) {
+        /* ignore */
+      }
     } else if (assuntoParam) {
       expectedAssuntos = [assuntoParam];
     }
 
     // Verificar se os filtros já foram aplicados corretamente
     const filtersApplied =
-      (expectedMaterias.length === 0 || expectedMaterias.every(m => filters.materia.includes(m))) &&
-      (expectedAssuntos.length === 0 || expectedAssuntos.every(a => filters.assunto.includes(a))) &&
+      (expectedMaterias.length === 0 ||
+        expectedMaterias.every((m) => filters.materia.includes(m))) &&
+      (expectedAssuntos.length === 0 ||
+        expectedAssuntos.every((a) => filters.assunto.includes(a))) &&
       (!bancaParam || filters.banca.includes(bancaParam));
 
     if (filtersApplied) {
       autoStartTriggeredRef.current = true;
-      console.log('[PracticePage] Auto-iniciando prática com filtros dos query params:', {
-        materia: filters.materia,
-        assunto: filters.assunto,
-        banca: filters.banca
-      });
+      console.log(
+        "[PracticePage] Auto-iniciando prática com filtros dos query params:",
+        {
+          materia: filters.materia,
+          assunto: filters.assunto,
+          banca: filters.banca,
+        }
+      );
       startPractice();
     }
-  }, [autoStartPending, isLoadingFilters, isLoadingCount, filters, searchParams]);
+  }, [
+    autoStartPending,
+    isLoadingFilters,
+    isLoadingCount,
+    filters,
+    searchParams,
+  ]);
 
   // Auto-iniciar prática com questões aleatórias quando não houver filtros na URL
   useEffect(() => {
     // Não auto-iniciar se showFilters=true (usuário quer ver os filtros)
-    const showFiltersParam = searchParams.get('showFilters');
-    if (showFiltersParam === 'true') return;
+    const showFiltersParam = searchParams.get("showFilters");
+    if (showFiltersParam === "true") return;
 
-    if (shouldAutoStart && !isLoadingFilters && !isLoadingCount && mode === 'selection' && !isLoading) {
-      console.log('[PracticePage] Auto-iniciando prática com questões aleatórias (modo Zen)');
+    if (
+      shouldAutoStart &&
+      !isLoadingFilters &&
+      !isLoadingCount &&
+      mode === "selection" &&
+      !isLoading
+    ) {
+      console.log(
+        "[PracticePage] Auto-iniciando prática com questões aleatórias (modo Zen)"
+      );
       setShouldAutoStart(false);
       startPractice();
     }
-  }, [shouldAutoStart, isLoadingFilters, isLoadingCount, mode, isLoading, searchParams]);
+  }, [
+    shouldAutoStart,
+    isLoadingFilters,
+    isLoadingCount,
+    mode,
+    isLoading,
+    searchParams,
+  ]);
 
   // Resetar autoStartPending quando entrar no modo 'practicing'
   useEffect(() => {
-    if (mode === 'practicing' && autoStartPending) {
+    if (mode === "practicing" && autoStartPending) {
       setAutoStartPending(false);
       autoStartTriggeredRef.current = false;
     }
@@ -656,16 +815,19 @@ export default function PracticePage() {
       setNotebooks(data);
 
       // Inicializar configurações editáveis para cada caderno
-      const initialSettings: Record<string, { questionCount: number; studyMode: PracticeMode }> = {};
-      data.forEach(notebook => {
+      const initialSettings: Record<
+        string,
+        { questionCount: number; studyMode: PracticeMode }
+      > = {};
+      data.forEach((notebook) => {
         initialSettings[notebook.id] = {
           questionCount: notebook.settings?.questionCount || 10,
-          studyMode: notebook.settings?.studyMode || 'zen',
+          studyMode: notebook.settings?.studyMode || "zen",
         };
       });
       setNotebookSettings(initialSettings);
     } catch (error) {
-      console.error('Erro ao carregar cadernos:', error);
+      console.error("Erro ao carregar cadernos:", error);
     }
   };
 
@@ -676,17 +838,21 @@ export default function PracticePage() {
     try {
       // Consumir bateria por criar caderno (pular se assinante Ouse Questões)
       const prep = getSelectedPreparatorio();
-      const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
+      const prepIdToUse =
+        prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
       if (prepIdToUse && !isSubscriber) {
         const batteryResult = await consumeBattery(
           user.id,
           prepIdToUse,
-          'notebook_create',
+          "notebook_create",
           { notebook_name: newNotebookName }
         );
 
-        if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
-          console.log('[PracticePage] Bateria insuficiente para criar caderno');
+        if (
+          !batteryResult.success &&
+          batteryResult.error === "insufficient_battery"
+        ) {
+          console.log("[PracticePage] Bateria insuficiente para criar caderno");
           setIsSavingNotebook(false);
           return; // Modal será aberto automaticamente pelo store
         }
@@ -695,7 +861,7 @@ export default function PracticePage() {
       const settings = {
         questionCount,
         studyMode,
-        toggleFilters
+        toggleFilters,
       };
 
       // Use filteredCount, but fallback to totalQuestions if no filters are applied
@@ -715,16 +881,16 @@ export default function PracticePage() {
         await loadNotebooks();
 
         setShowSaveNotebookModal(false);
-        setNewNotebookName('');
-        setNewNotebookDescription('');
-        addToast('success', 'Caderno salvo com sucesso!');
+        setNewNotebookName("");
+        setNewNotebookDescription("");
+        addToast("success", "Caderno salvo com sucesso!");
 
         // Scroll to top
-        window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
       }
     } catch (error) {
-      console.error('Erro ao salvar caderno:', error);
-      addToast('error', 'Erro ao salvar caderno.');
+      console.error("Erro ao salvar caderno:", error);
+      addToast("error", "Erro ao salvar caderno.");
     } finally {
       setIsSavingNotebook(false);
     }
@@ -733,7 +899,8 @@ export default function PracticePage() {
   const handleEditNotebookFilters = (notebook: Caderno) => {
     // Load notebook filters
     if (notebook.filters) setFilters(notebook.filters);
-    if (notebook.settings?.toggleFilters) setToggleFilters(notebook.settings.toggleFilters);
+    if (notebook.settings?.toggleFilters)
+      setToggleFilters(notebook.settings.toggleFilters);
 
     // Load settings into state
     const settings = notebookSettings[notebook.id];
@@ -745,19 +912,19 @@ export default function PracticePage() {
     // Set editing mode with title and description
     setEditingNotebook(notebook);
     setEditingTitle(notebook.title);
-    setEditingDescription(notebook.description || '');
+    setEditingDescription(notebook.description || "");
 
     // Close modal and switch to edit mode
     setViewingNotebookFilters(null);
 
     // Scroll to top to see the filters
-    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   };
 
   const handleCancelEdit = () => {
     setEditingNotebook(null);
-    setEditingTitle('');
-    setEditingDescription('');
+    setEditingTitle("");
+    setEditingDescription("");
     clearFilters();
   };
 
@@ -771,7 +938,7 @@ export default function PracticePage() {
 
       // Update notebook in database
       const { error } = await supabase
-        .from('cadernos')
+        .from("cadernos")
         .update({
           title: editingTitle.trim(),
           description: editingDescription.trim() || null,
@@ -779,45 +946,49 @@ export default function PracticePage() {
           settings: {
             questionCount,
             studyMode,
-            toggleFilters
+            toggleFilters,
           },
-          questions_count: questionsCount
+          questions_count: questionsCount,
         })
-        .eq('id', editingNotebook.id);
+        .eq("id", editingNotebook.id);
 
       if (error) throw error;
 
       // Reload notebooks
       await loadNotebooks();
 
-      addToast('success', 'Caderno atualizado com sucesso!');
+      addToast("success", "Caderno atualizado com sucesso!");
 
       if (andStart) {
         // Start practice with updated settings
         setEditingNotebook(null);
-        setEditingTitle('');
-        setEditingDescription('');
+        setEditingTitle("");
+        setEditingDescription("");
         await startPractice();
       } else {
         // Reset editing state
         setEditingNotebook(null);
-        setEditingTitle('');
-        setEditingDescription('');
+        setEditingTitle("");
+        setEditingDescription("");
       }
     } catch (error) {
-      console.error('Erro ao atualizar caderno:', error);
-      addToast('error', 'Erro ao atualizar caderno.');
+      console.error("Erro ao atualizar caderno:", error);
+      addToast("error", "Erro ao atualizar caderno.");
     } finally {
       setIsSavingNotebook(false);
     }
   };
 
-  const handleStartFromNotebook = async (notebook: Caderno, e?: React.MouseEvent) => {
+  const handleStartFromNotebook = async (
+    notebook: Caderno,
+    e?: React.MouseEvent
+  ) => {
     if (e) e.stopPropagation();
 
     // Load notebook filters
     if (notebook.filters) setFilters(notebook.filters);
-    if (notebook.settings?.toggleFilters) setToggleFilters(notebook.settings.toggleFilters);
+    if (notebook.settings?.toggleFilters)
+      setToggleFilters(notebook.settings.toggleFilters);
 
     // Use the editable settings from state
     const settings = notebookSettings[notebook.id];
@@ -839,8 +1010,10 @@ export default function PracticePage() {
     if (!deleteNotebookConfirm) return;
     const success = await deleteNotebook(deleteNotebookConfirm);
     if (success) {
-      setNotebooks(prev => prev.filter(n => n.id !== deleteNotebookConfirm));
-      addToast('success', 'Caderno excluído.');
+      setNotebooks((prev) =>
+        prev.filter((n) => n.id !== deleteNotebookConfirm)
+      );
+      addToast("success", "Caderno excluído.");
     }
     setDeleteNotebookConfirm(null);
   };
@@ -848,10 +1021,28 @@ export default function PracticePage() {
   // Contador para forçar reload quando navegar para a página
   const [loadKey, setLoadKey] = useState(0);
 
+  useEffect(() => {
+    const showFiltersParam = searchParams.get("showFilters") === "true";
+    const editNotebookParam = searchParams.get("editNotebook");
+    const isAutoStarting =
+      (shouldAutoStart || autoStartPending) &&
+      !showFiltersParam &&
+      !editNotebookParam;
+
+    console.log("showFilters: ", showFiltersParam);
+    console.log("editNotebook", editNotebookParam);
+    console.log("IsloadingFilters: ", isLoadingFilters);
+    console.log("isLoadingCOunt", isLoadingCount);
+    console.log("isLoading", isLoading);
+    console.log("mode", mode);
+  }, [isLoadingFilters, isLoadingCount,isLoading, mode, searchParams]);
+
   // Reset state when component mounts or route changes (handles navigation)
   useEffect(() => {
-    console.log('[PracticePage] Component mounted/route changed, resetting state...');
-    setMode('selection');
+    console.log(
+      "[PracticePage] Component mounted/route changed, resetting state..."
+    );
+    setMode("selection");
     setQuestions([]);
     setCurrentIndex(0);
     setAnswers(new Map());
@@ -859,13 +1050,17 @@ export default function PracticePage() {
     setSessionStartTime(null);
     setIsLoadingFilters(true); // Reset loading state for fresh filter load
     // Incrementar key para forçar reload dos dados
-    setLoadKey(prev => prev + 1);
+    setLoadKey((prev) => prev + 1);
 
     // Verificar se deve auto-iniciar (apenas se não houver filtros na URL)
     const params = new URLSearchParams(window.location.search);
-    const hasFilterParams = params.has('materia') || params.has('materias') ||
-                           params.has('assunto') || params.has('assuntos') ||
-                           params.has('banca') || params.has('autostart');
+    const hasFilterParams =
+      params.has("materia") ||
+      params.has("materias") ||
+      params.has("assunto") ||
+      params.has("assuntos") ||
+      params.has("banca") ||
+      params.has("autostart");
     setShouldAutoStart(!hasFilterParams);
   }, [location.pathname]);
 
@@ -874,37 +1069,71 @@ export default function PracticePage() {
     let isMounted = true;
 
     const loadFilterOptions = async () => {
-      console.log('[PracticePage] Carregando opções de filtro... (loadKey:', loadKey, ')');
+      console.log(
+        "[PracticePage] Carregando opções de filtro... (loadKey:",
+        loadKey,
+        ")"
+      );
 
       try {
-        const [filterOptions, count] = await Promise.all([fetchFilterOptions(), getQuestionsCount()]);
+        const [filterOptions, count] = await Promise.all([
+          fetchFilterOptions(),
+          getQuestionsCount(),
+        ]);
 
         if (!isMounted) return;
 
-        console.log('[PracticePage] Filtros carregados:', {
+        console.log("[PracticePage] Filtros carregados:", {
           materias: filterOptions.materias.length,
           bancas: filterOptions.bancas.length,
-          count
+          count,
         });
 
         // Sempre usar dados do banco se conseguimos carregar algo
         setTotalQuestions(count);
         setFilteredCount(count);
-        setAvailableMaterias(filterOptions.materias.length > 0 ? filterOptions.materias : DEFAULT_MATERIAS);
-        setAvailableBancas(filterOptions.bancas.length > 0 ? filterOptions.bancas : DEFAULT_BANCAS);
-        setAvailableOrgaos(filterOptions.orgaos.length > 0 ? filterOptions.orgaos : DEFAULT_ORGAOS);
+        setAvailableMaterias(
+          filterOptions.materias.length > 0
+            ? filterOptions.materias
+            : DEFAULT_MATERIAS
+        );
+        setAvailableBancas(
+          filterOptions.bancas.length > 0
+            ? filterOptions.bancas
+            : DEFAULT_BANCAS
+        );
+        setAvailableOrgaos(
+          filterOptions.orgaos.length > 0
+            ? filterOptions.orgaos
+            : DEFAULT_ORGAOS
+        );
         setAvailableCargos(filterOptions.cargos || []);
-        setAvailableAnos(filterOptions.anos.length > 0 ? filterOptions.anos.map(String) : DEFAULT_ANOS);
+        setAvailableAnos(
+          filterOptions.anos.length > 0
+            ? filterOptions.anos.map(String)
+            : DEFAULT_ANOS
+        );
         setUsingMockData(false);
 
         if (count === 0) {
-          console.warn('[PracticePage] Nenhuma questão encontrada no banco de dados');
-          addToast('info', 'Conectado ao banco, mas nenhuma questão encontrada.');
+          console.warn(
+            "[PracticePage] Nenhuma questão encontrada no banco de dados"
+          );
+          addToast(
+            "info",
+            "Conectado ao banco, mas nenhuma questão encontrada."
+          );
         }
       } catch (error) {
         if (!isMounted) return;
-        console.error('[PracticePage] Erro ao carregar filtros após retries:', error);
-        addToast('error', 'Erro ao conectar ao banco de questões. Usando dados de exemplo.');
+        console.error(
+          "[PracticePage] Erro ao carregar filtros após retries:",
+          error
+        );
+        addToast(
+          "error",
+          "Erro ao conectar ao banco de questões. Usando dados de exemplo."
+        );
         setTotalQuestions(MOCK_QUESTIONS.length);
         setFilteredCount(MOCK_QUESTIONS.length);
         setUsingMockData(true);
@@ -928,7 +1157,10 @@ export default function PracticePage() {
           }
         }
       } catch (error) {
-        console.error('[PracticePage] Erro ao carregar taxonomia global:', error);
+        console.error(
+          "[PracticePage] Erro ao carregar taxonomia global:",
+          error
+        );
       } finally {
         if (isMounted) {
           setIsLoadingTaxonomy(false);
@@ -947,11 +1179,18 @@ export default function PracticePage() {
   // Atualizar taxonomia IMEDIATAMENTE quando globalTaxonomy ou filtros mudam
   // Sem esperar pelos assuntos (que podem demorar)
   useEffect(() => {
-    console.log('[PracticePage] Atualizando taxonomia - globalTaxonomy.size:', globalTaxonomy.size, 'matérias selecionadas:', filters.materia.length);
+    console.log(
+      "[PracticePage] Atualizando taxonomia - globalTaxonomy.size:",
+      globalTaxonomy.size,
+      "matérias selecionadas:",
+      filters.materia.length
+    );
 
     // Se globalTaxonomy ainda não carregou, não fazer nada
     if (globalTaxonomy.size === 0) {
-      console.log('[PracticePage] globalTaxonomy vazio, aguardando carregamento...');
+      console.log(
+        "[PracticePage] globalTaxonomy vazio, aguardando carregamento..."
+      );
       return;
     }
 
@@ -970,7 +1209,11 @@ export default function PracticePage() {
       taxonomy = globalTaxonomy;
     }
 
-    console.log('[PracticePage] Definindo taxonomyByMateria:', taxonomy.size, 'matérias');
+    console.log(
+      "[PracticePage] Definindo taxonomyByMateria:",
+      taxonomy.size,
+      "matérias"
+    );
     setTaxonomyByMateria(taxonomy);
   }, [filters.materia, globalTaxonomy]);
 
@@ -980,9 +1223,8 @@ export default function PracticePage() {
       setIsLoadingAssuntos(true);
       try {
         // Determinar quais matérias usar para buscar assuntos
-        const materiasParaBuscar = filters.materia.length > 0
-          ? filters.materia
-          : availableMaterias; // Usar todas as matérias disponíveis
+        const materiasParaBuscar =
+          filters.materia.length > 0 ? filters.materia : availableMaterias; // Usar todas as matérias disponíveis
 
         // Carregar assuntos
         const assuntos = await fetchAssuntosByMaterias(materiasParaBuscar);
@@ -997,7 +1239,7 @@ export default function PracticePage() {
           }));
         }
       } catch (error) {
-        console.error('Erro ao carregar assuntos:', error);
+        console.error("Erro ao carregar assuntos:", error);
         setAvailableAssuntos([]);
       } finally {
         setIsLoadingAssuntos(false);
@@ -1016,13 +1258,17 @@ export default function PracticePage() {
       if (usingMockData) {
         let filtered = [...MOCK_QUESTIONS];
         if (filters.materia.length > 0) {
-          filtered = filtered.filter((q) => filters.materia.includes(q.materia));
+          filtered = filtered.filter((q) =>
+            filters.materia.includes(q.materia)
+          );
         }
         if (filters.banca.length > 0) {
           filtered = filtered.filter((q) => filters.banca.includes(q.banca));
         }
         if (filters.ano.length > 0) {
-          filtered = filtered.filter((q) => filters.ano.includes(String(q.ano)));
+          filtered = filtered.filter((q) =>
+            filters.ano.includes(String(q.ano))
+          );
         }
         setFilteredCount(filtered.length);
         return;
@@ -1057,7 +1303,7 @@ export default function PracticePage() {
         });
         setFilteredCount(count);
       } catch (error) {
-        console.error('Erro ao contar questoes:', error);
+        console.error("Erro ao contar questoes:", error);
       } finally {
         setIsLoadingCount(false);
       }
@@ -1070,7 +1316,9 @@ export default function PracticePage() {
   const toggleFilter = (category: keyof FilterOptions, value: string) => {
     setFilters((prev) => {
       const current = prev[category];
-      const updated = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
+      const updated = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
       return { ...prev, [category]: updated };
     });
   };
@@ -1085,7 +1333,7 @@ export default function PracticePage() {
       ano: [],
       escolaridade: [],
       modalidade: [],
-      dificuldade: []
+      dificuldade: [],
     });
     setToggleFilters({ apenasRevisadas: false, apenasComComentario: false });
   };
@@ -1105,7 +1353,7 @@ export default function PracticePage() {
 
   // Iniciar pratica
   const startPractice = async () => {
-    console.log('[PracticePage] startPractice iniciado');
+    console.log("[PracticePage] startPractice iniciado");
     setIsLoading(true);
 
     try {
@@ -1116,62 +1364,82 @@ export default function PracticePage() {
       const isTrailMode = !!trailPreparatorioId;
 
       if (!isTrailMode && !isSubscriber) {
-        console.log('[PracticePage] Obtendo preparatório selecionado...');
+        console.log("[PracticePage] Obtendo preparatório selecionado...");
         const selectedPrep = getSelectedPreparatorio();
-        const prepIdToUse = selectedPrep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
-        console.log('[PracticePage] prepIdToUse:', prepIdToUse, 'user?.id:', user?.id);
+        const prepIdToUse =
+          selectedPrep?.preparatorio_id ||
+          userPreparatorios[0]?.preparatorio_id;
+        console.log(
+          "[PracticePage] prepIdToUse:",
+          prepIdToUse,
+          "user?.id:",
+          user?.id
+        );
 
         if (user?.id && prepIdToUse) {
-          console.log('[PracticePage] Consumindo bateria...');
+          console.log("[PracticePage] Consumindo bateria...");
           const batteryResult = await consumeBattery(
             user.id,
             prepIdToUse,
-            'practice_session',
+            "practice_session",
             { question_count: questionCount }
           );
-          console.log('[PracticePage] Resultado bateria:', batteryResult);
+          console.log("[PracticePage] Resultado bateria:", batteryResult);
 
-          if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
-            console.log('[PracticePage] Bateria insuficiente');
+          if (
+            !batteryResult.success &&
+            batteryResult.error === "insufficient_battery"
+          ) {
+            console.log("[PracticePage] Bateria insuficiente");
             setIsLoading(false);
             return; // Modal sera aberto automaticamente pelo store
           }
         } else {
-          console.log('[PracticePage] Pulando verificação de bateria (sem user ou prepId)');
+          console.log(
+            "[PracticePage] Pulando verificação de bateria (sem user ou prepId)"
+          );
         }
       } else {
-        console.log('[PracticePage] Modo trilha ou assinante: pulando consumo de bateria');
+        console.log(
+          "[PracticePage] Modo trilha ou assinante: pulando consumo de bateria"
+        );
       }
 
       let questionsToUse: ParsedQuestion[] = [];
 
-      console.log('[PracticePage] usingMockData:', usingMockData);
+      console.log("[PracticePage] usingMockData:", usingMockData);
 
       if (usingMockData) {
-        console.log('[PracticePage] Usando dados mock');
+        console.log("[PracticePage] Usando dados mock");
         let filtered = [...MOCK_QUESTIONS];
         if (filters.materia.length > 0) {
-          filtered = filtered.filter((q) => filters.materia.includes(q.materia));
+          filtered = filtered.filter((q) =>
+            filters.materia.includes(q.materia)
+          );
         }
         if (filters.banca.length > 0) {
           filtered = filtered.filter((q) => filters.banca.includes(q.banca));
         }
         if (filters.ano.length > 0) {
-          filtered = filtered.filter((q) => filters.ano.includes(String(q.ano)));
+          filtered = filtered.filter((q) =>
+            filters.ano.includes(String(q.ano))
+          );
         }
         if (filtered.length === 0) {
           filtered = [...MOCK_QUESTIONS];
         }
         const shuffled = filtered.sort(() => Math.random() - 0.5);
-        questionsToUse = shuffled.slice(0, Math.min(questionCount, shuffled.length)).map(parseRawQuestion);
+        questionsToUse = shuffled
+          .slice(0, Math.min(questionCount, shuffled.length))
+          .map(parseRawQuestion);
       } else {
         // No modo trilha, buscar todas as questões (sem limit)
         const isTrailMode = !!trailPreparatorioId;
-        console.log('[PracticePage] Buscando questões do banco. Filtros:', {
+        console.log("[PracticePage] Buscando questões do banco. Filtros:", {
           materias: filters.materia,
           assuntos: filters.assunto,
           bancas: filters.banca,
-          questionCount: isTrailMode ? 'todas (modo trilha)' : questionCount
+          questionCount: isTrailMode ? "todas (modo trilha)" : questionCount,
         });
         const dbQuestions = await fetchQuestions({
           materias: filters.materia.length > 0 ? filters.materia : undefined,
@@ -1180,60 +1448,82 @@ export default function PracticePage() {
           orgaos: filters.orgao.length > 0 ? filters.orgao : undefined,
           cargos: filters.cargo.length > 0 ? filters.cargo : undefined,
           anos: filters.ano.length > 0 ? filters.ano.map(Number) : undefined,
-          escolaridade: filters.escolaridade.length > 0 ? filters.escolaridade : undefined,
-          modalidade: filters.modalidade.length > 0 ? filters.modalidade : undefined,
-          dificuldade: filters.dificuldade.length > 0 ? filters.dificuldade : undefined,
+          escolaridade:
+            filters.escolaridade.length > 0 ? filters.escolaridade : undefined,
+          modalidade:
+            filters.modalidade.length > 0 ? filters.modalidade : undefined,
+          dificuldade:
+            filters.dificuldade.length > 0 ? filters.dificuldade : undefined,
           apenasRevisadas: toggleFilters.apenasRevisadas || undefined,
           apenasComComentario: toggleFilters.apenasComComentario || undefined,
           limit: isTrailMode ? 500 : questionCount, // Modo trilha: buscar até 500 questões
           shuffle: true,
         });
-        console.log('[PracticePage] Questões recebidas:', dbQuestions.length);
+        console.log("[PracticePage] Questões recebidas:", dbQuestions.length);
 
         if (dbQuestions.length > 0) {
           questionsToUse = dbQuestions;
         } else if (isTrailMode) {
           // No modo trilha, NUNCA usar questões de exemplo
-          addToast('error', 'Nenhuma questão encontrada para este tópico. Verifique os filtros do edital.');
+          addToast(
+            "error",
+            "Nenhuma questão encontrada para este tópico. Verifique os filtros do edital."
+          );
           setIsLoading(false);
           return;
         } else {
           // Modo livre: usar questões de exemplo como fallback
-          addToast('info', 'Nenhuma questao encontrada. Usando questoes de exemplo.');
+          addToast(
+            "info",
+            "Nenhuma questao encontrada. Usando questoes de exemplo."
+          );
           const shuffled = [...MOCK_QUESTIONS].sort(() => Math.random() - 0.5);
-          questionsToUse = shuffled.slice(0, questionCount).map(parseRawQuestion);
+          questionsToUse = shuffled
+            .slice(0, questionCount)
+            .map(parseRawQuestion);
         }
       }
 
-      console.log('[PracticePage] Iniciando modo practicing com', questionsToUse.length, 'questões');
+      console.log(
+        "[PracticePage] Iniciando modo practicing com",
+        questionsToUse.length,
+        "questões"
+      );
       setQuestions(questionsToUse);
       setCurrentIndex(0);
       setAnswers(new Map());
       setSessionStats({ correct: 0, total: 0 });
       setSessionStartTime(Date.now()); // Iniciar cronômetro
-      setMode('practicing');
+      setMode("practicing");
     } catch (error) {
-      console.error('Erro ao carregar questoes:', error);
+      console.error("Erro ao carregar questoes:", error);
       // No modo trilha, não usar fallback de questões de exemplo
       if (trailPreparatorioId) {
-        addToast('error', 'Erro ao carregar questões. Tente novamente.');
+        addToast("error", "Erro ao carregar questões. Tente novamente.");
         setIsLoading(false);
         return;
       }
-      addToast('error', 'Erro ao carregar questoes. Usando questoes de exemplo.');
+      addToast(
+        "error",
+        "Erro ao carregar questoes. Usando questoes de exemplo."
+      );
       const shuffled = [...MOCK_QUESTIONS].sort(() => Math.random() - 0.5);
       setQuestions(shuffled.slice(0, questionCount).map(parseRawQuestion));
       setCurrentIndex(0);
       setAnswers(new Map());
       setSessionStats({ correct: 0, total: 0 });
       setSessionStartTime(Date.now()); // Iniciar cronômetro
-      setMode('practicing');
+      setMode("practicing");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAnswer = async (letter: string, clickX?: number, clickY?: number) => {
+  const handleAnswer = async (
+    letter: string,
+    clickX?: number,
+    clickY?: number
+  ) => {
     const question = questions[currentIndex];
     const isCorrect = letter === question.gabarito;
 
@@ -1243,7 +1533,9 @@ export default function PracticePage() {
       : null;
 
     // PRIMEIRO: Atualizar estatísticas (sempre acontece)
-    setAnswers(new Map(answers.set(question.id, { letter, correct: isCorrect })));
+    setAnswers(
+      new Map(answers.set(question.id, { letter, correct: isCorrect }))
+    );
     setSessionStats((prev) => ({
       correct: prev.correct + (isCorrect ? 1 : 0),
       total: prev.total + 1,
@@ -1255,27 +1547,31 @@ export default function PracticePage() {
     if (!trailPreparatorioId && !isSubscriber) {
       try {
         const prep = getSelectedPreparatorio();
-        const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
+        const prepIdToUse =
+          prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
         if (user?.id && prepIdToUse) {
           const batteryResult = await consumeBattery(
             user.id,
             prepIdToUse,
-            'question',
+            "question",
             { question_id: question.id.toString(), clickX, clickY }
           );
 
-          if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
-            console.log('[PracticePage] Bateria insuficiente');
+          if (
+            !batteryResult.success &&
+            batteryResult.error === "insufficient_battery"
+          ) {
+            console.log("[PracticePage] Bateria insuficiente");
             // Modal será aberto automaticamente pelo store, mas não bloqueamos mais a resposta
           }
         }
       } catch (error) {
-        console.error('[PracticePage] Erro ao consumir bateria:', error);
+        console.error("[PracticePage] Erro ao consumir bateria:", error);
       }
     }
 
     // Calculate rewards based on gamification settings
-    const isHardMode = studyMode === 'hard';
+    const isHardMode = studyMode === "hard";
     let xpReward = 0;
     let coinsReward = 0;
 
@@ -1302,12 +1598,15 @@ export default function PracticePage() {
     });
 
     // Save answer to database for statistics (including time spent)
-    saveUserAnswer({
-      questionId: question.id,
-      selectedAlternative: letter,
-      isCorrect: isCorrect,
-      timeSpentSeconds: timeSpentSeconds || undefined,
-    }, user?.id);
+    saveUserAnswer(
+      {
+        questionId: question.id,
+        selectedAlternative: letter,
+        isCorrect: isCorrect,
+        timeSpentSeconds: timeSpentSeconds || undefined,
+      },
+      user?.id
+    );
   };
 
   const handleRateDifficulty = (difficulty: DifficultyRating) => {
@@ -1318,20 +1617,30 @@ export default function PracticePage() {
   };
 
   const handleNext = async () => {
-    console.log('[PracticePage] handleNext called', { currentIndex, questionsLength: questions.length, isLast: currentIndex >= questions.length - 1 });
+    console.log("[PracticePage] handleNext called", {
+      currentIndex,
+      questionsLength: questions.length,
+      isLast: currentIndex >= questions.length - 1,
+    });
 
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      console.log('[PracticePage] Finalizando sessão...');
+      console.log("[PracticePage] Finalizando sessão...");
       // Finalizar sessão
-      const timeSpent = sessionStartTime ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
+      const timeSpent = sessionStartTime
+        ? Math.floor((Date.now() - sessionStartTime) / 1000)
+        : 0;
 
       // Calculate XP earned based on gamification settings
-      const isHardMode = studyMode === 'hard';
+      const isHardMode = studyMode === "hard";
       const xpPerCorrect = gamificationSettings
-        ? (isHardMode ? gamificationSettings.xp_per_correct_hard_mode : gamificationSettings.xp_per_correct_answer)
-        : (isHardMode ? 100 : 50);
+        ? isHardMode
+          ? gamificationSettings.xp_per_correct_hard_mode
+          : gamificationSettings.xp_per_correct_answer
+        : isHardMode
+        ? 100
+        : 50;
       const xpEarned = sessionStats.correct * xpPerCorrect;
 
       // Salvar sessão no banco de dados (com tratamento de erro)
@@ -1352,13 +1661,13 @@ export default function PracticePage() {
           await fetchProfile();
         }
       } catch (error) {
-        console.error('[PracticePage] Erro ao salvar sessão:', error);
+        console.error("[PracticePage] Erro ao salvar sessão:", error);
         // Continua para mostrar resultados mesmo se falhar ao salvar
       }
 
       // Mostrar tela de resultados (sempre executa)
       console.log('[PracticePage] Chamando setMode("results")');
-      setMode('results');
+      setMode("results");
       console.log('[PracticePage] setMode("results") chamado com sucesso');
     }
   };
@@ -1370,28 +1679,31 @@ export default function PracticePage() {
   };
 
   const handleBack = () => {
-    if (mode === 'practicing') {
+    if (mode === "practicing") {
       if (answers.size > 0) {
         setShowExitConfirm(true);
       } else {
-        navigate('/questoes');
+        navigate("/questoes");
       }
     }
   };
 
   const handleTimeout = () => {
-    addToast('error', 'Tempo esgotado!');
+    addToast("error", "Tempo esgotado!");
     handleNext();
   };
 
-  const handleShowToast = (message: string, type: 'success' | 'error' | 'info') => {
+  const handleShowToast = (
+    message: string,
+    type: "success" | "error" | "info"
+  ) => {
     addToast(type, message);
   };
 
   const currentQuestion = questions[currentIndex];
 
   // Modo de pratica
-  if (mode === 'practicing' && currentQuestion) {
+  if (mode === "practicing" && currentQuestion) {
     return (
       <div className="min-h-[calc(100vh-3.5rem)] bg-[var(--color-bg-main)] flex flex-col theme-transition">
         {/* Painel de filtros deslizante */}
@@ -1399,9 +1711,9 @@ export default function PracticePage() {
           {showPracticingFilters && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
+              animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
               className="overflow-hidden border-b border-[var(--color-border)] bg-[var(--color-bg-main)] theme-transition"
             >
               <div className="p-4 md:p-6 space-y-4 max-w-[1200px] mx-auto">
@@ -1409,10 +1721,15 @@ export default function PracticePage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Filter size={18} className="text-[var(--color-brand)]" />
-                    <h3 className="text-base font-bold text-[var(--color-text-main)]">Filtrar Questões</h3>
+                    <h3 className="text-base font-bold text-[var(--color-text-main)]">
+                      Filtrar Questões
+                    </h3>
                   </div>
                   <div className="flex items-center gap-3">
-                    <button onClick={clearFilters} className="text-xs text-[var(--color-error)] hover:underline font-medium">
+                    <button
+                      onClick={clearFilters}
+                      className="text-xs text-[var(--color-error)] hover:underline font-medium"
+                    >
                       Limpar Filtros
                     </button>
                     <button
@@ -1432,8 +1749,10 @@ export default function PracticePage() {
                       icon={<BookOpen size={16} />}
                       items={availableMaterias}
                       selected={filters.materia}
-                      onToggle={(item) => toggleFilter('materia', item)}
-                      onClear={() => setFilters(prev => ({ ...prev, materia: [] }))}
+                      onToggle={(item) => toggleFilter("materia", item)}
+                      onClear={() =>
+                        setFilters((prev) => ({ ...prev, materia: [] }))
+                      }
                       placeholder="Selecione matérias..."
                     />
                     <HierarchicalAssuntosDropdown
@@ -1442,11 +1761,11 @@ export default function PracticePage() {
                       taxonomyByMateria={taxonomyByMateria}
                       flatAssuntos={availableAssuntos}
                       selectedAssuntos={filters.assunto}
-                      onToggleAssunto={(item) => toggleFilter('assunto', item)}
+                      onToggleAssunto={(item) => toggleFilter("assunto", item)}
                       onToggleMultiple={(assuntos, select) => {
-                        setFilters(prev => {
+                        setFilters((prev) => {
                           const current = new Set(prev.assunto);
-                          assuntos.forEach(a => {
+                          assuntos.forEach((a) => {
                             if (select) {
                               current.add(a);
                             } else {
@@ -1456,7 +1775,9 @@ export default function PracticePage() {
                           return { ...prev, assunto: Array.from(current) };
                         });
                       }}
-                      onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
+                      onClear={() =>
+                        setFilters((prev) => ({ ...prev, assunto: [] }))
+                      }
                       placeholder="Selecionar assuntos..."
                       isLoading={isLoadingAssuntos}
                       isLoadingTaxonomy={isLoadingTaxonomy}
@@ -1466,8 +1787,10 @@ export default function PracticePage() {
                       icon={<Building2 size={16} />}
                       items={sortBancas(availableBancas)}
                       selected={filters.banca}
-                      onToggle={(item) => toggleFilter('banca', item)}
-                      onClear={() => setFilters(prev => ({ ...prev, banca: [] }))}
+                      onToggle={(item) => toggleFilter("banca", item)}
+                      onClear={() =>
+                        setFilters((prev) => ({ ...prev, banca: [] }))
+                      }
                       placeholder="Selecione bancas..."
                       displayFormatter={formatBancaDisplay}
                     />
@@ -1476,8 +1799,10 @@ export default function PracticePage() {
                       icon={<Building2 size={16} />}
                       items={availableOrgaos}
                       selected={filters.orgao}
-                      onToggle={(item) => toggleFilter('orgao', item)}
-                      onClear={() => setFilters(prev => ({ ...prev, orgao: [] }))}
+                      onToggle={(item) => toggleFilter("orgao", item)}
+                      onClear={() =>
+                        setFilters((prev) => ({ ...prev, orgao: [] }))
+                      }
                       placeholder="Selecione órgãos..."
                     />
                     <MultiSelectDropdown
@@ -1485,8 +1810,10 @@ export default function PracticePage() {
                       icon={<Briefcase size={16} />}
                       items={availableCargos}
                       selected={filters.cargo}
-                      onToggle={(item) => toggleFilter('cargo', item)}
-                      onClear={() => setFilters(prev => ({ ...prev, cargo: [] }))}
+                      onToggle={(item) => toggleFilter("cargo", item)}
+                      onClear={() =>
+                        setFilters((prev) => ({ ...prev, cargo: [] }))
+                      }
                       placeholder="Selecione cargos..."
                     />
                     <MultiSelectDropdown
@@ -1494,35 +1821,43 @@ export default function PracticePage() {
                       icon={<Calendar size={16} />}
                       items={availableAnos}
                       selected={filters.ano}
-                      onToggle={(item) => toggleFilter('ano', item)}
-                      onClear={() => setFilters(prev => ({ ...prev, ano: [] }))}
+                      onToggle={(item) => toggleFilter("ano", item)}
+                      onClear={() =>
+                        setFilters((prev) => ({ ...prev, ano: [] }))
+                      }
                       placeholder="Selecione anos..."
                     />
                     <MultiSelectDropdown
                       label="Escolaridade"
                       icon={<GraduationCap size={16} />}
-                      items={OPTIONS_ESCOLARIDADE.map(opt => opt.value)}
+                      items={OPTIONS_ESCOLARIDADE.map((opt) => opt.value)}
                       selected={filters.escolaridade}
-                      onToggle={(item) => toggleFilter('escolaridade', item)}
-                      onClear={() => setFilters(prev => ({ ...prev, escolaridade: [] }))}
+                      onToggle={(item) => toggleFilter("escolaridade", item)}
+                      onClear={() =>
+                        setFilters((prev) => ({ ...prev, escolaridade: [] }))
+                      }
                       placeholder="Selecione escolaridade..."
                     />
                     <MultiSelectDropdown
                       label="Modalidade"
                       icon={<CheckCircle size={16} />}
-                      items={OPTIONS_MODALIDADE.map(opt => opt.value)}
+                      items={OPTIONS_MODALIDADE.map((opt) => opt.value)}
                       selected={filters.modalidade}
-                      onToggle={(item) => toggleFilter('modalidade', item)}
-                      onClear={() => setFilters(prev => ({ ...prev, modalidade: [] }))}
+                      onToggle={(item) => toggleFilter("modalidade", item)}
+                      onClear={() =>
+                        setFilters((prev) => ({ ...prev, modalidade: [] }))
+                      }
                       placeholder="Selecione modalidade..."
                     />
                     <MultiSelectDropdown
                       label="Dificuldade"
                       icon={<Zap size={16} />}
-                      items={OPTIONS_DIFICULDADE.map(opt => opt.value)}
+                      items={OPTIONS_DIFICULDADE.map((opt) => opt.value)}
                       selected={filters.dificuldade}
-                      onToggle={(item) => toggleFilter('dificuldade', item)}
-                      onClear={() => setFilters(prev => ({ ...prev, dificuldade: [] }))}
+                      onToggle={(item) => toggleFilter("dificuldade", item)}
+                      onClear={() =>
+                        setFilters((prev) => ({ ...prev, dificuldade: [] }))
+                      }
                       placeholder="Selecione dificuldade..."
                     />
                   </div>
@@ -1530,22 +1865,72 @@ export default function PracticePage() {
                   {/* Toggle Filters */}
                   <div className="flex flex-wrap gap-6 pt-4 border-t border-[var(--color-border)]">
                     <button
-                      onClick={() => setToggleFilters(prev => ({ ...prev, apenasRevisadas: !prev.apenasRevisadas }))}
+                      onClick={() =>
+                        setToggleFilters((prev) => ({
+                          ...prev,
+                          apenasRevisadas: !prev.apenasRevisadas,
+                        }))
+                      }
                       className="flex items-center gap-3 group"
                     >
-                      <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasRevisadas ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-border)]'}`}>
-                        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasRevisadas ? 'left-[22px]' : 'left-0.5'}`} />
+                      <div
+                        className={`relative w-11 h-6 rounded-full transition-colors ${
+                          toggleFilters.apenasRevisadas
+                            ? "bg-[var(--color-brand)]"
+                            : "bg-[var(--color-border)]"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+                            toggleFilters.apenasRevisadas
+                              ? "left-[22px]"
+                              : "left-0.5"
+                          }`}
+                        />
                       </div>
-                      <span className={`text-sm transition-colors ${toggleFilters.apenasRevisadas ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]'}`}>Apenas questões revisadas</span>
+                      <span
+                        className={`text-sm transition-colors ${
+                          toggleFilters.apenasRevisadas
+                            ? "text-[var(--color-text-main)]"
+                            : "text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]"
+                        }`}
+                      >
+                        Apenas questões revisadas
+                      </span>
                     </button>
                     <button
-                      onClick={() => setToggleFilters(prev => ({ ...prev, apenasComComentario: !prev.apenasComComentario }))}
+                      onClick={() =>
+                        setToggleFilters((prev) => ({
+                          ...prev,
+                          apenasComComentario: !prev.apenasComComentario,
+                        }))
+                      }
                       className="flex items-center gap-3 group"
                     >
-                      <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasComComentario ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-border)]'}`}>
-                        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasComComentario ? 'left-[22px]' : 'left-0.5'}`} />
+                      <div
+                        className={`relative w-11 h-6 rounded-full transition-colors ${
+                          toggleFilters.apenasComComentario
+                            ? "bg-[var(--color-brand)]"
+                            : "bg-[var(--color-border)]"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+                            toggleFilters.apenasComComentario
+                              ? "left-[22px]"
+                              : "left-0.5"
+                          }`}
+                        />
                       </div>
-                      <span className={`text-sm transition-colors ${toggleFilters.apenasComComentario ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]'}`}>Apenas com comentário</span>
+                      <span
+                        className={`text-sm transition-colors ${
+                          toggleFilters.apenasComComentario
+                            ? "text-[var(--color-text-main)]"
+                            : "text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]"
+                        }`}
+                      >
+                        Apenas com comentário
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -1562,32 +1947,49 @@ export default function PracticePage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-5">
                       {/* Questões Disponíveis */}
                       <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)]">
-                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">Disponíveis</p>
+                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">
+                          Disponíveis
+                        </p>
                         {isLoadingCount ? (
-                          <Loader2 size={20} className="animate-spin text-[var(--color-brand)]" />
+                          <Loader2
+                            size={20}
+                            className="animate-spin text-[var(--color-brand)]"
+                          />
                         ) : (
-                          <p className="text-2xl font-bold text-[var(--color-text-main)]">{filteredCount.toLocaleString()}</p>
+                          <p className="text-2xl font-bold text-[var(--color-text-main)]">
+                            {filteredCount.toLocaleString()}
+                          </p>
                         )}
                       </div>
 
                       {/* Filtros Ativos */}
                       <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)]">
-                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">Filtros Ativos</p>
-                        <p className="text-2xl font-bold text-[var(--color-brand)]">{totalFilters}</p>
+                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">
+                          Filtros Ativos
+                        </p>
+                        <p className="text-2xl font-bold text-[var(--color-brand)]">
+                          {totalFilters}
+                        </p>
                       </div>
 
                       {/* Questões por Sessão */}
                       <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] col-span-2 md:col-span-1 lg:col-span-2">
-                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">Questões por Sessão</p>
+                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">
+                          Questões por Sessão
+                        </p>
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl font-bold text-[var(--color-brand)] min-w-[3rem]">{questionCount}</span>
+                          <span className="text-2xl font-bold text-[var(--color-brand)] min-w-[3rem]">
+                            {questionCount}
+                          </span>
                           <input
                             type="range"
                             min="5"
                             max="120"
                             step="5"
                             value={questionCount}
-                            onChange={(e) => setQuestionCount(Number(e.target.value))}
+                            onChange={(e) =>
+                              setQuestionCount(Number(e.target.value))
+                            }
                             className="flex-1 h-2 bg-[var(--color-border)] rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
                           />
                         </div>
@@ -1595,22 +1997,36 @@ export default function PracticePage() {
 
                       {/* Modo de Estudo */}
                       <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] col-span-2">
-                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">Modo de Estudo</p>
+                        <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">
+                          Modo de Estudo
+                        </p>
                         <button
-                          onClick={() => setStudyMode(studyMode === 'zen' ? 'hard' : 'zen')}
+                          onClick={() =>
+                            setStudyMode(studyMode === "zen" ? "hard" : "zen")
+                          }
                           className="relative inline-flex items-center h-8 rounded-full w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] transition-colors"
                         >
                           <span
                             className={`absolute inline-flex items-center justify-center h-7 rounded-full text-xs font-bold transition-all duration-300 ${
-                              studyMode === 'zen'
-                                ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[var(--color-success)] text-black'
-                                : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[var(--color-error)] text-white'
+                              studyMode === "zen"
+                                ? "left-0.5 w-[calc(50%-0.25rem)] bg-[var(--color-success)] text-black"
+                                : "left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[var(--color-error)] text-white"
                             }`}
                           >
-                            {studyMode === 'zen' ? 'Zen' : 'Simulado'}
+                            {studyMode === "zen" ? "Zen" : "Simulado"}
                           </span>
-                          <span className="absolute left-[25%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none" style={{ opacity: studyMode === 'zen' ? 0 : 1 }}>Zen</span>
-                          <span className="absolute left-[75%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none" style={{ opacity: studyMode === 'hard' ? 0 : 1 }}>Simulado</span>
+                          <span
+                            className="absolute left-[25%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none"
+                            style={{ opacity: studyMode === "zen" ? 0 : 1 }}
+                          >
+                            Zen
+                          </span>
+                          <span
+                            className="absolute left-[75%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none"
+                            style={{ opacity: studyMode === "hard" ? 0 : 1 }}
+                          >
+                            Simulado
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -1623,7 +2039,10 @@ export default function PracticePage() {
                           onClick={() => setShowSaveNotebookModal(true)}
                           className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] font-bold rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-bg-card)] hover:border-[var(--color-brand)] transition-colors whitespace-nowrap text-sm lg:text-base lg:px-5"
                         >
-                          <Save size={16} className="lg:w-[18px] lg:h-[18px] flex-shrink-0" />
+                          <Save
+                            size={16}
+                            className="lg:w-[18px] lg:h-[18px] flex-shrink-0"
+                          />
                           <span className="truncate">Salvar Caderno</span>
                         </button>
                         <button
@@ -1636,12 +2055,18 @@ export default function PracticePage() {
                         >
                           {isLoading ? (
                             <>
-                              <Loader2 size={16} className="animate-spin flex-shrink-0" />
+                              <Loader2
+                                size={16}
+                                className="animate-spin flex-shrink-0"
+                              />
                               <span className="truncate">Carregando...</span>
                             </>
                           ) : (
                             <>
-                              <Play size={16} className="lg:w-[18px] lg:h-[18px] flex-shrink-0" />
+                              <Play
+                                size={16}
+                                className="lg:w-[18px] lg:h-[18px] flex-shrink-0"
+                              />
                               <span className="truncate">Iniciar Treino</span>
                             </>
                           )}
@@ -1666,28 +2091,30 @@ export default function PracticePage() {
 
         <div className="flex-1 overflow-hidden">
           <div className="max-w-[1000px] mx-auto h-full">
-          <QuestionErrorBoundary
-            questionId={currentQuestion?.id}
-            onSkip={handleNext}
-            onRetry={() => {/* Force re-render */}}
-          >
-            <QuestionCard
-              question={currentQuestion}
-              isLastQuestion={currentIndex === questions.length - 1}
-              onNext={handleNext}
-              onPrevious={currentIndex > 0 ? handlePrevious : undefined}
-              onOpenTutor={() => setShowMentorChat(true)}
-              onAnswer={handleAnswer}
-              onRateDifficulty={handleRateDifficulty}
-              onTimeout={studyMode === 'hard' ? handleTimeout : undefined}
-              studyMode={studyMode}
-              initialTime={studyMode === 'hard' ? 3 : undefined}
-              userId={user?.id}
-              userRole={profile?.role}
-              showCorrectAnswers={profile?.show_answers || false}
-              onShowToast={handleShowToast}
-            />
-          </QuestionErrorBoundary>
+            <QuestionErrorBoundary
+              questionId={currentQuestion?.id}
+              onSkip={handleNext}
+              onRetry={() => {
+                /* Force re-render */
+              }}
+            >
+              <QuestionCard
+                question={currentQuestion}
+                isLastQuestion={currentIndex === questions.length - 1}
+                onNext={handleNext}
+                onPrevious={currentIndex > 0 ? handlePrevious : undefined}
+                onOpenTutor={() => setShowMentorChat(true)}
+                onAnswer={handleAnswer}
+                onRateDifficulty={handleRateDifficulty}
+                onTimeout={studyMode === "hard" ? handleTimeout : undefined}
+                studyMode={studyMode}
+                initialTime={studyMode === "hard" ? 3 : undefined}
+                userId={user?.id}
+                userRole={profile?.role}
+                showCorrectAnswers={profile?.show_answers || false}
+                onShowToast={handleShowToast}
+              />
+            </QuestionErrorBoundary>
           </div>
         </div>
 
@@ -1698,12 +2125,18 @@ export default function PracticePage() {
           contentContext={{
             title: currentQuestion.assunto || currentQuestion.materia,
             text: currentQuestion.enunciado,
-            question: currentQuestion
+            question: currentQuestion,
           }}
           userContext={{ name: user?.user_metadata?.name }}
           userId={user?.id}
-          preparatorioId={getSelectedPreparatorio()?.preparatorio_id || userPreparatorios[0]?.preparatorio_id}
-          checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_ouse_questoes || userPreparatorios[0]?.preparatorio?.checkout_ouse_questoes}
+          preparatorioId={
+            getSelectedPreparatorio()?.preparatorio_id ||
+            userPreparatorios[0]?.preparatorio_id
+          }
+          checkoutUrl={
+            getSelectedPreparatorio()?.preparatorio?.checkout_ouse_questoes ||
+            userPreparatorios[0]?.preparatorio?.checkout_ouse_questoes
+          }
         />
 
         {/* Floating Chat Button */}
@@ -1718,7 +2151,7 @@ export default function PracticePage() {
         <ConfirmModal
           isOpen={showExitConfirm}
           onClose={() => setShowExitConfirm(false)}
-          onConfirm={() => navigate('/questoes')}
+          onConfirm={() => navigate("/questoes")}
           title="Sair da Prática?"
           message="Você tem progresso não salvo. Se sair agora, suas respostas serão perdidas."
           confirmText="Sair"
@@ -1764,11 +2197,15 @@ export default function PracticePage() {
                     <div className="p-3 bg-[var(--color-brand)]/10 rounded-xl">
                       <Save size={24} className="text-[var(--color-brand)]" />
                     </div>
-                    <h3 className="text-2xl font-bold text-[var(--color-text-main)]">Salvar Caderno</h3>
+                    <h3 className="text-2xl font-bold text-[var(--color-text-main)]">
+                      Salvar Caderno
+                    </h3>
                   </div>
 
                   <div className="mb-4">
-                    <label className="text-[var(--color-text-sec)] text-sm font-bold uppercase tracking-wider mb-2 block">Nome do Caderno</label>
+                    <label className="text-[var(--color-text-sec)] text-sm font-bold uppercase tracking-wider mb-2 block">
+                      Nome do Caderno
+                    </label>
                     <input
                       type="text"
                       value={newNotebookName}
@@ -1780,10 +2217,14 @@ export default function PracticePage() {
                   </div>
 
                   <div className="mb-6">
-                    <label className="text-[var(--color-text-sec)] text-sm font-bold uppercase tracking-wider mb-2 block">Descrição (opcional)</label>
+                    <label className="text-[var(--color-text-sec)] text-sm font-bold uppercase tracking-wider mb-2 block">
+                      Descrição (opcional)
+                    </label>
                     <textarea
                       value={newNotebookDescription}
-                      onChange={(e) => setNewNotebookDescription(e.target.value)}
+                      onChange={(e) =>
+                        setNewNotebookDescription(e.target.value)
+                      }
                       placeholder="Ex: Questões de revisão para a prova da PF"
                       rows={2}
                       className="w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors resize-none theme-transition"
@@ -1793,15 +2234,21 @@ export default function PracticePage() {
                   <div className="bg-[var(--color-bg-main)] rounded-xl p-4 mb-6 space-y-2 border border-[var(--color-border)] theme-transition">
                     <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
                       <span>Filtros ativos:</span>
-                      <span className="text-[var(--color-text-main)]">{totalFilters}</span>
+                      <span className="text-[var(--color-text-main)]">
+                        {totalFilters}
+                      </span>
                     </div>
                     <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
                       <span>Questões disponíveis:</span>
-                      <span className="text-[var(--color-text-main)]">{filteredCount.toLocaleString()}</span>
+                      <span className="text-[var(--color-text-main)]">
+                        {filteredCount.toLocaleString()}
+                      </span>
                     </div>
                     <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
                       <span>Questões por sessão:</span>
-                      <span className="text-[var(--color-text-main)]">{questionCount}</span>
+                      <span className="text-[var(--color-text-main)]">
+                        {questionCount}
+                      </span>
                     </div>
                   </div>
 
@@ -1817,10 +2264,18 @@ export default function PracticePage() {
                     <Button
                       fullWidth
                       onClick={handleSaveNotebook}
-                      disabled={!newNotebookName.trim() || isSavingNotebook || isLoadingCount}
+                      disabled={
+                        !newNotebookName.trim() ||
+                        isSavingNotebook ||
+                        isLoadingCount
+                      }
                       className="rounded-xl py-3 bg-[var(--color-brand)] text-black font-bold hover:bg-[var(--color-brand-hover)]"
                     >
-                      {isSavingNotebook ? <Loader2 className="animate-spin" size={20} /> : 'Salvar Caderno'}
+                      {isSavingNotebook ? (
+                        <Loader2 className="animate-spin" size={20} />
+                      ) : (
+                        "Salvar Caderno"
+                      )}
                     </Button>
                   </div>
                 </motion.div>
@@ -1833,9 +2288,11 @@ export default function PracticePage() {
   }
 
   // Tela de resultados
-  if (mode === 'results') {
-    const timeSpent = sessionStartTime ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
-    const xpEarned = (sessionStats.correct * 10) + (sessionStats.total * 2);
+  if (mode === "results") {
+    const timeSpent = sessionStartTime
+      ? Math.floor((Date.now() - sessionStartTime) / 1000)
+      : 0;
+    const xpEarned = sessionStats.correct * 10 + sessionStats.total * 2;
     return (
       <SessionResultsScreen
         totalQuestions={sessionStats.total}
@@ -1845,7 +2302,7 @@ export default function PracticePage() {
         timeSpent={timeSpent}
         xpEarned={xpEarned}
         onNewSession={startPractice}
-        onBackToMenu={() => setMode('selection')}
+        onBackToMenu={() => setMode("selection")}
       />
     );
   }
@@ -1854,10 +2311,19 @@ export default function PracticePage() {
   // RENDER: LOADING STATE (Auto-start or Trail auto-start)
   // ==========================================
   // Não mostrar loading se showFilters=true ou editNotebook (usuário quer configurar filtros)
-  const showFiltersParam = searchParams.get('showFilters') === 'true';
-  const editNotebookParam = searchParams.get('editNotebook');
-  const isAutoStarting = (shouldAutoStart || autoStartPending) && !showFiltersParam && !editNotebookParam;
-  if (isAutoStarting && (isLoadingFilters || isLoadingCount || isLoading || mode === 'selection')) {
+  const showFiltersParam = searchParams.get("showFilters") === "true";
+  const editNotebookParam = searchParams.get("editNotebook");
+  const isAutoStarting =
+    (shouldAutoStart || autoStartPending) &&
+    !showFiltersParam &&
+    !editNotebookParam;
+
+  if (
+    // !showFiltersParam &&
+    // !editNotebookParam &&
+    // (isLoadingFilters || isLoadingCount || isLoading)
+    isLoading
+  ) {
     return (
       <div className="min-h-screen bg-[var(--color-bg-main)] flex flex-col items-center justify-center font-sans text-[var(--color-text-main)] theme-transition">
         <motion.div
@@ -1868,8 +2334,12 @@ export default function PracticePage() {
           <div className="mb-6">
             <div className="w-16 h-16 border-4 border-[var(--color-border)] border-t-[var(--color-brand)] rounded-full animate-spin"></div>
           </div>
-          <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2">Carregando questões...</h2>
-          <p className="text-[var(--color-text-sec)]">Preparando sua sessão de prática</p>
+          <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2">
+            Carregando questões...
+          </h2>
+          <p className="text-[var(--color-text-sec)]">
+            Preparando sua sessão de prática
+          </p>
         </motion.div>
       </div>
     );
@@ -1924,18 +2394,29 @@ export default function PracticePage() {
                 <Zap size={20} className="text-[var(--color-brand)]" />
               </div>
               <div>
-                <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider">Nível</p>
-                <p className="font-bold text-lg leading-none">{profile?.level || 1}</p>
+                <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider">
+                  Nível
+                </p>
+                <p className="font-bold text-lg leading-none">
+                  {profile?.level || 1}
+                </p>
               </div>
             </div>
             <div className="w-px h-8 bg-[var(--color-border)]" />
             <div className="flex items-center gap-3 px-2">
               <div className="p-2 bg-[var(--color-success)]/10 rounded-lg">
-                <CheckCircle size={20} className="text-[var(--color-success)]" />
+                <CheckCircle
+                  size={20}
+                  className="text-[var(--color-success)]"
+                />
               </div>
               <div>
-                <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider">Acertos</p>
-                <p className="font-bold text-lg leading-none">{profile?.correct_answers || 0}</p>
+                <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider">
+                  Acertos
+                </p>
+                <p className="font-bold text-lg leading-none">
+                  {profile?.correct_answers || 0}
+                </p>
               </div>
             </div>
           </div>
@@ -1948,7 +2429,9 @@ export default function PracticePage() {
             >
               <ChevronLeft size={18} className="text-[var(--color-brand)]" />
               <div className="text-left">
-                <p className="text-xs uppercase font-bold tracking-wider opacity-70">Ver</p>
+                <p className="text-xs uppercase font-bold tracking-wider opacity-70">
+                  Ver
+                </p>
                 <p className="font-bold text-lg leading-none">Edital</p>
               </div>
             </button>
@@ -1957,23 +2440,44 @@ export default function PracticePage() {
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all backdrop-blur-sm theme-transition ${
                 showFilters
-                  ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-black'
-                  : 'bg-[var(--color-bg-card)]/50 border-[var(--color-border)] text-[var(--color-text-main)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]'
+                  ? "bg-[var(--color-brand)] border-[var(--color-brand)] text-black"
+                  : "bg-[var(--color-bg-card)]/50 border-[var(--color-border)] text-[var(--color-text-main)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]"
               }`}
             >
-              <div className={`p-2 rounded-lg ${showFilters ? 'bg-black/10' : 'bg-[var(--color-brand)]/10'}`}>
-                <Filter size={20} className={showFilters ? 'text-black' : 'text-[var(--color-brand)]'} />
+              <div
+                className={`p-2 rounded-lg ${
+                  showFilters ? "bg-black/10" : "bg-[var(--color-brand)]/10"
+                }`}
+              >
+                <Filter
+                  size={20}
+                  className={
+                    showFilters ? "text-black" : "text-[var(--color-brand)]"
+                  }
+                />
               </div>
               <div className="text-left">
-                <p className="text-xs uppercase font-bold tracking-wider opacity-70">{showFilters ? 'Ocultar' : 'Exibir'}</p>
+                <p className="text-xs uppercase font-bold tracking-wider opacity-70">
+                  {showFilters ? "Ocultar" : "Exibir"}
+                </p>
                 <p className="font-bold text-lg leading-none">Filtros</p>
               </div>
               {totalFilters > 0 && (
-                <span className={`px-2 py-1 text-xs font-bold rounded-lg ${showFilters ? 'bg-black/20 text-black' : 'bg-[var(--color-brand)] text-black'}`}>
+                <span
+                  className={`px-2 py-1 text-xs font-bold rounded-lg ${
+                    showFilters
+                      ? "bg-black/20 text-black"
+                      : "bg-[var(--color-brand)] text-black"
+                  }`}
+                >
                   {totalFilters}
                 </span>
               )}
-              {showFilters ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              {showFilters ? (
+                <ChevronUp size={18} />
+              ) : (
+                <ChevronDown size={18} />
+              )}
             </button>
           )}
         </motion.div>
@@ -1992,21 +2496,24 @@ export default function PracticePage() {
             onClick={() => setShowFilters(!showFilters)}
             className={`md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all theme-transition ${
               showFilters
-                ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-black'
-                : 'bg-[var(--color-bg-card)] border-[var(--color-border)] text-[var(--color-text-main)]'
+                ? "bg-[var(--color-brand)] border-[var(--color-brand)] text-black"
+                : "bg-[var(--color-bg-card)] border-[var(--color-border)] text-[var(--color-text-main)]"
             }`}
           >
             <Filter size={16} />
-            <span className="font-bold text-sm">{showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}</span>
+            <span className="font-bold text-sm">
+              {showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}
+            </span>
             {totalFilters > 0 && !showFilters && (
-              <span className="px-1.5 py-0.5 bg-[var(--color-brand)] text-black text-xs font-bold rounded">{totalFilters}</span>
+              <span className="px-1.5 py-0.5 bg-[var(--color-brand)] text-black text-xs font-bold rounded">
+                {totalFilters}
+              </span>
             )}
           </button>
         )}
       </div>
 
       <div className="max-w-7xl mx-auto space-y-6">
-
         {/* Editing: Title and Description */}
         {editingNotebook && (
           <section>
@@ -2016,7 +2523,9 @@ export default function PracticePage() {
             <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-5 theme-transition">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[var(--color-text-main)] text-sm font-medium mb-2 block">Nome do Caderno</label>
+                  <label className="text-[var(--color-text-main)] text-sm font-medium mb-2 block">
+                    Nome do Caderno
+                  </label>
                   <input
                     type="text"
                     value={editingTitle}
@@ -2026,7 +2535,9 @@ export default function PracticePage() {
                   />
                 </div>
                 <div>
-                  <label className="text-[var(--color-text-main)] text-sm font-medium mb-2 block">Descrição (opcional)</label>
+                  <label className="text-[var(--color-text-main)] text-sm font-medium mb-2 block">
+                    Descrição (opcional)
+                  </label>
                   <input
                     type="text"
                     value={editingDescription}
@@ -2045,7 +2556,7 @@ export default function PracticePage() {
           {showFilters && (
             <motion.section
               initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
+              animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3 }}
               className="overflow-hidden"
@@ -2054,7 +2565,10 @@ export default function PracticePage() {
                 <h3 className="text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider flex items-center gap-2">
                   <Filter size={14} /> Filtros
                 </h3>
-                <button onClick={clearFilters} className="text-xs text-[var(--color-error)] hover:underline font-medium">
+                <button
+                  onClick={clearFilters}
+                  className="text-xs text-[var(--color-error)] hover:underline font-medium"
+                >
                   Limpar Filtros
                 </button>
               </div>
@@ -2067,8 +2581,10 @@ export default function PracticePage() {
                     icon={<BookOpen size={16} />}
                     items={availableMaterias}
                     selected={filters.materia}
-                    onToggle={(item) => toggleFilter('materia', item)}
-                    onClear={() => setFilters(prev => ({ ...prev, materia: [] }))}
+                    onToggle={(item) => toggleFilter("materia", item)}
+                    onClear={() =>
+                      setFilters((prev) => ({ ...prev, materia: [] }))
+                    }
                     placeholder="Selecione matérias..."
                   />
                   <HierarchicalAssuntosDropdown
@@ -2077,11 +2593,11 @@ export default function PracticePage() {
                     taxonomyByMateria={taxonomyByMateria}
                     flatAssuntos={availableAssuntos}
                     selectedAssuntos={filters.assunto}
-                    onToggleAssunto={(item) => toggleFilter('assunto', item)}
+                    onToggleAssunto={(item) => toggleFilter("assunto", item)}
                     onToggleMultiple={(assuntos, select) => {
-                      setFilters(prev => {
+                      setFilters((prev) => {
                         const current = new Set(prev.assunto);
-                        assuntos.forEach(a => {
+                        assuntos.forEach((a) => {
                           if (select) {
                             current.add(a);
                           } else {
@@ -2091,7 +2607,9 @@ export default function PracticePage() {
                         return { ...prev, assunto: Array.from(current) };
                       });
                     }}
-                    onClear={() => setFilters(prev => ({ ...prev, assunto: [] }))}
+                    onClear={() =>
+                      setFilters((prev) => ({ ...prev, assunto: [] }))
+                    }
                     placeholder="Selecionar assuntos..."
                     isLoading={isLoadingAssuntos}
                     isLoadingTaxonomy={isLoadingTaxonomy}
@@ -2101,8 +2619,10 @@ export default function PracticePage() {
                     icon={<Building2 size={16} />}
                     items={sortBancas(availableBancas)}
                     selected={filters.banca}
-                    onToggle={(item) => toggleFilter('banca', item)}
-                    onClear={() => setFilters(prev => ({ ...prev, banca: [] }))}
+                    onToggle={(item) => toggleFilter("banca", item)}
+                    onClear={() =>
+                      setFilters((prev) => ({ ...prev, banca: [] }))
+                    }
                     placeholder="Selecione bancas..."
                     displayFormatter={formatBancaDisplay}
                   />
@@ -2111,8 +2631,10 @@ export default function PracticePage() {
                     icon={<Building2 size={16} />}
                     items={availableOrgaos}
                     selected={filters.orgao}
-                    onToggle={(item) => toggleFilter('orgao', item)}
-                    onClear={() => setFilters(prev => ({ ...prev, orgao: [] }))}
+                    onToggle={(item) => toggleFilter("orgao", item)}
+                    onClear={() =>
+                      setFilters((prev) => ({ ...prev, orgao: [] }))
+                    }
                     placeholder="Selecione órgãos..."
                   />
                   <MultiSelectDropdown
@@ -2120,8 +2642,10 @@ export default function PracticePage() {
                     icon={<Briefcase size={16} />}
                     items={availableCargos}
                     selected={filters.cargo}
-                    onToggle={(item) => toggleFilter('cargo', item)}
-                    onClear={() => setFilters(prev => ({ ...prev, cargo: [] }))}
+                    onToggle={(item) => toggleFilter("cargo", item)}
+                    onClear={() =>
+                      setFilters((prev) => ({ ...prev, cargo: [] }))
+                    }
                     placeholder="Selecione cargos..."
                   />
                   <MultiSelectDropdown
@@ -2129,35 +2653,41 @@ export default function PracticePage() {
                     icon={<Calendar size={16} />}
                     items={availableAnos}
                     selected={filters.ano}
-                    onToggle={(item) => toggleFilter('ano', item)}
-                    onClear={() => setFilters(prev => ({ ...prev, ano: [] }))}
+                    onToggle={(item) => toggleFilter("ano", item)}
+                    onClear={() => setFilters((prev) => ({ ...prev, ano: [] }))}
                     placeholder="Selecione anos..."
                   />
                   <MultiSelectDropdown
                     label="Escolaridade"
                     icon={<GraduationCap size={16} />}
-                    items={OPTIONS_ESCOLARIDADE.map(opt => opt.value)}
+                    items={OPTIONS_ESCOLARIDADE.map((opt) => opt.value)}
                     selected={filters.escolaridade}
-                    onToggle={(item) => toggleFilter('escolaridade', item)}
-                    onClear={() => setFilters(prev => ({ ...prev, escolaridade: [] }))}
+                    onToggle={(item) => toggleFilter("escolaridade", item)}
+                    onClear={() =>
+                      setFilters((prev) => ({ ...prev, escolaridade: [] }))
+                    }
                     placeholder="Selecione escolaridade..."
                   />
                   <MultiSelectDropdown
                     label="Modalidade"
                     icon={<CheckCircle size={16} />}
-                    items={OPTIONS_MODALIDADE.map(opt => opt.value)}
+                    items={OPTIONS_MODALIDADE.map((opt) => opt.value)}
                     selected={filters.modalidade}
-                    onToggle={(item) => toggleFilter('modalidade', item)}
-                    onClear={() => setFilters(prev => ({ ...prev, modalidade: [] }))}
+                    onToggle={(item) => toggleFilter("modalidade", item)}
+                    onClear={() =>
+                      setFilters((prev) => ({ ...prev, modalidade: [] }))
+                    }
                     placeholder="Selecione modalidade..."
                   />
                   <MultiSelectDropdown
                     label="Dificuldade"
                     icon={<Zap size={16} />}
-                    items={OPTIONS_DIFICULDADE.map(opt => opt.value)}
+                    items={OPTIONS_DIFICULDADE.map((opt) => opt.value)}
                     selected={filters.dificuldade}
-                    onToggle={(item) => toggleFilter('dificuldade', item)}
-                    onClear={() => setFilters(prev => ({ ...prev, dificuldade: [] }))}
+                    onToggle={(item) => toggleFilter("dificuldade", item)}
+                    onClear={() =>
+                      setFilters((prev) => ({ ...prev, dificuldade: [] }))
+                    }
                     placeholder="Selecione dificuldade..."
                   />
                 </div>
@@ -2165,22 +2695,72 @@ export default function PracticePage() {
                 {/* Toggle Filters */}
                 <div className="flex flex-wrap gap-6 pt-4 border-t border-[var(--color-border)]">
                   <button
-                    onClick={() => setToggleFilters(prev => ({ ...prev, apenasRevisadas: !prev.apenasRevisadas }))}
+                    onClick={() =>
+                      setToggleFilters((prev) => ({
+                        ...prev,
+                        apenasRevisadas: !prev.apenasRevisadas,
+                      }))
+                    }
                     className="flex items-center gap-3 group"
                   >
-                    <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasRevisadas ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-border)]'}`}>
-                      <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasRevisadas ? 'left-[22px]' : 'left-0.5'}`} />
+                    <div
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        toggleFilters.apenasRevisadas
+                          ? "bg-[var(--color-brand)]"
+                          : "bg-[var(--color-border)]"
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+                          toggleFilters.apenasRevisadas
+                            ? "left-[22px]"
+                            : "left-0.5"
+                        }`}
+                      />
                     </div>
-                    <span className={`text-sm transition-colors ${toggleFilters.apenasRevisadas ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]'}`}>Apenas questões revisadas</span>
+                    <span
+                      className={`text-sm transition-colors ${
+                        toggleFilters.apenasRevisadas
+                          ? "text-[var(--color-text-main)]"
+                          : "text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]"
+                      }`}
+                    >
+                      Apenas questões revisadas
+                    </span>
                   </button>
                   <button
-                    onClick={() => setToggleFilters(prev => ({ ...prev, apenasComComentario: !prev.apenasComComentario }))}
+                    onClick={() =>
+                      setToggleFilters((prev) => ({
+                        ...prev,
+                        apenasComComentario: !prev.apenasComComentario,
+                      }))
+                    }
                     className="flex items-center gap-3 group"
                   >
-                    <div className={`relative w-11 h-6 rounded-full transition-colors ${toggleFilters.apenasComComentario ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-border)]'}`}>
-                      <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${toggleFilters.apenasComComentario ? 'left-[22px]' : 'left-0.5'}`} />
+                    <div
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        toggleFilters.apenasComComentario
+                          ? "bg-[var(--color-brand)]"
+                          : "bg-[var(--color-border)]"
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+                          toggleFilters.apenasComComentario
+                            ? "left-[22px]"
+                            : "left-0.5"
+                        }`}
+                      />
                     </div>
-                    <span className={`text-sm transition-colors ${toggleFilters.apenasComComentario ? 'text-[var(--color-text-main)]' : 'text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]'}`}>Apenas com comentário</span>
+                    <span
+                      className={`text-sm transition-colors ${
+                        toggleFilters.apenasComComentario
+                          ? "text-[var(--color-text-main)]"
+                          : "text-[var(--color-text-sec)] group-hover:text-[var(--color-text-main)]"
+                      }`}
+                    >
+                      Apenas com comentário
+                    </span>
                   </button>
                 </div>
               </div>
@@ -2191,39 +2771,59 @@ export default function PracticePage() {
 
                 <div className="relative">
                   <h3 className="text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <SlidersHorizontal size={14} /> {editingNotebook ? 'Parâmetros do Caderno' : 'Resumo do Treino'}
+                    <SlidersHorizontal size={14} />{" "}
+                    {editingNotebook
+                      ? "Parâmetros do Caderno"
+                      : "Resumo do Treino"}
                   </h3>
 
                   {/* Horizontal Stats Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-5">
                     {/* Questões Disponíveis */}
                     <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] theme-transition">
-                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">Disponíveis</p>
+                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">
+                        Disponíveis
+                      </p>
                       {isLoadingCount ? (
-                        <Loader2 size={20} className="animate-spin text-[var(--color-brand)]" />
+                        <Loader2
+                          size={20}
+                          className="animate-spin text-[var(--color-brand)]"
+                        />
                       ) : (
-                        <p className="text-2xl font-bold text-[var(--color-text-main)]">{filteredCount.toLocaleString()}</p>
+                        <p className="text-2xl font-bold text-[var(--color-text-main)]">
+                          {filteredCount.toLocaleString()}
+                        </p>
                       )}
                     </div>
 
                     {/* Filtros Ativos */}
                     <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] theme-transition">
-                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">Filtros Ativos</p>
-                      <p className="text-2xl font-bold text-[var(--color-brand)]">{totalFilters}</p>
+                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-1">
+                        Filtros Ativos
+                      </p>
+                      <p className="text-2xl font-bold text-[var(--color-brand)]">
+                        {totalFilters}
+                      </p>
                     </div>
 
                     {/* Questões por Sessão */}
                     <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] col-span-2 md:col-span-1 lg:col-span-2 theme-transition">
-                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">Questões por Sessão</p>
+                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">
+                        Questões por Sessão
+                      </p>
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold text-[var(--color-brand)] min-w-[3rem]">{questionCount}</span>
+                        <span className="text-2xl font-bold text-[var(--color-brand)] min-w-[3rem]">
+                          {questionCount}
+                        </span>
                         <input
                           type="range"
                           min="5"
                           max="120"
                           step="5"
                           value={questionCount}
-                          onChange={(e) => setQuestionCount(Number(e.target.value))}
+                          onChange={(e) =>
+                            setQuestionCount(Number(e.target.value))
+                          }
                           className="flex-1 h-2 bg-[var(--color-border)] rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
                         />
                       </div>
@@ -2231,22 +2831,36 @@ export default function PracticePage() {
 
                     {/* Modo de Estudo */}
                     <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)] col-span-2 theme-transition">
-                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">Modo de Estudo</p>
+                      <p className="text-xs text-[var(--color-text-sec)] uppercase font-bold tracking-wider mb-2">
+                        Modo de Estudo
+                      </p>
                       <button
-                        onClick={() => setStudyMode(studyMode === 'zen' ? 'hard' : 'zen')}
+                        onClick={() =>
+                          setStudyMode(studyMode === "zen" ? "hard" : "zen")
+                        }
                         className="relative inline-flex items-center h-8 rounded-full w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] transition-colors theme-transition"
                       >
                         <span
                           className={`absolute inline-flex items-center justify-center h-7 rounded-full text-xs font-bold transition-all duration-300 ${
-                            studyMode === 'zen'
-                              ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[var(--color-success)] text-black'
-                              : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[var(--color-error)] text-black'
+                            studyMode === "zen"
+                              ? "left-0.5 w-[calc(50%-0.25rem)] bg-[var(--color-success)] text-black"
+                              : "left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[var(--color-error)] text-black"
                           }`}
                         >
-                          {studyMode === 'zen' ? 'Zen' : 'Simulado'}
+                          {studyMode === "zen" ? "Zen" : "Simulado"}
                         </span>
-                        <span className="absolute left-[25%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none" style={{ opacity: studyMode === 'zen' ? 0 : 1 }}>Zen</span>
-                        <span className="absolute left-[75%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none" style={{ opacity: studyMode === 'hard' ? 0 : 1 }}>Simulado</span>
+                        <span
+                          className="absolute left-[25%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none"
+                          style={{ opacity: studyMode === "zen" ? 0 : 1 }}
+                        >
+                          Zen
+                        </span>
+                        <span
+                          className="absolute left-[75%] -translate-x-1/2 text-[10px] text-[var(--color-text-muted)] pointer-events-none"
+                          style={{ opacity: studyMode === "hard" ? 0 : 1 }}
+                        >
+                          Simulado
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -2258,17 +2872,26 @@ export default function PracticePage() {
                         <Button
                           size="lg"
                           onClick={() => handleSaveEditedNotebook(false)}
-                          disabled={isSavingNotebook || isLoadingFilters || !editingTitle.trim()}
+                          disabled={
+                            isSavingNotebook ||
+                            isLoadingFilters ||
+                            !editingTitle.trim()
+                          }
                           className="flex-1 bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)] text-black font-extrabold hover:shadow-lg hover:shadow-[var(--color-brand)]/20 transition-all transform hover:scale-[1.02]"
                           leftIcon={<Save size={20} />}
                         >
-                          {isSavingNotebook ? 'Salvando...' : 'Salvar'}
+                          {isSavingNotebook ? "Salvando..." : "Salvar"}
                         </Button>
                         <Button
                           variant="secondary"
                           size="lg"
                           onClick={() => handleSaveEditedNotebook(true)}
-                          disabled={isSavingNotebook || isLoadingFilters || filteredCount === 0 || !editingTitle.trim()}
+                          disabled={
+                            isSavingNotebook ||
+                            isLoadingFilters ||
+                            filteredCount === 0 ||
+                            !editingTitle.trim()
+                          }
                           className="flex-1"
                           rightIcon={<Play size={18} fill="currentColor" />}
                         >
@@ -2304,7 +2927,9 @@ export default function PracticePage() {
                         <Button
                           size="lg"
                           onClick={startPractice}
-                          disabled={isLoading || isLoadingFilters || filteredCount === 0}
+                          disabled={
+                            isLoading || isLoadingFilters || filteredCount === 0
+                          }
                           className="flex-1 sm:flex-[2] whitespace-nowrap bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)] text-black font-extrabold hover:shadow-lg hover:shadow-[var(--color-brand)]/20 transition-all transform hover:scale-[1.02]"
                           rightIcon={<Play size={20} fill="currentColor" />}
                         >
@@ -2341,71 +2966,91 @@ export default function PracticePage() {
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 className="w-full max-w-md bg-[var(--color-bg-elevated)] rounded-3xl p-6 md:p-8 shadow-2xl border border-[var(--color-border)] theme-transition pointer-events-auto"
               >
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-[var(--color-brand)]/10 rounded-xl">
-                  <Save size={24} className="text-[var(--color-brand)]" />
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-[var(--color-brand)]/10 rounded-xl">
+                    <Save size={24} className="text-[var(--color-brand)]" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-[var(--color-text-main)]">
+                    Salvar Caderno
+                  </h3>
                 </div>
-                <h3 className="text-2xl font-bold text-[var(--color-text-main)]">Salvar Caderno</h3>
-              </div>
 
-              <div className="mb-4">
-                <label className="text-[var(--color-text-sec)] text-sm font-bold uppercase tracking-wider mb-2 block">Nome do Caderno</label>
-                <input
-                  type="text"
-                  value={newNotebookName}
-                  onChange={(e) => setNewNotebookName(e.target.value)}
-                  placeholder="Ex: Constitucional - Revisão CPC"
-                  className="w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors theme-transition"
-                  autoFocus
-                />
-              </div>
-
-              <div className="mb-6">
-                <label className="text-[var(--color-text-sec)] text-sm font-bold uppercase tracking-wider mb-2 block">Descrição (opcional)</label>
-                <textarea
-                  value={newNotebookDescription}
-                  onChange={(e) => setNewNotebookDescription(e.target.value)}
-                  placeholder="Ex: Questões de revisão para a prova da PF"
-                  rows={2}
-                  className="w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors resize-none theme-transition"
-                />
-              </div>
-
-              <div className="bg-[var(--color-bg-main)] rounded-xl p-4 mb-6 space-y-2 border border-[var(--color-border)] theme-transition">
-                <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
-                  <span>Filtros ativos:</span>
-                  <span className="text-[var(--color-text-main)]">{totalFilters}</span>
+                <div className="mb-4">
+                  <label className="text-[var(--color-text-sec)] text-sm font-bold uppercase tracking-wider mb-2 block">
+                    Nome do Caderno
+                  </label>
+                  <input
+                    type="text"
+                    value={newNotebookName}
+                    onChange={(e) => setNewNotebookName(e.target.value)}
+                    placeholder="Ex: Constitucional - Revisão CPC"
+                    className="w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors theme-transition"
+                    autoFocus
+                  />
                 </div>
-                <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
-                  <span>Questões disponíveis:</span>
-                  <span className="text-[var(--color-text-main)]">{filteredCount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
-                  <span>Questões por sessão:</span>
-                  <span className="text-[var(--color-text-main)]">{questionCount}</span>
-                </div>
-              </div>
 
-              <div className="flex gap-3">
-                <Button
-                  fullWidth
-                  variant="outline"
-                  onClick={() => setShowSaveNotebookModal(false)}
-                  className="rounded-xl py-3 border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)]"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  fullWidth
-                  onClick={handleSaveNotebook}
-                  disabled={!newNotebookName.trim() || isSavingNotebook || isLoadingCount}
-                  className="rounded-xl py-3 bg-[var(--color-brand)] text-black font-bold hover:bg-[var(--color-brand-hover)]"
-                >
-                  {isSavingNotebook ? <Loader2 className="animate-spin" size={20} /> : 'Salvar Caderno'}
-                </Button>
-              </div>
-            </motion.div>
-          </div>
+                <div className="mb-6">
+                  <label className="text-[var(--color-text-sec)] text-sm font-bold uppercase tracking-wider mb-2 block">
+                    Descrição (opcional)
+                  </label>
+                  <textarea
+                    value={newNotebookDescription}
+                    onChange={(e) => setNewNotebookDescription(e.target.value)}
+                    placeholder="Ex: Questões de revisão para a prova da PF"
+                    rows={2}
+                    className="w-full bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors resize-none theme-transition"
+                  />
+                </div>
+
+                <div className="bg-[var(--color-bg-main)] rounded-xl p-4 mb-6 space-y-2 border border-[var(--color-border)] theme-transition">
+                  <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
+                    <span>Filtros ativos:</span>
+                    <span className="text-[var(--color-text-main)]">
+                      {totalFilters}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
+                    <span>Questões disponíveis:</span>
+                    <span className="text-[var(--color-text-main)]">
+                      {filteredCount.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs text-[var(--color-text-sec)]">
+                    <span>Questões por sessão:</span>
+                    <span className="text-[var(--color-text-main)]">
+                      {questionCount}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    fullWidth
+                    variant="outline"
+                    onClick={() => setShowSaveNotebookModal(false)}
+                    className="rounded-xl py-3 border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)]"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    fullWidth
+                    onClick={handleSaveNotebook}
+                    disabled={
+                      !newNotebookName.trim() ||
+                      isSavingNotebook ||
+                      isLoadingCount
+                    }
+                    className="rounded-xl py-3 bg-[var(--color-brand)] text-black font-bold hover:bg-[var(--color-brand-hover)]"
+                  >
+                    {isSavingNotebook ? (
+                      <Loader2 className="animate-spin" size={20} />
+                    ) : (
+                      "Salvar Caderno"
+                    )}
+                  </Button>
+                </div>
+              </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
@@ -2429,7 +3074,9 @@ export default function PracticePage() {
               className="fixed bottom-[114px] left-0 right-0 mx-4 w-auto max-w-2xl bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border)] p-4 lg:p-6 z-50 shadow-2xl max-h-[calc(100vh-180px)] overflow-y-auto lg:left-1/2 lg:right-auto lg:-translate-x-1/2 theme-transition"
             >
               <div className="flex items-center justify-between mb-4 lg:mb-6">
-                <h3 className="text-base lg:text-xl font-bold text-[var(--color-text-main)] pr-2">Filtros de "{viewingNotebookFilters.title}"</h3>
+                <h3 className="text-base lg:text-xl font-bold text-[var(--color-text-main)] pr-2">
+                  Filtros de "{viewingNotebookFilters.title}"
+                </h3>
                 <button
                   onClick={() => setViewingNotebookFilters(null)}
                   className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] rounded-lg transition-colors flex-shrink-0"
@@ -2440,130 +3087,205 @@ export default function PracticePage() {
 
               <div className="space-y-3 lg:space-y-4 mb-4 lg:mb-6">
                 {/* Matérias */}
-                {viewingNotebookFilters.filters?.materia && viewingNotebookFilters.filters.materia.length > 0 && (
-                  <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Matérias ({viewingNotebookFilters.filters.materia.length})</h4>
-                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                      {viewingNotebookFilters.filters.materia.map((item, idx) => (
-                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
-                          {item}
-                        </span>
-                      ))}
+                {viewingNotebookFilters.filters?.materia &&
+                  viewingNotebookFilters.filters.materia.length > 0 && (
+                    <div>
+                      <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">
+                        Matérias (
+                        {viewingNotebookFilters.filters.materia.length})
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                        {viewingNotebookFilters.filters.materia.map(
+                          (item, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition"
+                            >
+                              {item}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Assuntos */}
-                {viewingNotebookFilters.filters?.assunto && viewingNotebookFilters.filters.assunto.length > 0 && (
-                  <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Assuntos ({viewingNotebookFilters.filters.assunto.length})</h4>
-                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                      {viewingNotebookFilters.filters.assunto.map((item, idx) => (
-                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
-                          {item}
-                        </span>
-                      ))}
+                {viewingNotebookFilters.filters?.assunto &&
+                  viewingNotebookFilters.filters.assunto.length > 0 && (
+                    <div>
+                      <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">
+                        Assuntos (
+                        {viewingNotebookFilters.filters.assunto.length})
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                        {viewingNotebookFilters.filters.assunto.map(
+                          (item, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition"
+                            >
+                              {item}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Bancas */}
-                {viewingNotebookFilters.filters?.banca && viewingNotebookFilters.filters.banca.length > 0 && (
-                  <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Bancas ({viewingNotebookFilters.filters.banca.length})</h4>
-                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                      {viewingNotebookFilters.filters.banca.map((item, idx) => (
-                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
-                          {item}
-                        </span>
-                      ))}
+                {viewingNotebookFilters.filters?.banca &&
+                  viewingNotebookFilters.filters.banca.length > 0 && (
+                    <div>
+                      <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">
+                        Bancas ({viewingNotebookFilters.filters.banca.length})
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                        {viewingNotebookFilters.filters.banca.map(
+                          (item, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition"
+                            >
+                              {item}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Órgãos */}
-                {viewingNotebookFilters.filters?.orgao && viewingNotebookFilters.filters.orgao.length > 0 && (
-                  <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Órgãos ({viewingNotebookFilters.filters.orgao.length})</h4>
-                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                      {viewingNotebookFilters.filters.orgao.map((item, idx) => (
-                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
-                          {item}
-                        </span>
-                      ))}
+                {viewingNotebookFilters.filters?.orgao &&
+                  viewingNotebookFilters.filters.orgao.length > 0 && (
+                    <div>
+                      <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">
+                        Órgãos ({viewingNotebookFilters.filters.orgao.length})
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                        {viewingNotebookFilters.filters.orgao.map(
+                          (item, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition"
+                            >
+                              {item}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Anos */}
-                {viewingNotebookFilters.filters?.ano && viewingNotebookFilters.filters.ano.length > 0 && (
-                  <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Anos ({viewingNotebookFilters.filters.ano.length})</h4>
-                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                      {viewingNotebookFilters.filters.ano.map((item, idx) => (
-                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
-                          {item}
-                        </span>
-                      ))}
+                {viewingNotebookFilters.filters?.ano &&
+                  viewingNotebookFilters.filters.ano.length > 0 && (
+                    <div>
+                      <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">
+                        Anos ({viewingNotebookFilters.filters.ano.length})
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                        {viewingNotebookFilters.filters.ano.map((item, idx) => (
+                          <span
+                            key={idx}
+                            className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Cargos */}
-                {viewingNotebookFilters.filters?.cargo && viewingNotebookFilters.filters.cargo.length > 0 && (
-                  <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Cargos ({viewingNotebookFilters.filters.cargo.length})</h4>
-                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                      {viewingNotebookFilters.filters.cargo.map((item, idx) => (
-                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
-                          {item}
-                        </span>
-                      ))}
+                {viewingNotebookFilters.filters?.cargo &&
+                  viewingNotebookFilters.filters.cargo.length > 0 && (
+                    <div>
+                      <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">
+                        Cargos ({viewingNotebookFilters.filters.cargo.length})
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                        {viewingNotebookFilters.filters.cargo.map(
+                          (item, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition"
+                            >
+                              {item}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Escolaridade */}
-                {viewingNotebookFilters.filters?.escolaridade && viewingNotebookFilters.filters.escolaridade.length > 0 && (
-                  <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Escolaridade ({viewingNotebookFilters.filters.escolaridade.length})</h4>
-                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                      {viewingNotebookFilters.filters.escolaridade.map((item, idx) => (
-                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
-                          {item}
-                        </span>
-                      ))}
+                {viewingNotebookFilters.filters?.escolaridade &&
+                  viewingNotebookFilters.filters.escolaridade.length > 0 && (
+                    <div>
+                      <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">
+                        Escolaridade (
+                        {viewingNotebookFilters.filters.escolaridade.length})
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                        {viewingNotebookFilters.filters.escolaridade.map(
+                          (item, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition"
+                            >
+                              {item}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Modalidade */}
-                {viewingNotebookFilters.filters?.modalidade && viewingNotebookFilters.filters.modalidade.length > 0 && (
-                  <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Modalidade ({viewingNotebookFilters.filters.modalidade.length})</h4>
-                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                      {viewingNotebookFilters.filters.modalidade.map((item, idx) => (
-                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
-                          {item}
-                        </span>
-                      ))}
+                {viewingNotebookFilters.filters?.modalidade &&
+                  viewingNotebookFilters.filters.modalidade.length > 0 && (
+                    <div>
+                      <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">
+                        Modalidade (
+                        {viewingNotebookFilters.filters.modalidade.length})
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                        {viewingNotebookFilters.filters.modalidade.map(
+                          (item, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition"
+                            >
+                              {item}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Dificuldade */}
-                {viewingNotebookFilters.filters?.dificuldade && viewingNotebookFilters.filters.dificuldade.length > 0 && (
-                  <div>
-                    <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">Dificuldade ({viewingNotebookFilters.filters.dificuldade.length})</h4>
-                    <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                      {viewingNotebookFilters.filters.dificuldade.map((item, idx) => (
-                        <span key={idx} className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition">
-                          {item}
-                        </span>
-                      ))}
+                {viewingNotebookFilters.filters?.dificuldade &&
+                  viewingNotebookFilters.filters.dificuldade.length > 0 && (
+                    <div>
+                      <h4 className="text-xs lg:text-sm font-bold text-[var(--color-text-sec)] uppercase tracking-wider mb-2">
+                        Dificuldade (
+                        {viewingNotebookFilters.filters.dificuldade.length})
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 lg:gap-2">
+                        {viewingNotebookFilters.filters.dificuldade.map(
+                          (item, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-xs lg:text-sm text-[var(--color-text-main)] theme-transition"
+                            >
+                              {item}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
 
               {/* Botões de Ação */}
@@ -2571,9 +3293,13 @@ export default function PracticePage() {
                 <Button
                   fullWidth
                   size="lg"
-                  onClick={() => handleEditNotebookFilters(viewingNotebookFilters)}
+                  onClick={() =>
+                    handleEditNotebookFilters(viewingNotebookFilters)
+                  }
                   className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-black font-bold text-sm lg:text-lg"
-                  leftIcon={<Edit size={16} className="lg:w-[18px] lg:h-[18px]" />}
+                  leftIcon={
+                    <Edit size={16} className="lg:w-[18px] lg:h-[18px]" />
+                  }
                 >
                   Editar
                 </Button>
@@ -2597,16 +3323,25 @@ export default function PracticePage() {
       <BatteryEmptyModal
         isOpen={isEmptyModalOpen}
         onClose={closeEmptyModal}
-        checkoutUrl={getSelectedPreparatorio()?.preparatorio?.checkout_ouse_questoes || userPreparatorios[0]?.preparatorio?.checkout_ouse_questoes}
-        price={getSelectedPreparatorio()?.preparatorio?.price_questoes || userPreparatorios[0]?.preparatorio?.price_questoes}
-        preparatorioNome={getSelectedPreparatorio()?.preparatorio?.nome || userPreparatorios[0]?.preparatorio?.nome}
+        checkoutUrl={
+          getSelectedPreparatorio()?.preparatorio?.checkout_ouse_questoes ||
+          userPreparatorios[0]?.preparatorio?.checkout_ouse_questoes
+        }
+        price={
+          getSelectedPreparatorio()?.preparatorio?.price_questoes ||
+          userPreparatorios[0]?.preparatorio?.price_questoes
+        }
+        preparatorioNome={
+          getSelectedPreparatorio()?.preparatorio?.nome ||
+          userPreparatorios[0]?.preparatorio?.nome
+        }
       />
 
       {/* Exit Confirmation Modal */}
       <ConfirmModal
         isOpen={showExitConfirm}
         onClose={() => setShowExitConfirm(false)}
-        onConfirm={() => setMode('selection')}
+        onConfirm={() => setMode("selection")}
         title="Sair da Prática?"
         message="Você tem progresso não salvo. Se sair agora, suas respostas serão perdidas."
         confirmText="Sair"
