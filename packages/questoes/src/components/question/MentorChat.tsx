@@ -694,7 +694,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
 
     return (
         <motion.div
-            className="sticky bottom-0 z-50 flex justify-center px-4 pb-16 lg:pb-0 pointer-events-none"
+            className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
             initial={false}
             animate={{}}
             transition={{ type: "spring", stiffness: 200, damping: 25 }}
@@ -707,7 +707,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 100, opacity: 0 }}
                         onClick={() => setIsExpanded(true)}
-                        className="w-full max-w-[850px] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-t-xl rounded-b-xl shadow-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-[var(--color-bg-elevated)] transition-colors pointer-events-auto"
+                        className="w-full max-w-[850px] bg-[var(--color-bg-card)] border border-[var(--color-border)] border-b-0 rounded-t-xl shadow-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-[var(--color-bg-elevated)] transition-colors pointer-events-auto"
                     >
                         <div className="flex items-center gap-3">
                             <div className="bg-[var(--color-brand)] p-1.5 rounded-lg">
@@ -728,7 +728,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 100, opacity: 0 }}
                         style={{ height: isCollapsed ? COLLAPSED_HEIGHT : chatHeight }}
-                        className="w-full max-w-[900px] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-200"
+                        className="w-full max-w-[900px] bg-[var(--color-bg-card)] border border-[var(--color-border)] border-b-0 rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-200"
                     >
                         {/* Header with Close Button (Mobile) / Resize Handle (Desktop) */}
                         {!isCollapsed && (

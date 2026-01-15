@@ -86,6 +86,19 @@ interface ToggleFilters {
   apenasComComentario: boolean;
 }
 
+// Helper to normalize filters from database (ensures all arrays exist)
+const normalizeFilters = (filters: Partial<FilterOptions> | null | undefined): FilterOptions => ({
+  materia: filters?.materia || [],
+  assunto: filters?.assunto || [],
+  banca: filters?.banca || [],
+  orgao: filters?.orgao || [],
+  cargo: filters?.cargo || [],
+  ano: filters?.ano || [],
+  escolaridade: filters?.escolaridade || [],
+  modalidade: filters?.modalidade || [],
+  dificuldade: filters?.dificuldade || [],
+});
+
 // Valores padrao de fallback
 const DEFAULT_MATERIAS = [
   'Lingua Portuguesa',
@@ -265,8 +278,8 @@ export default function PracticePage() {
     if (notebookToEdit) {
       console.log('[PracticePage] Carregando caderno para edição:', notebookToEdit.title);
 
-      // Load notebook filters
-      if (notebookToEdit.filters) setFilters(notebookToEdit.filters);
+      // Load notebook filters (normalized to ensure all arrays exist)
+      if (notebookToEdit.filters) setFilters(normalizeFilters(notebookToEdit.filters));
       if (notebookToEdit.settings?.toggleFilters) setToggleFilters(notebookToEdit.settings.toggleFilters);
       if (notebookToEdit.settings?.questionCount) setQuestionCount(notebookToEdit.settings.questionCount);
       if (notebookToEdit.settings?.studyMode) setStudyMode(notebookToEdit.settings.studyMode as PracticeMode);
@@ -556,8 +569,8 @@ export default function PracticePage() {
   };
 
   const handleEditNotebookFilters = (notebook: Caderno) => {
-    // Load notebook filters
-    if (notebook.filters) setFilters(notebook.filters);
+    // Load notebook filters (normalized to ensure all arrays exist)
+    if (notebook.filters) setFilters(normalizeFilters(notebook.filters));
     if (notebook.settings?.toggleFilters) setToggleFilters(notebook.settings.toggleFilters);
 
     // Load settings into state
@@ -619,10 +632,14 @@ export default function PracticePage() {
 
       if (andStart) {
         // Start practice with updated settings
+        // Pass filters explicitly to avoid race conditions with state updates
+        const currentFilters = { ...filters };
+        const currentToggleFilters = { ...toggleFilters };
+
         setEditingNotebook(null);
         setEditingTitle('');
         setEditingDescription('');
-        await startPractice();
+        await startPractice(currentFilters, currentToggleFilters);
       } else {
         // Reset editing state
         setEditingNotebook(null);
