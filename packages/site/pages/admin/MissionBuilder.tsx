@@ -2,71 +2,21 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, ChevronDown, ChevronUp, Plus, Eye, Trash2, CheckCircle2, BookOpen, Target,
-  ClipboardList, GraduationCap, Loader2, AlertCircle, X, AlertTriangle, RotateCcw
+  GraduationCap, Loader2, AlertCircle, RotateCcw
 } from 'lucide-react';
-
-// Types
-interface Materia {
-  id: string;
-  materia: string;
-  ordem: number;
-  total_topicos: number;
-  topicos_disponiveis: number;
-}
-
-interface Topico {
-  id: string;
-  nome: string;
-  ordem: number;
-  nivel_dificuldade: string | null;
-}
-
-interface Missao {
-  id: string;
-  rodada_id: string;
-  numero: string;
-  tipo: string;
-  materia: string | null;
-  materia_id: string | null;
-  assunto: string | null;
-  tema: string | null;
-  acao: string | null;
-  assuntos_ids: string[];
-  revisao_parte: number | null;
-  ordem: number;
-  revisao_criterios?: string[]; // ['erradas', 'dificil', 'medio', 'facil']
-}
-
-// Tipos de critérios para revisão
-type RevisaoCriterio = 'erradas' | 'dificil' | 'medio' | 'facil';
-
-const REVISAO_CRITERIOS_OPTIONS: { value: RevisaoCriterio; label: string; description: string }[] = [
-  { value: 'erradas', label: 'Questões erradas', description: 'Questões que o aluno errou' },
-  { value: 'dificil', label: 'Marcadas como difícil', description: 'Acertou, mas marcou como difícil' },
-  { value: 'medio', label: 'Marcadas como médio', description: 'Acertou e marcou como médio' },
-  { value: 'facil', label: 'Marcadas como fácil', description: 'Acertou e marcou como fácil' },
-];
-
-interface Rodada {
-  id: string;
-  preparatorio_id: string;
-  numero: number;
-  titulo: string;
-  ordem: number;
-  missoes: Missao[];
-}
-
-interface BuilderState {
-  preparatorio: {
-    id: string;
-    nome: string;
-    cargo: string | null;
-    montagem_status: string;
-  };
-  rodadas: Rodada[];
-  materias: Materia[];
-  topicos_usados: string[];
-}
+import {
+  Materia,
+  Topico,
+  Missao,
+  Rodada,
+  BuilderState,
+  RevisaoCriterio,
+  REVISAO_CRITERIOS_OPTIONS,
+  DeleteConfirmModal,
+  FinalizarModal,
+  MissoesMateriaModal,
+  RevisoesListModal,
+} from '../../components/admin/mission-builder';
 
 const API_BASE = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4000';
 
@@ -1307,131 +1257,23 @@ export const MissionBuilder: React.FC = () => {
       )}
 
       {/* Modal - Missões da Matéria */}
-      {viewingMateriaId && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setViewingMateriaId(null)}
-        >
-          <div
-            className="bg-brand-card rounded-xl border border-white/10 w-full max-w-lg max-h-[80vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h3 className="font-semibold text-white flex items-center gap-2">
-                <ClipboardList className="w-4 h-4 text-brand-yellow" />
-                {builderState?.materias.find(m => m.id === viewingMateriaId)?.materia}
-              </h3>
-              <button
-                onClick={() => setViewingMateriaId(null)}
-                className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-4 overflow-y-auto max-h-[60vh]">
-              {(() => {
-                const missoesMateria = builderState?.rodadas
-                  .flatMap(r => r.missoes.filter(m => m.materia_id === viewingMateriaId).map(m => ({ ...m, rodadaNumero: r.numero }))) || [];
-
-                if (missoesMateria.length === 0) {
-                  return (
-                    <p className="text-gray-400 text-center py-8">
-                      Nenhuma missão criada para esta matéria.
-                    </p>
-                  );
-                }
-
-                return (
-                  <div className="space-y-3">
-                    {missoesMateria.map(missao => (
-                      <div
-                        key={missao.id}
-                        className="flex items-start justify-between p-3 bg-brand-darker rounded-lg"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs px-2 py-0.5 bg-brand-yellow/20 text-brand-yellow rounded">
-                              Rodada {missao.rodadaNumero}
-                            </span>
-                            <span className="text-sm text-white font-medium">
-                              Missão {missao.numero}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-400 whitespace-pre-wrap">
-                            {missao.assunto}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteMissaoClick(missao.id)}
-                          className="ml-2 p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
+      <MissoesMateriaModal
+        show={!!viewingMateriaId}
+        materiaId={viewingMateriaId}
+        builderState={builderState}
+        onDeleteMissao={handleDeleteMissaoClick}
+        onClose={() => setViewingMateriaId(null)}
+      />
 
       {/* Modal - Confirmar Finalização com Tópicos Pendentes */}
-      {showFinalizarModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setShowFinalizarModal(false)}
-        >
-          <div
-            className="bg-brand-card rounded-xl border border-white/10 w-full max-w-md overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="w-8 h-8 text-yellow-500" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                Tópicos Pendentes
-              </h3>
-              <p className="text-gray-400">
-                Você ainda tem <span className="text-brand-yellow font-bold">{totalTopicosPendentes}</span> {totalTopicosPendentes === 1 ? 'tópico' : 'tópicos'} para designar.
-              </p>
-              <p className="text-gray-500 text-sm mt-2">
-                Deseja finalizar mesmo assim ou criar uma nova rodada?
-              </p>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="p-4 bg-brand-darker/50 border-t border-white/10 flex gap-3">
-              <button
-                onClick={handleNovaRodadaDoModal}
-                disabled={finalizando}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-brand-yellow text-brand-darker font-bold hover:bg-yellow-400 transition-colors disabled:opacity-50"
-              >
-                <Plus className="w-4 h-4" />
-                Criar Nova Rodada
-              </button>
-              <button
-                onClick={confirmarFinalizacao}
-                disabled={finalizando}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-white/10 text-white font-semibold hover:bg-white/20 transition-colors disabled:opacity-50"
-              >
-                {finalizando ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4" />
-                )}
-                Finalizar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <FinalizarModal
+        show={showFinalizarModal}
+        totalTopicosPendentes={totalTopicosPendentes}
+        finalizando={finalizando}
+        onNovaRodada={handleNovaRodadaDoModal}
+        onConfirmar={confirmarFinalizacao}
+        onClose={() => setShowFinalizarModal(false)}
+      />
 
       {/* Modal - Configurar Revisão da Rodada */}
       {showRevisaoRodadaModal && selectedRodada && (
@@ -1718,140 +1560,26 @@ export const MissionBuilder: React.FC = () => {
       )}
 
       {/* Modal - Confirmação de Exclusão */}
-      {showDeleteModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-          onClick={() => !isDeleting && setShowDeleteModal(false)}
-        >
-          <div
-            className="bg-brand-card rounded-xl border border-white/10 w-full max-w-md overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="w-8 h-8 text-red-500" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                Confirmar Exclusão
-              </h3>
-              <p className="text-gray-400">
-                Tem certeza que deseja excluir{' '}
-                <span className="text-white font-semibold">{deleteTargetName}</span>?
-              </p>
-              {deleteType === 'rodada' && (
-                <p className="text-red-400 text-sm mt-2">
-                  Todas as missões desta rodada também serão excluídas.
-                </p>
-              )}
-            </div>
-
-            {/* Modal Actions */}
-            <div className="p-4 bg-brand-darker/50 border-t border-white/10 flex gap-3">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                disabled={isDeleting}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-white/10 text-gray-400 font-semibold hover:bg-white/20 hover:text-white transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-500 transition-colors disabled:opacity-50"
-              >
-                {isDeleting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4" />
-                )}
-                Excluir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmModal
+        show={showDeleteModal}
+        type={deleteType}
+        targetName={deleteTargetName}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
 
       {/* Modal - Revisões da Rodada */}
-      {showRevisoesModal && selectedRodada && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setShowRevisoesModal(false)}
-        >
-          <div
-            className="bg-brand-card rounded-xl border border-white/10 w-full max-w-lg max-h-[80vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-                  <RotateCcw className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">Revisões</h3>
-                  <p className="text-xs text-gray-400">Rodada {selectedRodada.numero}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowRevisoesModal(false)}
-                className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-4 overflow-y-auto max-h-[50vh]">
-              {revisoesRodada.length === 0 ? (
-                <p className="text-gray-400 text-center py-8">
-                  Nenhuma revisão criada para esta rodada.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {revisoesRodada.map(revisao => (
-                    <div
-                      key={revisao.id}
-                      className="flex items-start justify-between p-3 bg-brand-darker rounded-lg"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-purple-400">
-                          {revisao.tema || 'Revisão'}
-                        </p>
-                        {revisao.assunto && (
-                          <p className="text-xs text-gray-400 mt-1 whitespace-pre-wrap line-clamp-3">
-                            {revisao.assunto}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleDeleteMissaoClick(revisao.id)}
-                        className="ml-2 p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-brand-darker/50 border-t border-white/10">
-              <button
-                onClick={() => {
-                  setShowRevisoesModal(false);
-                  setShowRevisaoMateriaModal(true);
-                }}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-purple-600 text-white font-bold hover:bg-purple-500 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Nova Revisão
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <RevisoesListModal
+        show={showRevisoesModal}
+        rodada={selectedRodada}
+        onDeleteMissao={handleDeleteMissaoClick}
+        onNovaRevisao={() => {
+          setShowRevisoesModal(false);
+          setShowRevisaoMateriaModal(true);
+        }}
+        onClose={() => setShowRevisoesModal(false)}
+      />
     </div>
   );
 };

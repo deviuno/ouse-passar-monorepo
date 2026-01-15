@@ -35,3 +35,5 @@ packages/mastra/data/*.db*
 packages/mastra/data/*.shm
 packages/mastra/data/*.wal
 nul
+RELATORIO_REFATORAMENTO.txt
+tmpclaude-*
