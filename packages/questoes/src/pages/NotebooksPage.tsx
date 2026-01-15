@@ -34,7 +34,7 @@ export const NotebooksPage: React.FC = () => {
   const { addToast } = useUIStore();
 
   const [notebooks, setNotebooks] = useState<Caderno[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [notebookSettings, setNotebookSettings] = useState<Record<string, NotebookSettings>>({});
   const [viewingNotebook, setViewingNotebook] = useState<Caderno | null>(null);
   const [deletingNotebook, setDeletingNotebook] = useState<Caderno | null>(null);
@@ -43,11 +43,14 @@ export const NotebooksPage: React.FC = () => {
 
   // Load notebooks on mount
   useEffect(() => {
+    setIsLoading(true);
+    
     const loadNotebooks = async () => {
       if (!user?.id) {
         setIsLoading(false);
         return;
       }
+
 
       try {
         const userNotebooks = await getUserNotebooks(user.id);
