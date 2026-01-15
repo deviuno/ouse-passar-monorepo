@@ -1,3 +1,10 @@
 export { default as QuestionCard } from './QuestionCard';
 export { default as CommentsSection } from './CommentsSection';
 export { default as TutorChat } from './TutorChat';
+export { CorruptedQuestionCard } from './CorruptedQuestionCard';
+export { MentorChat } from './MentorChat';
+export { PegadinhaModal } from './PegadinhaModal';
+export { QuestionErrorBoundary } from './QuestionErrorBoundary';
+export { QuestionNavigator } from './QuestionNavigator';
+export { QuestionStatsModal } from './QuestionStatsModal';
+export { ReportQuestionModal } from './ReportQuestionModal';

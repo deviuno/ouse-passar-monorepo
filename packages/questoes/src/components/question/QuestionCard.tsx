@@ -4,11 +4,13 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ParsedQuestion, CommunityStats, PracticeMode } from '../../types';
 import { COLORS, MOCK_STATS } from '../../constants';
-import { MessageCircle, AlertTriangle, BarChart2, X, Timer, Coffee, Zap, BrainCircuit, Star, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
+import { MessageCircle, AlertTriangle, BarChart2, Timer, Coffee, Zap, BrainCircuit, Star, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
 import { generateExplanation } from '../../services/geminiService';
 import { getQuestionStatistics, QuestionStatistics } from '../../services/questionFeedbackService';
 import CommentsSection from './CommentsSection';
 import { ReportQuestionModal } from './ReportQuestionModal';
+import { QuestionStatsModal } from './QuestionStatsModal';
+import { PegadinhaModal } from './PegadinhaModal';
 import { useHorizontalSwipe } from '../../hooks/useSwipe';
 import RippleEffect from '../ui/RippleEffect';
 import { validateQuestion } from '../../utils/questionValidator';
@@ -694,93 +696,21 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, isLastQuestion, o
       </div>
 
       {/* Stats Modal Popup */}
-      {showStatsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-[var(--color-bg-card)] w-full max-w-xs rounded-2xl border border-[var(--color-border)] p-6 shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-white flex items-center">
-                <BarChart2 size={20} className="mr-2 text-[#FFB800]" />
-                Desempenho
-              </h3>
-              <button onClick={() => setShowStatsModal(false)} className="text-gray-500 hover:text-white">✕</button>
-            </div>
-
-            <div className="space-y-4">
-              {currentStats.map((stat) => {
-                const isCorrect = stat.alternative === question.gabarito;
-                const isSelected = stat.alternative === selectedAlt;
-                let barColor = 'bg-gray-600';
-                if (isCorrect) barColor = 'bg-[#2ECC71]';
-                else if (isSelected) barColor = 'bg-[#E74C3C]';
-
-                return (
-                  <div key={stat.alternative} className="relative">
-                    <div className="flex justify-between text-xs mb-1 font-bold">
-                      <span className={`${isCorrect ? 'text-[#2ECC71]' : isSelected ? 'text-[#E74C3C]' : 'text-gray-400'}`}>
-                        Alternativa {stat.alternative}
-                        {isSelected && " (Você)"}
-                      </span>
-                      <span>{stat.percentage}%</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
-                      <div className={`h-full ${barColor} transition-all duration-500`} style={{ width: `${stat.percentage}%` }}></div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Difficulty Distribution */}
-            {questionStats && (questionStats.difficultyDistribution.easy > 0 || questionStats.difficultyDistribution.medium > 0 || questionStats.difficultyDistribution.hard > 0) && (
-              <div className="mt-6 pt-4 border-t border-gray-700">
-                <h4 className="text-sm font-bold text-gray-300 mb-3">Dificuldade percebida</h4>
-                <div className="flex gap-2">
-                  <div className="flex-1 text-center p-2 bg-green-500/10 border border-green-500/30 rounded-lg">
-                    <p className="text-lg font-bold text-green-500">{questionStats.difficultyDistribution.easy}</p>
-                    <p className="text-[10px] text-gray-400">Fácil</p>
-                  </div>
-                  <div className="flex-1 text-center p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                    <p className="text-lg font-bold text-yellow-500">{questionStats.difficultyDistribution.medium}</p>
-                    <p className="text-[10px] text-gray-400">Médio</p>
-                  </div>
-                  <div className="flex-1 text-center p-2 bg-red-500/10 border border-red-500/30 rounded-lg">
-                    <p className="text-lg font-bold text-red-500">{questionStats.difficultyDistribution.hard}</p>
-                    <p className="text-[10px] text-gray-400">Difícil</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <QuestionStatsModal
+        isOpen={showStatsModal}
+        onClose={() => setShowStatsModal(false)}
+        stats={currentStats}
+        gabarito={question.gabarito}
+        selectedAlt={selectedAlt}
+        questionStats={questionStats}
+      />
 
       {/* Pegadinha Explanation Modal */}
-      {showPegadinhaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-[var(--color-bg-card)] w-full max-w-sm rounded-2xl border border-orange-500 p-0 shadow-2xl overflow-hidden">
-            <div className="bg-orange-500/10 p-4 border-b border-orange-500/30 flex justify-between items-center">
-              <h3 className="font-bold text-orange-400 flex items-center">
-                <AlertTriangle size={20} className="mr-2" />
-                Cuidado! É uma Pegadinha
-              </h3>
-              <button onClick={() => setShowPegadinhaModal(false)} className="text-gray-400 hover:text-white"><X size={20} /></button>
-            </div>
-
-            <div className="p-6">
-              <p className="text-[var(--color-text-main)] leading-relaxed text-sm">
-                {question.explicacaoPegadinha || "Esta questão contém elementos projetados para induzir o candidato ao erro comum. Fique atento aos detalhes do enunciado!"}
-              </p>
-
-              <button
-                onClick={() => setShowPegadinhaModal(false)}
-                className="mt-6 w-full py-2 bg-orange-500 text-black font-bold rounded-lg hover:bg-orange-400 transition-colors"
-              >
-                Entendi
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PegadinhaModal
+        isOpen={showPegadinhaModal}
+        onClose={() => setShowPegadinhaModal(false)}
+        explicacao={question.explicacaoPegadinha}
+      />
 
       {/* Report Question Modal */}
       <ReportQuestionModal
