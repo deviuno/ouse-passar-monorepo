@@ -82,17 +82,17 @@ export const NotebooksPage: React.FC = () => {
 
       // Fetch questions with notebook filters
       const questions = await fetchQuestions({
-        materia: filters.materia || [],
-        assunto: filters.assunto || [],
-        banca: filters.banca || [],
-        orgao: filters.orgao || [],
-        cargo: filters.cargo || [],
-        ano: filters.ano || [],
-        escolaridade: filters.escolaridade || [],
-        modalidade: filters.modalidade || [],
-        dificuldade: filters.dificuldade || [],
+        materias: filters.materia?.length > 0 ? filters.materia : undefined,
+        assuntos: filters.assunto?.length > 0 ? filters.assunto : undefined,
+        bancas: filters.banca?.length > 0 ? filters.banca : undefined,
+        orgaos: filters.orgao?.length > 0 ? filters.orgao : undefined,
+        cargos: filters.cargo?.length > 0 ? filters.cargo : undefined,
+        anos: filters.ano?.length > 0 ? filters.ano.map(Number) : undefined,
+        escolaridade: filters.escolaridade?.length > 0 ? filters.escolaridade : undefined,
+        modalidade: filters.modalidade?.length > 0 ? filters.modalidade : undefined,
+        dificuldade: filters.dificuldade?.length > 0 ? filters.dificuldade : undefined,
         limit: settings.questionCount,
-        randomize: true,
+        shuffle: true,
       });
 
       if (questions.length === 0) {

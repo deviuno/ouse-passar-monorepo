@@ -640,9 +640,17 @@ export default function PracticePage() {
   const handleStartFromNotebook = async (notebook: Caderno, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
 
-    // Load notebook filters
-    if (notebook.filters) setFilters(notebook.filters);
-    if (notebook.settings?.toggleFilters) setToggleFilters(notebook.settings.toggleFilters);
+    // Load notebook filters into state (for UI display)
+    const notebookFilters = notebook.filters || {
+      materia: [], assunto: [], banca: [], orgao: [], cargo: [],
+      ano: [], escolaridade: [], modalidade: [], dificuldade: []
+    };
+    const notebookToggleFilters = notebook.settings?.toggleFilters || {
+      apenasRevisadas: false, apenasComComentario: false
+    };
+
+    setFilters(notebookFilters);
+    setToggleFilters(notebookToggleFilters);
 
     // Use the editable settings from state
     const settings = notebookSettings[notebook.id];
@@ -651,8 +659,8 @@ export default function PracticePage() {
       setStudyMode(settings.studyMode);
     }
 
-    // Start practice immediately (modo já foi selecionado no toggle)
-    await startPractice();
+    // Start practice immediately, passing filters directly to avoid race condition
+    await startPractice(notebookFilters, notebookToggleFilters);
   };
 
   const handleDeleteNotebook = async (id: string, e: React.MouseEvent) => {
@@ -929,9 +937,14 @@ export default function PracticePage() {
     (toggleFilters.apenasComComentario ? 1 : 0);
 
   // Iniciar pratica
-  const startPractice = async () => {
+  // Aceita filtros opcionais para evitar race condition quando chamado de handleStartFromNotebook
+  const startPractice = async (overrideFilters?: FilterOptions, overrideToggleFilters?: ToggleFilters) => {
     console.log('[PracticePage] startPractice iniciado');
     setIsLoading(true);
+
+    // Usar filtros passados ou estado atual
+    const activeFilters = overrideFilters || filters;
+    const activeToggleFilters = overrideToggleFilters || toggleFilters;
 
     try {
       // Consumir bateria se usuario nao for premium
@@ -975,14 +988,14 @@ export default function PracticePage() {
       if (usingMockData) {
         console.log('[PracticePage] Usando dados mock');
         let filtered = [...MOCK_QUESTIONS];
-        if (filters.materia.length > 0) {
-          filtered = filtered.filter((q) => filters.materia.includes(q.materia));
+        if (activeFilters.materia.length > 0) {
+          filtered = filtered.filter((q) => activeFilters.materia.includes(q.materia));
         }
-        if (filters.banca.length > 0) {
-          filtered = filtered.filter((q) => filters.banca.includes(q.banca));
+        if (activeFilters.banca.length > 0) {
+          filtered = filtered.filter((q) => activeFilters.banca.includes(q.banca));
         }
-        if (filters.ano.length > 0) {
-          filtered = filtered.filter((q) => filters.ano.includes(String(q.ano)));
+        if (activeFilters.ano.length > 0) {
+          filtered = filtered.filter((q) => activeFilters.ano.includes(String(q.ano)));
         }
         if (filtered.length === 0) {
           filtered = [...MOCK_QUESTIONS];
@@ -993,23 +1006,23 @@ export default function PracticePage() {
         // No modo trilha, buscar todas as questões (sem limit)
         const isTrailMode = !!trailPreparatorioId;
         console.log('[PracticePage] Buscando questões do banco. Filtros:', {
-          materias: filters.materia,
-          assuntos: filters.assunto,
-          bancas: filters.banca,
+          materias: activeFilters.materia,
+          assuntos: activeFilters.assunto,
+          bancas: activeFilters.banca,
           questionCount: isTrailMode ? 'todas (modo trilha)' : questionCount
         });
         const dbQuestions = await fetchQuestions({
-          materias: filters.materia.length > 0 ? filters.materia : undefined,
-          assuntos: filters.assunto.length > 0 ? filters.assunto : undefined,
-          bancas: filters.banca.length > 0 ? filters.banca : undefined,
-          orgaos: filters.orgao.length > 0 ? filters.orgao : undefined,
-          cargos: filters.cargo.length > 0 ? filters.cargo : undefined,
-          anos: filters.ano.length > 0 ? filters.ano.map(Number) : undefined,
-          escolaridade: filters.escolaridade.length > 0 ? filters.escolaridade : undefined,
-          modalidade: filters.modalidade.length > 0 ? filters.modalidade : undefined,
-          dificuldade: filters.dificuldade.length > 0 ? filters.dificuldade : undefined,
-          apenasRevisadas: toggleFilters.apenasRevisadas || undefined,
-          apenasComComentario: toggleFilters.apenasComComentario || undefined,
+          materias: activeFilters.materia.length > 0 ? activeFilters.materia : undefined,
+          assuntos: activeFilters.assunto.length > 0 ? activeFilters.assunto : undefined,
+          bancas: activeFilters.banca.length > 0 ? activeFilters.banca : undefined,
+          orgaos: activeFilters.orgao.length > 0 ? activeFilters.orgao : undefined,
+          cargos: activeFilters.cargo.length > 0 ? activeFilters.cargo : undefined,
+          anos: activeFilters.ano.length > 0 ? activeFilters.ano.map(Number) : undefined,
+          escolaridade: activeFilters.escolaridade.length > 0 ? activeFilters.escolaridade : undefined,
+          modalidade: activeFilters.modalidade.length > 0 ? activeFilters.modalidade : undefined,
+          dificuldade: activeFilters.dificuldade.length > 0 ? activeFilters.dificuldade : undefined,
+          apenasRevisadas: activeToggleFilters.apenasRevisadas || undefined,
+          apenasComComentario: activeToggleFilters.apenasComComentario || undefined,
           limit: isTrailMode ? 500 : questionCount, // Modo trilha: buscar até 500 questões
           shuffle: true,
         });

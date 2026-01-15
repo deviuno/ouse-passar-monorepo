@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { X, Search, Check, Loader2, Filter, Hash, Building2, Calendar, BookOpen, FileText, ChevronDown, ChevronUp, Briefcase, GraduationCap, CheckCircle } from 'lucide-react';
+import { Search, Check, Loader2, Filter, Building2, Calendar, BookOpen, FileText, Briefcase, GraduationCap, CheckCircle } from 'lucide-react';
 import {
   getFilterOptions,
   getDynamicFilterOptions,
@@ -12,6 +12,16 @@ import {
   OPTIONS_ESCOLARIDADE,
   OPTIONS_MODALIDADE
 } from '../../services/externalQuestionsService';
+import {
+  FilterSection,
+  FilterOption,
+  sortWithSelectedFirst,
+  normalizeText,
+  filterValid,
+  formatBancaDisplay,
+  getBancaId,
+  bancaMatchesSearch,
+} from './question-filter';
 
 interface QuestionFilterSelectorProps {
   initialFilters?: QuestionFilters;
@@ -361,7 +371,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     try {
       // Converter nomes de bancas para IDs quando disponíveis
       const bancaIds = selectedBancas
-        .map(nome => getBancaId(nome))
+        .map(nome => getBancaId(nome, allBancasWithDetails))
         .filter((id): id is string => id !== undefined);
 
       const filters: QuestionFilters = {
@@ -384,51 +394,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
 
   const hasAnyFilter = selectedMaterias.length > 0 || selectedAssuntos.length > 0 || selectedBancas.length > 0 || selectedAnos.length > 0 || selectedOrgaos.length > 0 || selectedCargos.length > 0 || selectedEscolaridade.length > 0 || selectedModalidade.length > 0;
 
-  // Função para ordenar itens com selecionados no topo
-  const sortWithSelectedFirst = <T,>(items: T[], selected: T[]): T[] => {
-    const selectedSet = new Set(selected);
-    const selectedItems = items.filter(item => selectedSet.has(item));
-    const unselectedItems = items.filter(item => !selectedSet.has(item));
-    return [...selectedItems, ...unselectedItems];
-  };
-
-  // Função para formatar nome da banca usando sigla do banco de dados
-  const formatBancaDisplay = (banca: string): string => {
-    // Buscar nos detalhes das bancas (vindos do banco de dados)
-    const bancaDetails = allBancasWithDetails.find(b => b.nome === banca);
-    if (bancaDetails?.sigla) {
-      return `${bancaDetails.sigla} - ${banca}`;
-    }
-    return banca;
-  };
-
-  // Função para obter o ID da banca pelo nome
-  const getBancaId = (bancaNome: string): string | undefined => {
-    const bancaDetails = allBancasWithDetails.find(b => b.nome === bancaNome);
-    return bancaDetails?.id;
-  };
-
-  // Função para normalizar texto removendo acentos e convertendo para minúsculo
-  const normalizeText = (text: string | undefined | null): string => {
-    if (!text) return '';
-    return text
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-  };
-
-  // Função para verificar se banca corresponde à busca (sigla ou nome)
-  const bancaMatchesSearch = (banca: string, search: string): boolean => {
-    const searchNormalized = normalizeText(search);
-    const bancaNormalized = normalizeText(banca);
-    const displayNormalized = normalizeText(formatBancaDisplay(banca));
-
-    return bancaNormalized.includes(searchNormalized) || displayNormalized.includes(searchNormalized);
-  };
-
   // Filtrar opcoes por busca e ordenar com selecionados primeiro
-  // Helper para filtrar valores válidos (remove undefined, null, strings vazias)
-  const filterValid = <T,>(arr: T[]): T[] => arr.filter(item => item !== undefined && item !== null && item !== '');
 
   // Para matérias, combinar as disponíveis com as selecionadas (para mostrar herdadas que podem não estar na lista)
   const allMateriasToShow = [...new Set(filterValid([...selectedMaterias, ...dynamicMaterias]))];
@@ -440,7 +406,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
   // Usar busca que funciona com sigla ou nome completo
   const allBancasToShow = [...new Set(filterValid([...selectedBancas, ...dynamicBancas]))];
   const filteredBancas = sortWithSelectedFirst(
-    allBancasToShow.filter(b => bancaMatchesSearch(b, searchBancas)),
+    allBancasToShow.filter(b => bancaMatchesSearch(b, searchBancas, allBancasWithDetails)),
     selectedBancas
   );
   // Para órgãos, combinar os disponíveis com os selecionados
@@ -647,7 +613,7 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
                 {filteredBancas.map(banca => (
                   <FilterOption
                     key={banca}
-                    label={formatBancaDisplay(banca)}
+                    label={formatBancaDisplay(banca, allBancasWithDetails)}
                     selected={selectedBancas.includes(banca)}
                     available={dynamicBancas.includes(banca)}
                     onClick={() => toggleBanca(banca)}
@@ -849,92 +815,5 @@ export const QuestionFilterSelector: React.FC<QuestionFilterSelectorProps> = ({
     </div>
   );
 };
-
-// Componente de secao de filtro
-interface FilterSectionProps {
-  title: string;
-  icon: React.ReactNode;
-  expanded: boolean;
-  onToggle: () => void;
-  selectedCount: number;
-  totalCount: number;
-  children: React.ReactNode;
-}
-
-const FilterSection: React.FC<FilterSectionProps> = ({
-  title,
-  icon,
-  expanded,
-  onToggle,
-  selectedCount,
-  totalCount,
-  children
-}) => (
-  <div className="bg-brand-dark/50 border border-white/10 rounded-sm overflow-hidden">
-    <button
-      onClick={onToggle}
-      className="flex items-center justify-between w-full p-3 hover:bg-white/5 transition-colors"
-    >
-      <div className="flex items-center gap-2">
-        <span className="text-brand-yellow">{icon}</span>
-        <span className="text-white font-medium">{title}</span>
-        {selectedCount > 0 && (
-          <span className="bg-brand-yellow text-brand-darker text-xs px-2 py-0.5 font-bold">
-            {selectedCount}
-          </span>
-        )}
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-gray-500 text-xs">{totalCount} opcoes</span>
-        {expanded ? (
-          <ChevronUp className="w-4 h-4 text-gray-500" />
-        ) : (
-          <ChevronDown className="w-4 h-4 text-gray-500" />
-        )}
-      </div>
-    </button>
-    {expanded && (
-      <div className="p-3 pt-0 border-t border-white/5">
-        {children}
-      </div>
-    )}
-  </div>
-);
-
-// Componente de opcao de filtro
-interface FilterOptionProps {
-  label: string;
-  selected: boolean;
-  available: boolean;
-  onClick: () => void;
-}
-
-const FilterOption: React.FC<FilterOptionProps> = ({
-  label,
-  selected,
-  available,
-  onClick
-}) => (
-  <button
-    onClick={onClick}
-    disabled={!available && !selected}
-    className={`flex items-center gap-2 w-full p-2 text-left text-sm transition-colors ${
-      selected
-        ? 'bg-brand-yellow/10 text-brand-yellow'
-        : available
-        ? 'text-gray-300 hover:bg-white/5 hover:text-white'
-        : 'text-gray-600 cursor-not-allowed'
-    }`}
-  >
-    <div className={`w-4 h-4 border flex items-center justify-center ${
-      selected
-        ? 'bg-brand-yellow border-brand-yellow'
-        : 'border-gray-600'
-    }`}>
-      {selected && <Check className="w-3 h-3 text-brand-darker" />}
-    </div>
-    <span className="truncate">{label}</span>
-  </button>
-);
 
 export default QuestionFilterSelector;
