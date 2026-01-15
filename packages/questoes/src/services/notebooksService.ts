@@ -25,21 +25,35 @@ export async function createNotebook(
     description?: string,
     questionsCount?: number
 ) {
-    const { data, error } = await supabase
-        .from('cadernos')
-        .insert({
-            user_id: userId,
-            title,
-            description,
-            filters,
-            settings,
-            questions_count: questionsCount
-        })
-        .select()
-        .single();
+    console.log('[notebooksService] createNotebook iniciando...', { userId, title, questionsCount });
 
-    if (error) throw error;
-    return data as Notebook;
+    try {
+        const { data, error } = await supabase
+            .from('cadernos')
+            .insert({
+                user_id: userId,
+                title,
+                description,
+                filters,
+                settings,
+                questions_count: questionsCount
+            })
+            .select()
+            .single();
+
+        console.log('[notebooksService] createNotebook resultado:', { data, error });
+
+        if (error) {
+            console.error('[notebooksService] createNotebook erro:', error);
+            throw error;
+        }
+
+        console.log('[notebooksService] createNotebook sucesso:', data?.id);
+        return data as Notebook;
+    } catch (err) {
+        console.error('[notebooksService] createNotebook exceção:', err);
+        throw err;
+    }
 }
 
 export async function getUserNotebooks(userId: string) {

@@ -508,26 +508,37 @@ export default function PracticePage() {
   };
 
   const handleSaveNotebook = async () => {
-    if (!user?.id || !newNotebookName.trim()) return;
+    console.log('[PracticePage] handleSaveNotebook iniciando...', { userId: user?.id, name: newNotebookName, isSubscriber });
+
+    if (!user?.id || !newNotebookName.trim()) {
+      console.log('[PracticePage] handleSaveNotebook: userId ou nome vazio, abortando');
+      return;
+    }
 
     setIsSavingNotebook(true);
     try {
       // Consumir bateria por criar caderno (pular se assinante Ouse Questões)
       const prep = getSelectedPreparatorio();
       const prepIdToUse = prep?.preparatorio_id || userPreparatorios[0]?.preparatorio_id;
+      console.log('[PracticePage] handleSaveNotebook: prepIdToUse:', prepIdToUse, 'isSubscriber:', isSubscriber);
+
       if (prepIdToUse && !isSubscriber) {
+        console.log('[PracticePage] handleSaveNotebook: consumindo bateria...');
         const batteryResult = await consumeBattery(
           user.id,
           prepIdToUse,
           'notebook_create',
           { notebook_name: newNotebookName }
         );
+        console.log('[PracticePage] handleSaveNotebook: resultado bateria:', batteryResult);
 
         if (!batteryResult.success && batteryResult.error === 'insufficient_battery') {
           console.log('[PracticePage] Bateria insuficiente para criar caderno');
           setIsSavingNotebook(false);
           return; // Modal será aberto automaticamente pelo store
         }
+      } else {
+        console.log('[PracticePage] handleSaveNotebook: pulando bateria (assinante ou sem prep)');
       }
 
       const settings = {
@@ -539,6 +550,7 @@ export default function PracticePage() {
       // Use filteredCount, but fallback to totalQuestions if no filters are applied
       const questionsCount = filteredCount > 0 ? filteredCount : totalQuestions;
 
+      console.log('[PracticePage] handleSaveNotebook: criando notebook...');
       const newNotebook = await createNotebook(
         user.id,
         newNotebookName,
@@ -547,9 +559,11 @@ export default function PracticePage() {
         newNotebookDescription.trim() || undefined,
         questionsCount
       );
+      console.log('[PracticePage] handleSaveNotebook: notebook criado:', newNotebook?.id);
 
       if (newNotebook) {
         // Reload notebooks to get updated data
+        console.log('[PracticePage] handleSaveNotebook: recarregando notebooks...');
         await loadNotebooks();
 
         setShowSaveNotebookModal(false);
@@ -559,11 +573,15 @@ export default function PracticePage() {
 
         // Scroll to top
         window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      } else {
+        console.log('[PracticePage] handleSaveNotebook: notebook retornou null');
+        addToast('error', 'Erro ao salvar caderno: resposta vazia.');
       }
     } catch (error) {
-      console.error('Erro ao salvar caderno:', error);
+      console.error('[PracticePage] handleSaveNotebook erro:', error);
       addToast('error', 'Erro ao salvar caderno.');
     } finally {
+      console.log('[PracticePage] handleSaveNotebook: finalizando');
       setIsSavingNotebook(false);
     }
   };
