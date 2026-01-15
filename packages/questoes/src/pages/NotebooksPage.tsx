@@ -71,7 +71,7 @@ export const NotebooksPage: React.FC = () => {
     };
 
     loadNotebooks();
-  }, [user?.id, addToast]);
+  }, [user?.id]);
 
   const handleStartFromNotebook = async (notebook: Caderno) => {
     setIsStarting(notebook.id);
@@ -84,7 +84,7 @@ export const NotebooksPage: React.FC = () => {
 
       // Fetch questions with notebook filters
       const questions = await fetchQuestions({
-        materias: filters.materia?.length > 0 ? filters.materia : undefined,
+        materias: filters.matseria?.length > 0 ? filters.materia : undefined,
         assuntos: filters.assunto?.length > 0 ? filters.assunto : undefined,
         bancas: filters.banca?.length > 0 ? filters.banca : undefined,
         orgaos: filters.orgao?.length > 0 ? filters.orgao : undefined,
@@ -100,7 +100,7 @@ export const NotebooksPage: React.FC = () => {
       console.log("quuestions", questions);
 
       if (questions.length === 0) {
-        addToast('warning', 'Nenhuma questão encontrada com esses filtros');
+        // addToast('warning', 'Nenhuma questão encontrada com esses filtros');
         setIsStarting(null);
         return;
       }
@@ -117,10 +117,10 @@ export const NotebooksPage: React.FC = () => {
       sessionStorage.setItem('practiceNotebookId', notebook.id);
 
       // Navigate to practice page
-      navigate('/praticar?start=true');
+      navigate(`/praticar?start=true&notebook_id=${notebook.id}`);
     } catch (error) {
       console.error('Erro ao iniciar prática:', error);
-      addToast('error', 'Erro ao iniciar prática');
+      // addToast('error', 'Erro ao iniciar prática');
     } finally {
       setIsStarting(null);
     }
@@ -141,17 +141,16 @@ export const NotebooksPage: React.FC = () => {
     try {
       await deleteNotebook(deletingNotebook.id);
       setNotebooks((prev) => prev.filter((nb) => nb.id !== deletingNotebook.id));
-      addToast('success', 'Caderno excluído com sucesso');
+      // addToast('success', 'Caderno excluído com sucesso');
     } catch (error) {
       console.error('Erro ao excluir caderno:', error);
-      addToast('error', 'Erro ao excluir caderno');
+      // addToast('error', 'Erro ao excluir caderno');
     } finally {
       setIsDeleting(false);
       setDeletingNotebook(null);
     }
   };
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[var(--color-bg-main)] flex items-center justify-center theme-transition">
