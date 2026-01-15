@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, Search, X, FileText, Loader2, Check } from 'lucide-react';
 import { TaxonomyNode } from '../../services/questionsService';
@@ -122,7 +122,7 @@ interface HierarchicalAssuntosDropdownProps {
   totalCount?: number; // Contagem total fornecida externamente
 }
 
-// Componente para renderizar um nó da árvore
+// Componente para renderizar um nó da árvore (original)
 const TaxonomyNodeItem: React.FC<{
   node: TaxonomyNode;
   selectedAssuntos: string[];
@@ -290,6 +290,11 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Estado para controle de lazy loading
+  const [visibleCount, setVisibleCount] = useState(50);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Expandir todos os nós por padrão quando a taxonomia mudar
   useEffect(() => {
@@ -342,30 +347,121 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
   const hasTaxonomy = taxonomyByMateria.size > 0 &&
     Array.from(taxonomyByMateria.values()).some(nodes => nodes.length > 0);
 
-  // Filtrar assuntos flat que não estão na taxonomia
-  const assuntosSemTaxonomia = flatAssuntos.filter(assunto => {
-    // Verificar se o assunto está em alguma taxonomia
-    for (const nodes of taxonomyByMateria.values()) {
-      const isInTaxonomy = (nodeList: TaxonomyNode[]): boolean => {
-        for (const node of nodeList) {
-          if (node.assuntos_originais?.includes(assunto)) return true;
-          if (node.filhos && isInTaxonomy(node.filhos)) return true;
-        }
+  // Assuntos sem taxonomia
+  const assuntosSemTaxonomia = useMemo(() => {
+    return flatAssuntos.filter(assunto => {
+      for (const nodes of taxonomyByMateria.values()) {
+        const isInTaxonomy = (nodeList: TaxonomyNode[]): boolean => {
+          for (const node of nodeList) {
+            if (node.assuntos_originais?.includes(assunto)) return true;
+            if (node.filhos && isInTaxonomy(node.filhos)) return true;
+          }
+          return false;
+        };
+        if (isInTaxonomy(nodes)) return false;
+      }
+      return true;
+    });
+  }, [flatAssuntos, taxonomyByMateria]);
+
+  // Função para construir os itens da lista (similar ao original, mas com lazy loading)
+  const buildItems = useCallback(() => {
+    const items: React.ReactNode[] = [];
+    
+    // Processar matéria por matéria
+    Array.from(taxonomyByMateria.entries()).forEach(([materia, nodes]) => {
+      if (nodes.length === 0) return;
+
+      // Verificar se o nome da matéria corresponde à busca
+      const materiaMatches = searchTerm ? fuzzyMatch(searchTerm, materia) : false;
+
+      // Filtrar nós que correspondem à busca (fuzzy match)
+      const matchesSearch = (n: TaxonomyNode): boolean => {
+        if (!searchTerm) return true;
+        // Se a matéria corresponde, mostrar todos os nós
+        if (materiaMatches) return true;
+        // Usa fuzzyMatch para busca flexível
+        if (fuzzyMatch(searchTerm, n.nome)) return true;
+        if (fuzzyMatch(searchTerm, n.materia)) return true;
+        if (n.assuntos_originais?.some(a => fuzzyMatch(searchTerm, a))) return true;
+        if (n.filhos?.some(f => matchesSearch(f))) return true;
         return false;
       };
-      if (isInTaxonomy(nodes)) return false;
-    }
-    return true;
-  });
 
-  // Filtrar assuntos sem taxonomia pela busca (fuzzy match)
-  const filteredFlatAssuntos = assuntosSemTaxonomia.filter(
-    assunto => !searchTerm || fuzzyMatch(searchTerm, assunto)
-  );
+      const filteredNodes = nodes.filter(matchesSearch);
+      if (filteredNodes.length === 0) return;
+
+      // Header da matéria
+      items.push(
+        <div key={`materia-${materia}`} className="px-3 py-2 bg-[var(--color-bg-elevated)] border-y border-[var(--color-border)] sticky top-0">
+          <span className="text-xs font-bold text-[var(--color-brand)] uppercase tracking-wide">
+            {materia}
+          </span>
+        </div>
+      );
+
+      // Árvore de taxonomia
+      filteredNodes.forEach((node) => (
+        items.push(
+          <TaxonomyNodeItem
+            key={`${node.materia}-${node.id}`}
+            node={node}
+            selectedAssuntos={selectedAssuntos}
+            onToggleAssunto={onToggleAssunto}
+            onToggleMultiple={onToggleMultiple}
+            expandedNodes={expandedNodes}
+            toggleExpanded={toggleExpanded}
+            searchTerm={searchTerm}
+          />
+        )
+      ));
+    });
+
+    // Assuntos sem taxonomia
+    const filteredFlatAssuntos = searchTerm 
+      ? assuntosSemTaxonomia.filter(assunto => fuzzyMatch(searchTerm, assunto))
+      : assuntosSemTaxonomia;
+
+    if (filteredFlatAssuntos.length > 0) {
+      // Header "Outros Assuntos"
+      if (hasTaxonomy) {
+        items.push(
+          <div key="outros-assuntos-header" className="px-3 py-2 bg-[var(--color-bg-elevated)] border-y border-[var(--color-border)] sticky top-0">
+            <span className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">
+              Outros Assuntos
+            </span>
+          </div>
+        );
+      }
+
+      // Assuntos flat
+      filteredFlatAssuntos.forEach((assunto) => {
+        const isSelected = selectedAssuntos.includes(assunto);
+        items.push(
+          <button
+            key={`flat-${assunto}`}
+            onClick={() => onToggleAssunto(assunto)}
+            className={`w-full flex items-start gap-1.5 px-2 py-1.5 text-left text-sm transition-colors ${
+              isSelected ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]' : 'text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)]'
+            }`}
+            style={{ paddingLeft: 8 }}
+          >
+            <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5 ${
+              isSelected ? 'bg-[var(--color-brand)] border-[var(--color-brand)]' : 'border-[var(--color-border-strong)]'
+            }`}>
+              {isSelected && <Check size={10} className="text-black" />}
+            </div>
+            <span className="break-words whitespace-normal leading-tight">{assunto}</span>
+          </button>
+        );
+      });
+    }
+
+    return items;
+  }, [taxonomyByMateria, assuntosSemTaxonomia, selectedAssuntos, searchTerm, expandedNodes, onToggleAssunto, onToggleMultiple, hasTaxonomy]);
 
   // Contar total de assuntos disponíveis
-  // Usar totalCount se fornecido, senão calcular a partir da taxonomia, senão usar flatAssuntos
-  const countFromTaxonomy = (() => {
+  const countFromTaxonomy = useMemo(() => {
     if (taxonomyByMateria.size === 0) return 0;
     let count = 0;
     const countNode = (node: TaxonomyNode): number => {
@@ -383,10 +479,63 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
       }
     }
     return count;
-  })();
+  }, [taxonomyByMateria]);
 
   // Usar totalCount se fornecido, senão priorizar count da taxonomia, senão flatAssuntos
   const totalAvailable = totalCount ?? (countFromTaxonomy > 0 ? countFromTaxonomy : flatAssuntos.length);
+
+  // Função para carregar mais itens
+  const loadMoreItems = useCallback(() => {
+    if (loadingMore) return;
+    
+    setLoadingMore(true);
+    // Usar setTimeout para não bloquear a UI
+    setTimeout(() => {
+      setVisibleCount(prev => {
+        const next = Math.min(prev + 50, totalAvailable);
+        return next;
+      });
+      setLoadingMore(false);
+    }, 100);
+  }, [loadingMore, totalAvailable]);
+
+  // Handler para scroll infinito
+  const handleScroll = useCallback(() => {
+    if (!listContainerRef.current || loadingMore) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = listContainerRef.current;
+    
+    // Se estiver perto do final (50px do fim), carregar mais itens
+    if (scrollTop + clientHeight >= scrollHeight - 50) {
+      loadMoreItems();
+    }
+  }, [loadMoreItems, loadingMore]);
+
+  // Adicionar event listener de scroll
+  useEffect(() => {
+    const container = listContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
+
+  // Resetar visibleCount quando a busca mudar
+  useEffect(() => {
+    setVisibleCount(50);
+  }, [searchTerm]);
+
+  // Resetar visibleCount quando dropdown abrir/fechar
+  useEffect(() => {
+    if (isOpen) {
+      setVisibleCount(50);
+    }
+  }, [isOpen]);
+
+  // Construir os itens visíveis
+  const items = buildItems();
+  const visibleItems = items.slice(0, visibleCount);
+  const hasMoreItems = visibleCount < items.length;
 
   return (
     <div ref={dropdownRef} className="relative">
@@ -464,96 +613,53 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
               </div>
             </div>
 
-            {/* Lista */}
-            <div className="max-h-[300px] overflow-y-auto">
-              {isLoading ? (
+            {/* Lista com Lazy Loading */}
+            <div 
+              ref={listContainerRef}
+              className="max-h-[300px] overflow-y-auto"
+            >
+              {isLoading || isLoadingTaxonomy ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 size={16} className="animate-spin text-[var(--color-brand)]" />
                   <span className="ml-2 text-[var(--color-text-muted)] text-xs">Carregando...</span>
                 </div>
               ) : totalAvailable === 0 ? (
                 <p className="text-[var(--color-text-muted)] text-xs text-center py-4">Nenhum resultado</p>
+              ) : items.length === 0 ? (
+                <p className="text-[var(--color-text-muted)] text-xs text-center py-4">Nenhum resultado encontrado</p>
               ) : (
                 <>
-                  {/* Matérias com taxonomia */}
-                  {Array.from(taxonomyByMateria.entries()).map(([materia, nodes]) => {
-                    if (nodes.length === 0) return null;
-
-                    // Verificar se o nome da matéria corresponde à busca
-                    const materiaMatches = searchTerm ? fuzzyMatch(searchTerm, materia) : false;
-
-                    // Filtrar nós que correspondem à busca (fuzzy match)
-                    const matchesSearch = (n: TaxonomyNode): boolean => {
-                      if (!searchTerm) return true;
-                      // Se a matéria corresponde, mostrar todos os nós
-                      if (materiaMatches) return true;
-                      // Usa fuzzyMatch para busca flexível
-                      if (fuzzyMatch(searchTerm, n.nome)) return true;
-                      if (fuzzyMatch(searchTerm, n.materia)) return true;
-                      if (n.assuntos_originais?.some(a => fuzzyMatch(searchTerm, a))) return true;
-                      if (n.filhos?.some(f => matchesSearch(f))) return true;
-                      return false;
-                    };
-
-                    const filteredNodes = nodes.filter(matchesSearch);
-                    if (filteredNodes.length === 0) return null;
-
-                    return (
-                      <div key={materia}>
-                        {/* Header da matéria */}
-                        <div className="px-3 py-2 bg-[var(--color-bg-elevated)] border-y border-[var(--color-border)] sticky top-0">
-                          <span className="text-xs font-bold text-[var(--color-brand)] uppercase tracking-wide">
-                            {materia}
-                          </span>
-                        </div>
-
-                        {/* Árvore de taxonomia */}
-                        {filteredNodes.map((node) => (
-                          <TaxonomyNodeItem
-                            key={`${node.materia}-${node.id}`}
-                            node={node}
-                            selectedAssuntos={selectedAssuntos}
-                            onToggleAssunto={onToggleAssunto}
-                            onToggleMultiple={onToggleMultiple}
-                            expandedNodes={expandedNodes}
-                            toggleExpanded={toggleExpanded}
-                            searchTerm={searchTerm}
-                          />
-                        ))}
-                      </div>
-                    );
-                  })}
-
-                  {/* Assuntos sem taxonomia */}
-                  {filteredFlatAssuntos.length > 0 && (
-                    <div>
-                      {hasTaxonomy && (
-                        <div className="px-3 py-2 bg-[var(--color-bg-elevated)] border-y border-[var(--color-border)] sticky top-0">
-                          <span className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wide">
-                            Outros Assuntos
-                          </span>
-                        </div>
-                      )}
-                      {filteredFlatAssuntos.map((assunto) => {
-                        const isSelected = selectedAssuntos.includes(assunto);
-                        return (
-                          <button
-                            key={assunto}
-                            onClick={() => onToggleAssunto(assunto)}
-                            className={`w-full flex items-start gap-1.5 px-2 py-1.5 text-left text-sm transition-colors ${
-                              isSelected ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]' : 'text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)]'
-                            }`}
-                            style={{ paddingLeft: 8 }}
-                          >
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                              isSelected ? 'bg-[var(--color-brand)] border-[var(--color-brand)]' : 'border-[var(--color-border-strong)]'
-                            }`}>
-                              {isSelected && <Check size={10} className="text-black" />}
-                            </div>
-                            <span className="break-words whitespace-normal leading-tight">{assunto}</span>
-                          </button>
-                        );
-                      })}
+                  {visibleItems}
+                  
+                  {/* Botão para carregar mais */}
+                  {hasMoreItems && (
+                    <div className="p-2 border-t border-[var(--color-border)]">
+                      <button
+                        onClick={loadMoreItems}
+                        disabled={loadingMore}
+                        className="w-full flex items-center justify-center gap-2 py-2 text-[var(--color-brand)] text-sm hover:bg-[var(--color-bg-elevated)] disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loadingMore ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" />
+                            <span>Carregando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Carregar mais ({items.length - visibleCount} restantes)</span>
+                            <ChevronDown size={14} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Indicador de fim da lista */}
+                  {!hasMoreItems && items.length > 50 && (
+                    <div className="p-2 border-t border-[var(--color-border)] text-center">
+                      <span className="text-[var(--color-text-muted)] text-xs">
+                        {items.length} itens carregados
+                      </span>
                     </div>
                   )}
                 </>

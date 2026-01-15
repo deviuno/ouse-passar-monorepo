@@ -191,7 +191,7 @@ export const OPTIONS_ESCOLARIDADE = [
 // Busca questões com filtros opcionais
 // Com retry automático
 export const fetchQuestions = async (filters?: QuestionFilters): Promise<ParsedQuestion[]> => {
-  console.log('[fetchQuestions] Buscando questões com filtros:', filters);
+  console.log('[fetchQuestions2] Buscando questões com filtros:', filters);
 
   return withRetry(async () => {
     let query = questionsDb
@@ -203,10 +203,11 @@ export const fetchQuestions = async (filters?: QuestionFilters): Promise<ParsedQ
       .neq('enunciado', '')
       .neq('enunciado', 'deleted');
 
+    console.log("Filtrando por materia", filters?.materias);
     if (filters?.materias && filters.materias.length > 0) {
       // Usar match exato com .in() - os valores vêm do banco de dados
       // (via dropdown ou configuração do edital)
-      query = query.in('materia', filters.materias);
+      query = query.in('materia', "Matematica");
     }
 
     if (filters?.assuntos && filters.assuntos.length > 0) {

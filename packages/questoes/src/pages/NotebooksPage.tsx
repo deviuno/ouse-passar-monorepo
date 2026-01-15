@@ -80,6 +80,8 @@ export const NotebooksPage: React.FC = () => {
       const settings = notebookSettings[notebook.id];
       const filters = notebook.filters || {};
 
+      console.log("notebook ->", notebook);
+
       // Fetch questions with notebook filters
       const questions = await fetchQuestions({
         materia: filters.materia || [],
@@ -95,6 +97,8 @@ export const NotebooksPage: React.FC = () => {
         randomize: true,
       });
 
+      console.log("quuestions", questions);
+
       if (questions.length === 0) {
         addToast('warning', 'Nenhuma questão encontrada com esses filtros');
         setIsStarting(null);
@@ -103,6 +107,8 @@ export const NotebooksPage: React.FC = () => {
 
       // Parse questions
       const parsedQuestions: ParsedQuestion[] = questions.map((q: RawQuestion) => parseRawQuestion(q));
+
+      console.log(parsedQuestions);
 
       // Store in sessionStorage for the practice page
       sessionStorage.setItem('practiceQuestions', JSON.stringify(parsedQuestions));

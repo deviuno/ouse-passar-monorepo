@@ -2321,7 +2321,6 @@ export default function PracticePage() {
   if (
     // !showFiltersParam &&
     // !editNotebookParam &&
-    // (isLoadingFilters || isLoadingCount || isLoading)
     isLoading
   ) {
     return (
