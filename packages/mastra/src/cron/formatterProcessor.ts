@@ -200,7 +200,7 @@ export async function processComentariosQueue(
         // Buscar questão
         const { data: questao } = await questionsDb
           .from('questoes_concurso')
-          .select('id, enunciado, comentario, comentario_formatado, materia, gabarito')
+          .select('id, enunciado, comentario, comentario_original, comentario_formatado, materia, gabarito')
           .eq('id', item.questao_id)
           .single();
 
@@ -270,10 +270,21 @@ ${questao.comentario}`;
         }
 
         if (result.comentarioFormatado) {
-          // Atualizar questão com comentário formatado
+          // Preparar update: backup do original + salvar formatado
+          const updateData: Record<string, any> = {
+            comentario: result.comentarioFormatado,  // Formatado vai pro campo principal
+            comentario_formatado: true               // Flag indicando que foi formatado
+          };
+
+          // Se ainda não tem backup do original, fazer agora
+          if (!questao.comentario_original) {
+            updateData.comentario_original = questao.comentario;
+          }
+
+          // Atualizar questão
           await questionsDb
             .from('questoes_concurso')
-            .update({ comentario_formatado: result.comentarioFormatado })
+            .update(updateData)
             .eq('id', item.questao_id);
 
           // Marcar como concluído
@@ -380,7 +391,7 @@ export async function processEnunciadosQueue(
         // Buscar questão
         const { data: questao } = await questionsDb
           .from('questoes_concurso')
-          .select('id, enunciado, enunciado_formatado, imagens_enunciado, materia')
+          .select('id, enunciado, enunciado_original, enunciado_formatado, imagens_enunciado, materia')
           .eq('id', item.questao_id)
           .single();
 
@@ -452,10 +463,21 @@ ${questao.enunciado}${imagensInfo}`;
         }
 
         if (result.enunciadoFormatado) {
-          // Atualizar questão com enunciado formatado
+          // Preparar update: backup do original + salvar formatado
+          const updateData: Record<string, any> = {
+            enunciado: result.enunciadoFormatado,  // Formatado vai pro campo principal
+            enunciado_formatado: true              // Flag indicando que foi formatado
+          };
+
+          // Se ainda não tem backup do original, fazer agora
+          if (!questao.enunciado_original) {
+            updateData.enunciado_original = questao.enunciado;
+          }
+
+          // Atualizar questão
           await questionsDb
             .from('questoes_concurso')
-            .update({ enunciado_formatado: result.enunciadoFormatado })
+            .update(updateData)
             .eq('id', item.questao_id);
 
           // Marcar como concluído
