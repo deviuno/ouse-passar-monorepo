@@ -64,26 +64,79 @@ export class ImageScraperService {
   }
 
   /**
+   * Extrai URLs válidas de diversos formatos de armazenamento
+   */
+  private parseImageUrls(imagens: any): string[] {
+    if (!imagens) return [];
+
+    // Se já é um array, processar cada item
+    if (Array.isArray(imagens)) {
+      return imagens
+        .map(url => this.cleanUrl(url))
+        .filter(url => url && url.startsWith('http'));
+    }
+
+    // Se é string, pode ser vários formatos
+    if (typeof imagens === 'string') {
+      const str = imagens.trim();
+
+      // Formato JSON array: ["url1", "url2"]
+      if (str.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(str);
+          if (Array.isArray(parsed)) {
+            return parsed
+              .map(url => this.cleanUrl(url))
+              .filter(url => url && url.startsWith('http'));
+          }
+        } catch {
+          // Se falhar o parse JSON, tenta limpar manualmente
+        }
+      }
+
+      // Formato PostgreSQL array: {url1,url2}
+      if (str.startsWith('{') && str.endsWith('}')) {
+        return str
+          .slice(1, -1)
+          .split(',')
+          .map(url => this.cleanUrl(url))
+          .filter(url => url && url.startsWith('http'));
+      }
+
+      // URL simples
+      const cleaned = this.cleanUrl(str);
+      if (cleaned && cleaned.startsWith('http')) {
+        return [cleaned];
+      }
+    }
+
+    return [];
+  }
+
+  /**
+   * Limpa uma URL removendo caracteres extras
+   */
+  private cleanUrl(url: any): string {
+    if (!url || typeof url !== 'string') return '';
+
+    // Remove aspas, colchetes e espaços extras
+    return url
+      .replace(/^[\s\[\]"']+/, '')
+      .replace(/[\s\[\]"']+$/, '')
+      .trim();
+  }
+
+  /**
    * Processa todas as imagens de uma questão
    */
   async processQuestionImages(question: any): Promise<string[]> {
     const localUrls: string[] = [];
 
-    // Parse das URLs de imagem
-    let imageUrls: string[] = [];
-    if (typeof question.imagens_enunciado === 'string') {
-      // Formato: {url1,url2,url3}
-      imageUrls = question.imagens_enunciado
-        .replace(/[{}]/g, '')
-        .split(',')
-        .map((url: string) => url.trim())
-        .filter((url: string) => url.length > 0);
-    } else if (Array.isArray(question.imagens_enunciado)) {
-      imageUrls = question.imagens_enunciado;
-    }
+    // Parse das URLs de imagem usando método robusto
+    const imageUrls = this.parseImageUrls(question.imagens_enunciado);
 
     if (imageUrls.length === 0) {
-      console.log(`[ImageScraperService] Questão ${question.id} não tem imagens para processar`);
+      console.log(`[ImageScraperService] Questão ${question.id} não tem imagens válidas para processar`);
       return [];
     }
 
