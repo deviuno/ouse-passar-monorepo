@@ -5,7 +5,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Agente especializado em gerar letras de músicas educativas.
  * Cria letras otimizadas para geradores de música como Suno e Udio.
  *
- * Modelo: gemini-3-pro-preview (melhor modelo para tarefas criativas complexas)
+ * Modelo: gemini-2.5-pro (melhor modelo para tarefas criativas complexas)
  */
 export const musicLyricsAgent = new Agent({
   name: "musicLyricsAgent",
@@ -113,7 +113,7 @@ Nenhum sonho é grande demais
 Vou estudar sem parar
 E a aprovação vem, eu sei que vem
 ...`,
-  model: vertex("gemini-3-flash-preview"),
+  model: vertex("gemini-2.5-flash"),
 });
 
 export default musicLyricsAgent;

@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
  * Agente especializado em gerar questões de concurso inéditas
  * seguindo o estilo de bancas específicas.
  *
- * Modelo: gemini-3-pro-preview (melhor para geração de conteúdo complexo)
+ * Modelo: gemini-2.5-pro (melhor para geração de conteúdo complexo)
  */
 export const questionGeneratorAgent = new Agent({
   name: "questionGeneratorAgent",
@@ -106,7 +106,7 @@ Retorne APENAS um JSON válido neste formato exato:
 4. Verifique se há apenas UMA resposta correta
 5. Retorne APENAS o JSON válido, sem markdown, sem texto adicional
 `,
-  model: vertex("gemini-3-flash-preview"),
+  model: vertex("gemini-2.5-flash"),
 });
 
 /**

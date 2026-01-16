@@ -1197,7 +1197,7 @@ app.post('/api/audio/explanation', async (req, res) => {
 
         // First, generate a concise explanation text
         const textResponse = await client.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-2.5-flash',
             contents: `Você é um professor didático. Crie uma explicação ORAL concisa (máximo 2 minutos de fala) sobre o seguinte tema para um aluno de concurso público:
 
 Tema: ${title}
@@ -1290,7 +1290,7 @@ app.post('/api/audio/podcast', async (req, res) => {
 
         // First, generate a podcast script with two speakers
         const scriptResponse = await client.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-2.5-flash',
             contents: `Crie um script de podcast CURTO (máximo 2-3 minutos) com dois apresentadores discutindo o seguinte tema de concurso público:
 
 Tema: ${title}
@@ -2392,7 +2392,7 @@ async function gerarConteudoMissaoBackground(missaoId: string): Promise<boolean>
                 missao_id: missaoId,
                 texto_content: '',
                 status: 'generating',
-                modelo_texto: 'gemini-3-flash-preview',
+                modelo_texto: 'gemini-2.5-flash',
             })
             .select('id')
             .single();
@@ -5706,7 +5706,7 @@ app.post('/api/missao/gerar-conteudo', async (req, res) => {
                 missao_id: missaoId,
                 texto_content: '',
                 status: 'generating',
-                modelo_texto: 'gemini-3-flash-preview',
+                modelo_texto: 'gemini-2.5-flash',
             })
             .select('id')
             .single();

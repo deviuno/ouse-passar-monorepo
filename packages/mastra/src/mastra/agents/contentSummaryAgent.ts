@@ -5,7 +5,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Agente especializado em resumir conteúdo para o modo Reta Final.
  * Cria versões condensadas focadas no que mais cai nas provas.
  *
- * Modelo: gemini-3-flash-preview (rápido e eficiente para resumos)
+ * Modelo: gemini-2.5-flash (rápido e eficiente para resumos)
  */
 export const contentSummaryAgent = new Agent({
   name: "contentSummaryAgent",
@@ -86,7 +86,7 @@ IMPORTANTE: Retorne APENAS o conteúdo em markdown. NÃO use \`\`\`markdown ou \
 - PRIORIZE o que a banca mais cobra
 - O aluno deve conseguir revisar em 5 minutos ou menos
 - Escreva como se fosse um "cola mental" para a prova`,
-  model: vertex("gemini-3-flash-preview"),
+  model: vertex("gemini-2.5-flash"),
 });
 
 /**
@@ -131,5 +131,5 @@ SEMPRE comece com uma frase que mencione "Reta Final", como:
 - Mantenha apenas o conteúdo ESSENCIAL
 - Tom urgente mas motivador
 - Finalize com uma frase de encorajamento como "Você está preparado!" ou "Bora pra cima!"`,
-  model: vertex("gemini-3-flash-preview"),
+  model: vertex("gemini-2.5-flash"),
 });

@@ -5,7 +5,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Agente especializado em gerar roteiros de podcast educativos.
  * Cria roteiros no formato de diálogo entre dois apresentadores: Diego e Glau.
  *
- * Modelo: gemini-3-pro-preview (melhor modelo para tarefas criativas complexas)
+ * Modelo: gemini-2.5-pro (melhor modelo para tarefas criativas complexas)
  */
 export const podcastScriptAgent = new Agent({
   name: "podcastScriptAgent",
@@ -124,7 +124,7 @@ A quantidade de texto deve ser proporcional à duração solicitada:
 **[DIEGO]:** Então vamos lá. O tema de hoje é...
 
 (continua...)`,
-  model: vertex("gemini-3-flash-preview"),
+  model: vertex("gemini-2.5-flash"),
 });
 
 export default podcastScriptAgent;

@@ -261,7 +261,7 @@ REGRAS:
 - Justificativa deve ser concisa (1-2 frases)
 - SEMPRE retorne todas as matérias fornecidas
 - NÃO invente matérias que não existem no edital`,
-    model: vertex("gemini-3-flash-preview"),
+    model: vertex("gemini-2.5-flash"),
     tools: {
         buscarEstatisticasBanca,
         buscarInfoPreparatorio,

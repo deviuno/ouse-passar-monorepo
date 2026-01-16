@@ -30,23 +30,20 @@ const vertexProvider = createVertex({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const vertex = (modelId: string): any => vertexProvider(modelId);
 
-// Modelos disponíveis
-// Nota: No Vertex AI, os nomes dos modelos são diferentes do Google AI Studio
-// gemini-3-flash-preview -> gemini-2.0-flash (ou gemini-1.5-flash)
-// gemini-3-pro-preview -> gemini-2.0-pro (ou gemini-1.5-pro)
+// Modelos disponíveis no Vertex AI (versões estáveis GA)
+// Documentação: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions
 
 // Mapeamento de modelos
 export const models = {
-  // Flash (rápido e econômico)
-  flash: vertex("gemini-3-flash-preview"),
+  // Flash (rápido e econômico) - GA
+  flash: vertex("gemini-2.5-flash"),
 
-  // Pro (mais capaz)
-  pro: vertex("gemini-2.0-pro-exp-02-05"),
+  // Pro (mais capaz) - GA
+  pro: vertex("gemini-2.5-pro"),
 
   // Aliases para compatibilidade
-  "gemini-3-flash-preview": vertex("gemini-3-flash-preview"),
-  "gemini-3-pro-preview": vertex("gemini-2.0-pro-exp-02-05"),
-  "gemini-2.0-flash": vertex("gemini-3-flash-preview"),
+  "gemini-2.5-flash": vertex("gemini-2.5-flash"),
+  "gemini-2.5-pro": vertex("gemini-2.5-pro"),
 } as const;
 
 // Função helper para obter modelo por nome
