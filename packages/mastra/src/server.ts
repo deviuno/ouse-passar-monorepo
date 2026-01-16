@@ -1197,7 +1197,7 @@ app.post('/api/audio/explanation', async (req, res) => {
 
         // First, generate a concise explanation text
         const textResponse = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Você é um professor didático. Crie uma explicação ORAL concisa (máximo 2 minutos de fala) sobre o seguinte tema para um aluno de concurso público:
 
 Tema: ${title}
@@ -1216,7 +1216,7 @@ Regras:
 
         // Generate TTS audio
         const audioResponse = await client.models.generateContent({
-            model: 'gemini-2.5-flash-preview-tts',
+            model: 'gemini-3-flash-preview-preview-tts',
             contents: `Fale de forma clara, amigável e didática em português brasileiro: ${explanationText}`,
             config: {
                 responseModalities: ['AUDIO'],
@@ -1290,7 +1290,7 @@ app.post('/api/audio/podcast', async (req, res) => {
 
         // First, generate a podcast script with two speakers
         const scriptResponse = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Crie um script de podcast CURTO (máximo 2-3 minutos) com dois apresentadores discutindo o seguinte tema de concurso público:
 
 Tema: ${title}
@@ -1315,7 +1315,7 @@ Ana: Exatamente! Vamos explicar de forma simples...`
 
         // Generate multi-speaker TTS audio
         const audioResponse = await client.models.generateContent({
-            model: 'gemini-2.5-flash-preview-tts',
+            model: 'gemini-3-flash-preview-preview-tts',
             contents: scriptText,
             config: {
                 responseModalities: ['AUDIO'],
@@ -1617,7 +1617,7 @@ app.post('/api/music/generate-podcast-audio', async (req, res) => {
 
         // Generate audio using Gemini TTS with multi-speaker
         const response = await genai.models.generateContent({
-            model: "gemini-2.5-flash-preview-tts",
+            model: "gemini-3-flash-preview-preview-tts",
             contents: [{ parts: [{ text: cleanScript }] }],
             config: {
                 responseModalities: ['AUDIO'],
@@ -1908,7 +1908,7 @@ app.post('/api/tts/generate', async (req, res) => {
         // IMPORTANTE: Não incluir instruções no texto, apenas o conteúdo a ser narrado
         // As instruções fazem o modelo ler "Leia o seguinte texto..." no áudio
         const audioResponse = await client.models.generateContent({
-            model: 'gemini-2.5-flash-preview-tts',
+            model: 'gemini-3-flash-preview-preview-tts',
             contents: [{
                 parts: [{
                     text: text
@@ -2250,7 +2250,7 @@ Crie um resumo Reta Final seguindo a estrutura e regras especificadas.
                         } else {
                             console.log('[RetaFinal] Gerando TTS...');
                             const audioResponse = await client.models.generateContent({
-                                model: 'gemini-2.5-flash-preview-tts',
+                                model: 'gemini-3-flash-preview-preview-tts',
                                 contents: [{ parts: [{ text: roteiro }] }],
                                 config: {
                                     responseModalities: ['AUDIO'],
@@ -2392,7 +2392,7 @@ async function gerarConteudoMissaoBackground(missaoId: string): Promise<boolean>
                 missao_id: missaoId,
                 texto_content: '',
                 status: 'generating',
-                modelo_texto: 'gemini-2.5-flash',
+                modelo_texto: 'gemini-3-flash-preview',
             })
             .select('id')
             .single();
@@ -2524,7 +2524,7 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
                     // Sem limite de texto - geramos o áudio completo no background
                     // IMPORTANTE: Não incluir instruções no texto, apenas o conteúdo a ser narrado
                     const audioResponse = await client.models.generateContent({
-                        model: 'gemini-2.5-flash-preview-tts',
+                        model: 'gemini-3-flash-preview-preview-tts',
                         contents: [{
                             parts: [{
                                 text: roteiro
@@ -5706,7 +5706,7 @@ app.post('/api/missao/gerar-conteudo', async (req, res) => {
                 missao_id: missaoId,
                 texto_content: '',
                 status: 'generating',
-                modelo_texto: 'gemini-2.5-flash',
+                modelo_texto: 'gemini-3-flash-preview',
             })
             .select('id')
             .single();
@@ -5840,7 +5840,7 @@ A aula deve preparar o aluno para responder questões similares às apresentadas
                     const client = getGeminiClient();
                     if (client) {
                         const audioResponse = await client.models.generateContent({
-                            model: 'gemini-2.5-flash-preview-tts',
+                            model: 'gemini-3-flash-preview-preview-tts',
                             contents: [{
                                 parts: [{
                                     text: roteiro

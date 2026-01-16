@@ -5,7 +5,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Agente especializado em analisar PDFs de provas anteriores de concursos.
  * Extrai a distribuição de questões por matéria (Raio-X) para uso na geração de simulados fidedignos.
  *
- * Modelo: gemini-2.5-flash (multimodal - suporta PDF nativamente)
+ * Modelo: gemini-3-flash-preview (multimodal - suporta PDF nativamente)
  */
 export const provaAnalyzerAgent = new Agent({
   name: "provaAnalyzerAgent",
@@ -92,7 +92,7 @@ Se for fornecida uma lista de matérias do edital, tente fazer o match das maté
 
 Exemplo: Se o edital tem "LÍNGUA PORTUGUESA" e a prova tem "Português", use "Língua Portuguesa" na distribuição.
 `,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 /**

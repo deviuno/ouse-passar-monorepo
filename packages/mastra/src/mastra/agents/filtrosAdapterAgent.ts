@@ -363,7 +363,7 @@ Regras importantes:
 - Considere variações de acentuação e capitalização
 - Se não encontrar correspondência, retorne null
 - Sempre retorne uma explicação clara da adaptação feita`,
-    model: vertex("gemini-2.5-flash"),
+    model: vertex("gemini-3-flash-preview"),
 });
 
 // ==================== FUNÇÕES DE ADAPTAÇÃO ====================

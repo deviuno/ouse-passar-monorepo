@@ -2260,7 +2260,7 @@ ${truncatedHtml}
 Retorne APENAS o Markdown formatado com a estrutura hierárquica de assuntos, sem explicações adicionais.`;
 
       // Usar AI SDK diretamente com Vertex AI
-      const model = vertex("gemini-2.5-flash");
+      const model = vertex("gemini-3-flash-preview");
       const response = await generateText({
         model,
         system: TAXONOMY_SYSTEM_PROMPT,

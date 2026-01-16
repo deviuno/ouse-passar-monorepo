@@ -36,13 +36,13 @@ export const vertex = (modelId: string): any => vertexProvider(modelId);
 // Mapeamento de modelos
 export const models = {
   // Flash (rápido e econômico) - GA
-  flash: vertex("gemini-2.5-flash"),
+  flash: vertex("gemini-3-flash-preview"),
 
   // Pro (mais capaz) - GA
   pro: vertex("gemini-2.5-pro"),
 
   // Aliases
-  "gemini-2.5-flash": vertex("gemini-2.5-flash"),
+  "gemini-3-flash-preview": vertex("gemini-3-flash-preview"),
   "gemini-2.5-pro": vertex("gemini-2.5-pro"),
 } as const;
 

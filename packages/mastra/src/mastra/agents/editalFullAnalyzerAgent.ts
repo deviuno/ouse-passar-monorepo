@@ -7,7 +7,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * 1. Informações básicas do concurso (banca, órgão, cargo, salário, etc.)
  * 2. Estrutura hierárquica do conteúdo programático (blocos > matérias > tópicos)
  *
- * Modelo: gemini-2.5-flash (multimodal - suporta PDF nativamente)
+ * Modelo: gemini-3-flash-preview (multimodal - suporta PDF nativamente)
  */
 export const editalFullAnalyzerAgent = new Agent({
   name: "editalFullAnalyzerAgent",
@@ -115,7 +115,7 @@ Retorne APENAS um JSON válido neste formato exato:
 - O conteúdo programático geralmente está em um anexo específico
 - Datas de inscrição e prova estão no cronograma
 `,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 /**

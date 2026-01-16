@@ -106,7 +106,7 @@ Retorne APENAS um JSON válido neste formato exato:
 4. Verifique se há apenas UMA resposta correta
 5. Retorne APENAS o JSON válido, sem markdown, sem texto adicional
 `,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 /**
