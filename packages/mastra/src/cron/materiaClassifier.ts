@@ -292,8 +292,8 @@ async function processQueue(
         );
       }
 
-      // Rate limit: 3s entre requisições
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Rate limit: 500ms entre requisições (Vertex AI suporta alto throughput)
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
     return result;

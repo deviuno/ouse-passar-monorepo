@@ -9311,12 +9311,13 @@ startEnunciadoFormatterCron(
     50 // 50 questões por lote (~1500/hora)
 );
 
-// Cron job para classificação de matérias (a cada 5 minutos, 10 por lote)
+// Cron job para classificação de matérias (a cada 1 minuto, 50 por lote)
+// Com 500ms entre requisições, 50 questões levam ~25s, deixando margem para o próximo ciclo
 startMateriaClassifierCron(
     questionsDbUrl,
     questionsDbKey,
-    5 * 60 * 1000, // 5 minutos
-    10 // 10 questões por lote (para não sobrecarregar)
+    60 * 1000, // 1 minuto
+    50 // 50 questões por lote (~3000/hora)
 );
 
 console.log('[Server] Cron jobs de scraping e formatação iniciados');
