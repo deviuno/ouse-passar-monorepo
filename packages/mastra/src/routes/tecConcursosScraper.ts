@@ -882,13 +882,8 @@ export function createTecConcursosScraperRoutes(): Router {
         updateData.cookies = parsedCookies;
       }
 
-      // If activating this account, deactivate all others
-      if (is_active === true) {
-        await supabase
-          .from('tec_accounts')
-          .update({ is_active: false })
-          .neq('id', id);
-      }
+      // Multiple accounts can be active simultaneously for parallel scraping
+      // No need to deactivate other accounts
 
       const { data, error } = await supabase
         .from('tec_accounts')
@@ -1084,10 +1079,7 @@ export function createTecConcursosScraperRoutes(): Router {
         });
       }
 
-      // Deactivate all accounts
-      await supabase.from('tec_accounts').update({ is_active: false });
-
-      // Activate this account
+      // Activate this account (multiple accounts can be active for parallel scraping)
       const { error } = await supabase
         .from('tec_accounts')
         .update({ is_active: true })
