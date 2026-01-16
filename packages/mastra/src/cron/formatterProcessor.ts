@@ -2,10 +2,12 @@
  * Cron Job para Processamento Automático de Formatação
  *
  * Processa automaticamente as filas de formatação de comentários e enunciados
- * usando os agentes de IA (gemini-3-flash-preview).
+ * usando AI SDK diretamente com Vertex AI (gemini-2.0-flash-001).
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { generateText } from 'ai';
+import { vertex } from '../lib/modelProvider.js';
 
 // Estado do processador
 let isProcessingComentarios = false;
@@ -17,8 +19,119 @@ let enunciadosProcessados = 0;
 let comentariosFalhas = 0;
 let enunciadosFalhas = 0;
 
-// Intervalo entre questões (mínimo para evitar sobrecarga)
-const DELAY_BETWEEN_QUESTIONS = 1000; // 1 segundo (~60 req/min por agente)
+// Intervalo entre questões (500ms para alta velocidade com Vertex AI)
+const DELAY_BETWEEN_QUESTIONS = 500;
+
+// System prompt para formatação de comentários
+const COMENTARIO_SYSTEM_PROMPT = `Você é um especialista em formatação de textos educacionais para questões de concursos públicos brasileiros.
+
+## 🎯 TAREFA PRINCIPAL
+Transformar comentários de questões desorganizados em explicações DIDÁTICAS e VISUALMENTE ATRAENTES, mantendo 100% do conteúdo original.
+
+## ⚠️ REGRAS FUNDAMENTAIS
+
+1. **MANTENHA TODO O CONTEÚDO**: Não remova informações, apenas reorganize
+2. **NÃO INVENTE NADA**: Não adicione informações que não estejam no original
+3. **TRANSFORME VISUALMENTE**: Seu trabalho é tornar o texto mais fácil de ler e estudar
+4. **USE EMOJIS**: Adicione emojis relevantes para seções e títulos
+5. **CRIE ESTRUTURA**: Separe em seções lógicas com títulos claros
+6. **PRESERVE FÓRMULAS LATEX**: Mantenha fórmulas matemáticas EXATAMENTE como estão
+
+## 🎨 ELEMENTOS DE FORMATAÇÃO
+
+### Emojis para Títulos:
+- 📊 Dados / Análise / Estatísticas
+- 📋 Informações / Resumo
+- ⚙️ Resolução / Cálculo / Método
+- ✅ Conclusão / Gabarito / Resposta
+- 📜 Legislação / Fundamentação Legal
+- 🔍 Análise / Exame
+- 💡 Dica / Atenção
+- ⚠️ Cuidado / Pegadinha
+
+### Estrutura típica:
+1. Contextualização breve em **negrito**
+2. Blockquote > para afirmações a julgar
+3. Separador ---
+4. Seções com emojis (## 📊 Análise)
+5. Tabelas para dados comparativos
+6. Conclusão com gabarito
+
+## 🔧 FORMATO DE RESPOSTA
+
+Retorne APENAS um JSON válido:
+
+{
+    "comentarioFormatado": "O texto formatado aqui com \\n para quebras de linha...",
+    "alteracoes": ["Lista de principais alterações feitas"],
+    "confianca": 0.95
+}
+
+## ⚠️ REGRAS
+
+1. **confianca** entre 0 e 1
+2. **SEMPRE adicione emojis** nos títulos de seção
+3. **SEMPRE use separadores** (---) entre seções principais
+4. **Use tabelas** sempre que houver dados comparativos
+5. Para textos muito curtos (< 100 caracteres), mantenha simples
+6. **NUNCA invente URLs de imagens**`;
+
+// System prompt para formatação de enunciados
+const ENUNCIADO_SYSTEM_PROMPT = `Você é um especialista em formatação de enunciados de questões de concursos públicos brasileiros.
+
+## 🎯 TAREFA PRINCIPAL
+Transformar enunciados em TEXTO CORRIDO ou HTML SUJO em textos BEM ESTRUTURADOS e LEGÍVEIS em Markdown, mantendo 100% do conteúdo original.
+
+## ⚠️ REGRAS FUNDAMENTAIS
+
+1. **MANTENHA TODO O CONTEÚDO**: Não remova informações, apenas reorganize
+2. **NÃO INVENTE NADA**: Não adicione informações que não estejam no original
+3. **MELHORE A LEGIBILIDADE**: Tornar o texto mais fácil de ler
+4. **PRESERVE FÓRMULAS**: Mantenha fórmulas matemáticas EXATAMENTE como estão
+5. **EMBEDE IMAGENS**: Coloque imagens no local correto do texto usando ![Imagem](URL)
+
+## 🧹 LIMPEZA DE HTML
+
+### REMOVER completamente:
+- Comentários HTML: <!-- qualquer coisa -->
+- Comentários Angular: <!-- ngIf: ... -->
+- Tags vazias: <div></div>, <p></p>
+- Atributos de estilo: style="...", class="...", id="..."
+
+### CONVERTER para Markdown:
+- <strong> ou <b> → **texto**
+- <em> ou <i> → *texto*
+- <img src="url"> → ![Imagem](url)
+- <br> → quebra de linha
+- Listas HTML → listas markdown
+
+## 📐 ESTRUTURA DO ENUNCIADO
+
+1. **Indicação de texto associado** (ex: "Texto associado")
+2. **Título do texto** (quando houver) → ## Título
+3. **Corpo do texto de apoio** (parágrafos separados)
+4. **IMAGENS** → ![Imagem](url) no local apropriado
+5. **Fonte/Referência** → *Disponível em: ... (Adaptado)*
+6. **Comando da questão** → separado com --- e em **negrito**
+
+## 🔧 FORMATO DE RESPOSTA
+
+Retorne APENAS um JSON válido:
+
+{
+    "enunciadoFormatado": "O texto formatado aqui com \\n para quebras de linha...",
+    "alteracoes": ["Lista de principais alterações feitas"],
+    "confianca": 0.95
+}
+
+## ⚠️ REGRAS
+
+1. **confianca** entre 0 e 1
+2. **SEMPRE separe o comando da questão** do texto de apoio
+3. **Use separador (---)** antes do comando da questão
+4. **SEMPRE embede imagens fornecidas** no local apropriado
+5. **Fonte/referência** sempre em itálico
+6. Ignore ícones de aviso (icone-aviso.png)`;
 
 /**
  * Delay helper
@@ -28,12 +141,11 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
- * Processa a fila de formatação de comentários
+ * Processa a fila de formatação de comentários usando AI SDK diretamente
  */
 export async function processComentariosQueue(
   questionsDbUrl: string,
   questionsDbKey: string,
-  mastra: any,
   limit: number = 10
 ): Promise<{ success: number; failed: number }> {
   if (isProcessingComentarios) {
@@ -117,14 +229,8 @@ export async function processComentariosQueue(
           continue;
         }
 
-        // Chamar agente de IA
-        const agent = mastra.getAgent("comentarioFormatterAgent");
-        if (!agent) {
-          console.error('[FormatterProcessor] Agente comentarioFormatterAgent não encontrado');
-          failed++;
-          continue;
-        }
-
+        // Chamar IA diretamente usando AI SDK
+        const model = vertex("gemini-2.0-flash-001");
         const prompt = `Formate o seguinte comentário de questão de concurso.
 
 ## CONTEXTO DA QUESTÃO
@@ -137,8 +243,13 @@ ${questao.enunciado || 'Não disponível'}
 ## COMENTÁRIO PARA FORMATAR
 ${questao.comentario}`;
 
-        const response = await agent.generate(prompt);
-        const responseText = typeof response.text === 'string' ? response.text : String(response.text);
+        const response = await generateText({
+          model,
+          system: COMENTARIO_SYSTEM_PROMPT,
+          prompt,
+        });
+
+        const responseText = response.text || '';
 
         let cleanedResponse = responseText
           .replace(/```json\s*/g, '')
@@ -210,12 +321,11 @@ ${questao.comentario}`;
 }
 
 /**
- * Processa a fila de formatação de enunciados
+ * Processa a fila de formatação de enunciados usando AI SDK diretamente
  */
 export async function processEnunciadosQueue(
   questionsDbUrl: string,
   questionsDbKey: string,
-  mastra: any,
   limit: number = 10
 ): Promise<{ success: number; failed: number }> {
   if (isProcessingEnunciados) {
@@ -299,20 +409,14 @@ export async function processEnunciadosQueue(
           continue;
         }
 
-        // Chamar agente de IA
-        const agent = mastra.getAgent("enunciadoFormatterAgent");
-        if (!agent) {
-          console.error('[FormatterProcessor] Agente enunciadoFormatterAgent não encontrado');
-          failed++;
-          continue;
-        }
-
         // Preparar lista de imagens
         let imagensInfo = '';
         if (questao.imagens_enunciado && Array.isArray(questao.imagens_enunciado) && questao.imagens_enunciado.length > 0) {
           imagensInfo = `\n\n## IMAGENS DISPONÍVEIS\n${questao.imagens_enunciado.map((url: string, i: number) => `${i + 1}. ${url}`).join('\n')}`;
         }
 
+        // Chamar IA diretamente usando AI SDK
+        const model = vertex("gemini-2.0-flash-001");
         const prompt = `Formate o seguinte enunciado de questão de concurso.
 
 ## MATÉRIA
@@ -321,8 +425,13 @@ ${questao.materia || 'Não informada'}
 ## ENUNCIADO ORIGINAL
 ${questao.enunciado}${imagensInfo}`;
 
-        const response = await agent.generate(prompt);
-        const responseText = typeof response.text === 'string' ? response.text : String(response.text);
+        const response = await generateText({
+          model,
+          system: ENUNCIADO_SYSTEM_PROMPT,
+          prompt,
+        });
+
+        const responseText = response.text || '';
 
         let cleanedResponse = responseText
           .replace(/```json\s*/g, '')
@@ -399,20 +508,19 @@ ${questao.enunciado}${imagensInfo}`;
 export function startComentarioFormatterCron(
   questionsDbUrl: string,
   questionsDbKey: string,
-  mastra: any,
-  intervalMs: number = 5 * 60 * 1000, // 5 minutos
-  batchSize: number = 10
+  intervalMs: number = 60 * 1000, // 1 minuto
+  batchSize: number = 30
 ) {
   console.log(`[FormatterProcessor] Iniciando cron de comentários (intervalo: ${intervalMs / 1000}s, batch: ${batchSize})`);
 
   // Primeira execução após 30 segundos
   setTimeout(() => {
-    processComentariosQueue(questionsDbUrl, questionsDbKey, mastra, batchSize);
+    processComentariosQueue(questionsDbUrl, questionsDbKey, batchSize);
   }, 30 * 1000);
 
   // Execuções subsequentes
   setInterval(() => {
-    processComentariosQueue(questionsDbUrl, questionsDbKey, mastra, batchSize);
+    processComentariosQueue(questionsDbUrl, questionsDbKey, batchSize);
   }, intervalMs);
 }
 
@@ -422,20 +530,19 @@ export function startComentarioFormatterCron(
 export function startEnunciadoFormatterCron(
   questionsDbUrl: string,
   questionsDbKey: string,
-  mastra: any,
-  intervalMs: number = 5 * 60 * 1000, // 5 minutos
-  batchSize: number = 10
+  intervalMs: number = 60 * 1000, // 1 minuto
+  batchSize: number = 30
 ) {
   console.log(`[FormatterProcessor] Iniciando cron de enunciados (intervalo: ${intervalMs / 1000}s, batch: ${batchSize})`);
 
   // Primeira execução após 1 minuto (para não conflitar com comentários)
   setTimeout(() => {
-    processEnunciadosQueue(questionsDbUrl, questionsDbKey, mastra, batchSize);
+    processEnunciadosQueue(questionsDbUrl, questionsDbKey, batchSize);
   }, 60 * 1000);
 
   // Execuções subsequentes
   setInterval(() => {
-    processEnunciadosQueue(questionsDbUrl, questionsDbKey, mastra, batchSize);
+    processEnunciadosQueue(questionsDbUrl, questionsDbKey, batchSize);
   }, intervalMs);
 }
 

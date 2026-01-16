@@ -9293,22 +9293,22 @@ const gabaritoExtractorInterval = startGabaritoExtractorCron(
     5 * 60 * 1000 // 5 minutos
 );
 
-// Cron job para formatação de comentários (a cada 2 minutos, 50 por lote)
+// Cron job para formatação de comentários (a cada 1 minuto, 30 por lote)
+// Agora usa Vertex AI diretamente via AI SDK
 startComentarioFormatterCron(
     questionsDbUrl,
     questionsDbKey,
-    mastra,
-    2 * 60 * 1000, // 2 minutos
-    50 // 50 questões por lote (~1500/hora)
+    60 * 1000, // 1 minuto
+    30 // 30 questões por lote (~1800/hora)
 );
 
-// Cron job para formatação de enunciados (a cada 2 minutos, 50 por lote)
+// Cron job para formatação de enunciados (a cada 1 minuto, 30 por lote)
+// Agora usa Vertex AI diretamente via AI SDK
 startEnunciadoFormatterCron(
     questionsDbUrl,
     questionsDbKey,
-    mastra,
-    2 * 60 * 1000, // 2 minutos
-    50 // 50 questões por lote (~1500/hora)
+    60 * 1000, // 1 minuto
+    30 // 30 questões por lote (~1800/hora)
 );
 
 // Cron job para classificação de matérias (a cada 1 minuto, 50 por lote)
