@@ -2535,6 +2535,177 @@ export function isScrapingRunning(): boolean {
   return _isRunning;
 }
 
+// ==================== NAVEGAÇÃO RÁPIDA POR URL ====================
+
+/**
+ * Extrai todos os IDs de questões de um caderno via interceptação de requisições
+ * ou extração do DOM. Isso permite navegação direta por URL.
+ */
+async function extractQuestionIdsFromCaderno(
+  page: any,
+  cadernoUrl: string,
+  cadernoId?: string
+): Promise<string[]> {
+  log('Tentando extrair IDs de questões do caderno para navegação rápida...');
+
+  const questionIds: string[] = [];
+
+  try {
+    // Método 1: Tentar interceptar requisição de API que lista questões
+    // TecConcursos pode ter endpoint como /api/cadernos/{id}/questoes
+    const cadernoIdFromUrl = cadernoUrl.match(/cadernos\/(\d+)/)?.[1];
+
+    if (cadernoIdFromUrl) {
+      // Tentar fazer request direta para API de questões do caderno
+      const apiEndpoints = [
+        `${CONFIG.baseUrl}/api/cadernos/${cadernoIdFromUrl}/questoes`,
+        `${CONFIG.baseUrl}/questoes/cadernos/${cadernoIdFromUrl}/questoes`,
+      ];
+
+      for (const apiUrl of apiEndpoints) {
+        try {
+          const response = await page.evaluate(async (url: string) => {
+            const res = await fetch(url, { credentials: 'include' });
+            if (res.ok) {
+              return await res.json();
+            }
+            return null;
+          }, apiUrl);
+
+          if (response && Array.isArray(response)) {
+            // Extrair IDs do response
+            for (const item of response) {
+              const id = item.id || item.questao_id || item.questaoId;
+              if (id) questionIds.push(String(id));
+            }
+            if (questionIds.length > 0) {
+              log(`Extraídos ${questionIds.length} IDs via API: ${apiUrl}`);
+              break;
+            }
+          }
+        } catch {
+          // API não existe ou falhou, tentar próximo
+        }
+      }
+    }
+
+    // Método 2: Se não conseguiu via API, extrair do DOM (links na página)
+    if (questionIds.length === 0) {
+      // Procurar todos os links de questões na página
+      const idsFromDOM = await page.evaluate(() => {
+        const ids: string[] = [];
+
+        // Procurar em links
+        document.querySelectorAll('a[href*="/questoes/"]').forEach((link) => {
+          const href = link.getAttribute('href') || '';
+          const match = href.match(/\/questoes\/(\d+)/);
+          if (match && match[1] && !ids.includes(match[1])) {
+            ids.push(match[1]);
+          }
+        });
+
+        // Procurar em data attributes
+        document.querySelectorAll('[data-questao-id], [data-id]').forEach((el) => {
+          const id = el.getAttribute('data-questao-id') || el.getAttribute('data-id');
+          if (id && !ids.includes(id)) {
+            ids.push(id);
+          }
+        });
+
+        return ids;
+      });
+
+      if (idsFromDOM.length > 0) {
+        questionIds.push(...idsFromDOM);
+        log(`Extraídos ${questionIds.length} IDs via DOM`);
+      }
+    }
+
+    // Salvar IDs no banco se temos cadernoId
+    if (questionIds.length > 0 && cadernoId) {
+      try {
+        const supabase = getSupabase();
+        await supabase
+          .from('tec_cadernos')
+          .update({
+            question_ids: questionIds,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', cadernoId);
+        log(`IDs salvos no banco para caderno ${cadernoId}`);
+      } catch (err) {
+        log(`Erro ao salvar IDs no banco: ${err}`, 'warn');
+      }
+    }
+
+  } catch (error) {
+    log(`Erro ao extrair IDs de questões: ${error}`, 'warn');
+  }
+
+  return questionIds;
+}
+
+/**
+ * Navega diretamente para uma questão específica usando URL
+ * Muito mais rápido que ArrowRight (5s vs 20min para questão 1000)
+ */
+async function navigateToQuestionByPosition(
+  page: any,
+  questionIds: string[],
+  targetPosition: number, // 1-indexed
+  cadernoUrl: string
+): Promise<boolean> {
+  if (questionIds.length === 0 || targetPosition < 1 || targetPosition > questionIds.length) {
+    log(`Navegação direta não possível: ${questionIds.length} IDs, posição ${targetPosition}`);
+    return false;
+  }
+
+  const questionId = questionIds[targetPosition - 1];
+  const questionUrl = `${CONFIG.baseUrl}/questoes/${questionId}`;
+
+  log(`Navegando diretamente para questão ${targetPosition} (ID: ${questionId})...`);
+
+  try {
+    await page.goto(questionUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+    await delay(CONFIG.delays.afterPageLoad);
+
+    // Verificar se chegamos na questão correta
+    const currentUrl = page.url();
+    if (currentUrl.includes(`/questoes/${questionId}`)) {
+      log(`Navegação direta bem-sucedida para questão ${targetPosition}`);
+      return true;
+    }
+
+    log(`URL após navegação: ${currentUrl} (esperado: ${questionUrl})`, 'warn');
+    return false;
+  } catch (error) {
+    log(`Erro na navegação direta: ${error}`, 'warn');
+    return false;
+  }
+}
+
+/**
+ * Carrega IDs de questões do banco de dados
+ */
+async function loadQuestionIdsFromDb(cadernoId: string): Promise<string[]> {
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('tec_cadernos')
+      .select('question_ids')
+      .eq('id', cadernoId)
+      .single();
+
+    if (error || !data?.question_ids) {
+      return [];
+    }
+
+    return Array.isArray(data.question_ids) ? data.question_ids : [];
+  } catch {
+    return [];
+  }
+}
+
 // ==================== EXTRAÇÃO DE CADERNO POR URL ====================
 
 /**
@@ -2642,34 +2813,55 @@ async function extrairQuestoesDeCadernoUrl(
     let questoesSemDadosConsecutivas = 0;
     const MAX_SEM_DADOS = 10;
 
-    // Se precisamos começar de uma posição específica, pular até lá
-    // IMPORTANTE: Usar delays maiores e variáveis para evitar detecção de bot
+    // Se precisamos começar de uma posição específica, tentar navegação direta primeiro
     if (startFrom > 1) {
-      log(`Pulando para a questão ${startFrom} (${startFrom - 1} questões a pular)...`);
-      const questoesAPular = startFrom - 1;
+      log(`Precisa pular para questão ${startFrom} (${startFrom - 1} questões)...`);
 
-      for (let i = 0; i < questoesAPular && _isRunning; i++) {
-        // Navegar com delay variável para parecer humano
-        await page.keyboard.press('ArrowRight');
-
-        // Delay variável: 800-1500ms (média ~1150ms)
-        const delayBase = 800 + Math.floor(Math.random() * 700);
-        await delay(delayBase);
-
-        // A cada 30 questões, fazer uma pausa maior (2-4s) para parecer humano
-        if ((i + 1) % 30 === 0) {
-          const pausaLonga = 2000 + Math.floor(Math.random() * 2000);
-          await delay(pausaLonga);
-        }
-
-        // Log a cada 50 questões puladas
-        if ((i + 1) % 50 === 0) {
-          log(`Puladas ${i + 1}/${questoesAPular} questões...`);
-        }
+      // Tentar carregar IDs do banco primeiro
+      let questionIds: string[] = [];
+      if (cadernoId) {
+        questionIds = await loadQuestionIdsFromDb(cadernoId);
+        log(`IDs carregados do banco: ${questionIds.length}`);
       }
 
-      // Esperar a página carregar após pular
-      await delay(2000);
+      // Se não tem IDs salvos, tentar extrair
+      if (questionIds.length === 0) {
+        questionIds = await extractQuestionIdsFromCaderno(page, cadernoUrl, cadernoId);
+      }
+
+      // Tentar navegação direta se temos IDs suficientes
+      let navegouDireto = false;
+      if (questionIds.length >= startFrom) {
+        log(`Tentando navegação direta para questão ${startFrom}...`);
+        navegouDireto = await navigateToQuestionByPosition(page, questionIds, startFrom, cadernoUrl);
+      }
+
+      // Fallback: navegação por ArrowRight (lento, mas funciona sempre)
+      if (!navegouDireto) {
+        log(`Navegação direta não disponível, usando ArrowRight (pode demorar)...`);
+        const questoesAPular = startFrom - 1;
+
+        for (let i = 0; i < questoesAPular && _isRunning; i++) {
+          await page.keyboard.press('ArrowRight');
+
+          // Delay variável: 800-1500ms
+          const delayBase = 800 + Math.floor(Math.random() * 700);
+          await delay(delayBase);
+
+          // Pausa maior a cada 30 questões
+          if ((i + 1) % 30 === 0) {
+            const pausaLonga = 2000 + Math.floor(Math.random() * 2000);
+            await delay(pausaLonga);
+          }
+
+          // Log a cada 50 questões
+          if ((i + 1) % 50 === 0) {
+            log(`Puladas ${i + 1}/${questoesAPular} questões via ArrowRight...`);
+          }
+        }
+        await delay(2000);
+      }
+
       paginaAtual = startFrom;
       log(`Chegou na questão ${startFrom}, iniciando extração...`);
     }

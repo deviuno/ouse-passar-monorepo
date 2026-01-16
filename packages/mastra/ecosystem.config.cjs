@@ -72,7 +72,7 @@ module.exports = {
       watch: false,
       max_memory_restart: '500M',
       env: {
-        SCRAPER_ACCOUNT_ID: '52356e35-e4d2-498b-b7e2-1c5bb6192d46'
+        SCRAPER_ACCOUNT_ID: 'ed49206d-1fc5-4708-a452-2ef7414a5d8d'
       }
     },
     // Worker 5 - isaaccaleb39
