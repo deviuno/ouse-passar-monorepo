@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 import { createClient } from "@supabase/supabase-js";
 
 /**
@@ -106,7 +106,7 @@ Retorne APENAS um JSON válido neste formato exato:
 4. Verifique se há apenas UMA resposta correta
 5. Retorne APENAS o JSON válido, sem markdown, sem texto adicional
 `,
-  model: google("gemini-3-pro-preview"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 /**

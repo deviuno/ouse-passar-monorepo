@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 import { z } from "zod";
 import { createTool } from "@mastra/core/tools";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
@@ -261,7 +261,7 @@ REGRAS:
 - Justificativa deve ser concisa (1-2 frases)
 - SEMPRE retorne todas as matérias fornecidas
 - NÃO invente matérias que não existem no edital`,
-    model: google("gemini-3-flash-preview"),
+    model: vertex("gemini-3-flash-preview"),
     tools: {
         buscarEstatisticasBanca,
         buscarInfoPreparatorio,

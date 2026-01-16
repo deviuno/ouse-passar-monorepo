@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 
 /**
  * Agente especializado em gerar roteiros de podcast educativos.
@@ -124,7 +124,7 @@ A quantidade de texto deve ser proporcional à duração solicitada:
 **[DIEGO]:** Então vamos lá. O tema de hoje é...
 
 (continua...)`,
-  model: google("gemini-3-pro-preview"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 export default podcastScriptAgent;

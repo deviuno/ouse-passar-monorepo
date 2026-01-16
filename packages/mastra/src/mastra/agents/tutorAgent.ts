@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 import { Memory } from "@mastra/memory";
 
 export const tutorAgent = new Agent({
@@ -55,7 +55,7 @@ A alternativa correta é a **[COPIAR LETRA EXATA DO GABARITO]**.
 - Use emojis com moderação (📌, ✅, ⚠️, 💡)
 
 LEMBRE-SE: Você é um TRANSMISSOR do gabarito, não um AVALIADOR da questão.`,
-  model: google("gemini-3-flash-preview"),
+  model: vertex("gemini-3-flash-preview"),
   memory: new Memory({
     options: {
       lastMessages: 10,

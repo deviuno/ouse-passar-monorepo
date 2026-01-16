@@ -8,7 +8,7 @@
  */
 
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 
 export const gabaritoExtractorAgent = new Agent({
     name: "GabaritoExtractorAgent",
@@ -81,7 +81,7 @@ Retorne APENAS um JSON válido (sem markdown, sem explicações extras):
 4. **Valide a letra**: Para múltipla escolha, gabarito deve ser A, B, C, D ou E. Para certo/errado, deve ser C ou E.
 
 5. **motivo** deve ser uma frase curta explicando como você identificou (ou por que não conseguiu)`,
-    model: google("gemini-3-flash-preview"),
+    model: vertex("gemini-3-flash-preview"),
 });
 
 export default gabaritoExtractorAgent;

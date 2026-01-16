@@ -14,7 +14,7 @@
  */
 
 import { Agent } from "@mastra/core";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Lazy-loaded Supabase client (banco unificado)
@@ -115,7 +115,7 @@ Responda APENAS em JSON no formato:
   "confianca": "alta" | "media" | "baixa",
   "explicacao": "breve explicacao"
 }`,
-    model: google("gemini-3-flash-preview"),
+    model: vertex("gemini-3-flash-preview"),
 });
 
 // ==================== HELPER FUNCTIONS ====================

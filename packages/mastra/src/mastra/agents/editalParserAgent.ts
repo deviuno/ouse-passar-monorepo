@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 
 export const editalParserAgent = new Agent({
   name: "editalParserAgent",
@@ -111,5 +111,5 @@ RACIOCINIO LOGICO: 1. Estruturas Logicas. 2. Logica de argumentacao. 3. Diagrama
     }
   ]
 }`,
-  model: google("gemini-3-flash-preview"),
+  model: vertex("gemini-3-flash-preview"),
 });

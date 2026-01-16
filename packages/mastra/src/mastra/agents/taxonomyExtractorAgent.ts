@@ -1,9 +1,9 @@
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 
 export const taxonomyExtractorAgent = new Agent({
   name: "Taxonomy Extractor",
-  model: google("gemini-3-flash-preview"),
+  model: vertex("gemini-3-flash-preview"),
   instructions: `Você é um especialista em extrair e estruturar taxonomias de conteúdo educacional.
 
 Sua tarefa é receber o HTML de uma página de matéria do TecConcursos e extrair a estrutura hierárquica de assuntos, formatando em Markdown.

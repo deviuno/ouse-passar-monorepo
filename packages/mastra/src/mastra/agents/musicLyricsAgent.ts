@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 
 /**
  * Agente especializado em gerar letras de músicas educativas.
@@ -113,7 +113,7 @@ Nenhum sonho é grande demais
 Vou estudar sem parar
 E a aprovação vem, eu sei que vem
 ...`,
-  model: google("gemini-3-pro-preview"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 export default musicLyricsAgent;

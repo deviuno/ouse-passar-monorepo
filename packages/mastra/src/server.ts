@@ -45,6 +45,7 @@ import { startImageProcessorCron, getImageProcessorStatus } from './cron/imagePr
 import { startQuestionReviewerCron, getQuestionReviewerStatus } from './cron/questionReviewer.js';
 import { startGabaritoExtractorCron, getGabaritoExtractorStatus } from './cron/gabaritoExtractor.js';
 import { startComentarioFormatterCron, startEnunciadoFormatterCron, getFormatterProcessorStatus } from './cron/formatterProcessor.js';
+import { startMateriaClassifierCron, getMateriaClassifierStatus, runMateriaClassification } from './cron/materiaClassifier.js';
 import {
     questionGeneratorAgent,
     fetchReferenceQuestions,
@@ -8654,6 +8655,7 @@ app.get('/api/scraper/cron-status', (req, res) => {
     const reviewerStatus = getQuestionReviewerStatus();
     const gabaritoStatus = getGabaritoExtractorStatus();
     const formatterStatus = getFormatterProcessorStatus();
+    const materiaStatus = getMateriaClassifierStatus();
 
     res.json({
         success: true,
@@ -8684,7 +8686,33 @@ app.get('/api/scraper/cron-status', (req, res) => {
             totalProcessed: formatterStatus.enunciados.totalProcessed,
             totalFailed: formatterStatus.enunciados.totalFailed,
         },
+        materiaClassifier: {
+            isProcessing: materiaStatus.isProcessing,
+            lastRun: materiaStatus.lastRun,
+            stats: materiaStatus.stats,
+        },
     });
+});
+
+// Endpoint para executar classificação de matérias manualmente
+app.post('/api/scraper/classify-materias', async (req, res) => {
+    const { limit = 10 } = req.body;
+
+    try {
+        const result = await runMateriaClassification(
+            questionsDbUrl,
+            questionsDbKey,
+            mastra,
+            { limit }
+        );
+
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro desconhecido',
+        });
+    }
 });
 
 // ============================================
@@ -9282,6 +9310,15 @@ startEnunciadoFormatterCron(
     mastra,
     2 * 60 * 1000, // 2 minutos
     50 // 50 questões por lote (~1500/hora)
+);
+
+// Cron job para classificação de matérias (a cada 5 minutos, 10 por lote)
+startMateriaClassifierCron(
+    questionsDbUrl,
+    questionsDbKey,
+    mastra,
+    5 * 60 * 1000, // 5 minutos
+    10 // 10 questões por lote (para não sobrecarregar)
 );
 
 console.log('[Server] Cron jobs de scraping e formatação iniciados');

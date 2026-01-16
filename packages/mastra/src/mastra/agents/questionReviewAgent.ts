@@ -7,7 +7,7 @@
  */
 
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 
 export const questionReviewAgent = new Agent({
     name: "QuestionReviewAgent",
@@ -68,7 +68,7 @@ Enunciado: "ng-if vm.questao A seguir"
 ### Questão incompleta (reprovar):
 Enunciado: "Considerando o texto acima, julgue"
 → REPROVAR: Texto truncado, falta o contexto referenciado`,
-    model: google("gemini-2.0-flash"),
+    model: vertex("gemini-3-flash-preview"),
 });
 
 export default questionReviewAgent;

@@ -5,6 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/server.ts",
+        "dev:studio": "mastra dev --dir src/mastra",
         "dev:worker": "tsx src/scraper-worker.ts",
         "dev:parallel": "tsx src/parallel-worker.ts",
         "build": "tsc",
@@ -15,8 +16,9 @@
     },
     "dependencies": {
         "@ai-sdk/google": "^2.0.46",
+        "@ai-sdk/google-vertex": "^4.0.16",
         "@google/genai": "^1.33.0",
-        "@mastra/core": "^0.24.8",
+        "@mastra/core": "^0.24.9",
         "@mastra/libsql": "^0.16.4",
         "@mastra/mcp": "^0.14.5",
         "@mastra/memory": "^0.15.13",
@@ -38,6 +40,7 @@
         "@types/cors": "^2.8.17",
         "@types/express": "^5.0.0",
         "@types/node": "^22.10.2",
+        "mastra": "^0.18.9",
         "tsx": "^4.19.2",
         "typescript": "^5.7.2"
     }

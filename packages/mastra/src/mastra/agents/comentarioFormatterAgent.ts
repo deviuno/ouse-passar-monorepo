@@ -9,7 +9,7 @@
  */
 
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 
 export const comentarioFormatterAgent = new Agent({
     name: "ComentarioFormatterAgent",
@@ -262,7 +262,7 @@ Retorne APENAS um JSON válido (sem markdown extra, sem explicações antes ou d
 7. **NUNCA invente URLs de imagens**
 
 8. Se o texto menciona "figura" ou "imagem" sem URL, NÃO adicione imagem`,
-    model: google("gemini-3-flash-preview"),
+    model: vertex("gemini-3-flash-preview"),
 });
 
 export default comentarioFormatterAgent;

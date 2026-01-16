@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 
 /**
  * Agente especializado em analisar PDFs de editais de concursos.
@@ -115,7 +115,7 @@ Retorne APENAS um JSON válido neste formato exato:
 - O conteúdo programático geralmente está em um anexo específico
 - Datas de inscrição e prova estão no cronograma
 `,
-  model: google("gemini-3-flash-preview"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 /**

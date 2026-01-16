@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 
 /**
  * Agente especializado em analisar PDFs de provas anteriores de concursos.
@@ -92,7 +92,7 @@ Se for fornecida uma lista de matérias do edital, tente fazer o match das maté
 
 Exemplo: Se o edital tem "LÍNGUA PORTUGUESA" e a prova tem "Português", use "Língua Portuguesa" na distribuição.
 `,
-  model: google("gemini-3-flash-preview"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 /**

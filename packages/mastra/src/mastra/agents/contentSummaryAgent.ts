@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { google } from "@ai-sdk/google";
+import { vertex } from "../../lib/modelProvider.js";
 
 /**
  * Agente especializado em resumir conteúdo para o modo Reta Final.
@@ -86,7 +86,7 @@ IMPORTANTE: Retorne APENAS o conteúdo em markdown. NÃO use \`\`\`markdown ou \
 - PRIORIZE o que a banca mais cobra
 - O aluno deve conseguir revisar em 5 minutos ou menos
 - Escreva como se fosse um "cola mental" para a prova`,
-  model: google("gemini-3-flash-preview"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 /**
@@ -131,5 +131,5 @@ SEMPRE comece com uma frase que mencione "Reta Final", como:
 - Mantenha apenas o conteúdo ESSENCIAL
 - Tom urgente mas motivador
 - Finalize com uma frase de encorajamento como "Você está preparado!" ou "Bora pra cima!"`,
-  model: google("gemini-3-flash-preview"),
+  model: vertex("gemini-3-flash-preview"),
 });
