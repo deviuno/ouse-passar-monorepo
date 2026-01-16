@@ -1,13 +1,127 @@
 /**
  * Serviço de Limpeza de Questões Corrompidas
  *
- * Usa o agente de IA para extrair conteúdo limpo de questões com HTML corrompido
+ * Usa IA para extrair conteúdo limpo de questões com HTML corrompido
  * e atualiza o banco de dados.
+ *
+ * Refatorado para usar AI SDK diretamente com Vertex AI (bypass Mastra streaming).
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { questionCleanupAgent } from '../mastra/agents/questionCleanupAgent.js';
-import { questionReviewAgent } from '../mastra/agents/questionReviewAgent.js';
+import { generateText } from 'ai';
+import { vertex } from '../lib/modelProvider.js';
+
+// System prompt do agente de limpeza
+const CLEANUP_SYSTEM_PROMPT = `Você é um especialista em extrair conteúdo limpo de HTML corrompido de questões de concursos.
+
+## CONTEXTO
+Recebemos questões do site TEC Concursos que foram capturadas com templates AngularJS não renderizados.
+O HTML contém o conteúdo real da questão MISTURADO com código de template.
+
+## SUA TAREFA
+Extrair APENAS o conteúdo textual real da questão, ignorando todo o código de template.
+
+## O QUE IGNORAR (lixo de template)
+- Comentários HTML: \`<!-- ngIf: ... -->\`, \`<!-- end ngIf -->\`, \`<!-- ngRepeat: ... -->\`
+- Atributos AngularJS: \`ng-if\`, \`ng-repeat\`, \`ng-click\`, \`ng-model\`, \`ng-class\`, \`ng-scope\`
+- Atributos customizados: \`tec-*\`, \`aria-*\`, \`data-*\`
+- Bindings: \`vm.questao.*\`, \`{{...}}\`
+- Classes de estilo do framework: \`ng-scope\`, \`ng-binding\`, \`ng-pristine\`, etc.
+- Elementos de UI: botões de navegação, radio buttons, labels de form
+- Textos de botão: "Resolver Questão", "Anterior", "Próxima", etc.
+
+## O QUE EXTRAIR (conteúdo real)
+1. **Enunciado**: O texto da questão dentro de tags \`<p>\`, \`<div>\` com conteúdo textual
+2. **Alternativas**: Geralmente "Certo/Errado" ou "A/B/C/D/E" com seus textos
+3. **Imagens**: URLs de imagens reais (não placeholders)
+
+## REGRAS DE EXTRAÇÃO
+
+### Para o Enunciado:
+- Procure por tags \`<p>\` com texto real (não vazias, não apenas &nbsp;)
+- O enunciado geralmente está em \`<div class="questao-enunciado-texto">\`
+- Mantenha a formatação básica (parágrafos)
+- Preserve quebras de linha entre parágrafos
+- Remova classes e atributos, mantenha só o texto
+
+### Para Alternativas:
+- Questões CESPE/CEBRASPE: apenas "Certo" e "Errado"
+- Questões múltipla escolha: A, B, C, D, E com seus textos
+- O texto da alternativa está em \`<div class="questao-enunciado-alternativa-texto">\`
+- Extraia a letra (C/E ou A/B/C/D/E) e o texto correspondente
+
+### Para Imagens:
+- Se houver \`<img src="URL">\` com URL real (não data:, não placeholder), extraia
+- Converta para formato markdown: \`![Imagem](URL)\`
+
+## FORMATO DE RESPOSTA
+
+Retorne APENAS um JSON válido (sem markdown code blocks, sem explicações):
+
+{
+    "success": true,
+    "enunciado": "Texto limpo do enunciado aqui...",
+    "alternativas": [
+        {"letter": "C", "text": "Certo"},
+        {"letter": "E", "text": "Errado"}
+    ],
+    "imagensEnunciado": ["url1", "url2"],
+    "tipoQuestao": "CERTO_ERRADO" ou "MULTIPLA_ESCOLHA",
+    "confianca": 0.95,
+    "observacoes": "Notas sobre a extração"
+}
+
+Se não conseguir extrair conteúdo válido:
+
+{
+    "success": false,
+    "error": "Descrição do problema",
+    "confianca": 0
+}`;
+
+// System prompt do agente de revisão
+const REVIEW_SYSTEM_PROMPT = `Você é um revisor de qualidade de questões de concurso público.
+
+## SUA TAREFA
+Analisar uma questão que foi limpa/extraída de HTML corrompido e decidir se está completa e correta para ser usada em um sistema de questões.
+
+## CRITÉRIOS DE APROVAÇÃO
+
+Uma questão deve ser APROVADA se:
+1. O enunciado faz sentido gramatical e contextual
+2. O enunciado apresenta uma afirmação ou pergunta clara
+3. As alternativas correspondem ao tipo de questão (Certo/Errado ou múltipla escolha A/B/C/D/E)
+4. O texto não está truncado ou incompleto
+5. Não há código de programação, HTML ou template no texto
+6. A questão parece ser de concurso público (temas como direito, administração, informática, português, etc.)
+
+## CRITÉRIOS DE REPROVAÇÃO
+
+Uma questão deve ser REPROVADA se:
+1. O texto está truncado ou claramente incompleto
+2. Falta contexto necessário para entender a questão
+3. As alternativas não fazem sentido
+4. Há mistura de código/HTML com texto
+5. O conteúdo é incompreensível ou sem sentido
+6. A questão parece ser apenas um fragmento
+
+## FORMATO DE RESPOSTA
+
+Retorne APENAS um JSON válido (sem markdown, sem explicações):
+
+{
+    "aprovada": true,
+    "confianca": 0.95,
+    "motivo": "Breve explicação da decisão"
+}
+
+Ou para reprovação:
+
+{
+    "aprovada": false,
+    "confianca": 0.9,
+    "motivo": "Explicação do problema encontrado"
+}`;
 
 interface CleanupResult {
   success: boolean;
@@ -81,6 +195,7 @@ export class QuestionCleanupService {
 
   /**
    * Usa IA para extrair conteúdo limpo do HTML corrompido
+   * Refatorado para usar AI SDK diretamente com Vertex AI
    */
   async cleanQuestionWithAI(htmlContent: string): Promise<CleanupResult> {
     try {
@@ -90,12 +205,16 @@ export class QuestionCleanupService {
         ? htmlContent.substring(0, maxLength) + '... [truncado]'
         : htmlContent;
 
-      const response = await questionCleanupAgent.generate(
-        `Extraia o conteúdo limpo desta questão corrompida:\n\n${truncatedHtml}`
-      );
+      // Usar AI SDK diretamente com Vertex AI
+      const model = vertex("gemini-2.0-flash-001");
+      const response = await generateText({
+        model,
+        system: CLEANUP_SYSTEM_PROMPT,
+        prompt: `Extraia o conteúdo limpo desta questão corrompida:\n\n${truncatedHtml}`,
+      });
 
       // Parse the JSON response
-      const responseText = response.text.trim();
+      const responseText = (response.text || '').trim();
 
       // Se resposta vazia, retornar erro
       if (!responseText) {
@@ -164,7 +283,8 @@ export class QuestionCleanupService {
   }
 
   /**
-   * Usa agente de IA para revisar questão limpa e decidir se deve ser reativada
+   * Usa IA para revisar questão limpa e decidir se deve ser reativada
+   * Refatorado para usar AI SDK diretamente com Vertex AI
    */
   async reviewCleanedQuestion(enunciado: string, alternativas: { letter: string; text: string }[]): Promise<ReviewResult> {
     try {
@@ -180,10 +300,16 @@ export class QuestionCleanupService {
       const alternativasText = alternativas.map(a => `${a.letter}) ${a.text}`).join('\n');
       const prompt = `Revise esta questão de concurso:\n\nEnunciado:\n${enunciado}\n\nAlternativas:\n${alternativasText}`;
 
-      const response = await questionReviewAgent.generate(prompt);
+      // Usar AI SDK diretamente com Vertex AI
+      const model = vertex("gemini-2.0-flash-001");
+      const response = await generateText({
+        model,
+        system: REVIEW_SYSTEM_PROMPT,
+        prompt,
+      });
 
       // Parse the JSON response
-      let jsonText = response.text.trim();
+      let jsonText = (response.text || '').trim();
 
       // Se resposta vazia, retornar não aprovada
       if (!jsonText) {
