@@ -115,7 +115,7 @@ Retorne APENAS um JSON válido neste formato exato:
 - O conteúdo programático geralmente está em um anexo específico
 - Datas de inscrição e prova estão no cronograma
 `,
-  model: vertex("gemini-2.0-flash-001"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 /**

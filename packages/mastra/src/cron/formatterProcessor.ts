@@ -2,7 +2,7 @@
  * Cron Job para Processamento Automático de Formatação
  *
  * Processa automaticamente as filas de formatação de comentários e enunciados
- * usando AI SDK diretamente com Vertex AI (gemini-2.0-flash-001).
+ * usando AI SDK diretamente com Vertex AI (gemini-3-flash-preview).
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -230,7 +230,7 @@ export async function processComentariosQueue(
         }
 
         // Chamar IA diretamente usando AI SDK
-        const model = vertex("gemini-2.0-flash-001");
+        const model = vertex("gemini-3-flash-preview");
         const prompt = `Formate o seguinte comentário de questão de concurso.
 
 ## CONTEXTO DA QUESTÃO
@@ -427,7 +427,7 @@ export async function processEnunciadosQueue(
         }
 
         // Chamar IA diretamente usando AI SDK
-        const model = vertex("gemini-2.0-flash-001");
+        const model = vertex("gemini-3-flash-preview");
         const prompt = `Formate o seguinte enunciado de questão de concurso.
 
 ## MATÉRIA

@@ -193,7 +193,7 @@ ${questao.comentario}
 Extraia o gabarito correto baseado no comentário acima.`;
 
     // Usar AI SDK diretamente com Vertex AI
-    const model = vertex("gemini-2.0-flash-001");
+    const model = vertex("gemini-3-flash-preview");
     const response = await generateText({
       model,
       system: SYSTEM_PROMPT,

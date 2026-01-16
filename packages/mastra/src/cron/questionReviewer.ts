@@ -83,7 +83,7 @@ ${question.comentario ? `Comentário existente: ${question.comentario.substring(
 Por favor, forneça o gabarito correto e um comentário pedagógico completo.`;
 
     // Usar AI SDK diretamente com Vertex AI
-    const model = vertex("gemini-2.0-flash-001");
+    const model = vertex("gemini-3-flash-preview");
     const response = await generateText({
       model,
       system: SYSTEM_PROMPT,

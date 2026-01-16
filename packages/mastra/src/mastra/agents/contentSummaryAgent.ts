@@ -86,7 +86,7 @@ IMPORTANTE: Retorne APENAS o conteúdo em markdown. NÃO use \`\`\`markdown ou \
 - PRIORIZE o que a banca mais cobra
 - O aluno deve conseguir revisar em 5 minutos ou menos
 - Escreva como se fosse um "cola mental" para a prova`,
-  model: vertex("gemini-2.0-flash-001"),
+  model: vertex("gemini-3-flash-preview"),
 });
 
 /**
@@ -131,5 +131,5 @@ SEMPRE comece com uma frase que mencione "Reta Final", como:
 - Mantenha apenas o conteúdo ESSENCIAL
 - Tom urgente mas motivador
 - Finalize com uma frase de encorajamento como "Você está preparado!" ou "Bora pra cima!"`,
-  model: vertex("gemini-2.0-flash-001"),
+  model: vertex("gemini-3-flash-preview"),
 });
