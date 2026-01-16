@@ -216,7 +216,7 @@ Retorne APENAS um JSON válido (sem markdown):
 3. Use EXATAMENTE o nome da matéria da lista. Não abrevie nem modifique.
 
 4. Quando houver dúvida entre duas matérias, escolha a mais específica.`,
-  model: vertex("gemini-3-flash-preview"),
+  model: vertex("gemini-3-pro-preview"),
 });
 
 export { MATERIAS_VALIDAS };

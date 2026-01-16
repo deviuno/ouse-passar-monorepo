@@ -164,8 +164,8 @@ ${alternativasText ? `## ALTERNATIVAS:\n${alternativasText}` : ""}
 ---
 Retorne a classificação em JSON.`;
 
-    // Chamar IA diretamente usando AI SDK
-    const model = vertex("gemini-3-flash-preview");
+    // Chamar IA diretamente usando AI SDK (Pro para melhor classificação)
+    const model = vertex("gemini-3-pro-preview");
     const response = await generateText({
       model,
       system: SYSTEM_PROMPT,
