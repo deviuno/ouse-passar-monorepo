@@ -11,7 +11,8 @@
  */
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { Mastra } from "@mastra/core";
+import { generateText } from "ai";
+import { vertex } from "../lib/modelProvider.js";
 import { MATERIAS_VALIDAS } from "../mastra/agents/materiaClassifierAgent.js";
 
 let isProcessing = false;
@@ -23,12 +24,101 @@ let stats = {
   skipped: 0,
 };
 
+// System prompt do agente de classificação
+const SYSTEM_PROMPT = `Você é um especialista em classificação de questões de concursos públicos brasileiros.
+
+## TAREFA
+Analisar o enunciado de uma questão e determinar a qual MATÉRIA ela pertence.
+
+## MATÉRIAS VÁLIDAS
+Você DEVE escolher uma matéria da lista abaixo. NÃO invente matérias novas.
+
+${MATERIAS_VALIDAS.map((m, i) => `${i + 1}. ${m}`).join("\n")}
+
+## REGRAS DE CLASSIFICAÇÃO
+
+### Direito
+- Questões sobre leis, artigos, doutrinas → Use a área específica (Constitucional, Penal, Civil, etc.)
+- "Julgue o item" sobre legislação → Identifique a lei mencionada
+- CF/1988 → Direito Constitucional
+- Código Penal, crimes → Direito Penal
+- Contratos, obrigações, família → Direito Civil
+- Licitações, servidores públicos → Direito Administrativo
+- CLT, trabalhista → Direito do Trabalho
+
+### Administração
+- Gestão, planejamento, organização → Administração Geral e Pública
+- RH, motivação, liderança → Gestão de Pessoas (ou Administração Geral)
+- Materiais, estoque, logística → Administração de Recursos Materiais
+- Atendimento ao público → Atendimento
+- PMBOK, cronograma, escopo → Gestão de Projetos
+
+### Contabilidade/Finanças
+- Balanço, DRE, lançamentos → Contabilidade Geral
+- Orçamento público, LOA, LDO → AFO, Direito Financeiro e Contabilidade Pública
+- Custos, rateio, ABC → Contabilidade de Custos
+- Juros, VPL, TIR → Matemática Financeira
+
+### TI/Informática
+- Programação, algoritmos → TI - Desenvolvimento de Sistemas
+- SQL, banco de dados → TI - Banco de Dados
+- Redes, TCP/IP, protocolos → TI - Redes de Computadores
+- Windows, Linux → TI - Sistemas Operacionais
+- Criptografia, firewall → TI - Segurança da Informação
+- Word, Excel, navegadores → Informática
+
+### Saúde
+- Anatomia, fisiologia, doenças gerais → Medicina
+- Procedimentos de enfermagem → Enfermagem
+- Medicamentos, farmacologia → Farmácia
+- Tratamento dentário → Odontologia
+
+### Exatas
+- Cálculos, equações, funções → Matemática
+- Lógica, proposições, silogismos → Raciocínio Lógico
+- Probabilidade, amostragem → Estatística
+- Mecânica, termodinâmica, eletricidade → Física
+- Elementos, reações → Química e Engenharia Química
+
+### Português
+- Gramática, sintaxe, semântica → Língua Portuguesa (Português)
+- Interpretação de texto → Língua Portuguesa (Português)
+- Redação oficial, ofícios → Redação Oficial
+
+## FORMATO DE RESPOSTA
+
+Retorne APENAS um JSON válido (sem markdown):
+
+{
+    "materia": "Nome Exato da Matéria",
+    "confianca": 0.95,
+    "motivo": "Breve justificativa da classificação"
+}
+
+## REGRAS IMPORTANTES
+
+1. **confianca** entre 0 e 1:
+   - 0.9-1.0: Classificação óbvia e clara
+   - 0.7-0.9: Boa certeza, tema bem identificável
+   - 0.5-0.7: Alguma ambiguidade, mas provável
+   - < 0.5: Muito ambíguo ou texto sem sentido
+
+2. Se o texto for lixo (HTML, lorem ipsum, sem sentido):
+   {
+       "materia": null,
+       "confianca": 0,
+       "motivo": "Texto inválido ou sem sentido"
+   }
+
+3. Use EXATAMENTE o nome da matéria da lista. Não abrevie nem modifique.
+
+4. Quando houver dúvida entre duas matérias, escolha a mais específica.`;
+
 /**
- * Processa uma questão e classifica a matéria
+ * Processa uma questão e classifica a matéria usando AI SDK diretamente
  */
 async function classifyQuestion(
   db: SupabaseClient,
-  mastra: Mastra,
   questaoId: number
 ): Promise<{ success: boolean; materia?: string; error?: string }> {
   try {
@@ -74,14 +164,15 @@ ${alternativasText ? `## ALTERNATIVAS:\n${alternativasText}` : ""}
 ---
 Retorne a classificação em JSON.`;
 
-    // Chamar agente
-    const agent = mastra.getAgent("materiaClassifierAgent");
-    if (!agent) {
-      return { success: false, error: "Agente não encontrado" };
-    }
+    // Chamar IA diretamente usando AI SDK
+    const model = vertex("gemini-2.0-flash-001");
+    const response = await generateText({
+      model,
+      system: SYSTEM_PROMPT,
+      prompt: userPrompt,
+    });
 
-    const response = await agent.generate(userPrompt);
-    const text = typeof response.text === "string" ? response.text : "";
+    const text = response.text || "";
 
     // Parse JSON
     const jsonMatch = text
@@ -149,7 +240,6 @@ Retorne a classificação em JSON.`;
  */
 async function processQueue(
   db: SupabaseClient,
-  mastra: Mastra,
   limit: number = 10
 ): Promise<{ processed: number; classified: number; failed: number; skipped: number }> {
   const result = { processed: 0, classified: 0, failed: 0, skipped: 0 };
@@ -186,7 +276,7 @@ async function processQueue(
       }
 
       // Classificar
-      const classification = await classifyQuestion(db, mastra, questao.id);
+      const classification = await classifyQuestion(db, questao.id);
 
       if (classification.success) {
         result.classified++;
@@ -219,7 +309,6 @@ async function processQueue(
 export async function runMateriaClassification(
   dbUrl: string,
   dbKey: string,
-  mastra: Mastra,
   options: { limit?: number } = {}
 ): Promise<{
   success: boolean;
@@ -238,7 +327,7 @@ export async function runMateriaClassification(
 
   try {
     const db = createClient(dbUrl, dbKey);
-    const result = await processQueue(db, mastra, options.limit || 10);
+    const result = await processQueue(db, options.limit || 10);
 
     console.log(
       `[MateriaClassifier] Ciclo completo: ${result.classified} classificadas, ${result.failed} falhas, ${result.skipped} puladas`
@@ -275,7 +364,6 @@ export function getMateriaClassifierStatus(): {
 export function startMateriaClassifierCron(
   dbUrl: string,
   dbKey: string,
-  mastra: Mastra,
   intervalMs: number = 5 * 60 * 1000,
   batchSize: number = 10
 ): NodeJS.Timeout {
@@ -285,11 +373,11 @@ export function startMateriaClassifierCron(
 
   // Primeira execução após 1 minuto
   setTimeout(() => {
-    runMateriaClassification(dbUrl, dbKey, mastra, { limit: batchSize });
+    runMateriaClassification(dbUrl, dbKey, { limit: batchSize });
   }, 60 * 1000);
 
   // Execuções periódicas
   return setInterval(() => {
-    runMateriaClassification(dbUrl, dbKey, mastra, { limit: batchSize });
+    runMateriaClassification(dbUrl, dbKey, { limit: batchSize });
   }, intervalMs);
 }

@@ -8702,7 +8702,6 @@ app.post('/api/scraper/classify-materias', async (req, res) => {
         const result = await runMateriaClassification(
             questionsDbUrl,
             questionsDbKey,
-            mastra,
             { limit }
         );
 
@@ -9316,7 +9315,6 @@ startEnunciadoFormatterCron(
 startMateriaClassifierCron(
     questionsDbUrl,
     questionsDbKey,
-    mastra,
     5 * 60 * 1000, // 5 minutos
     10 // 10 questões por lote (para não sobrecarregar)
 );
