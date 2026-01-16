@@ -85,6 +85,24 @@ export interface PopularFilaResponse {
   error?: string;
 }
 
+// Status dos processadores automáticos (crons)
+export interface CronProcessorStatus {
+  isProcessing: boolean;
+  lastRun: string | null;
+  totalProcessed: number;
+  totalFailed?: number;
+}
+
+export interface CronStatus {
+  success: boolean;
+  imageProcessor: CronProcessorStatus;
+  questionReviewer: CronProcessorStatus & { totalReviewed?: number };
+  gabaritoExtractor: CronProcessorStatus & { stats?: { queued: number; extracted: number; failed: number } };
+  comentarioFormatter: CronProcessorStatus;
+  enunciadoFormatter: CronProcessorStatus;
+  materiaClassifier: CronProcessorStatus & { stats?: { classified: number; failed: number; skipped: number } };
+}
+
 // ============================================================================
 // MASTRA API URL
 // ============================================================================
@@ -98,6 +116,15 @@ const MASTRA_URL = import.meta.env.VITE_MASTRA_URL
 // ============================================================================
 
 export const agentesService = {
+  // --------------------------------------------------------------------------
+  // Status dos Processadores Automáticos (Crons)
+  // --------------------------------------------------------------------------
+  async getCronStatus(): Promise<CronStatus> {
+    const response = await fetch(`${MASTRA_URL}/api/scraper/cron-status`);
+    const data = await response.json();
+    return data;
+  },
+
   // --------------------------------------------------------------------------
   // Estatísticas do Formatador (via Mastra API)
   // --------------------------------------------------------------------------

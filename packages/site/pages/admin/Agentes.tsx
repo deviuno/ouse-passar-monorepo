@@ -26,6 +26,7 @@ import {
   ComentarioFormatItem,
   QuestaoDetalhes,
   EnunciadoFormatStats,
+  CronStatus,
 } from '../../services/agentesService';
 import { ScrapingSection } from '../../components/admin/settings';
 import { ElapsedTime, StatusBadge } from '../../components/admin/agentes';
@@ -84,6 +85,9 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // Enunciados stats
   const [enunciadoStats, setEnunciadoStats] = useState<EnunciadoFormatStats | null>(null);
 
+  // Status dos crons automáticos
+  const [cronStatus, setCronStatus] = useState<CronStatus | null>(null);
+
   // Status da operação (feedback visual)
   const [operationStatus, setOperationStatus] = useState<{
     type: 'idle' | 'processing' | 'success' | 'error';
@@ -112,11 +116,12 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // --------------------------------------------------------------------------
   const loadData = async (page: number = currentPage) => {
     try {
-      // Carregar fila e estatísticas em paralelo
-      const [queueResult, statsResult, enunciadoStatsResult] = await Promise.all([
+      // Carregar fila, estatísticas e status dos crons em paralelo
+      const [queueResult, statsResult, enunciadoStatsResult, cronStatusResult] = await Promise.all([
         agentesService.getComentarioQueue(statusFilter, page, ITEMS_PER_PAGE),
         agentesService.getComentarioStats().catch(() => null),
         agentesService.getEnunciadoStats().catch(() => null),
+        agentesService.getCronStatus().catch(() => null),
       ]);
 
       setComentarioQueue(queueResult.items);
@@ -137,6 +142,10 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
       if (enunciadoStatsResult) {
         setEnunciadoStats(enunciadoStatsResult);
       }
+
+      if (cronStatusResult) {
+        setCronStatus(cronStatusResult);
+      }
     } catch (error) {
       console.warn('Erro ao carregar queue:', error);
     }
@@ -149,6 +158,41 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
     setCurrentPage(1); // Reset para página 1 ao mudar filtro
     loadData(1);
   }, [statusFilter]);
+
+  // Auto-refresh do status dos crons a cada 10 segundos
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const cronStatusResult = await agentesService.getCronStatus().catch(() => null);
+        if (cronStatusResult) {
+          setCronStatus(cronStatusResult);
+        }
+        // Também atualizar estatísticas se algum cron estiver processando
+        if (cronStatusResult?.comentarioFormatter?.isProcessing || cronStatusResult?.enunciadoFormatter?.isProcessing) {
+          const [statsResult, enunciadoStatsResult] = await Promise.all([
+            agentesService.getComentarioStats().catch(() => null),
+            agentesService.getEnunciadoStats().catch(() => null),
+          ]);
+          if (statsResult) {
+            setQueueStats({
+              pendente: statsResult.pendente,
+              processando: statsResult.processando,
+              concluido: statsResult.concluido,
+              falha: statsResult.falha,
+              ignorado: statsResult.ignorado,
+            });
+          }
+          if (enunciadoStatsResult) {
+            setEnunciadoStats(enunciadoStatsResult);
+          }
+        }
+      } catch {
+        // Ignora erros de polling
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Navegação de página
   const goToPage = (page: number) => {
@@ -522,35 +566,74 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
             </div>
           )}
 
-          {/* Ações (quando não está processando) */}
+          {/* Status do Processador Automático */}
           {!isProcessingComentarios && (
             <div className="bg-brand-card border border-white/5 rounded-sm p-6">
-              <h3 className="text-white font-bold mb-4">Processar Comentários</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-bold flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-brand-yellow" />
+                  Processador Automático
+                </h3>
+                {cronStatus?.comentarioFormatter?.isProcessing ? (
+                  <span className="flex items-center gap-2 px-3 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm font-medium">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    Ativo
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2 px-3 py-1 bg-gray-500/20 border border-gray-500/30 rounded-full text-gray-400 text-sm font-medium">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full" />
+                    Aguardando
+                  </span>
+                )}
+              </div>
+
               <p className="text-gray-400 text-sm mb-4">
-                O agente de IA irá formatar todos os comentários das questões automaticamente, processando em lotes até concluir.
+                O agente de IA formata comentários automaticamente em background. Executa a cada minuto processando lotes de 30 questões.
               </p>
-              <div className="flex flex-wrap items-center gap-4">
+
+              {/* Stats do processador automático */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="bg-black/20 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-green-400">
+                    {cronStatus?.comentarioFormatter?.totalProcessed?.toLocaleString() || 0}
+                  </div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Formatados (sessão)</div>
+                </div>
+                <div className="bg-black/20 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-red-400">
+                    {cronStatus?.comentarioFormatter?.totalFailed?.toLocaleString() || 0}
+                  </div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Falhas (sessão)</div>
+                </div>
+                <div className="bg-black/20 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-yellow-400">
+                    {queueStats?.pendente?.toLocaleString() || 0}
+                  </div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Pendentes</div>
+                </div>
+                <div className="bg-black/20 rounded-lg p-3 text-center">
+                  <div className="text-sm font-medium text-gray-300">
+                    {cronStatus?.comentarioFormatter?.lastRun
+                      ? new Date(cronStatus.comentarioFormatter.lastRun).toLocaleTimeString('pt-BR')
+                      : '—'}
+                  </div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Última execução</div>
+                </div>
+              </div>
+
+              {/* Ações manuais */}
+              <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-white/5">
                 <button
                   onClick={handleIniciarComentarios}
-                  disabled={queueStats?.pendente === 0}
-                  className="flex items-center gap-2 px-6 py-2 bg-brand-yellow text-black font-bold rounded hover:bg-brand-yellow/90 transition-colors disabled:opacity-50"
+                  disabled={queueStats?.pendente === 0 || cronStatus?.comentarioFormatter?.isProcessing}
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-yellow/20 text-brand-yellow font-medium rounded hover:bg-brand-yellow/30 transition-colors disabled:opacity-50 text-sm"
                 >
                   <Play className="w-4 h-4" />
-                  Iniciar Formatação
+                  Processar Manualmente
                 </button>
-
-                {/* Info de pendentes */}
-                {queueStats && queueStats.pendente > 0 && (
-                  <span className="text-yellow-400 text-sm">
-                    {queueStats.pendente.toLocaleString()} pendentes
-                  </span>
-                )}
-                {queueStats && queueStats.pendente === 0 && (
-                  <span className="text-green-400 text-sm flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Todos os comentários foram formatados!
-                  </span>
-                )}
+                <span className="text-gray-500 text-xs">
+                  Use para processar além do cron automático
+                </span>
               </div>
             </div>
           )}
@@ -971,35 +1054,74 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
             </div>
           )}
 
-          {/* Ações de Enunciados (quando não está processando) */}
+          {/* Status do Processador Automático de Enunciados */}
           {!isProcessingEnunciados && (
             <div className="bg-brand-card border border-white/5 rounded-sm p-6">
-              <h3 className="text-white font-bold mb-4">Processar Enunciados</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-bold flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-brand-yellow" />
+                  Processador Automático
+                </h3>
+                {cronStatus?.enunciadoFormatter?.isProcessing ? (
+                  <span className="flex items-center gap-2 px-3 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm font-medium">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    Ativo
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2 px-3 py-1 bg-gray-500/20 border border-gray-500/30 rounded-full text-gray-400 text-sm font-medium">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full" />
+                    Aguardando
+                  </span>
+                )}
+              </div>
+
               <p className="text-gray-400 text-sm mb-4">
-                O agente de IA irá formatar todos os enunciados automaticamente, convertendo para Markdown com parágrafos, títulos, citações e imagens embedadas.
+                O agente de IA formata enunciados automaticamente em background, convertendo para Markdown. Executa a cada minuto processando lotes de 30 questões.
               </p>
-              <div className="flex flex-wrap items-center gap-4">
+
+              {/* Stats do processador automático */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="bg-black/20 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-green-400">
+                    {cronStatus?.enunciadoFormatter?.totalProcessed?.toLocaleString() || 0}
+                  </div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Formatados (sessão)</div>
+                </div>
+                <div className="bg-black/20 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-red-400">
+                    {cronStatus?.enunciadoFormatter?.totalFailed?.toLocaleString() || 0}
+                  </div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Falhas (sessão)</div>
+                </div>
+                <div className="bg-black/20 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-yellow-400">
+                    {enunciadoStats?.pendente?.toLocaleString() || 0}
+                  </div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Pendentes</div>
+                </div>
+                <div className="bg-black/20 rounded-lg p-3 text-center">
+                  <div className="text-sm font-medium text-gray-300">
+                    {cronStatus?.enunciadoFormatter?.lastRun
+                      ? new Date(cronStatus.enunciadoFormatter.lastRun).toLocaleTimeString('pt-BR')
+                      : '—'}
+                  </div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Última execução</div>
+                </div>
+              </div>
+
+              {/* Ações manuais */}
+              <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-white/5">
                 <button
                   onClick={handleIniciarEnunciados}
-                  disabled={enunciadoStats?.pendente === 0}
-                  className="flex items-center gap-2 px-6 py-2 bg-brand-yellow text-black font-bold rounded hover:bg-brand-yellow/90 transition-colors disabled:opacity-50"
+                  disabled={enunciadoStats?.pendente === 0 || cronStatus?.enunciadoFormatter?.isProcessing}
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-yellow/20 text-brand-yellow font-medium rounded hover:bg-brand-yellow/30 transition-colors disabled:opacity-50 text-sm"
                 >
                   <Play className="w-4 h-4" />
-                  Iniciar Formatação
+                  Processar Manualmente
                 </button>
-
-                {/* Info de pendentes */}
-                {enunciadoStats && enunciadoStats.pendente > 0 && (
-                  <span className="text-yellow-400 text-sm">
-                    {enunciadoStats.pendente.toLocaleString()} pendentes
-                  </span>
-                )}
-                {enunciadoStats && enunciadoStats.pendente === 0 && (
-                  <span className="text-green-400 text-sm flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Todos os enunciados foram formatados!
-                  </span>
-                )}
+                <span className="text-gray-500 text-xs">
+                  Use para processar além do cron automático
+                </span>
               </div>
             </div>
           )}
