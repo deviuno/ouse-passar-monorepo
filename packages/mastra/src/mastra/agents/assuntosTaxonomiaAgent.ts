@@ -205,7 +205,7 @@ Assuntos: [
 2. **Não invente assuntos** - use apenas os que foram fornecidos
 3. **Mantenha os nomes originais** no array "assuntos_originais" para permitir o mapeamento
 4. Se um assunto é muito genérico e poderia ser o próprio tópico, coloque-o no array "assuntos_originais" do tópico principal`,
-    model: vertex("gemini-3-flash-preview"),
+    model: vertex("gemini-2.0-flash-001"),
 });
 
 export default assuntosTaxonomiaAgent;

@@ -98,7 +98,7 @@ A aula deve ter entre 1500-2500 palavras (aproximadamente 10 minutos de leitura)
 - A aula deve ser uma explicação teórica completa e independente
 - O aluno deve conseguir entender o conteúdo sem ter visto nenhuma questão
 - Mencione padrões gerais das bancas, mas sem vincular a questões específicas`,
-  model: vertex("gemini-3-flash-preview"),
+  model: vertex("gemini-2.0-flash-001"),
 });
 
 /**
@@ -143,5 +143,5 @@ Início: Olá! Vamos estudar..."
 - Retorne APENAS o texto final para narração
 - Mantenha TODO o conteúdo importante
 - O áudio deve ter a mesma duração aproximada do texto`,
-  model: vertex("gemini-3-flash-preview"),
+  model: vertex("gemini-2.0-flash-001"),
 });

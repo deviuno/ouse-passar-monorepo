@@ -68,7 +68,7 @@ Enunciado: "ng-if vm.questao A seguir"
 ### Questão incompleta (reprovar):
 Enunciado: "Considerando o texto acima, julgue"
 → REPROVAR: Texto truncado, falta o contexto referenciado`,
-    model: vertex("gemini-3-flash-preview"),
+    model: vertex("gemini-2.0-flash-001"),
 });
 
 export default questionReviewAgent;
