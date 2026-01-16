@@ -75,7 +75,7 @@ ${alternativasText ? `## ALTERNATIVAS:\n${alternativasText}` : ""}
 Retorne a classificação em JSON.`;
 
     // Chamar agente
-    const agent = mastra.getAgent("MateriaClassifierAgent");
+    const agent = mastra.getAgent("materiaClassifierAgent");
     if (!agent) {
       return { success: false, error: "Agente não encontrado" };
     }
