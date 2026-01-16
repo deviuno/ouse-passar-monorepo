@@ -41,7 +41,7 @@ export const models = {
   // Pro (mais capaz) - GA
   pro: vertex("gemini-2.5-pro"),
 
-  // Aliases para compatibilidade
+  // Aliases
   "gemini-2.5-flash": vertex("gemini-2.5-flash"),
   "gemini-2.5-pro": vertex("gemini-2.5-pro"),
 } as const;
