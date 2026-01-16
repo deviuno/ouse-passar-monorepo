@@ -8,12 +8,14 @@
  * 1. Busca questões sem gabarito que têm comentário
  * 2. Adiciona à fila questoes_pendentes_ia (se não estiver)
  * 3. Processa a fila usando IA para extrair gabarito
+ *
+ * Refatorado para usar AI SDK diretamente com Vertex AI (bypass Mastra streaming).
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { GoogleGenAI } from '@google/genai';
+import { generateText } from 'ai';
+import { vertex } from '../lib/modelProvider.js';
 
-// .env atualizado para usar projeto principal
 let isProcessing = false;
 let lastRun: Date | null = null;
 let stats = {
@@ -148,10 +150,10 @@ async function populateQueue(db: SupabaseClient, limit: number = 100): Promise<n
 
 /**
  * Processa uma questão e extrai o gabarito
+ * Refatorado para usar AI SDK diretamente com Vertex AI
  */
 async function extractGabarito(
   db: SupabaseClient,
-  genAI: GoogleGenAI,
   questaoId: number
 ): Promise<{ success: boolean; gabarito?: string; error?: string }> {
   try {
@@ -190,16 +192,12 @@ ${questao.comentario}
 ---
 Extraia o gabarito correto baseado no comentário acima.`;
 
-    // Chamar IA
-    const response = await genAI.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: userPrompt,
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        temperature: 0.2,
-        maxOutputTokens: 500,
-        responseMimeType: 'application/json',
-      },
+    // Usar AI SDK diretamente com Vertex AI
+    const model = vertex("gemini-2.0-flash-001");
+    const response = await generateText({
+      model,
+      system: SYSTEM_PROMPT,
+      prompt: userPrompt,
     });
 
     const text = response.text || '';
@@ -245,10 +243,10 @@ Extraia o gabarito correto baseado no comentário acima.`;
 
 /**
  * Processa a fila de questões pendentes
+ * Refatorado para usar Vertex AI (não requer genAI)
  */
 async function processQueue(
   db: SupabaseClient,
-  genAI: GoogleGenAI,
   limit: number = 5
 ): Promise<{ processed: number; success: number; failed: number }> {
   const result = { processed: 0, success: 0, failed: 0 };
@@ -281,8 +279,8 @@ async function processQueue(
         })
         .eq('questao_id', item.questao_id);
 
-      // Extrair gabarito
-      const extraction = await extractGabarito(db, genAI, item.questao_id);
+      // Extrair gabarito (usa Vertex AI internamente)
+      const extraction = await extractGabarito(db, item.questao_id);
 
       if (extraction.success) {
         result.success++;
@@ -328,11 +326,11 @@ async function processQueue(
 
 /**
  * Executa o ciclo completo de extração
+ * Refatorado para usar Vertex AI (não requer googleApiKey)
  */
 export async function runGabaritoExtraction(
   dbUrl: string,
   dbKey: string,
-  googleApiKey: string,
   options: { queueLimit?: number; processLimit?: number } = {}
 ): Promise<{
   success: boolean;
@@ -359,14 +357,13 @@ export async function runGabaritoExtraction(
 
   try {
     const db = createClient(dbUrl, dbKey);
-    const genAI = new GoogleGenAI({ apiKey: googleApiKey });
 
     // 1. Popular fila com novas questões
     result.queued = await populateQueue(db, options.queueLimit || 50);
     stats.queued += result.queued;
 
-    // 2. Processar fila
-    const processResult = await processQueue(db, genAI, options.processLimit || 5);
+    // 2. Processar fila (usa Vertex AI internamente)
+    const processResult = await processQueue(db, options.processLimit || 5);
     result.processed = processResult.processed;
     result.extracted = processResult.success;
     result.failed = processResult.failed;
@@ -401,22 +398,22 @@ export function getGabaritoExtractorStatus(): {
 /**
  * Inicia o cron job de extração de gabaritos
  * Executa a cada 5 minutos (intercalado com o questionReviewer)
+ * Refatorado para usar Vertex AI (não requer googleApiKey)
  */
 export function startGabaritoExtractorCron(
   dbUrl: string,
   dbKey: string,
-  googleApiKey: string,
   intervalMs: number = 5 * 60 * 1000
 ): NodeJS.Timeout {
   console.log(`[GabaritoExtractor] Iniciando cron job (intervalo: ${intervalMs / 1000}s)`);
 
   // Primeira execução após 2 minutos
   setTimeout(() => {
-    runGabaritoExtraction(dbUrl, dbKey, googleApiKey);
+    runGabaritoExtraction(dbUrl, dbKey);
   }, 2 * 60 * 1000);
 
   // Execuções periódicas
   return setInterval(() => {
-    runGabaritoExtraction(dbUrl, dbKey, googleApiKey);
+    runGabaritoExtraction(dbUrl, dbKey);
   }, intervalMs);
 }

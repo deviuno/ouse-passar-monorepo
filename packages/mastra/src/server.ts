@@ -9278,18 +9278,18 @@ const imageProcessorInterval = startImageProcessorCron(
 );
 
 // Cron job para revisar questões com IA (a cada 10 minutos)
+// Agora usa Vertex AI diretamente via AI SDK
 const questionReviewerInterval = startQuestionReviewerCron(
     questionsDbUrl,
     questionsDbKey,
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY || '',
     10 * 60 * 1000 // 10 minutos
 );
 
 // Cron job para extrair gabaritos de questões sem resposta (a cada 5 minutos)
+// Agora usa Vertex AI diretamente via AI SDK
 const gabaritoExtractorInterval = startGabaritoExtractorCron(
     questionsDbUrl,
     questionsDbKey,
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY || '',
     5 * 60 * 1000 // 5 minutos
 );
 

@@ -1,5 +1,13 @@
+/**
+ * Cron Job para Revisão de Questões
+ *
+ * Analisa questões de concurso e gera gabarito + comentário pedagógico.
+ * Refatorado para usar AI SDK diretamente com Vertex AI (bypass Mastra streaming).
+ */
+
 import { QuestionScraperService } from '../services/questionScraperService.js';
-import { GoogleGenAI } from '@google/genai';
+import { generateText } from 'ai';
+import { vertex } from '../lib/modelProvider.js';
 
 let isProcessing = false;
 let lastRun: Date | null = null;
@@ -43,10 +51,10 @@ Não inclua nenhum texto fora do JSON.`;
 
 /**
  * Analisa uma questão usando IA e retorna gabarito + comentário
+ * Refatorado para usar AI SDK diretamente com Vertex AI
  */
 async function analyzeQuestionWithAI(
-  question: any,
-  genAI: GoogleGenAI
+  question: any
 ): Promise<{ gabarito: string; comentario: string } | null> {
   try {
     // Formatar alternativas
@@ -74,16 +82,12 @@ ${question.comentario ? `Comentário existente: ${question.comentario.substring(
 
 Por favor, forneça o gabarito correto e um comentário pedagógico completo.`;
 
-    // Chamar modelo Gemini com JSON mode
-    const response = await genAI.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: userPrompt,
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        temperature: 0.3,
-        maxOutputTokens: 2000,
-        responseMimeType: 'application/json',
-      },
+    // Usar AI SDK diretamente com Vertex AI
+    const model = vertex("gemini-2.0-flash-001");
+    const response = await generateText({
+      model,
+      system: SYSTEM_PROMPT,
+      prompt: userPrompt,
     });
 
     const text = response.text || '';
@@ -132,12 +136,11 @@ Por favor, forneça o gabarito correto e um comentário pedagógico completo.`;
 
 /**
  * Processa questões não revisadas
- * Deve ser chamado a cada 10 minutos (como no n8n original)
+ * Refatorado para usar Vertex AI (não requer googleApiKey)
  */
 export async function reviewQuestions(
   questionsDbUrl: string,
   questionsDbKey: string,
-  googleApiKey: string,
   limit: number = 10
 ): Promise<{
   success: boolean;
@@ -170,7 +173,6 @@ export async function reviewQuestions(
     console.log(`[QuestionReviewer] Iniciando revisão de questões (limite: ${limit})...`);
 
     const questionService = new QuestionScraperService(questionsDbUrl, questionsDbKey);
-    const genAI = new GoogleGenAI({ apiKey: googleApiKey });
 
     // Buscar questões não revisadas
     const questions = await questionService.getUnreviewedQuestions(limit);
@@ -188,8 +190,8 @@ export async function reviewQuestions(
       try {
         console.log(`[QuestionReviewer] Analisando questão ${question.id}...`);
 
-        // Analisar com IA
-        const analysis = await analyzeQuestionWithAI(question, genAI);
+        // Analisar com IA (usa Vertex AI internamente)
+        const analysis = await analyzeQuestionWithAI(question);
 
         if (!analysis) {
           result.failed++;
@@ -248,15 +250,14 @@ export function getQuestionReviewerStatus(): {
 
 /**
  * Cria um intervalo para revisar questões periodicamente
+ * Refatorado para usar Vertex AI (não requer googleApiKey)
  * @param questionsDbUrl URL do Supabase
  * @param questionsDbKey Chave do Supabase
- * @param googleApiKey Chave da API do Google
  * @param intervalMs Intervalo em milissegundos (padrão: 10 minutos)
  */
 export function startQuestionReviewerCron(
   questionsDbUrl: string,
   questionsDbKey: string,
-  googleApiKey: string,
   intervalMs: number = 10 * 60 * 1000
 ): NodeJS.Timeout {
   console.log(`[QuestionReviewer] Iniciando cron job (intervalo: ${intervalMs / 1000}s)`);
@@ -264,11 +265,11 @@ export function startQuestionReviewerCron(
   // Não executar imediatamente para evitar sobrecarga na inicialização
   // Primeira execução após 1 minuto
   setTimeout(() => {
-    reviewQuestions(questionsDbUrl, questionsDbKey, googleApiKey, 10);
+    reviewQuestions(questionsDbUrl, questionsDbKey, 10);
   }, 60 * 1000);
 
   // Agendar execuções periódicas
   return setInterval(() => {
-    reviewQuestions(questionsDbUrl, questionsDbKey, googleApiKey, 10);
+    reviewQuestions(questionsDbUrl, questionsDbKey, 10);
   }, intervalMs);
 }
