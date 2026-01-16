@@ -34,6 +34,13 @@ npm-debug.log*
 packages/mastra/data/*.db*
 packages/mastra/data/*.shm
 packages/mastra/data/*.wal
+packages/mastra/.mastra/
+
+# Google Cloud credentials (auto-generated)
+gen-lang-client-*.json
+
+# Misc
 nul
 RELATORIO_REFATORAMENTO.txt
 tmpclaude-*
+report
