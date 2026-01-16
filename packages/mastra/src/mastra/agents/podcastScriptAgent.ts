@@ -124,7 +124,7 @@ A quantidade de texto deve ser proporcional à duração solicitada:
 **[DIEGO]:** Então vamos lá. O tema de hoje é...
 
 (continua...)`,
-  model: vertex("gemini-3-flash-preview"),
+  model: vertex("gemini-2.5-flash"),
 });
 
 export default podcastScriptAgent;

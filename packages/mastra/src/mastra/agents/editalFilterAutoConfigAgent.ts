@@ -115,7 +115,7 @@ Responda APENAS em JSON no formato:
   "confianca": "alta" | "media" | "baixa",
   "explicacao": "breve explicacao"
 }`,
-    model: vertex("gemini-3-flash-preview"),
+    model: vertex("gemini-2.5-flash"),
 });
 
 // ==================== HELPER FUNCTIONS ====================

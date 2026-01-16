@@ -55,7 +55,7 @@ A alternativa correta é a **[COPIAR LETRA EXATA DO GABARITO]**.
 - Use emojis com moderação (📌, ✅, ⚠️, 💡)
 
 LEMBRE-SE: Você é um TRANSMISSOR do gabarito, não um AVALIADOR da questão.`,
-  model: vertex("gemini-3-flash-preview"),
+  model: vertex("gemini-2.5-flash"),
   memory: new Memory({
     options: {
       lastMessages: 10,
