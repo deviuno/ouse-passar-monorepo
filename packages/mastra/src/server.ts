@@ -44,7 +44,17 @@ import { createTecConcursosScraperRoutes } from './routes/tecConcursosScraper.js
 import { startImageProcessorCron, getImageProcessorStatus } from './cron/imageProcessor.js';
 import { startQuestionReviewerCron, getQuestionReviewerStatus } from './cron/questionReviewer.js';
 import { startGabaritoExtractorCron, getGabaritoExtractorStatus } from './cron/gabaritoExtractor.js';
-import { startComentarioFormatterCron, startEnunciadoFormatterCron, getFormatterProcessorStatus } from './cron/formatterProcessor.js';
+import {
+    startComentarioFormatterCron,
+    startEnunciadoFormatterCron,
+    getFormatterProcessorStatus,
+    pauseComentariosFormatter,
+    resumeComentariosFormatter,
+    pauseEnunciadosFormatter,
+    resumeEnunciadosFormatter,
+    pauseAllFormatters,
+    resumeAllFormatters
+} from './cron/formatterProcessor.js';
 import { startMateriaClassifierCron, getMateriaClassifierStatus, runMateriaClassification } from './cron/materiaClassifier.js';
 import {
     questionGeneratorAgent,
@@ -8676,12 +8686,14 @@ app.get('/api/scraper/cron-status', (req, res) => {
         },
         comentarioFormatter: {
             isProcessing: formatterStatus.comentarios.isProcessing,
+            isPaused: formatterStatus.comentarios.isPaused,
             lastRun: formatterStatus.comentarios.lastRun,
             totalProcessed: formatterStatus.comentarios.totalProcessed,
             totalFailed: formatterStatus.comentarios.totalFailed,
         },
         enunciadoFormatter: {
             isProcessing: formatterStatus.enunciados.isProcessing,
+            isPaused: formatterStatus.enunciados.isPaused,
             lastRun: formatterStatus.enunciados.lastRun,
             totalProcessed: formatterStatus.enunciados.totalProcessed,
             totalFailed: formatterStatus.enunciados.totalFailed,
@@ -8692,6 +8704,44 @@ app.get('/api/scraper/cron-status', (req, res) => {
             stats: materiaStatus.stats,
         },
     });
+});
+
+// ========== CONTROLE DE PAUSA DOS FORMATADORES ==========
+
+// Pausar formatador de comentários
+app.post('/api/scraper/formatter/comentarios/pause', (req, res) => {
+    const result = pauseComentariosFormatter();
+    res.json({ success: true, ...result });
+});
+
+// Resumir formatador de comentários
+app.post('/api/scraper/formatter/comentarios/resume', (req, res) => {
+    const result = resumeComentariosFormatter();
+    res.json({ success: true, ...result });
+});
+
+// Pausar formatador de enunciados
+app.post('/api/scraper/formatter/enunciados/pause', (req, res) => {
+    const result = pauseEnunciadosFormatter();
+    res.json({ success: true, ...result });
+});
+
+// Resumir formatador de enunciados
+app.post('/api/scraper/formatter/enunciados/resume', (req, res) => {
+    const result = resumeEnunciadosFormatter();
+    res.json({ success: true, ...result });
+});
+
+// Pausar TODOS os formatadores
+app.post('/api/scraper/formatter/pause-all', (req, res) => {
+    const result = pauseAllFormatters();
+    res.json({ success: true, ...result });
+});
+
+// Resumir TODOS os formatadores
+app.post('/api/scraper/formatter/resume-all', (req, res) => {
+    const result = resumeAllFormatters();
+    res.json({ success: true, ...result });
 });
 
 // Endpoint para executar classificação de matérias manualmente

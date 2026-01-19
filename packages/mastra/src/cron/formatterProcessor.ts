@@ -19,6 +19,10 @@ let enunciadosProcessados = 0;
 let comentariosFalhas = 0;
 let enunciadosFalhas = 0;
 
+// Controle de pausa
+let isPausedComentarios = false;
+let isPausedEnunciados = false;
+
 // Intervalo entre questões (500ms para alta velocidade com Vertex AI)
 const DELAY_BETWEEN_QUESTIONS = 500;
 
@@ -148,6 +152,11 @@ export async function processComentariosQueue(
   questionsDbKey: string,
   limit: number = 10
 ): Promise<{ success: number; failed: number }> {
+  if (isPausedComentarios) {
+    console.log('[FormatterProcessor] Comentários PAUSADO, pulando...');
+    return { success: 0, failed: 0 };
+  }
+
   if (isProcessingComentarios) {
     console.log('[FormatterProcessor] Comentários já estão sendo processados, pulando...');
     return { success: 0, failed: 0 };
@@ -339,6 +348,11 @@ export async function processEnunciadosQueue(
   questionsDbKey: string,
   limit: number = 10
 ): Promise<{ success: number; failed: number }> {
+  if (isPausedEnunciados) {
+    console.log('[FormatterProcessor] Enunciados PAUSADO, pulando...');
+    return { success: 0, failed: 0 };
+  }
+
   if (isProcessingEnunciados) {
     console.log('[FormatterProcessor] Enunciados já estão sendo processados, pulando...');
     return { success: 0, failed: 0 };
@@ -575,15 +589,73 @@ export function getFormatterProcessorStatus() {
   return {
     comentarios: {
       isProcessing: isProcessingComentarios,
+      isPaused: isPausedComentarios,
       lastRun: lastRunComentarios?.toISOString() || null,
       totalProcessed: comentariosProcessados,
       totalFailed: comentariosFalhas
     },
     enunciados: {
       isProcessing: isProcessingEnunciados,
+      isPaused: isPausedEnunciados,
       lastRun: lastRunEnunciados?.toISOString() || null,
       totalProcessed: enunciadosProcessados,
       totalFailed: enunciadosFalhas
     }
   };
+}
+
+/**
+ * Pausa o processador de comentários
+ */
+export function pauseComentariosFormatter() {
+  isPausedComentarios = true;
+  console.log('[FormatterProcessor] Comentários PAUSADO');
+  return { paused: true, type: 'comentarios' };
+}
+
+/**
+ * Resume o processador de comentários
+ */
+export function resumeComentariosFormatter() {
+  isPausedComentarios = false;
+  console.log('[FormatterProcessor] Comentários RESUMIDO');
+  return { paused: false, type: 'comentarios' };
+}
+
+/**
+ * Pausa o processador de enunciados
+ */
+export function pauseEnunciadosFormatter() {
+  isPausedEnunciados = true;
+  console.log('[FormatterProcessor] Enunciados PAUSADO');
+  return { paused: true, type: 'enunciados' };
+}
+
+/**
+ * Resume o processador de enunciados
+ */
+export function resumeEnunciadosFormatter() {
+  isPausedEnunciados = false;
+  console.log('[FormatterProcessor] Enunciados RESUMIDO');
+  return { paused: false, type: 'enunciados' };
+}
+
+/**
+ * Pausa ambos os processadores
+ */
+export function pauseAllFormatters() {
+  isPausedComentarios = true;
+  isPausedEnunciados = true;
+  console.log('[FormatterProcessor] TODOS os formatadores PAUSADOS');
+  return { paused: true, type: 'all' };
+}
+
+/**
+ * Resume ambos os processadores
+ */
+export function resumeAllFormatters() {
+  isPausedComentarios = false;
+  isPausedEnunciados = false;
+  console.log('[FormatterProcessor] TODOS os formatadores RESUMIDOS');
+  return { paused: false, type: 'all' };
 }
