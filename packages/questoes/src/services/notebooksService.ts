@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { FilterOptions } from "../pages/PracticePage"; // Will be defined in page
+import { FilterOptions } from "../utils/filterUtils";
 
 export interface Notebook {
   id: string;

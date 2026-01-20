@@ -30,7 +30,7 @@ import {
   getNotebooksContainingQuestion,
   toggleQuestionInNotebook,
 } from '../../services/notebooksService';
-import { FilterOptions } from '../../pages/PracticePage';
+import { FilterOptions } from '../../utils/filterUtils';
 import { getOptimizedImageUrl } from '../../utils/image';
 import CommentsSection from './CommentsSection';
 import { ReportQuestionModal } from './ReportQuestionModal';
