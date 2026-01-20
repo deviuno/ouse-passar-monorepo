@@ -14,7 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Flag,
-  Sparkles,
 } from "lucide-react";
 import {
   getQuestionStatistics,
@@ -708,20 +707,6 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               selectedAlt={selectedAlt}
               isCorrect={selectedAlt === question.gabarito}
             />
-
-            {/* Botão Tirar Dúvidas com IA */}
-            <div className="mt-4 flex gap-3">
-              <button
-                onClick={onOpenTutor}
-                className="flex-1 flex items-center justify-center py-3 bg-[var(--color-bg-card)] text-[var(--color-text-main)] border border-[var(--color-border-strong)] rounded-full font-medium hover:bg-[var(--color-bg-elevated)] transition-colors"
-              >
-                <Sparkles
-                  size={18}
-                  className="mr-2 text-[var(--color-brand)]"
-                />
-                Tirar Dúvidas
-              </button>
-            </div>
 
             {/* 4. Bottom Navigation Row: Previous / Next (duplicate for convenience) */}
             <div className="flex gap-3 mt-4">
