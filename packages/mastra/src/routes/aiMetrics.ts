@@ -84,11 +84,16 @@ async function langfuseRequest(endpoint: string, options: RequestInit = {}) {
     return response.json();
 }
 
-// Fetch ALL observations with pagination
-async function fetchAllObservations(from: Date, to: Date, maxPages: number = 100): Promise<any[]> {
+// Sleep helper
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Fetch ALL observations with pagination and rate limiting
+async function fetchAllObservations(from: Date, to: Date, maxPages: number = 50): Promise<any[]> {
     const allData: any[] = [];
     let page = 1;
     const limit = 100; // Langfuse max per page
+    let retries = 0;
+    const maxRetries = 3;
 
     while (page <= maxPages) {
         try {
@@ -98,6 +103,7 @@ async function fetchAllObservations(from: Date, to: Date, maxPages: number = 100
 
             const data = result.data || [];
             allData.push(...data);
+            retries = 0; // Reset retries on success
 
             // Check if there are more pages
             const totalItems = result.meta?.totalItems || 0;
@@ -108,7 +114,19 @@ async function fetchAllObservations(from: Date, to: Date, maxPages: number = 100
             }
 
             page++;
-        } catch (error) {
+
+            // Add delay between requests to avoid rate limiting
+            await sleep(200);
+        } catch (error: any) {
+            // Handle rate limiting with exponential backoff
+            if (error.message?.includes('429') && retries < maxRetries) {
+                retries++;
+                const backoffMs = Math.pow(2, retries) * 1000; // 2s, 4s, 8s
+                console.log(`[AI Metrics] Rate limited, waiting ${backoffMs}ms before retry ${retries}/${maxRetries}`);
+                await sleep(backoffMs);
+                continue; // Retry same page
+            }
+
             console.error(`[AI Metrics] Error fetching page ${page}:`, error);
             break;
         }
@@ -257,8 +275,28 @@ router.get('/traces', async (req: Request, res: Response) => {
         const limit = parseInt(req.query.limit as string) || 50;
         const page = parseInt(req.query.page as string) || 1;
 
-        // Fetch observations from Langfuse
-        const observations = await langfuseRequest(`/observations?type=GENERATION&limit=${limit}&page=${page}`);
+        // Fetch observations from Langfuse with retry
+        let observations;
+        let retries = 0;
+        const maxRetries = 3;
+
+        while (retries <= maxRetries) {
+            try {
+                observations = await langfuseRequest(`/observations?type=GENERATION&limit=${limit}&page=${page}`);
+                break;
+            } catch (error: any) {
+                if (error.message?.includes('429') && retries < maxRetries) {
+                    retries++;
+                    await sleep(Math.pow(2, retries) * 1000);
+                    continue;
+                }
+                throw error;
+            }
+        }
+
+        if (!observations) {
+            throw new Error('Failed to fetch observations after retries');
+        }
 
         const formattedTraces = (observations.data || []).map((obs: any) => {
             // Calculate latency from start/end time
