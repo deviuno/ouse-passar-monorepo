@@ -297,7 +297,7 @@ export default function PracticePage() {
   const editalItemTitle = searchParams.get("editalItemTitle");
   const preparatorioSlug = searchParams.get("preparatorioSlug");
 
-  // Auto-iniciar prática com questões aleatórias (true se não houver query params)
+  // Auto-iniciar prática com questões aleatórias (true se não houver query params específicos)
   const [shouldAutoStart, setShouldAutoStart] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const hasFilterParams =
@@ -307,9 +307,10 @@ export default function PracticePage() {
       params.has("assuntos") ||
       params.has("banca") ||
       params.has("autostart") ||
-      params.has("showFilters") ||
-      params.has("editNotebook"); // Não auto-iniciar se os filtros devem estar abertos
-    return !hasFilterParams; // Auto-start apenas se não houver filtros na URL
+      params.has("editNotebook"); // Não auto-iniciar se estiver editando caderno
+    // showFilters=true também deve auto-iniciar (mostrar filtros + primeira questão)
+    const showFiltersOnly = params.get("showFilters") === "true" && !hasFilterParams;
+    return !hasFilterParams || showFiltersOnly;
   });
 
   useEffect(() => {
@@ -564,11 +565,8 @@ export default function PracticePage() {
   ]);
 
   // Auto-iniciar prática com questões aleatórias quando não houver filtros na URL
+  // Também inicia quando showFilters=true (mostrar filtros + primeira questão)
   useEffect(() => {
-    // Não auto-iniciar se showFilters=true (usuário quer ver os filtros)
-    const showFiltersParam = searchParams.get("showFilters");
-    if (showFiltersParam === "true") return;
-
     if (
       shouldAutoStart &&
       !isLoadingFilters &&
@@ -588,7 +586,6 @@ export default function PracticePage() {
     isLoadingCount,
     mode,
     isLoading,
-    searchParams,
   ]);
 
   // Resetar autoStartPending quando entrar no modo 'practicing'
