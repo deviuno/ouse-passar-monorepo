@@ -1510,6 +1510,9 @@ export default function PracticePage() {
       isLast: currentIndex >= questions.length - 1,
     });
 
+    // Recolher filtros ao avançar para próxima questão
+    setShowPracticingFilters(false);
+
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
