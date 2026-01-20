@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Flag, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import {
@@ -19,6 +19,7 @@ interface ReportQuestionModalProps {
     ano?: number;
   };
   onSuccess?: () => void;
+  initialMotivo?: ReportMotivo;
 }
 
 export function ReportQuestionModal({
@@ -27,13 +28,21 @@ export function ReportQuestionModal({
   questionId,
   questionInfo,
   onSuccess,
+  initialMotivo,
 }: ReportQuestionModalProps) {
   const { user } = useAuthStore();
-  const [motivo, setMotivo] = useState<ReportMotivo | ''>('');
+  const [motivo, setMotivo] = useState<ReportMotivo | ''>(initialMotivo || '');
   const [descricao, setDescricao] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Atualiza motivo quando initialMotivo muda (ao abrir com motivo pré-selecionado)
+  useEffect(() => {
+    if (initialMotivo) {
+      setMotivo(initialMotivo);
+    }
+  }, [initialMotivo]);
 
   const handleSubmit = async () => {
     if (!motivo) {

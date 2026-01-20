@@ -38,6 +38,8 @@ packages/mastra/.mastra/
 
 # Google Cloud credentials (auto-generated)
 gen-lang-client-*.json
+ouse-*.json
+*-service-account*.json
 
 # Misc
 nul
