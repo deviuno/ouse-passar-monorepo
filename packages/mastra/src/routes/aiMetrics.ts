@@ -73,7 +73,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 
         // Fetch observations (generations) from Langfuse
         const observations = await langfuseRequest(
-            `/observations?type=GENERATION&fromTimestamp=${from.toISOString()}&toTimestamp=${to.toISOString()}&limit=1000`
+            `/observations?type=GENERATION&fromTimestamp=${from.toISOString()}&toTimestamp=${to.toISOString()}&limit=100`
         );
 
         const data = observations.data || [];
@@ -208,7 +208,7 @@ router.get('/usage-over-time', async (req: Request, res: Response) => {
 
         // Fetch observations from Langfuse
         const observations = await langfuseRequest(
-            `/observations?type=GENERATION&fromTimestamp=${from.toISOString()}&toTimestamp=${to.toISOString()}&limit=1000`
+            `/observations?type=GENERATION&fromTimestamp=${from.toISOString()}&toTimestamp=${to.toISOString()}&limit=100`
         );
 
         const data = observations.data || [];
