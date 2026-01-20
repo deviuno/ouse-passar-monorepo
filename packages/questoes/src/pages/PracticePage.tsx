@@ -289,7 +289,11 @@ export default function PracticePage() {
   }, [searchParams]);
 
   // Controle de visibilidade dos filtros no modo practicing
-  const [showPracticingFilters, setShowPracticingFilters] = useState(false);
+  // Inicia aberto se showFilters=true na URL
+  const [showPracticingFilters, setShowPracticingFilters] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("showFilters") === "true";
+  });
 
   // Sidebar do edital (para modo trilha)
   const [showEditalSidebar, setShowEditalSidebar] = useState(false);
