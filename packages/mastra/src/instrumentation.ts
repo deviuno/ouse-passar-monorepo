@@ -7,6 +7,10 @@
  * IMPORTANT: This must be imported BEFORE any AI SDK usage.
  */
 
+// Load environment variables first (in case dotenv hasn't been called yet)
+import dotenv from "dotenv";
+dotenv.config();
+
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { LangfuseSpanProcessor } from "@langfuse/otel";
 
