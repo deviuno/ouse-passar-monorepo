@@ -60,7 +60,7 @@ export const NotebooksPage: React.FC = () => {
         const defaultSettings: Record<string, NotebookSettings> = {};
         userNotebooks.forEach((nb) => {
           defaultSettings[nb.id] = {
-            questionCount: nb.settings?.questionCount || 10,
+            questionCount: nb.settings?.questionCount || 120,
             studyMode: (nb.settings?.studyMode as PracticeMode) || 'zen',
           };
         });
@@ -262,7 +262,7 @@ export const NotebooksPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {notebooks.map((notebook, index) => {
               const settings = notebookSettings[notebook.id] || {
-                questionCount: 10,
+                questionCount: 120,
                 studyMode: 'zen' as PracticeMode,
               };
 
@@ -358,7 +358,7 @@ export const NotebooksPage: React.FC = () => {
                         <input
                           type="range"
                           min="5"
-                          max="120"
+                          max="240"
                           step="5"
                           value={settings.questionCount}
                           onChange={(e) => {

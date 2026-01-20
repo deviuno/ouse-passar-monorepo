@@ -223,7 +223,7 @@ export default function PracticePage() {
     apenasRevisadas: false,
     apenasComComentario: false,
   });
-  const [questionCount, setQuestionCount] = useState(10);
+  const [questionCount, setQuestionCount] = useState(120);
 
   // Modo de estudo (padrão: zen)
   const [studyMode, setStudyMode] = useState<PracticeMode>("zen");
@@ -612,7 +612,7 @@ export default function PracticePage() {
       > = {};
       data.forEach((notebook) => {
         initialSettings[notebook.id] = {
-          questionCount: notebook.settings?.questionCount || 10,
+          questionCount: notebook.settings?.questionCount || 120,
           studyMode: notebook.settings?.studyMode || "zen",
         };
       });
@@ -1870,7 +1870,7 @@ export default function PracticePage() {
                           <input
                             type="range"
                             min="5"
-                            max="120"
+                            max="240"
                             step="5"
                             value={questionCount}
                             onChange={(e) =>
@@ -2604,7 +2604,7 @@ export default function PracticePage() {
                         <input
                           type="range"
                           min="5"
-                          max="120"
+                          max="240"
                           step="5"
                           value={questionCount}
                           onChange={(e) =>
