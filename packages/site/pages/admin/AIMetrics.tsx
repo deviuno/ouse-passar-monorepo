@@ -153,10 +153,12 @@ export const AIMetricsDashboard: React.FC = () => {
         return `$${value.toFixed(4)}`;
     };
 
-    const formatBrl = (usdValue: number): string => {
-        if (!usdToBrl) return '';
+    const formatBrl = (usdValue: number, decimals: number = 2): string => {
+        if (!usdToBrl) return '-';
         const brlValue = usdValue * usdToBrl;
-        return `R$ ${brlValue.toFixed(2).replace('.', ',')}`;
+        // Use more decimals for very small values
+        const actualDecimals = brlValue < 0.01 ? Math.max(decimals, 4) : decimals;
+        return `R$ ${brlValue.toFixed(actualDecimals).replace('.', ',')}`;
     };
 
     const formatDate = (dateStr: string): string => {
@@ -485,7 +487,7 @@ export const AIMetricsDashboard: React.FC = () => {
                                         Tokens
                                     </th>
                                     <th className="text-right text-gray-400 text-xs font-medium uppercase px-4 py-3">
-                                        Custo
+                                        Custo (R$)
                                     </th>
                                 </tr>
                             </thead>
@@ -512,10 +514,7 @@ export const AIMetricsDashboard: React.FC = () => {
                                             {formatNumber(trace.inputTokens + trace.outputTokens)}
                                         </td>
                                         <td className="text-right text-sm px-4 py-3">
-                                            <span className="text-gray-300">{formatCurrency(trace.totalCost)}</span>
-                                            {usdToBrl && (
-                                                <span className="text-green-400 ml-1 text-xs">({formatBrl(trace.totalCost)})</span>
-                                            )}
+                                            <span className="text-green-400">{formatBrl(trace.totalCost, 4)}</span>
                                         </td>
                                     </tr>
                                 ))}
