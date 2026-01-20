@@ -25,6 +25,7 @@ import CommentsSection from "./CommentsSection";
 import { ReportQuestionModal } from "./ReportQuestionModal";
 import { QuestionStatsModal } from "./QuestionStatsModal";
 import { PegadinhaModal } from "./PegadinhaModal";
+import { QuestionFeedbackTabs } from "./QuestionFeedbackTabs";
 import { useHorizontalSwipe } from "../../hooks/useSwipe";
 import RippleEffect from "../ui/RippleEffect";
 import { validateQuestion } from "../../utils/questionValidator";
@@ -668,7 +669,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
             </div>
 
             {/* 2. Navigation Row: Previous / Next Highlighted */}
-            <div ref={navigationButtonsRef} className="flex gap-3 mb-6">
+            <div ref={navigationButtonsRef} className="flex gap-3 mb-4">
               <RippleEffect className="flex-1 rounded-xl">
                 <button
                   onClick={onPrevious}
@@ -701,160 +702,20 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               </RippleEffect>
             </div>
 
-            {/* 3. Feedback Box (Lower down) */}
-            <div
-              className={`p-4 rounded-lg mb-4 border ${
-                selectedAlt === question.gabarito
-                  ? "border-[var(--color-success)] bg-[var(--color-feedback-success-bg)]"
-                  : "border-[var(--color-error)] bg-[var(--color-feedback-error-bg)]"
-              }`}
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h3
-                  className={`font-bold ${
-                    selectedAlt === question.gabarito
-                      ? "text-[var(--color-success)]"
-                      : "text-[var(--color-error)]"
-                  }`}
-                >
-                  {selectedAlt === question.gabarito
-                    ? "Excelente! 🎯"
-                    : "Não foi dessa vez... ❌"}
-                </h3>
-                {questionStats && questionStats.totalAnswers > 0 && (
-                  <span className="text-xs text-[var(--color-text-sec)]">
-                    {questionStats.accuracyRate}% da comunidade acertou (
-                    {questionStats.totalAnswers} respostas)
-                  </span>
-                )}
-              </div>
+            {/* 3. Feedback Tabs Section */}
+            <QuestionFeedbackTabs
+              question={question}
+              explanation={explanation}
+              loadingExplanation={loadingExplanation}
+              questionStats={questionStats}
+              userId={userId || null}
+              onShowToast={onShowToast}
+              selectedAlt={selectedAlt}
+              isCorrect={selectedAlt === question.gabarito}
+            />
 
-              {/* Pegadinha Badge Here - Inside Feedback Box */}
-              {question.isPegadinha && (
-                <button
-                  onClick={() => setShowPegadinhaModal(true)}
-                  className="w-full mb-4 flex items-center justify-start bg-orange-500/10 border border-orange-500/30 p-3 rounded-lg text-orange-400 hover:bg-orange-500/20 transition-all group text-left"
-                >
-                  <div className="bg-orange-500/20 p-2 rounded-md mr-3 group-hover:scale-110 transition-transform">
-                    <AlertTriangle size={18} />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-bold uppercase tracking-wide mb-0.5">
-                      Alerta de Pegadinha
-                    </span>
-                    <span className="text-xs text-gray-400 group-hover:text-gray-300">
-                      Toque para ver a armadilha desta questão.
-                    </span>
-                  </div>
-                </button>
-              )}
-
-              <div className="text-sm text-[var(--color-text-main)] leading-relaxed">
-                {loadingExplanation ? (
-                  <div className="space-y-2">
-                    <div className="h-4 bg-[var(--color-bg-elevated)] rounded animate-pulse w-3/4"></div>
-                    <div className="h-4 bg-[var(--color-bg-elevated)] rounded animate-pulse w-full"></div>
-                    <div className="h-4 bg-[var(--color-bg-elevated)] rounded animate-pulse w-5/6"></div>
-                  </div>
-                ) : (
-                  <>
-                    {studyMode === "reta_final" && (
-                      <span className="text-purple-400 font-bold text-xs mb-1 block">
-                        RESUMO RETA FINAL:
-                      </span>
-                    )}
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        h2: ({ children }) => (
-                          <h2 className="text-lg font-bold text-[var(--color-brand)] mt-4 mb-2">
-                            {children}
-                          </h2>
-                        ),
-                        h3: ({ children }) => (
-                          <h3 className="text-base font-bold text-[var(--color-text-main)] mt-3 mb-1">
-                            {children}
-                          </h3>
-                        ),
-                        h4: ({ children }) => (
-                          <h4 className="text-sm font-semibold text-[var(--color-text-sec)] mt-2 mb-1">
-                            {children}
-                          </h4>
-                        ),
-                        p: ({ children }) => (
-                          <p className="mb-3 leading-relaxed text-[var(--color-text-main)]">
-                            {children}
-                          </p>
-                        ),
-                        strong: ({ children }) => (
-                          <strong className="font-bold text-[var(--color-text-main)]">
-                            {children}
-                          </strong>
-                        ),
-                        ul: ({ children }) => (
-                          <ul className="list-disc list-inside mb-3 space-y-1 text-[var(--color-text-main)]">
-                            {children}
-                          </ul>
-                        ),
-                        ol: ({ children }) => (
-                          <ol className="list-decimal list-inside mb-3 space-y-1 text-[var(--color-text-main)]">
-                            {children}
-                          </ol>
-                        ),
-                        li: ({ children }) => (
-                          <li className="text-[var(--color-text-main)]">
-                            {children}
-                          </li>
-                        ),
-                        blockquote: ({ children }) => (
-                          <blockquote className="border-l-4 border-[var(--color-brand)] pl-4 my-3 italic text-[var(--color-text-muted)]">
-                            {children}
-                          </blockquote>
-                        ),
-                        code: ({ children }) => (
-                          <code className="bg-[var(--color-bg-elevated)] px-1.5 py-0.5 rounded text-[var(--color-brand)] text-sm">
-                            {children}
-                          </code>
-                        ),
-                        img: ({ src, alt }) => (
-                          <img
-                            src={getOptimizedImageUrl(src, 800, 85)}
-                            alt={alt || "Imagem da questão"}
-                            className="max-w-full h-auto rounded-lg my-3 border border-[var(--color-border)]"
-                            loading="lazy"
-                          />
-                        ),
-                        a: ({ href, children }) => (
-                          <a
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[var(--color-brand)] underline hover:text-[var(--color-brand-light)]"
-                          >
-                            {children}
-                          </a>
-                        ),
-                      }}
-                    >
-                      {preprocessImageUrls(explanation || "")}
-                    </ReactMarkdown>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* 4. Bottom Nav Buttons */}
-            <div className="flex space-x-3 pb-4 border-b border-[var(--color-border)] mb-6">
-              {/* Botão de Report - estilo secundário */}
-              <button
-                onClick={() => setShowReportModal(true)}
-                className="w-12 h-12 flex items-center justify-center bg-[var(--color-bg-card)] text-[var(--color-text-sec)] border border-[var(--color-border-strong)] rounded-full hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-main)] transition-colors flex-shrink-0"
-                title="Reportar problema"
-              >
-                <Flag size={18} />
-              </button>
-
-              {/* Botão Tirar Dúvida - estilo secundário */}
+            {/* Botão Tirar Dúvida */}
+            <div className="mt-4 flex gap-3">
               <button
                 onClick={onOpenTutor}
                 className="flex-1 flex items-center justify-center py-3 bg-[var(--color-bg-card)] text-[var(--color-text-main)] border border-[var(--color-border-strong)] rounded-full font-medium hover:bg-[var(--color-bg-elevated)] transition-colors"
@@ -865,29 +726,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                 />
                 Tirar Dúvida
               </button>
-
-              {/* Botão Próxima Questão - estilo primário */}
-              <button
-                onClick={() => {
-                  console.log(
-                    "[QuestionCard] Botão Próxima/Finalizar clicado (bottom)",
-                    { isLastQuestion }
-                  );
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                  onNext();
-                }}
-                className="flex-1 py-3 bg-[var(--color-brand)] text-black rounded-full font-bold hover:bg-[var(--color-brand-light)] transition-colors"
-              >
-                {isLastQuestion ? "Finalizar" : "Próxima Questão"}
-              </button>
             </div>
-
-            {/* Community Comments Section */}
-            <CommentsSection
-              questionId={question.id}
-              userId={userId || null}
-              onShowToast={onShowToast}
-            />
           </div>
         )}
       </div>
