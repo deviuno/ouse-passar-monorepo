@@ -74,6 +74,24 @@ export const AIMetricsDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [healthStatus, setHealthStatus] = useState<{ configured: boolean; message: string } | null>(null);
+    const [usdToBrl, setUsdToBrl] = useState<number | null>(null);
+
+    // Fetch USD to BRL exchange rate
+    const fetchExchangeRate = async () => {
+        try {
+            const response = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL');
+            const data = await response.json();
+            if (data.USDBRL?.bid) {
+                setUsdToBrl(parseFloat(data.USDBRL.bid));
+            }
+        } catch (err) {
+            console.error('Error fetching exchange rate:', err);
+        }
+    };
+
+    useEffect(() => {
+        fetchExchangeRate();
+    }, []);
 
     const fetchData = async () => {
         setLoading(true);
@@ -133,6 +151,12 @@ export const AIMetricsDashboard: React.FC = () => {
 
     const formatCurrency = (value: number): string => {
         return `$${value.toFixed(4)}`;
+    };
+
+    const formatBrl = (usdValue: number): string => {
+        if (!usdToBrl) return '';
+        const brlValue = usdValue * usdToBrl;
+        return `R$ ${brlValue.toFixed(2).replace('.', ',')}`;
     };
 
     const formatDate = (dateStr: string): string => {
@@ -231,7 +255,13 @@ export const AIMetricsDashboard: React.FC = () => {
                             <span className="text-gray-400 text-sm font-medium">Custo Total</span>
                         </div>
                         <p className="text-2xl font-bold text-white">{formatCurrency(stats.totalCost)}</p>
-                        <p className="text-xs text-gray-500 mt-1">USD estimado</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                            {usdToBrl ? (
+                                <span className="text-green-400">{formatBrl(stats.totalCost)}</span>
+                            ) : (
+                                'USD estimado'
+                            )}
+                        </p>
                     </div>
 
                     {/* Total Requests */}
@@ -418,8 +448,11 @@ export const AIMetricsDashboard: React.FC = () => {
                                         <td className="text-right text-gray-300 text-sm px-4 py-3">
                                             {formatNumber(item.tokens)}
                                         </td>
-                                        <td className="text-right text-gray-300 text-sm px-4 py-3">
-                                            {formatCurrency(item.cost)}
+                                        <td className="text-right text-sm px-4 py-3">
+                                            <span className="text-gray-300">{formatCurrency(item.cost)}</span>
+                                            {usdToBrl && (
+                                                <span className="text-green-400 ml-2">({formatBrl(item.cost)})</span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -478,8 +511,11 @@ export const AIMetricsDashboard: React.FC = () => {
                                         <td className="text-right text-gray-300 text-sm px-4 py-3">
                                             {formatNumber(trace.inputTokens + trace.outputTokens)}
                                         </td>
-                                        <td className="text-right text-gray-300 text-sm px-4 py-3">
-                                            {formatCurrency(trace.totalCost)}
+                                        <td className="text-right text-sm px-4 py-3">
+                                            <span className="text-gray-300">{formatCurrency(trace.totalCost)}</span>
+                                            {usdToBrl && (
+                                                <span className="text-green-400 ml-1 text-xs">({formatBrl(trace.totalCost)})</span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
