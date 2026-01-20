@@ -1,6 +1,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+// IMPORTANT: Import instrumentation first to initialize OpenTelemetry for Langfuse
+import '../instrumentation.js';
+
 import { Mastra } from "@mastra/core";
 import { LibSQLStore } from "@mastra/libsql";
 import { tutorAgent } from "./agents/tutorAgent.js";

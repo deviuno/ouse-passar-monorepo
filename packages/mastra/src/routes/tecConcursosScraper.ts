@@ -5,6 +5,9 @@
  * Refatorado para usar AI SDK diretamente com Vertex AI (bypass Mastra streaming).
  */
 
+// IMPORTANT: Import instrumentation first to initialize OpenTelemetry
+import '../instrumentation.js';
+
 import { Router, Request, Response } from 'express';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { generateText } from 'ai';
@@ -2257,6 +2260,7 @@ Retorne APENAS o Markdown formatado com a estrutura hierárquica de assuntos, se
         model,
         system: TAXONOMY_SYSTEM_PROMPT,
         prompt,
+        experimental_telemetry: { isEnabled: true },
       });
 
       // Extrair o texto da resposta

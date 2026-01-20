@@ -7,6 +7,9 @@
  * Refatorado para usar AI SDK diretamente com Vertex AI (bypass Mastra streaming).
  */
 
+// IMPORTANT: Import instrumentation first to initialize OpenTelemetry
+import '../instrumentation.js';
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { generateText } from 'ai';
 import { vertex } from '../lib/modelProvider.js';
@@ -211,6 +214,7 @@ export class QuestionCleanupService {
         model,
         system: CLEANUP_SYSTEM_PROMPT,
         prompt: `Extraia o conteúdo limpo desta questão corrompida:\n\n${truncatedHtml}`,
+        experimental_telemetry: { isEnabled: true },
       });
 
       // Parse the JSON response
@@ -306,6 +310,7 @@ export class QuestionCleanupService {
         model,
         system: REVIEW_SYSTEM_PROMPT,
         prompt,
+        experimental_telemetry: { isEnabled: true },
       });
 
       // Parse the JSON response

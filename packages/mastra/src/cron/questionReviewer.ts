@@ -5,6 +5,9 @@
  * Refatorado para usar AI SDK diretamente com Vertex AI (bypass Mastra streaming).
  */
 
+// IMPORTANT: Import instrumentation first to initialize OpenTelemetry
+import '../instrumentation.js';
+
 import { QuestionScraperService } from '../services/questionScraperService.js';
 import { generateText } from 'ai';
 import { vertex } from '../lib/modelProvider.js';
@@ -88,6 +91,7 @@ Por favor, forneça o gabarito correto e um comentário pedagógico completo.`;
       model,
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
+      experimental_telemetry: { isEnabled: true },
     });
 
     const text = response.text || '';

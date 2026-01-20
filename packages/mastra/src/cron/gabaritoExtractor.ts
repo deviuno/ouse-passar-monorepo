@@ -12,6 +12,9 @@
  * Refatorado para usar AI SDK diretamente com Vertex AI (bypass Mastra streaming).
  */
 
+// IMPORTANT: Import instrumentation first to initialize OpenTelemetry
+import '../instrumentation.js';
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { generateText } from 'ai';
 import { vertex } from '../lib/modelProvider.js';
@@ -198,6 +201,7 @@ Extraia o gabarito correto baseado no comentário acima.`;
       model,
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
+      experimental_telemetry: { isEnabled: true },
     });
 
     const text = response.text || '';

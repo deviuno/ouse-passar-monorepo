@@ -5,6 +5,9 @@
  * usando AI SDK diretamente com Vertex AI (gemini-2.5-flash).
  */
 
+// IMPORTANT: Import instrumentation first to initialize OpenTelemetry
+import '../instrumentation.js';
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { generateText } from 'ai';
 import { vertex } from '../lib/modelProvider.js';
@@ -256,6 +259,7 @@ ${questao.comentario}`;
           model,
           system: COMENTARIO_SYSTEM_PROMPT,
           prompt,
+          experimental_telemetry: { isEnabled: true },
         });
 
         const responseText = response.text || '';
@@ -454,6 +458,7 @@ ${questao.enunciado}${imagensInfo}`;
           model,
           system: ENUNCIADO_SYSTEM_PROMPT,
           prompt,
+          experimental_telemetry: { isEnabled: true },
         });
 
         const responseText = response.text || '';

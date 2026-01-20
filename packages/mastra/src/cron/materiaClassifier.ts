@@ -10,6 +10,9 @@
  * 3. Atualiza a matéria e remove flag de lixo se sucesso
  */
 
+// IMPORTANT: Import instrumentation first to initialize OpenTelemetry
+import '../instrumentation.js';
+
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { generateText } from "ai";
 import { vertex } from "../lib/modelProvider.js";
@@ -170,6 +173,7 @@ Retorne a classificação em JSON.`;
       model,
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
+      experimental_telemetry: { isEnabled: true },
     });
 
     const text = response.text || "";
