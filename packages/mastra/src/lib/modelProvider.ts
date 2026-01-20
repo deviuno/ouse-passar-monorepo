@@ -46,14 +46,17 @@ export const google = (modelId: string): any => googleProvider(modelId);
 
 // Mapeamento de modelos
 export const models = {
-  // Flash (rápido e econômico) - GA
-  flash: vertex("gemini-2.5-flash"),
+  // Flash Lite (mais rápido e mais barato) - Padrão para a maioria dos agentes
+  flash: vertex("gemini-2.5-flash-lite"),
+  "flash-lite": vertex("gemini-2.5-flash-lite"),
+  "gemini-2.5-flash-lite": vertex("gemini-2.5-flash-lite"),
 
-  // Pro (mais capaz) - GA
-  pro: vertex("gemini-2.5-pro"),
-
-  // Aliases
+  // Flash (rápido e econômico) - Para tarefas que precisam de mais capacidade
+  "flash-full": vertex("gemini-2.5-flash"),
   "gemini-2.5-flash": vertex("gemini-2.5-flash"),
+
+  // Pro (mais capaz) - Para tarefas complexas
+  pro: vertex("gemini-2.5-pro"),
   "gemini-2.5-pro": vertex("gemini-2.5-pro"),
 } as const;
 

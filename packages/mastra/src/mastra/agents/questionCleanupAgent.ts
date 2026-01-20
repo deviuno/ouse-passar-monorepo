@@ -122,7 +122,7 @@ Antes de retornar, verifique:
 4. Não há código de template no resultado?
 
 Se alguma validação falhar, retorne success: false com explicação.`,
-    model: vertex("gemini-2.5-flash"),
+    model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default questionCleanupAgent;

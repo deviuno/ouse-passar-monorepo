@@ -230,7 +230,7 @@ Retorne APENAS um JSON válido (sem markdown extra, sem explicações):
    - "Assinale a alternativa" → comando múltipla escolha
    - "Analise a figura" → imagem deve vir logo após
    - "Com base no texto" / "De acordo com o texto" → parte do comando`,
-    model: vertex("gemini-2.5-flash"),
+    model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default enunciadoFormatterAgent;

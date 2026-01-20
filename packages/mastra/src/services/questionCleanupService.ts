@@ -209,7 +209,7 @@ export class QuestionCleanupService {
         : htmlContent;
 
       // Usar AI SDK diretamente com Vertex AI
-      const model = vertex("gemini-2.5-flash");
+      const model = vertex("gemini-2.5-flash-lite");
       const response = await generateText({
         model,
         system: CLEANUP_SYSTEM_PROMPT,
@@ -305,7 +305,7 @@ export class QuestionCleanupService {
       const prompt = `Revise esta questão de concurso:\n\nEnunciado:\n${enunciado}\n\nAlternativas:\n${alternativasText}`;
 
       // Usar AI SDK diretamente com Vertex AI
-      const model = vertex("gemini-2.5-flash");
+      const model = vertex("gemini-2.5-flash-lite");
       const response = await generateText({
         model,
         system: REVIEW_SYSTEM_PROMPT,

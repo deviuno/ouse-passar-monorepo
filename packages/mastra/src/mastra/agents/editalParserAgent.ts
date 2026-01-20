@@ -112,5 +112,5 @@ RACIOCINIO LOGICO: 1. Estruturas Logicas. 2. Logica de argumentacao. 3. Diagrama
     }
   ]
 }`,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-2.5-flash-lite"),
 });

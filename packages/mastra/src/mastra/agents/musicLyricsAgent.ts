@@ -114,7 +114,7 @@ Nenhum sonho é grande demais
 Vou estudar sem parar
 E a aprovação vem, eu sei que vem
 ...`,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default musicLyricsAgent;
