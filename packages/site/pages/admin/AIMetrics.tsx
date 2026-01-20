@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
     Zap,
     DollarSign,
@@ -9,7 +8,6 @@ import {
     Brain,
     TrendingUp,
     RefreshCw,
-    ExternalLink,
     Loader2,
     ChevronDown,
 } from 'lucide-react';
@@ -21,8 +19,6 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    BarChart,
-    Bar,
     Legend,
     PieChart,
     Pie,
@@ -115,11 +111,11 @@ export const AIMetricsDashboard: React.FC = () => {
             setHealthStatus(healthData);
 
             if (!healthData.configured) {
-                setError('Langfuse n\u00e3o configurado. Verifique as vari\u00e1veis de ambiente.');
+                setError('Langfuse não configurado. Verifique as variáveis de ambiente.');
             }
         } catch (err) {
             console.error('Error fetching AI metrics:', err);
-            setError('Erro ao carregar m\u00e9tricas. Verifique se o servidor est\u00e1 rodando.');
+            setError('Erro ao carregar métricas. Verifique se o servidor está rodando.');
         } finally {
             setLoading(false);
         }
@@ -167,9 +163,9 @@ export const AIMetricsDashboard: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">M\u00e9tricas de IA</h1>
+                    <h1 className="text-2xl font-bold text-white">Métricas de IA</h1>
                     <p className="text-gray-400 text-sm mt-1">
-                        Monitoramento de uso de tokens e custos via Langfuse
+                        Monitoramento de uso de tokens e custos
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -180,9 +176,9 @@ export const AIMetricsDashboard: React.FC = () => {
                             onChange={(e) => setPeriod(e.target.value as 'day' | 'week' | 'month')}
                             className="appearance-none bg-brand-card border border-white/10 rounded-lg px-4 py-2 pr-10 text-white text-sm focus:outline-none focus:border-brand-yellow"
                         >
-                            <option value="day">\u00daltimas 24h</option>
-                            <option value="week">\u00daltimos 7 dias</option>
-                            <option value="month">\u00daltimos 30 dias</option>
+                            <option value="day">Últimas 24h</option>
+                            <option value="week">Últimos 7 dias</option>
+                            <option value="month">Últimos 30 dias</option>
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                     </div>
@@ -195,17 +191,6 @@ export const AIMetricsDashboard: React.FC = () => {
                     >
                         <RefreshCw className="w-5 h-5 text-gray-400" />
                     </button>
-
-                    {/* External Link to Langfuse */}
-                    <a
-                        href="https://cloud.langfuse.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 bg-brand-yellow text-black font-medium rounded-lg hover:bg-brand-yellow/90 transition-colors text-sm"
-                    >
-                        <ExternalLink className="w-4 h-4" />
-                        Langfuse
-                    </a>
                 </div>
             </div>
 
@@ -214,7 +199,7 @@ export const AIMetricsDashboard: React.FC = () => {
                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                     <div>
-                        <p className="text-red-400 font-medium">Erro de Configura\u00e7\u00e3o</p>
+                        <p className="text-red-400 font-medium">Erro de Configuração</p>
                         <p className="text-red-400/80 text-sm mt-1">{error}</p>
                     </div>
                 </div>
@@ -255,7 +240,7 @@ export const AIMetricsDashboard: React.FC = () => {
                             <div className="p-2 bg-purple-500/20 rounded-lg">
                                 <Activity className="w-5 h-5 text-purple-400" />
                             </div>
-                            <span className="text-gray-400 text-sm font-medium">Requisi\u00e7\u00f5es</span>
+                            <span className="text-gray-400 text-sm font-medium">Requisições</span>
                         </div>
                         <p className="text-2xl font-bold text-white">{formatNumber(stats.totalRequests)}</p>
                         <p className="text-xs text-gray-500 mt-1">chamadas de API</p>
@@ -267,7 +252,7 @@ export const AIMetricsDashboard: React.FC = () => {
                             <div className="p-2 bg-yellow-500/20 rounded-lg">
                                 <Clock className="w-5 h-5 text-yellow-400" />
                             </div>
-                            <span className="text-gray-400 text-sm font-medium">Lat\u00eancia M\u00e9dia</span>
+                            <span className="text-gray-400 text-sm font-medium">Latência Média</span>
                         </div>
                         <p className="text-2xl font-bold text-white">{stats.avgLatencyMs}ms</p>
                         <p className="text-xs text-gray-500 mt-1">
@@ -330,7 +315,7 @@ export const AIMetricsDashboard: React.FC = () => {
                         </ResponsiveContainer>
                     ) : (
                         <div className="h-[250px] flex items-center justify-center text-gray-500">
-                            Nenhum dado dispon\u00edvel para o per\u00edodo
+                            Nenhum dado disponível para o período
                         </div>
                     )}
                 </div>
@@ -380,7 +365,7 @@ export const AIMetricsDashboard: React.FC = () => {
                         </ResponsiveContainer>
                     ) : (
                         <div className="h-[250px] flex items-center justify-center text-gray-500">
-                            Nenhum dado dispon\u00edvel
+                            Nenhum dado disponível
                         </div>
                     )}
                 </div>
@@ -447,17 +432,8 @@ export const AIMetricsDashboard: React.FC = () => {
             {/* Recent Traces */}
             {traces.length > 0 && (
                 <div className="bg-brand-card border border-white/5 rounded-xl overflow-hidden">
-                    <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                        <h3 className="text-white font-medium">Traces Recentes</h3>
-                        <a
-                            href="https://cloud.langfuse.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-brand-yellow text-sm hover:underline flex items-center gap-1"
-                        >
-                            Ver todos
-                            <ExternalLink className="w-3 h-3" />
-                        </a>
+                    <div className="p-4 border-b border-white/5">
+                        <h3 className="text-white font-medium">Tarefas Recentes</h3>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
@@ -470,7 +446,7 @@ export const AIMetricsDashboard: React.FC = () => {
                                         Data
                                     </th>
                                     <th className="text-right text-gray-400 text-xs font-medium uppercase px-4 py-3">
-                                        Lat\u00eancia
+                                        Latência
                                     </th>
                                     <th className="text-right text-gray-400 text-xs font-medium uppercase px-4 py-3">
                                         Tokens
