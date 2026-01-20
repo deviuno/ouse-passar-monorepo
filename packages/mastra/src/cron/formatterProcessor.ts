@@ -239,7 +239,7 @@ export async function processComentariosQueue(
         }
 
         // Chamar IA diretamente usando AI SDK
-        const model = vertex("gemini-2.5-flash-lite-preview-06-17");
+        const model = vertex("gemini-2.5-flash-lite");
         const prompt = `Formate o seguinte comentário de questão de concurso.
 
 ## CONTEXTO DA QUESTÃO
@@ -441,7 +441,7 @@ export async function processEnunciadosQueue(
         }
 
         // Chamar IA diretamente usando AI SDK
-        const model = vertex("gemini-2.5-flash-lite-preview-06-17");
+        const model = vertex("gemini-2.5-flash-lite");
         const prompt = `Formate o seguinte enunciado de questão de concurso.
 
 ## MATÉRIA
