@@ -162,7 +162,7 @@ export function PreparatorioDropdown({
 
                       {/* Check se selecionado */}
                       {isSelected && (
-                        <div className="w-6 h-6 rounded-full bg-[var(--color-brand)] flex items-center justify-center flex-shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-[#ffac00] flex items-center justify-center flex-shrink-0">
                           <Check size={14} className="text-black" />
                         </div>
                       )}

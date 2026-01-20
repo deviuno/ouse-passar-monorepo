@@ -245,7 +245,7 @@ function ContentPhase({
         </p>
         <div className="w-48 h-2 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-[var(--color-brand)]"
+            className="h-full bg-[#ffac00]"
             initial={{ width: '0%' }}
             animate={{ width: '100%' }}
             transition={{ duration: 30, ease: 'linear' }}
@@ -300,7 +300,7 @@ function ContentPhase({
           <div className="flex items-center gap-3">
             <button
               onClick={handlePlayPause}
-              className="w-12 h-12 rounded-full bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] flex items-center justify-center flex-shrink-0 transition-colors"
+              className="w-12 h-12 rounded-full bg-[#ffac00] hover:bg-[#ffbc33] flex items-center justify-center flex-shrink-0 transition-colors"
             >
               {isPlaying ? (
                 <Pause size={28} strokeWidth={3} className="text-black" />
@@ -311,7 +311,7 @@ function ContentPhase({
             <div className="flex-1 min-w-0">
               <div className="h-1.5 bg-[var(--color-bg-elevated)] rounded-full">
                 <div
-                  className="h-full rounded-full bg-[var(--color-brand)] transition-all"
+                  className="h-full rounded-full bg-[#ffac00] transition-all"
                   style={{ width: `${audioProgress}%` }}
                 />
               </div>
@@ -339,7 +339,7 @@ function ContentPhase({
                         handleSpeedSelect(speed);
                       }}
                       className={`block w-full px-4 py-2 text-xs font-medium text-left transition-colors whitespace-nowrap ${playbackRate === speed
-                        ? 'bg-[var(--color-brand)] text-black'
+                        ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
                         : 'text-[var(--color-text-main)] hover:bg-[var(--color-bg-main)]'
                         }`}
                     >
@@ -386,7 +386,7 @@ function ContentPhase({
                   disabled={audioLoading || audioError}
                   className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors flex-shrink-0 p-0 ${audioLoading || audioError
                     ? 'bg-[var(--color-bg-elevated)] cursor-not-allowed'
-                    : 'bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)]'
+                    : 'bg-[#ffac00] hover:bg-[#ffbc33]'
                     }`}
                 >
                   {audioLoading ? (
@@ -412,7 +412,7 @@ function ContentPhase({
                   </div>
                   <div className="h-1 bg-[var(--color-bg-elevated)] rounded-full">
                     <div
-                      className={`h-full rounded-full transition-all ${audioError ? 'bg-[#E74C3C]' : 'bg-[var(--color-brand)]'}`}
+                      className={`h-full rounded-full transition-all ${audioError ? 'bg-[#E74C3C]' : 'bg-[#ffac00]'}`}
                       style={{ width: audioError ? '100%' : `${audioProgress}%` }}
                     />
                   </div>
@@ -440,7 +440,7 @@ function ContentPhase({
                               handleSpeedSelect(speed);
                             }}
                             className={`block w-full px-4 py-2 text-xs font-medium text-left transition-colors whitespace-nowrap ${playbackRate === speed
-                              ? 'bg-[var(--color-brand)] text-black'
+                              ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
                               : 'text-[var(--color-text-main)] hover:bg-[var(--color-bg-main)]'
                               }`}
                           >

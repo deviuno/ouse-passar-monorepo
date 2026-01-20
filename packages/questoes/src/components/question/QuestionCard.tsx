@@ -609,7 +609,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               disabled={!selectedAlt}
               className={`w-full py-4 rounded-full font-bold uppercase tracking-wide transition-all touch-feedback ${
                 selectedAlt
-                  ? "bg-[#FFB800] text-black shadow-[0_0_15px_rgba(255,184,0,0.4)]"
+                  ? "bg-[#ffac00] hover:bg-[#ffbc33] text-black shadow-[0_0_15px_rgba(255,172,0,0.4)]"
                   : "bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed opacity-70"
               }`}
             >
@@ -688,7 +688,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                     window.scrollTo({ top: 0, behavior: "smooth" });
                     onNext();
                   }}
-                  className="w-full flex items-center justify-center py-3 bg-[var(--color-brand)] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(199,120,0,0.3)] hover:shadow-[0_0_25px_rgba(199,120,0,0.5)] transition-all border-2 border-[var(--color-brand)] touch-feedback"
+                  className="w-full flex items-center justify-center py-3 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,172,0,0.3)] hover:shadow-[0_0_25px_rgba(255,172,0,0.5)] transition-all border-2 border-[#ffac00] hover:border-[#ffbc33] touch-feedback"
                 >
                   {isLastQuestion ? "Finalizar" : "Próxima"}{" "}
                   <ChevronRight size={20} className="ml-1" />
@@ -730,7 +730,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                     window.scrollTo({ top: 0, behavior: "smooth" });
                     onNext();
                   }}
-                  className="w-full flex items-center justify-center py-3 bg-[var(--color-brand)] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(199,120,0,0.3)] hover:shadow-[0_0_25px_rgba(199,120,0,0.5)] transition-all border-2 border-[var(--color-brand)] touch-feedback"
+                  className="w-full flex items-center justify-center py-3 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,172,0,0.3)] hover:shadow-[0_0_25px_rgba(255,172,0,0.5)] transition-all border-2 border-[#ffac00] hover:border-[#ffbc33] touch-feedback"
                 >
                   {isLastQuestion ? "Finalizar" : "Próxima"}{" "}
                   <ChevronRight size={20} className="ml-1" />

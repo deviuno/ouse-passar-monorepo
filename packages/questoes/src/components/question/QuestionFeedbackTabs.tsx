@@ -655,7 +655,7 @@ export function QuestionFeedbackTabs({
               {userId && (
                 <button
                   onClick={() => setShowNewNotebookModal(true)}
-                  className="px-3 py-1.5 bg-[var(--color-brand)] text-black rounded-lg font-medium text-xs hover:bg-[var(--color-brand-light)] transition-colors flex items-center"
+                  className="px-3 py-1.5 bg-[#ffac00] text-black rounded-lg font-medium text-xs hover:bg-[#ffbc33] transition-colors flex items-center"
                 >
                   <Plus size={14} className="mr-1" />
                   Novo Caderno
@@ -761,7 +761,7 @@ export function QuestionFeedbackTabs({
                 <button
                   onClick={handleSaveAnnotation}
                   disabled={!annotation.trim() || savingAnnotation}
-                  className="mt-3 w-full py-2.5 bg-[var(--color-brand)] text-black rounded-lg font-medium text-sm hover:bg-[var(--color-brand-light)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="mt-3 w-full py-2.5 bg-[#ffac00] text-black rounded-lg font-medium text-sm hover:bg-[#ffbc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {savingAnnotation ? (
                     <Loader2 className="animate-spin" size={18} />
@@ -790,7 +790,7 @@ export function QuestionFeedbackTabs({
                   <div
                     className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm ${
                       msg.role === 'user'
-                        ? 'bg-[var(--color-brand)] text-black rounded-br-md'
+                        ? 'bg-[#ffac00] text-black rounded-br-md'
                         : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] rounded-bl-md border border-[var(--color-border)]'
                     }`}
                   >
@@ -896,7 +896,7 @@ export function QuestionFeedbackTabs({
                 <button
                   onClick={handleChatSend}
                   disabled={!chatInput.trim() || chatLoading}
-                  className="p-2.5 rounded-lg bg-[var(--color-brand)] text-black hover:bg-[var(--color-brand-light)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2.5 rounded-lg bg-[#ffac00] text-black hover:bg-[#ffbc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Enviar"
                 >
                   <Send size={18} />
@@ -952,7 +952,7 @@ export function QuestionFeedbackTabs({
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
               activeTab === tab.id
-                ? 'bg-[var(--color-brand)] text-black'
+                ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
                 : 'bg-[var(--color-bg-card)] text-[var(--color-text-sec)] border border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)]'
             }`}
           >
@@ -1047,7 +1047,7 @@ export function QuestionFeedbackTabs({
               <button
                 onClick={handleCreateNotebook}
                 disabled={!newNotebookTitle.trim() || creatingNotebook}
-                className="flex-1 py-2.5 bg-[var(--color-brand)] text-black rounded-lg font-medium text-sm hover:bg-[var(--color-brand-light)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="flex-1 py-2.5 bg-[#ffac00] text-black rounded-lg font-medium text-sm hover:bg-[#ffbc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {creatingNotebook ? (
                   <Loader2 className="animate-spin" size={18} />

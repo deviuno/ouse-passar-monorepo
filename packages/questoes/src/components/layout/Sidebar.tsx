@@ -339,7 +339,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
                 >
                   {isActive && (
                     <motion.div
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--color-brand)] rounded-r-full"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#ffac00] rounded-r-full"
                       initial={{ opacity: 0, scale: 0.8, y: '-50%' }}
                       animate={{ opacity: 1, scale: 1, y: '-50%' }}
                       transition={{ duration: 0.2 }}

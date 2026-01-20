@@ -198,7 +198,7 @@ export const TrailsPage: React.FC = () => {
                       <button
                         onClick={() => handleComprar(prep)}
                         disabled={!prep.checkout_trilhas}
-                        className="w-full bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-black font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-[#ffac00] hover:bg-[#ffbc33] text-black font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ExternalLink size={18} />
                         Comprar Acesso

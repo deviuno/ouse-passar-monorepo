@@ -227,7 +227,7 @@ export default function ProfilePage() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className={`absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[var(--color-brand)] flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#ffac00] flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Camera size={14} className="text-black" />
             </button>
@@ -311,7 +311,7 @@ export default function ProfilePage() {
                     onClick={handleCopyLink}
                     className={`p-2 rounded-lg transition-all ${copied
                         ? 'bg-[var(--color-success)] text-white'
-                        : 'bg-[var(--color-brand)] text-black hover:bg-[var(--color-brand-dark)]'
+                        : 'bg-[#ffac00] text-black hover:bg-[#ffbc33]'
                       }`}
                   >
                     {copied ? <Check size={18} /> : <Copy size={18} />}

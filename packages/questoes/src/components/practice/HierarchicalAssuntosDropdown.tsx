@@ -220,9 +220,9 @@ const TaxonomyNodeItem: React.FC<{
         <div
           className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
             isFullySelected
-              ? 'bg-[var(--color-brand)] border-[var(--color-brand)]'
+              ? 'bg-[#ffac00] border-[#ffac00]'
               : isPartiallySelected
-              ? 'bg-[var(--color-brand)]/50 border-[var(--color-brand)]'
+              ? 'bg-[#ffac00]/50 border-[#ffac00]'
               : 'border-[var(--color-border-strong)] hover:border-[var(--color-text-muted)]'
           }`}
         >
@@ -447,7 +447,7 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
             style={{ paddingLeft: 8 }}
           >
             <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5 ${
-              isSelected ? 'bg-[var(--color-brand)] border-[var(--color-brand)]' : 'border-[var(--color-border-strong)]'
+              isSelected ? 'bg-[#ffac00] border-[#ffac00]' : 'border-[var(--color-border-strong)]'
             }`}>
               {isSelected && <Check size={10} className="text-black" />}
             </div>
@@ -544,7 +544,7 @@ export const HierarchicalAssuntosDropdown: React.FC<HierarchicalAssuntosDropdown
         <span className="text-[var(--color-brand)]">{icon || <FileText size={16} />}</span>
         <span className="text-[var(--color-text-main)] text-sm font-medium">{label}</span>
         {selectedAssuntos.length > 0 && (
-          <span className="px-1.5 py-0.5 bg-[var(--color-brand)] text-black text-xs font-bold rounded">
+          <span className="px-1.5 py-0.5 bg-[#ffac00] text-black text-xs font-bold rounded">
             {selectedAssuntos.length}
           </span>
         )}

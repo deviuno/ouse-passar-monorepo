@@ -130,7 +130,7 @@ export function AchievementsCard({
               {!achievement.unlocked && (
                 <div className="mt-1.5 h-1 bg-[var(--color-bg-main)] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[var(--color-brand)] transition-all duration-500"
+                    className="h-full bg-[#ffac00] transition-all duration-500"
                     style={{ width: `${achievement.progress}%` }}
                   />
                 </div>

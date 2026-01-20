@@ -128,7 +128,7 @@ const EditalItemNode: React.FC<{
             className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded transition-all flex-shrink-0 ml-1 ${
               isCurrentTopic
                 ? 'bg-[var(--color-brand)]/20 text-[var(--color-brand)] cursor-default'
-                : 'bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black'
+                : 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
             }`}
             disabled={isCurrentTopic}
             title={isCurrentTopic ? 'Você está praticando este tópico' : 'Praticar este tópico'}

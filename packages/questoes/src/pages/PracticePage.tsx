@@ -98,6 +98,15 @@ export interface FilterOptions {
 interface ToggleFilters {
   apenasRevisadas: boolean;
   apenasComComentario: boolean;
+  // Filtros de histórico do usuário
+  resolvi: boolean;
+  naoResolvi: boolean;
+  errei: boolean;
+  acertei: boolean;
+  // Filtros de dificuldade percebida
+  facil: boolean;
+  medio: boolean;
+  dificil: boolean;
 }
 
 // Helper to normalize filters from database (ensures all arrays exist)
@@ -222,6 +231,13 @@ export default function PracticePage() {
   const [toggleFilters, setToggleFilters] = useState<ToggleFilters>({
     apenasRevisadas: false,
     apenasComComentario: false,
+    resolvi: false,
+    naoResolvi: false,
+    errei: false,
+    acertei: false,
+    facil: false,
+    medio: false,
+    dificil: false,
   });
   const [questionCount, setQuestionCount] = useState(120);
 
@@ -1766,7 +1782,7 @@ export default function PracticePage() {
                       <div
                         className={`relative w-11 h-6 rounded-full transition-colors ${
                           toggleFilters.apenasRevisadas
-                            ? "bg-[var(--color-brand)]"
+                            ? "bg-[#ffac00]"
                             : "bg-[var(--color-border)]"
                         }`}
                       >
@@ -1800,7 +1816,7 @@ export default function PracticePage() {
                       <div
                         className={`relative w-11 h-6 rounded-full transition-colors ${
                           toggleFilters.apenasComComentario
-                            ? "bg-[var(--color-brand)]"
+                            ? "bg-[#ffac00]"
                             : "bg-[var(--color-border)]"
                         }`}
                       >
@@ -1822,6 +1838,61 @@ export default function PracticePage() {
                         Apenas com comentário
                       </span>
                     </button>
+                  </div>
+
+                  {/* Filtros de Histórico */}
+                  <div className="flex flex-wrap gap-4 pt-4 border-t border-[var(--color-border)]">
+                    <span className="text-xs text-[var(--color-text-muted)] uppercase font-bold w-full mb-1">Meu Histórico</span>
+                    {[
+                      { key: 'resolvi', label: 'Resolvi' },
+                      { key: 'naoResolvi', label: 'Não resolvi' },
+                      { key: 'acertei', label: 'Acertei' },
+                      { key: 'errei', label: 'Errei' },
+                    ].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        onClick={() =>
+                          setToggleFilters((prev) => ({
+                            ...prev,
+                            [key]: !prev[key as keyof ToggleFilters],
+                          }))
+                        }
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                          toggleFilters[key as keyof ToggleFilters]
+                            ? "bg-[#ffac00] hover:bg-[#ffbc33] text-black border-[#ffac00] hover:border-[#ffbc33]"
+                            : "bg-[var(--color-bg-elevated)] text-[var(--color-text-sec)] border-[var(--color-border)] hover:border-[#ffac00] hover:text-[var(--color-text-main)]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Filtros de Dificuldade */}
+                  <div className="flex flex-wrap gap-4 pt-4 border-t border-[var(--color-border)]">
+                    <span className="text-xs text-[var(--color-text-muted)] uppercase font-bold w-full mb-1">Dificuldade</span>
+                    {[
+                      { key: 'facil', label: 'Fácil' },
+                      { key: 'medio', label: 'Médio' },
+                      { key: 'dificil', label: 'Difícil' },
+                    ].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        onClick={() =>
+                          setToggleFilters((prev) => ({
+                            ...prev,
+                            [key]: !prev[key as keyof ToggleFilters],
+                          }))
+                        }
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                          toggleFilters[key as keyof ToggleFilters]
+                            ? "bg-[#ffac00] hover:bg-[#ffbc33] text-black border-[#ffac00] hover:border-[#ffbc33]"
+                            : "bg-[var(--color-bg-elevated)] text-[var(--color-text-sec)] border-[var(--color-border)] hover:border-[#ffac00] hover:text-[var(--color-text-main)]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -1941,7 +2012,7 @@ export default function PracticePage() {
                             startPractice();
                           }}
                           disabled={isLoading || filteredCount === 0}
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-[var(--color-brand)] text-black font-bold rounded-xl hover:bg-[var(--color-brand-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm lg:text-base lg:px-6"
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-[#ffac00] text-black font-bold rounded-xl hover:bg-[#ffbc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm lg:text-base lg:px-6"
                         >
                           {isLoading ? (
                             <>
@@ -2230,7 +2301,7 @@ export default function PracticePage() {
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all backdrop-blur-sm theme-transition ${
                 showFilters
-                  ? "bg-[var(--color-brand)] border-[var(--color-brand)] text-black"
+                  ? "bg-[#ffac00] hover:bg-[#ffbc33] border-[#ffac00] hover:border-[#ffbc33] text-black"
                   : "bg-[var(--color-bg-card)]/50 border-[var(--color-border)] text-[var(--color-text-main)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]"
               }`}
             >
@@ -2257,7 +2328,7 @@ export default function PracticePage() {
                   className={`px-2 py-1 text-xs font-bold rounded-lg ${
                     showFilters
                       ? "bg-black/20 text-black"
-                      : "bg-[var(--color-brand)] text-black"
+                      : "bg-[#ffac00] hover:bg-[#ffbc33] text-black"
                   }`}
                 >
                   {totalFilters}
@@ -2286,7 +2357,7 @@ export default function PracticePage() {
             onClick={() => setShowFilters(!showFilters)}
             className={`md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all theme-transition ${
               showFilters
-                ? "bg-[var(--color-brand)] border-[var(--color-brand)] text-black"
+                ? "bg-[#ffac00] hover:bg-[#ffbc33] border-[#ffac00] hover:border-[#ffbc33] text-black"
                 : "bg-[var(--color-bg-card)] border-[var(--color-border)] text-[var(--color-text-main)]"
             }`}
           >
@@ -2295,7 +2366,7 @@ export default function PracticePage() {
               {showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}
             </span>
             {totalFilters > 0 && !showFilters && (
-              <span className="px-1.5 py-0.5 bg-[var(--color-brand)] text-black text-xs font-bold rounded">
+              <span className="px-1.5 py-0.5 bg-[#ffac00] text-black text-xs font-bold rounded">
                 {totalFilters}
               </span>
             )}
@@ -2496,7 +2567,7 @@ export default function PracticePage() {
                     <div
                       className={`relative w-11 h-6 rounded-full transition-colors ${
                         toggleFilters.apenasRevisadas
-                          ? "bg-[var(--color-brand)]"
+                          ? "bg-[#ffac00]"
                           : "bg-[var(--color-border)]"
                       }`}
                     >
@@ -2530,7 +2601,7 @@ export default function PracticePage() {
                     <div
                       className={`relative w-11 h-6 rounded-full transition-colors ${
                         toggleFilters.apenasComComentario
-                          ? "bg-[var(--color-brand)]"
+                          ? "bg-[#ffac00]"
                           : "bg-[var(--color-border)]"
                       }`}
                     >
@@ -2552,6 +2623,61 @@ export default function PracticePage() {
                       Apenas com comentário
                     </span>
                   </button>
+                </div>
+
+                {/* Filtros de Histórico */}
+                <div className="flex flex-wrap gap-4 pt-4 border-t border-[var(--color-border)]">
+                  <span className="text-xs text-[var(--color-text-muted)] uppercase font-bold w-full mb-1">Meu Histórico</span>
+                  {[
+                    { key: 'resolvi', label: 'Resolvi' },
+                    { key: 'naoResolvi', label: 'Não resolvi' },
+                    { key: 'acertei', label: 'Acertei' },
+                    { key: 'errei', label: 'Errei' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() =>
+                        setToggleFilters((prev) => ({
+                          ...prev,
+                          [key]: !prev[key as keyof ToggleFilters],
+                        }))
+                      }
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                        toggleFilters[key as keyof ToggleFilters]
+                          ? "bg-[#ffac00] hover:bg-[#ffbc33] text-black border-[#ffac00] hover:border-[#ffbc33]"
+                          : "bg-[var(--color-bg-elevated)] text-[var(--color-text-sec)] border-[var(--color-border)] hover:border-[#ffac00] hover:text-[var(--color-text-main)]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Filtros de Dificuldade */}
+                <div className="flex flex-wrap gap-4 pt-4 border-t border-[var(--color-border)]">
+                  <span className="text-xs text-[var(--color-text-muted)] uppercase font-bold w-full mb-1">Dificuldade</span>
+                  {[
+                    { key: 'facil', label: 'Fácil' },
+                    { key: 'medio', label: 'Médio' },
+                    { key: 'dificil', label: 'Difícil' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() =>
+                        setToggleFilters((prev) => ({
+                          ...prev,
+                          [key]: !prev[key as keyof ToggleFilters],
+                        }))
+                      }
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                        toggleFilters[key as keyof ToggleFilters]
+                          ? "bg-[#ffac00] hover:bg-[#ffbc33] text-black border-[#ffac00] hover:border-[#ffbc33]"
+                          : "bg-[var(--color-bg-elevated)] text-[var(--color-text-sec)] border-[var(--color-border)] hover:border-[#ffac00] hover:text-[var(--color-text-main)]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
               {/* Summary Section - Horizontal Layout */}
@@ -2720,7 +2846,7 @@ export default function PracticePage() {
                           disabled={
                             isLoading || isLoadingFilters || filteredCount === 0
                           }
-                          className="flex-1 sm:flex-[2] whitespace-nowrap bg-gradient-to-r from-[var(--color-brand)] to-[var(--color-brand-hover)] text-black font-extrabold hover:shadow-lg hover:shadow-[var(--color-brand)]/20 transition-all transform hover:scale-[1.02]"
+                          className="flex-1 sm:flex-[2] whitespace-nowrap bg-gradient-to-r from-[#ffac00] to-[#e69b00] text-black font-extrabold hover:shadow-lg hover:shadow-[#ffac00]/20 transition-all transform hover:scale-[1.02]"
                           rightIcon={<Play size={20} fill="currentColor" />}
                         >
                           INICIAR PRÁTICA

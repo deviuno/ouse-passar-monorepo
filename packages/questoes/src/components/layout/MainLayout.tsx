@@ -63,6 +63,7 @@ export function MainLayout() {
             ? 'lg:ml-64 lg:w-[calc(100%-16rem)]'
             : 'lg:ml-[72px] lg:w-[calc(100%-72px)]'}
           w-full
+          lg:h-screen lg:overflow-y-auto
         `}
       >
         {/* Header - Hidden on music pages */}

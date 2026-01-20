@@ -710,7 +710,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                         className="w-full max-w-[850px] bg-[var(--color-bg-card)] border border-[var(--color-border)] border-b-0 rounded-t-xl shadow-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-[var(--color-bg-elevated)] transition-colors pointer-events-auto"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="bg-[var(--color-brand)] p-1.5 rounded-lg">
+                            <div className="bg-[#ffac00] p-1.5 rounded-lg">
                                 <Zap size={20} className="text-black fill-black" />
                             </div>
                             <span className="font-bold text-[var(--color-text-main)]">Seu Mentor IA</span>
@@ -767,7 +767,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                     <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         <div
                                             className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                                                ? 'bg-[var(--color-brand)] text-black font-medium rounded-tr-none'
+                                                ? 'bg-[#ffac00] text-black font-medium rounded-tr-none'
                                                 : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] rounded-tl-none border border-[var(--color-border)]'
                                                 }`}
                                         >
@@ -850,7 +850,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                     }}
                                     disabled={isGeneratingAudio || isCollapsed}
                                     className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${showShortcuts
-                                            ? 'bg-[var(--color-brand)] text-black'
+                                            ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
                                             : 'text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-bg-elevated)]'
                                         } ${(isGeneratingAudio || isCollapsed) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     title="Atalhos de IA"
@@ -890,7 +890,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                         data-send-button
                                         onClick={(e) => handleSend(e)}
                                         disabled={!inputValue.trim() || isLoading}
-                                        className="p-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        className="p-2 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
                                         <Send size={18} />
                                     </button>

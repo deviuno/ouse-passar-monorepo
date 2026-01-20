@@ -11,7 +11,7 @@ interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'onDrag' | 'onDrag
 }
 
 const variants = {
-  primary: 'bg-[var(--color-brand)] hover:bg-[var(--color-brand-dark)] text-black font-semibold',
+  primary: 'bg-[#ffac00] hover:bg-[#ffbc33] text-black font-semibold',
   secondary: 'bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] border border-[var(--color-border)]',
   ghost: 'bg-transparent hover:bg-[var(--color-bg-card)] text-[var(--color-text-main)]',
   danger: 'bg-[var(--color-error)] hover:opacity-90 text-white font-semibold',

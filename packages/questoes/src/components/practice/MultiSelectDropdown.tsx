@@ -62,7 +62,7 @@ export function MultiSelectDropdown({
         <span className="text-[var(--color-brand)]">{icon}</span>
         <span className="text-[var(--color-text-main)] text-sm font-medium">{label}</span>
         {selected.length > 0 && (
-          <span className="px-1.5 py-0.5 bg-[var(--color-brand)] text-black text-xs font-bold rounded">
+          <span className="px-1.5 py-0.5 bg-[#ffac00] text-black text-xs font-bold rounded">
             {selected.length}
           </span>
         )}
@@ -142,7 +142,7 @@ export function MultiSelectDropdown({
                     >
                       <div className={`
                         w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5
-                        ${isSelected ? 'bg-[var(--color-brand)] border-[var(--color-brand)]' : 'border-[var(--color-text-muted)]'}
+                        ${isSelected ? 'bg-[#ffac00] border-[#ffac00]' : 'border-[var(--color-text-muted)]'}
                       `}>
                         {isSelected && <Check size={10} className="text-black" />}
                       </div>

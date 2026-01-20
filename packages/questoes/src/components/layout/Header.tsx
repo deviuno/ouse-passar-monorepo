@@ -176,7 +176,7 @@ export function Header() {
             <button
               onClick={() => practiceMode.onToggleFilters?.()}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium flex-shrink-0 ${practiceMode.showFilters
-                ? 'bg-[var(--color-brand)] text-black'
+                ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
                 : 'hover:bg-[var(--color-bg-card)] text-[var(--color-text-sec)] hover:text-[var(--color-text-main)]'
                 }`}
             >
