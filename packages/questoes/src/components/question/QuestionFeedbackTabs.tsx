@@ -12,7 +12,6 @@ import {
   Plus,
   Check,
   AlertTriangle,
-  Zap,
   Send,
   Mic,
   Square,
@@ -58,7 +57,7 @@ const TABS: Tab[] = [
   { id: 'estatisticas', label: 'Estatísticas', icon: <BarChart2 size={16} /> },
   { id: 'cadernos', label: 'Cadernos', icon: <FolderPlus size={16} /> },
   { id: 'anotacoes', label: 'Anotações', icon: <StickyNote size={16} /> },
-  { id: 'duvidas', label: 'Tirar Dúvidas', icon: <Zap size={16} /> },
+  { id: 'duvidas', label: 'Tirar Dúvidas', icon: <Sparkles size={16} /> },
   { id: 'erro', label: 'Notificar', icon: <Flag size={16} /> },
 ];
 

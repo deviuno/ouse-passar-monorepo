@@ -4,7 +4,6 @@ import remarkGfm from "remark-gfm";
 import { ParsedQuestion, CommunityStats, PracticeMode } from "../../types";
 import { COLORS, MOCK_STATS } from "../../constants";
 import {
-  MessageCircle,
   AlertTriangle,
   BarChart2,
   Timer,
@@ -15,8 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Flag,
+  Sparkles,
 } from "lucide-react";
-import { generateExplanation } from "../../services/geminiService";
 import {
   getQuestionStatistics,
   QuestionStatistics,
@@ -311,15 +310,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
     // For Zen/Reta Final, show feedback
     setIsSubmitted(true);
 
-    // Load explanation logic
+    // Load explanation from database comentario field
     if (question.comentario) {
       setExplanation(question.comentario);
     } else {
-      // Fetch AI explanation if human comment is missing
-      setLoadingExplanation(true);
-      const aiExpl = await generateExplanation(question);
-      setExplanation(`🤖 **Explicação IA:**\n\n${aiExpl}`);
-      setLoadingExplanation(false);
+      setExplanation(null);
     }
   };
 
@@ -714,18 +709,48 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               isCorrect={selectedAlt === question.gabarito}
             />
 
-            {/* Botão Tirar Dúvida */}
+            {/* Botão Tirar Dúvidas com IA */}
             <div className="mt-4 flex gap-3">
               <button
                 onClick={onOpenTutor}
                 className="flex-1 flex items-center justify-center py-3 bg-[var(--color-bg-card)] text-[var(--color-text-main)] border border-[var(--color-border-strong)] rounded-full font-medium hover:bg-[var(--color-bg-elevated)] transition-colors"
               >
-                <MessageCircle
+                <Sparkles
                   size={18}
-                  className="mr-2 text-[var(--color-text-sec)]"
+                  className="mr-2 text-[var(--color-brand)]"
                 />
-                Tirar Dúvida
+                Tirar Dúvidas
               </button>
+            </div>
+
+            {/* 4. Bottom Navigation Row: Previous / Next (duplicate for convenience) */}
+            <div className="flex gap-3 mt-4">
+              <RippleEffect className="flex-1 rounded-xl">
+                <button
+                  onClick={onPrevious}
+                  disabled={!onPrevious}
+                  className={`w-full flex items-center justify-center py-3 rounded-xl border-2 font-bold transition-all touch-feedback ${
+                    onPrevious
+                      ? "border-[var(--color-border-strong)] text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] bg-[var(--color-bg-card)]"
+                      : "border-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed bg-[var(--color-bg-elevated)]"
+                  }`}
+                >
+                  <ChevronLeft size={20} className="mr-1" /> Anterior
+                </button>
+              </RippleEffect>
+
+              <RippleEffect className="flex-1 rounded-xl">
+                <button
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    onNext();
+                  }}
+                  className="w-full flex items-center justify-center py-3 bg-[var(--color-brand)] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(199,120,0,0.3)] hover:shadow-[0_0_25px_rgba(199,120,0,0.5)] transition-all border-2 border-[var(--color-brand)] touch-feedback"
+                >
+                  {isLastQuestion ? "Finalizar" : "Próxima"}{" "}
+                  <ChevronRight size={20} className="ml-1" />
+                </button>
+              </RippleEffect>
             </div>
           </div>
         )}
