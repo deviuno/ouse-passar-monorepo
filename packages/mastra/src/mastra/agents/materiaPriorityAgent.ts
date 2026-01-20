@@ -67,7 +67,7 @@ const buscarEstatisticasBanca = createTool({
         total_geral: z.number().optional(),
         error: z.string().optional(),
     }),
-    execute: async ({ context }) => {
+    execute: async (inputData, context) => {
         try {
             const supabase = getSupabaseClient();
             let query = supabase
@@ -77,13 +77,13 @@ const buscarEstatisticasBanca = createTool({
                 .not('materia', 'is', null);
 
             // Filtrar por banca (case insensitive)
-            if (context.banca) {
-                query = query.ilike('banca', `%${context.banca}%`);
+            if (inputData.banca) {
+                query = query.ilike('banca', `%${inputData.banca}%`);
             }
 
             // Filtrar por órgão se fornecido
-            if (context.orgao) {
-                query = query.ilike('orgao', `%${context.orgao}%`);
+            if (inputData.orgao) {
+                query = query.ilike('orgao', `%${inputData.orgao}%`);
             }
 
             const { data, error } = await query;
@@ -164,14 +164,14 @@ const buscarInfoPreparatorio = createTool({
         })).optional(),
         error: z.string().optional(),
     }),
-    execute: async ({ context }) => {
+    execute: async (inputData, context) => {
         try {
             const supabase = getSupabaseClient();
             // Buscar preparatório
             const { data: prep, error: prepError } = await supabase
                 .from('preparatorios')
                 .select('id, nome, banca, orgao, nivel, cargo')
-                .eq('id', context.preparatorio_id)
+                .eq('id', inputData.preparatorio_id)
                 .single();
 
             if (prepError) throw prepError;
@@ -180,7 +180,7 @@ const buscarInfoPreparatorio = createTool({
             const { data: items, error: itemsError } = await supabase
                 .from('edital_verticalizado_items')
                 .select('id, titulo, tipo, parent_id')
-                .eq('preparatorio_id', context.preparatorio_id);
+                .eq('preparatorio_id', inputData.preparatorio_id);
 
             if (itemsError) throw itemsError;
 
@@ -218,6 +218,7 @@ const buscarInfoPreparatorio = createTool({
 // ==================== AGENT ====================
 
 export const materiaPriorityAgent = new Agent({
+    id: "materiaPriorityAgent",
     name: "materiaPriorityAgent",
     instructions: `Você é um especialista em concursos públicos brasileiros com profundo conhecimento sobre as principais bancas examinadoras (CESPE/CEBRASPE, FGV, FCC, VUNESP, IDECAN, etc.).
 

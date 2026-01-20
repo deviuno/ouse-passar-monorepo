@@ -224,8 +224,10 @@ ${question.isPegadinha ? `\n⚠️ **Pegadinha:** ${question.explicacaoPegadinha
             { role: "assistant", content: assistantPriming },
             { role: "user", content: userPrompt }
         ], {
-            threadId: currentThreadId,
-            resourceId: resourceId,
+            memory: {
+                thread: currentThreadId,
+                resource: resourceId,
+            },
         });
 
         console.log(`[Tutor] Response generated for thread ${currentThreadId}.`);

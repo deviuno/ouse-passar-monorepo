@@ -2,6 +2,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const taxonomyExtractorAgent = new Agent({
+  id: "taxonomyExtractorAgent",
   name: "Taxonomy Extractor",
   model: vertex("gemini-2.5-flash"),
   instructions: `Você é um especialista em extrair e estruturar taxonomias de conteúdo educacional.

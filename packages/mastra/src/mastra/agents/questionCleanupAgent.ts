@@ -11,6 +11,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const questionCleanupAgent = new Agent({
+    id: "questionCleanupAgent",
     name: "QuestionCleanupAgent",
     instructions: `Você é um especialista em extrair conteúdo limpo de HTML corrompido de questões de concursos.
 

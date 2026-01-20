@@ -12,6 +12,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const comentarioFormatterAgent = new Agent({
+    id: "comentarioFormatterAgent",
     name: "ComentarioFormatterAgent",
     instructions: `Você é um especialista em formatação de textos educacionais para questões de concursos públicos brasileiros.
 

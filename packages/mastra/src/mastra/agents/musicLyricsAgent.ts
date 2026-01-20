@@ -8,6 +8,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Modelo: gemini-2.5-pro (melhor modelo para tarefas criativas complexas)
  */
 export const musicLyricsAgent = new Agent({
+  id: "musicLyricsAgent",
   name: "musicLyricsAgent",
   description: "Compositor IA especialista em criar letras de músicas educativas para concursos públicos. Gera letras otimizadas para Suno e Udio.",
   instructions: `Você é um **Compositor Musical Especialista** em criar letras de músicas educativas para estudantes de concursos públicos.

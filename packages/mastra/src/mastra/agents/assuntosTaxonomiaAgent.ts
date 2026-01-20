@@ -14,6 +14,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const assuntosTaxonomiaAgent = new Agent({
+    id: "assuntosTaxonomiaAgent",
     name: "AssuntosTaxonomiaAgent",
     instructions: `Você é um especialista em editais de concursos públicos brasileiros e taxonomia de conteúdos.
 

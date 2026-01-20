@@ -157,27 +157,47 @@ router.get('/stats', async (req: Request, res: Response) => {
 
 /**
  * GET /api/admin/ai-metrics/traces
- * Returns recent traces with details
+ * Returns recent observations (generations) with details
+ * Note: We fetch observations instead of traces because traces don't have token usage data
  */
 router.get('/traces', async (req: Request, res: Response) => {
     try {
         const limit = parseInt(req.query.limit as string) || 50;
         const page = parseInt(req.query.page as string) || 1;
 
-        // Fetch traces from Langfuse
-        const traces = await langfuseRequest(`/traces?limit=${limit}&page=${page}`);
+        // Fetch observations (generations) from Langfuse - these have the actual token usage data
+        const observations = await langfuseRequest(`/observations?type=GENERATION&limit=${limit}&page=${page}`);
 
-        const formattedTraces = (traces.data || []).map((trace: any) => ({
-            id: trace.id,
-            name: trace.name,
-            timestamp: trace.timestamp,
-            latencyMs: trace.latency,
-            inputTokens: trace.usage?.input || trace.usage?.promptTokens || 0,
-            outputTokens: trace.usage?.output || trace.usage?.completionTokens || 0,
-            totalCost: trace.calculatedTotalCost || 0,
-            status: trace.level || 'DEFAULT',
-            metadata: trace.metadata,
-        }));
+        const formattedTraces = (observations.data || []).map((obs: any) => {
+            // Calculate latency from start/end time
+            let latencyMs = 0;
+            if (obs.startTime && obs.endTime) {
+                const start = new Date(obs.startTime).getTime();
+                const end = new Date(obs.endTime).getTime();
+                latencyMs = end - start;
+            } else if (obs.latency) {
+                latencyMs = obs.latency;
+            }
+
+            // Get token usage - Langfuse uses different field names
+            const inputTokens = obs.usage?.input || obs.usage?.promptTokens || obs.promptTokens || 0;
+            const outputTokens = obs.usage?.output || obs.usage?.completionTokens || obs.completionTokens || 0;
+            const totalTokens = obs.usage?.total || obs.totalTokens || (inputTokens + outputTokens);
+
+            return {
+                id: obs.id,
+                name: obs.name || obs.model || 'generation',
+                timestamp: obs.startTime || obs.createdAt,
+                latencyMs,
+                inputTokens,
+                outputTokens,
+                totalTokens,
+                totalCost: obs.calculatedTotalCost || obs.cost || 0,
+                status: obs.level || 'DEFAULT',
+                model: obs.model || obs.modelId || 'unknown',
+                metadata: obs.metadata,
+            };
+        });
 
         res.json({
             success: true,
@@ -185,7 +205,7 @@ router.get('/traces', async (req: Request, res: Response) => {
             pagination: {
                 page,
                 limit,
-                totalItems: traces.meta?.totalItems || formattedTraces.length,
+                totalItems: observations.meta?.totalItems || formattedTraces.length,
             },
         });
     } catch (error) {

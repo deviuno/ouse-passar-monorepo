@@ -3,6 +3,7 @@ import { vertex } from "../../lib/modelProvider.js";
 import { Memory } from "@mastra/memory";
 
 export const tutorAgent = new Agent({
+  id: "tutorAgent",
   name: "tutorAgent",
   description: "Professor IA especialista em concursos públicos brasileiros. Ajuda alunos a entender questões e conceitos de forma didática.",
   instructions: `Você é o **Professor IA**, um tutor especialista em concursos públicos brasileiros.

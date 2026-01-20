@@ -291,6 +291,41 @@ export const fetchQuestionById = async (id: number): Promise<ParsedQuestion | nu
   return data ? transformQuestion(data) : null;
 };
 
+// Busca múltiplas questões por IDs
+export const fetchQuestionsByIds = async (ids: number[]): Promise<ParsedQuestion[]> => {
+  if (!ids || ids.length === 0) return [];
+
+  console.log('[fetchQuestionsByIds] Buscando questões por IDs:', ids.length, 'questões');
+
+  return withRetry(async () => {
+    const { data, error } = await questionsDb
+      .from('questoes_concurso')
+      .select('*')
+      .in('id', ids)
+      // Filtro oculto: apenas questões ativas e válidas
+      .eq('ativo', true)
+      .not('enunciado', 'is', null)
+      .neq('enunciado', '')
+      .neq('enunciado', 'deleted');
+
+    if (error) {
+      console.error('[fetchQuestionsByIds] Erro ao buscar questões:', error);
+      throw error;
+    }
+
+    const questions = (data || []).map(transformQuestion);
+
+    // Reordenar para manter a ordem original dos IDs
+    const questionsMap = new Map(questions.map(q => [q.id, q]));
+    const orderedQuestions = ids
+      .map(id => questionsMap.get(id))
+      .filter((q): q is ParsedQuestion => q !== undefined);
+
+    console.log('[fetchQuestionsByIds] Retornando', orderedQuestions.length, 'questões');
+    return orderedQuestions;
+  });
+};
+
 // Busca opções de filtro disponíveis (valores distintos)
 // Usa função RPC do Postgres para performance otimizada
 // Com cache e retry automático
@@ -600,6 +635,7 @@ export const getQuestionsCount = async (filters?: Omit<QuestionFilters, 'limit' 
 export const questionsService = {
   fetchQuestions,
   fetchQuestionById,
+  fetchQuestionsByIds,
   fetchFilterOptions,
   fetchAssuntosByMaterias,
   fetchTaxonomiaByMateria,

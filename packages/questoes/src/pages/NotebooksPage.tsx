@@ -18,8 +18,8 @@ import {
 import { Button, Card, ConfirmModal } from '../components/ui';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useUIStore } from '../stores';
-import { getUserNotebooks, deleteNotebook } from '../services/notebooksService';
-import { fetchQuestions, parseRawQuestion } from '../services/questionsService';
+import { getUserNotebooks, deleteNotebook, getNotebookSavedQuestionIds } from '../services/notebooksService';
+import { fetchQuestions, fetchQuestionsByIds, parseRawQuestion } from '../services/questionsService';
 import { Caderno, PracticeMode, ParsedQuestion, RawQuestion } from '../types';
 
 // Tipo para configurações de notebook
@@ -82,39 +82,71 @@ export const NotebooksPage: React.FC = () => {
     try {
       const settings = notebookSettings[notebook.id];
       const filters = notebook.filters || {};
+      const hasSavedQuestions = (notebook.saved_questions_count || 0) > 0;
+      const hasFilters = Object.values(filters).some(
+        (v) => Array.isArray(v) && v.length > 0
+      );
 
-      console.log("notebook ->", notebook);
+      console.log('notebook ->', notebook, { hasSavedQuestions, hasFilters });
 
-      // Fetch questions with notebook filters
-      const questions = await fetchQuestions({
-        materias: filters.matseria?.length > 0 ? filters.materia : undefined,
-        assuntos: filters.assunto?.length > 0 ? filters.assunto : undefined,
-        bancas: filters.banca?.length > 0 ? filters.banca : undefined,
-        orgaos: filters.orgao?.length > 0 ? filters.orgao : undefined,
-        cargos: filters.cargo?.length > 0 ? filters.cargo : undefined,
-        anos: filters.ano?.length > 0 ? filters.ano.map(Number) : undefined,
-        escolaridade: filters.escolaridade?.length > 0 ? filters.escolaridade : undefined,
-        modalidade: filters.modalidade?.length > 0 ? filters.modalidade : undefined,
-        dificuldade: filters.dificuldade?.length > 0 ? filters.dificuldade : undefined,
-        limit: settings.questionCount,
-        shuffle: true,
-      });
+      let allQuestions: ParsedQuestion[] = [];
 
-      console.log("quuestions", questions);
+      // Fetch saved questions if any
+      if (hasSavedQuestions) {
+        const savedQuestionIds = await getNotebookSavedQuestionIds(notebook.id);
+        if (savedQuestionIds.length > 0) {
+          const savedQuestions = await fetchQuestionsByIds(savedQuestionIds);
+          allQuestions = [...savedQuestions];
+          console.log('Saved questions:', savedQuestions.length);
+        }
+      }
 
-      if (questions.length === 0) {
-        // addToast('warning', 'Nenhuma questão encontrada com esses filtros');
+      // Fetch filter-based questions if there are filters
+      if (hasFilters) {
+        // Calculate how many more questions we need from filters
+        const remainingCount = Math.max(0, settings.questionCount - allQuestions.length);
+
+        if (remainingCount > 0) {
+          const filterQuestions = await fetchQuestions({
+            materias: filters.materia?.length > 0 ? filters.materia : undefined,
+            assuntos: filters.assunto?.length > 0 ? filters.assunto : undefined,
+            bancas: filters.banca?.length > 0 ? filters.banca : undefined,
+            orgaos: filters.orgao?.length > 0 ? filters.orgao : undefined,
+            cargos: filters.cargo?.length > 0 ? filters.cargo : undefined,
+            anos: filters.ano?.length > 0 ? filters.ano.map(Number) : undefined,
+            escolaridade: filters.escolaridade?.length > 0 ? filters.escolaridade : undefined,
+            modalidade: filters.modalidade?.length > 0 ? filters.modalidade : undefined,
+            dificuldade: filters.dificuldade?.length > 0 ? filters.dificuldade : undefined,
+            limit: remainingCount + allQuestions.length, // Fetch extra to filter duplicates
+            shuffle: true,
+          });
+
+          // Remove duplicates (questions already in saved list)
+          const savedIds = new Set(allQuestions.map((q) => q.id));
+          const uniqueFilterQuestions = filterQuestions.filter((q) => !savedIds.has(q.id));
+
+          // Take only what we need
+          allQuestions = [...allQuestions, ...uniqueFilterQuestions.slice(0, remainingCount)];
+          console.log('Filter questions added:', uniqueFilterQuestions.slice(0, remainingCount).length);
+        }
+      }
+
+      console.log('Total questions:', allQuestions.length);
+
+      if (allQuestions.length === 0) {
+        addToast('info', 'Nenhuma questão encontrada neste caderno');
         setIsStarting(null);
         return;
       }
 
-      // Parse questions
-      const parsedQuestions: ParsedQuestion[] = questions.map((q: RawQuestion) => parseRawQuestion(q));
+      // Shuffle the final list
+      allQuestions = allQuestions.sort(() => Math.random() - 0.5);
 
-      console.log(parsedQuestions);
+      // Limit to configured question count
+      const finalQuestions = allQuestions.slice(0, settings.questionCount);
 
       // Store in sessionStorage for the practice page
-      sessionStorage.setItem('practiceQuestions', JSON.stringify(parsedQuestions));
+      sessionStorage.setItem('practiceQuestions', JSON.stringify(finalQuestions));
       sessionStorage.setItem('practiceMode', settings.studyMode);
       sessionStorage.setItem('practiceSource', 'notebook');
       sessionStorage.setItem('practiceNotebookId', notebook.id);
@@ -123,7 +155,7 @@ export const NotebooksPage: React.FC = () => {
       navigate(`/praticar?start=true&notebook_id=${notebook.id}`);
     } catch (error) {
       console.error('Erro ao iniciar prática:', error);
-      // addToast('error', 'Erro ao iniciar prática');
+      addToast('error', 'Erro ao iniciar prática');
     } finally {
       setIsStarting(null);
     }
@@ -249,7 +281,7 @@ export const NotebooksPage: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5 hover:border-[var(--color-text-muted)] transition-colors theme-transition"
+                  className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5 hover:border-[var(--color-text-muted)] transition-colors theme-transition flex flex-col min-h-[320px]"
                 >
                   {/* Header */}
                   <div className="flex items-start justify-between mb-3">
@@ -260,8 +292,18 @@ export const NotebooksPage: React.FC = () => {
                       <div className="min-w-0">
                         <h3 className="font-bold text-[var(--color-text-main)] truncate">{notebook.title}</h3>
                         <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                          {(notebook.questions_count || 0).toLocaleString('pt-BR')} questões
-                          disponíveis
+                          {(notebook.saved_questions_count || 0) > 0 && (
+                            <span className="text-[var(--color-brand)]">
+                              {notebook.saved_questions_count} salvas
+                            </span>
+                          )}
+                          {(notebook.saved_questions_count || 0) > 0 && (notebook.questions_count || 0) > 0 && ' + '}
+                          {(notebook.questions_count || 0) > 0 && (
+                            <span>{(notebook.questions_count || 0).toLocaleString('pt-BR')} por filtros</span>
+                          )}
+                          {(notebook.saved_questions_count || 0) === 0 && (notebook.questions_count || 0) === 0 && (
+                            <span>Caderno vazio</span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -290,83 +332,87 @@ export const NotebooksPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Description */}
-                  {notebook.description && (
-                    <p className="text-sm text-[var(--color-text-sec)] mb-4 line-clamp-2">{notebook.description}</p>
-                  )}
+                  {/* Content area - grows to fill space */}
+                  <div className="flex-1">
+                    {/* Description */}
+                    {notebook.description && (
+                      <p className="text-sm text-[var(--color-text-sec)] mb-4 line-clamp-2">{notebook.description}</p>
+                    )}
 
-                  {/* Filters badge */}
-                  {totalFilters > 0 && (
-                    <div className="flex items-center gap-2 mb-4">
-                      <Filter size={14} className="text-[var(--color-text-muted)]" />
-                      <span className="text-xs text-[var(--color-text-muted)]">{totalFilters} filtros aplicados</span>
-                    </div>
-                  )}
-
-                  {/* Settings */}
-                  <div className="space-y-3 mb-4">
-                    {/* Question count slider */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-[var(--color-text-sec)]">Questões por sessão</span>
-                        <span className="text-sm font-bold text-[var(--color-text-main)]">{settings.questionCount}</span>
+                    {/* Filters badge */}
+                    {totalFilters > 0 && (
+                      <div className="flex items-center gap-2 mb-4">
+                        <Filter size={14} className="text-[var(--color-text-muted)]" />
+                        <span className="text-xs text-[var(--color-text-muted)]">{totalFilters} filtros aplicados</span>
                       </div>
-                      <input
-                        type="range"
-                        min="5"
-                        max="120"
-                        step="5"
-                        value={settings.questionCount}
-                        onChange={(e) => {
-                          const newCount = Number(e.target.value);
-                          setNotebookSettings((prev) => ({
-                            ...prev,
-                            [notebook.id]: { ...prev[notebook.id], questionCount: newCount },
-                          }));
-                        }}
-                        className="w-full h-1 bg-[var(--color-border)] rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
-                      />
-                    </div>
+                    )}
 
-                    {/* Study mode toggle */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-[var(--color-text-sec)]">Modo de estudo</span>
-                      <button
-                        onClick={() => {
-                          const newMode = settings.studyMode === 'zen' ? 'hard' : 'zen';
-                          setNotebookSettings((prev) => ({
-                            ...prev,
-                            [notebook.id]: {
-                              ...prev[notebook.id],
-                              studyMode: newMode as PracticeMode,
-                            },
-                          }));
-                        }}
-                        className="relative inline-flex items-center h-7 rounded-full w-28 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] transition-colors"
-                      >
-                        <span
-                          className={`absolute inline-flex items-center justify-center gap-1 h-6 rounded-full text-xs font-bold transition-all duration-300 ${
-                            settings.studyMode === 'zen'
-                              ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[var(--color-success)] text-black'
-                              : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[var(--color-error)] text-white'
-                          }`}
+                    {/* Settings */}
+                    <div className="space-y-3 mb-4">
+                      {/* Question count slider */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-[var(--color-text-sec)]">Questões por sessão</span>
+                          <span className="text-sm font-bold text-[var(--color-text-main)]">{settings.questionCount}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="5"
+                          max="120"
+                          step="5"
+                          value={settings.questionCount}
+                          onChange={(e) => {
+                            const newCount = Number(e.target.value);
+                            setNotebookSettings((prev) => ({
+                              ...prev,
+                              [notebook.id]: { ...prev[notebook.id], questionCount: newCount },
+                            }));
+                          }}
+                          className="w-full h-1 bg-[var(--color-border)] rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
+                        />
+                      </div>
+
+                      {/* Study mode toggle */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-[var(--color-text-sec)]">Modo de estudo</span>
+                        <button
+                          onClick={() => {
+                            const newMode = settings.studyMode === 'zen' ? 'hard' : 'zen';
+                            setNotebookSettings((prev) => ({
+                              ...prev,
+                              [notebook.id]: {
+                                ...prev[notebook.id],
+                                studyMode: newMode as PracticeMode,
+                              },
+                            }));
+                          }}
+                          className="relative inline-flex items-center h-7 rounded-full w-28 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] transition-colors"
                         >
-                          {settings.studyMode === 'zen' ? (
-                            <>
-                              <Coffee size={12} /> Zen
-                            </>
-                          ) : (
-                            <>
-                              <Zap size={12} /> Sim
-                            </>
-                          )}
-                        </span>
-                      </button>
+                          <span
+                            className={`absolute inline-flex items-center justify-center gap-1 h-6 rounded-full text-xs font-bold transition-all duration-300 ${
+                              settings.studyMode === 'zen'
+                                ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[var(--color-success)] text-black'
+                                : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[var(--color-error)] text-white'
+                            }`}
+                          >
+                            {settings.studyMode === 'zen' ? (
+                              <>
+                                <Coffee size={12} /> Zen
+                              </>
+                            ) : (
+                              <>
+                                <Zap size={12} /> Sim
+                              </>
+                            )}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Start button */}
+                  {/* Start button - pinned to bottom */}
                   <Button
+                    className="mt-auto"
                     fullWidth
                     onClick={() => handleStartFromNotebook(notebook)}
                     disabled={isStarting === notebook.id}

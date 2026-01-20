@@ -127,6 +127,7 @@ const MATERIAS_VALIDAS = [
 ];
 
 export const materiaClassifierAgent = new Agent({
+  id: "materiaClassifierAgent",
   name: "MateriaClassifierAgent",
   instructions: `Você é um especialista em classificação de questões de concursos públicos brasileiros.
 

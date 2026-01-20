@@ -59,8 +59,10 @@ interface Trace {
     latencyMs: number;
     inputTokens: number;
     outputTokens: number;
+    totalTokens: number;
     totalCost: number;
     status: string;
+    model?: string;
 }
 
 const COLORS = ['#FFB800', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
@@ -478,6 +480,9 @@ export const AIMetricsDashboard: React.FC = () => {
                                         Nome
                                     </th>
                                     <th className="text-left text-gray-400 text-xs font-medium uppercase px-4 py-3">
+                                        Modelo
+                                    </th>
+                                    <th className="text-left text-gray-400 text-xs font-medium uppercase px-4 py-3">
                                         Data
                                     </th>
                                     <th className="text-right text-gray-400 text-xs font-medium uppercase px-4 py-3">
@@ -492,32 +497,42 @@ export const AIMetricsDashboard: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {traces.slice(0, 10).map((trace) => (
-                                    <tr
-                                        key={trace.id}
-                                        className="border-t border-white/5 hover:bg-white/5"
-                                    >
-                                        <td className="px-4 py-3">
-                                            <span className="text-white text-sm">
-                                                {trace.name || 'Unnamed'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className="text-gray-400 text-sm">
-                                                {formatTimestamp(trace.timestamp)}
-                                            </span>
-                                        </td>
-                                        <td className="text-right text-gray-300 text-sm px-4 py-3">
-                                            {trace.latencyMs ? `${trace.latencyMs}ms` : '-'}
-                                        </td>
-                                        <td className="text-right text-gray-300 text-sm px-4 py-3">
-                                            {formatNumber(trace.inputTokens + trace.outputTokens)}
-                                        </td>
-                                        <td className="text-right text-sm px-4 py-3">
-                                            <span className="text-green-400">{formatBrl(trace.totalCost, 4)}</span>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {traces.slice(0, 10).map((trace) => {
+                                    const tokens = trace.totalTokens || (trace.inputTokens + trace.outputTokens);
+                                    return (
+                                        <tr
+                                            key={trace.id}
+                                            className="border-t border-white/5 hover:bg-white/5"
+                                        >
+                                            <td className="px-4 py-3">
+                                                <span className="text-white text-sm">
+                                                    {trace.name || 'Unnamed'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-gray-400 text-xs font-mono">
+                                                    {trace.model ? trace.model.split('/').pop() : '-'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-gray-400 text-sm">
+                                                    {formatTimestamp(trace.timestamp)}
+                                                </span>
+                                            </td>
+                                            <td className="text-right text-gray-300 text-sm px-4 py-3">
+                                                {trace.latencyMs ? `${trace.latencyMs}ms` : '-'}
+                                            </td>
+                                            <td className="text-right text-gray-300 text-sm px-4 py-3">
+                                                {tokens > 0 ? formatNumber(tokens) : '-'}
+                                            </td>
+                                            <td className="text-right text-sm px-4 py-3">
+                                                <span className="text-green-400">
+                                                    {trace.totalCost > 0 ? formatBrl(trace.totalCost, 4) : '-'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

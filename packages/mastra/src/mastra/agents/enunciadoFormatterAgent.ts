@@ -12,6 +12,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const enunciadoFormatterAgent = new Agent({
+    id: "enunciadoFormatterAgent",
     name: "EnunciadoFormatterAgent",
     instructions: `Você é um especialista em formatação de enunciados de questões de concursos públicos brasileiros.
 

@@ -9,6 +9,7 @@ import { createClient } from "@supabase/supabase-js";
  * Modelo: gemini-2.5-pro (melhor para geração de conteúdo complexo)
  */
 export const questionGeneratorAgent = new Agent({
+  id: "questionGeneratorAgent",
   name: "questionGeneratorAgent",
   description: "Gera questões de concurso público inéditas seguindo o estilo de bancas específicas brasileiras.",
   instructions: `Você é um especialista em criação de questões de concursos públicos brasileiros.

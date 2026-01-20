@@ -8,6 +8,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Modelo: gemini-2.5-flash (multimodal - suporta PDF nativamente)
  */
 export const provaAnalyzerAgent = new Agent({
+  id: "provaAnalyzerAgent",
   name: "provaAnalyzerAgent",
   description: "Agente especializado em analisar PDFs de provas anteriores de concursos e extrair a distribuição de questões por matéria (Raio-X).",
   instructions: `Você é um especialista em análise de provas de concursos públicos brasileiros.

@@ -10,6 +10,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const questionReviewAgent = new Agent({
+    id: "questionReviewAgent",
     name: "QuestionReviewAgent",
     instructions: `Você é um revisor de qualidade de questões de concurso público.
 

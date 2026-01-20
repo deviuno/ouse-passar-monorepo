@@ -181,7 +181,16 @@ export interface Caderno {
     toggleFilters?: any;
   };
   questions_count?: number;
+  saved_questions_count?: number;
   is_favorite: boolean;
+  created_at: string;
+}
+
+export interface CadernoQuestao {
+  id: string;
+  caderno_id: string;
+  questao_id: number;
+  nota?: string;
   created_at: string;
 }
 

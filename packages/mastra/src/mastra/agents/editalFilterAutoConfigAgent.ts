@@ -13,7 +13,7 @@
  * Se não encontrar correspondência, deixa o filtro vazio.
  */
 
-import { Agent } from "@mastra/core";
+import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
@@ -93,6 +93,7 @@ interface AutoConfigResult {
 // ==================== AGENT ====================
 
 export const editalFilterAutoConfigAgent = new Agent({
+    id: "editalFilterAutoConfigAgent",
     name: "EditalFilterAutoConfigAgent",
     instructions: `Voce e um especialista em concursos publicos brasileiros. Sua funcao e encontrar correspondencias entre termos de editais e termos usados em bancos de questoes.
 

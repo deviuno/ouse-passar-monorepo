@@ -12,17 +12,39 @@ import {
   Plus,
   Check,
   AlertTriangle,
+  Zap,
+  Send,
+  Mic,
+  Square,
+  Sparkles,
+  Headphones,
+  Radio,
+  FileText,
+  Minus,
 } from 'lucide-react';
 import { ParsedQuestion } from '../../types';
 import { QuestionStatistics } from '../../services/questionFeedbackService';
-import { getUserNotebooks, Notebook } from '../../services/notebooksService';
+import {
+  getUserNotebooks,
+  createNotebook,
+  Notebook,
+  getNotebooksContainingQuestion,
+  toggleQuestionInNotebook,
+} from '../../services/notebooksService';
+import { FilterOptions } from '../../pages/PracticePage';
 import { getOptimizedImageUrl } from '../../utils/image';
 import CommentsSection from './CommentsSection';
 import { ReportQuestionModal } from './ReportQuestionModal';
 import { PegadinhaModal } from './PegadinhaModal';
 import { REPORT_MOTIVOS, ReportMotivo } from '../../services/questionReportsService';
+import { chatWithTutor, TutorUserContext, GeneratedAudio } from '../../services/geminiService';
+import { generateAudioWithCache, generatePodcastWithCache } from '../../services/audioCacheService';
+import { AudioPlayer } from '../ui/AudioPlayer';
+import { renderMarkdown } from './chat';
+import { useBatteryStore } from '../../stores/useBatteryStore';
+import { getTimeUntilRecharge } from '../../types/battery';
 
-type TabId = 'explicacao' | 'comentarios' | 'estatisticas' | 'cadernos' | 'anotacoes' | 'erro';
+type TabId = 'explicacao' | 'comentarios' | 'estatisticas' | 'cadernos' | 'anotacoes' | 'duvidas' | 'erro';
 
 interface Tab {
   id: TabId;
@@ -36,8 +58,15 @@ const TABS: Tab[] = [
   { id: 'estatisticas', label: 'Estatísticas', icon: <BarChart2 size={16} /> },
   { id: 'cadernos', label: 'Cadernos', icon: <FolderPlus size={16} /> },
   { id: 'anotacoes', label: 'Anotações', icon: <StickyNote size={16} /> },
+  { id: 'duvidas', label: 'Tirar Dúvidas', icon: <Zap size={16} /> },
   { id: 'erro', label: 'Notificar', icon: <Flag size={16} /> },
 ];
+
+interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+  audio?: GeneratedAudio | null;
+}
 
 interface QuestionFeedbackTabsProps {
   question: ParsedQuestion;
@@ -48,6 +77,8 @@ interface QuestionFeedbackTabsProps {
   onShowToast?: (message: string, type: 'success' | 'error' | 'info') => void;
   selectedAlt: string | null;
   isCorrect: boolean;
+  preparatorioId?: string;
+  checkoutUrl?: string;
 }
 
 // Função para converter URLs de imagem em markdown
@@ -77,6 +108,8 @@ export function QuestionFeedbackTabs({
   onShowToast,
   selectedAlt,
   isCorrect,
+  preparatorioId,
+  checkoutUrl,
 }: QuestionFeedbackTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explicacao');
   const [showReportModal, setShowReportModal] = useState(false);
@@ -87,25 +120,260 @@ export function QuestionFeedbackTabs({
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loadingNotebooks, setLoadingNotebooks] = useState(false);
   const [savedToNotebooks, setSavedToNotebooks] = useState<Set<string>>(new Set());
+  const [savingToNotebook, setSavingToNotebook] = useState<string | null>(null);
+  const [showNewNotebookModal, setShowNewNotebookModal] = useState(false);
+  const [newNotebookTitle, setNewNotebookTitle] = useState('');
+  const [newNotebookDescription, setNewNotebookDescription] = useState('');
+  const [creatingNotebook, setCreatingNotebook] = useState(false);
 
   // Anotações state
   const [annotation, setAnnotation] = useState('');
   const [savingAnnotation, setSavingAnnotation] = useState(false);
   const [savedAnnotation, setSavedAnnotation] = useState<string | null>(null);
 
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatThreadId, setChatThreadId] = useState<string | undefined>(undefined);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [showChatShortcuts, setShowChatShortcuts] = useState(false);
+  const recognitionRef = React.useRef<any>(null);
+  const chatMessagesEndRef = React.useRef<HTMLDivElement>(null);
+  const chatInputRef = React.useRef<HTMLInputElement>(null);
+  const shortcutsRef = React.useRef<HTMLDivElement>(null);
+
+  // Battery store
+  const { consumeBattery } = useBatteryStore();
+
+  // Chat greeting message
+  const getChatGreeting = () => {
+    const assunto = question.assunto || question.materia || 'esta questão';
+    return `Olá! 👋 Sou seu **Professor Virtual**. Vi que você está estudando **${assunto}**.\n\nComo posso te ajudar?`;
+  };
+
+  // Initialize chat messages
+  useEffect(() => {
+    if (activeTab === 'duvidas' && chatMessages.length === 0) {
+      setChatMessages([{ role: 'model', text: getChatGreeting() }]);
+    }
+  }, [activeTab]);
+
+  // Reset chat when question changes
+  useEffect(() => {
+    setChatMessages([]);
+    setChatThreadId(undefined);
+  }, [question.id]);
+
+  // Scroll chat to bottom
+  useEffect(() => {
+    if (activeTab === 'duvidas') {
+      chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, activeTab]);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window) {
+      // @ts-ignore
+      const recognition = new window.webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'pt-BR';
+      recognition.onstart = () => setIsRecording(true);
+      recognition.onend = () => setIsRecording(false);
+      recognition.onerror = () => setIsRecording(false);
+      recognition.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) setChatInput(transcript);
+      };
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  // Close shortcuts dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (shortcutsRef.current && !shortcutsRef.current.contains(event.target as Node)) {
+        setShowChatShortcuts(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Battery check helper
+  const getBatteryEmptyMessage = (): string => {
+    const { hours, minutes } = getTimeUntilRecharge();
+    let timeMsg = hours > 0 ? `${hours}h${minutes > 0 ? ` e ${minutes}min` : ''}` : `${minutes} minutos`;
+    let message = `⚡ **Ops! Sua energia acabou.**\n\nVocê não tem energia suficiente para usar o chat agora.\n\n`;
+    message += `🔋 Sua bateria será recarregada em **${timeMsg}**.\n\n`;
+    if (checkoutUrl) {
+      message += `💡 **Dica:** Adquira o acesso ilimitado e nunca mais se preocupe com energia!`;
+    }
+    return message;
+  };
+
+  const checkAndConsumeBattery = async (actionType: 'chat_message' | 'chat_audio' | 'chat_podcast' | 'chat_summary'): Promise<boolean> => {
+    if (!userId || !preparatorioId) return true;
+    const result = await consumeBattery(userId, preparatorioId, actionType, {});
+    if (!result.success && result.error === 'insufficient_battery') {
+      setChatMessages(prev => [...prev, { role: 'model', text: getBatteryEmptyMessage() }]);
+      return false;
+    }
+    return result.success || result.is_premium === true;
+  };
+
+  // Chat handlers
+  const handleChatSend = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const userText = chatInput;
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', text: userText }]);
+
+    const canProceed = await checkAndConsumeBattery('chat_message');
+    if (!canProceed) return;
+
+    setChatLoading(true);
+    const response = await chatWithTutor(chatMessages, userText, question, undefined, chatThreadId);
+    if (response.threadId) setChatThreadId(response.threadId);
+    setChatMessages(prev => [...prev, { role: 'model', text: response.text }]);
+    setChatLoading(false);
+  };
+
+  const handleMicClick = () => {
+    if (!recognitionRef.current) {
+      alert('Navegador sem suporte a voz.');
+      return;
+    }
+    if (isRecording) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
+  };
+
+  const handleGenerateAudio = async () => {
+    setShowChatShortcuts(false);
+    const canProceed = await checkAndConsumeBattery('chat_audio');
+    if (!canProceed) return;
+
+    setIsGeneratingAudio(true);
+    setChatMessages(prev => [...prev, { role: 'user', text: '🎧 Gerar explicação em áudio' }]);
+    setChatMessages(prev => [...prev, { role: 'model', text: '🎙️ Gerando áudio explicativo... Aguarde um momento.' }]);
+
+    try {
+      const audio = await generateAudioWithCache(question.assunto || 'a questão', question.enunciado);
+      if (audio) {
+        if (audio.fromCache) await new Promise(resolve => setTimeout(resolve, 1500));
+        setChatMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = {
+            role: 'model',
+            text: `🎧 **Áudio gerado!**\n\nOuça a explicação:`,
+            audio: { audioUrl: audio.audioUrl, type: 'explanation' }
+          };
+          return newMessages;
+        });
+      } else {
+        setChatMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = { role: 'model', text: '❌ Não foi possível gerar o áudio.' };
+          return newMessages;
+        });
+      }
+    } catch (error) {
+      setChatMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = { role: 'model', text: '❌ Erro ao gerar áudio.' };
+        return newMessages;
+      });
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
+
+  const handleGeneratePodcast = async () => {
+    setShowChatShortcuts(false);
+    const canProceed = await checkAndConsumeBattery('chat_podcast');
+    if (!canProceed) return;
+
+    setIsGeneratingAudio(true);
+    setChatMessages(prev => [...prev, { role: 'user', text: '🎙️ Gerar podcast sobre o tema' }]);
+    setChatMessages(prev => [...prev, { role: 'model', text: '🎙️ Gerando podcast... Isso pode levar alguns segundos.' }]);
+
+    try {
+      const audio = await generatePodcastWithCache(question.assunto || 'a questão', question.enunciado);
+      if (audio) {
+        if (audio.fromCache) await new Promise(resolve => setTimeout(resolve, 1500));
+        setChatMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = {
+            role: 'model',
+            text: `🎙️ **Podcast gerado!**\n\nOuça a discussão:`,
+            audio: { audioUrl: audio.audioUrl, type: 'podcast' }
+          };
+          return newMessages;
+        });
+      } else {
+        setChatMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = { role: 'model', text: '❌ Não foi possível gerar o podcast.' };
+          return newMessages;
+        });
+      }
+    } catch (error) {
+      setChatMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = { role: 'model', text: '❌ Erro ao gerar podcast.' };
+        return newMessages;
+      });
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    setShowChatShortcuts(false);
+    const canProceed = await checkAndConsumeBattery('chat_summary');
+    if (!canProceed) return;
+
+    const summaryPrompt = 'Faça um resumo rápido e objetivo dos pontos principais desta questão.';
+    setChatMessages(prev => [...prev, { role: 'user', text: summaryPrompt }]);
+    setChatLoading(true);
+    const response = await chatWithTutor(chatMessages, summaryPrompt, question, undefined, chatThreadId);
+    if (response.threadId) setChatThreadId(response.threadId);
+    setChatMessages(prev => [...prev, { role: 'model', text: response.text }]);
+    setChatLoading(false);
+  };
+
+  // Reset saved notebooks when question changes
+  useEffect(() => {
+    setSavedToNotebooks(new Set());
+  }, [question.id]);
+
   // Load notebooks when tab is selected
   useEffect(() => {
-    if (activeTab === 'cadernos' && userId && notebooks.length === 0) {
+    if (activeTab === 'cadernos' && userId) {
       loadNotebooks();
     }
-  }, [activeTab, userId]);
+  }, [activeTab, userId, question.id]);
 
   const loadNotebooks = async () => {
     if (!userId) return;
     setLoadingNotebooks(true);
     try {
-      const data = await getUserNotebooks(userId);
-      setNotebooks(data);
+      // Fetch notebooks and saved status in parallel
+      const [notebooksData, savedNotebookIds] = await Promise.all([
+        getUserNotebooks(userId),
+        getNotebooksContainingQuestion(userId, question.id),
+      ]);
+      setNotebooks(notebooksData);
+      setSavedToNotebooks(new Set(savedNotebookIds));
     } catch (error) {
       console.error('Erro ao carregar cadernos:', error);
     } finally {
@@ -114,10 +382,71 @@ export function QuestionFeedbackTabs({
   };
 
   const handleSaveToNotebook = async (notebookId: string) => {
-    // TODO: Implementar lógica de salvar questão no caderno
-    // Por enquanto, apenas simula o salvamento
-    setSavedToNotebooks(prev => new Set(prev).add(notebookId));
-    onShowToast?.('Questão salva no caderno!', 'success');
+    const isSaved = savedToNotebooks.has(notebookId);
+    setSavingToNotebook(notebookId);
+
+    try {
+      const nowSaved = await toggleQuestionInNotebook(notebookId, question.id, isSaved);
+
+      setSavedToNotebooks(prev => {
+        const newSet = new Set(prev);
+        if (nowSaved) {
+          newSet.add(notebookId);
+        } else {
+          newSet.delete(notebookId);
+        }
+        return newSet;
+      });
+
+      // Update notebook saved_questions_count locally
+      setNotebooks(prev => prev.map(nb => {
+        if (nb.id === notebookId) {
+          const currentCount = nb.saved_questions_count || 0;
+          return {
+            ...nb,
+            saved_questions_count: nowSaved ? currentCount + 1 : Math.max(0, currentCount - 1),
+          };
+        }
+        return nb;
+      }));
+
+      onShowToast?.(
+        nowSaved ? 'Questão salva no caderno!' : 'Questão removida do caderno!',
+        'success'
+      );
+    } catch (error) {
+      console.error('Erro ao salvar/remover questão:', error);
+      onShowToast?.('Erro ao atualizar caderno', 'error');
+    } finally {
+      setSavingToNotebook(null);
+    }
+  };
+
+  const handleCreateNotebook = async () => {
+    if (!userId || !newNotebookTitle.trim()) return;
+
+    setCreatingNotebook(true);
+    try {
+      const newNotebook = await createNotebook(
+        userId,
+        newNotebookTitle.trim(),
+        {} as FilterOptions, // Empty filters for manual notebook
+        {}, // Empty settings
+        newNotebookDescription.trim() || undefined,
+        0
+      );
+
+      setNotebooks(prev => [newNotebook, ...prev]);
+      setShowNewNotebookModal(false);
+      setNewNotebookTitle('');
+      setNewNotebookDescription('');
+      onShowToast?.('Caderno criado com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao criar caderno:', error);
+      onShowToast?.('Erro ao criar caderno', 'error');
+    } finally {
+      setCreatingNotebook(false);
+    }
   };
 
   const handleSaveAnnotation = async () => {
@@ -326,6 +655,7 @@ export function QuestionFeedbackTabs({
               </h4>
               {userId && (
                 <button
+                  onClick={() => setShowNewNotebookModal(true)}
                   className="px-3 py-1.5 bg-[var(--color-brand)] text-black rounded-lg font-medium text-xs hover:bg-[var(--color-brand-light)] transition-colors flex items-center"
                 >
                   <Plus size={14} className="mr-1" />
@@ -352,25 +682,33 @@ export function QuestionFeedbackTabs({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {notebooks.map((notebook) => {
                   const isSaved = savedToNotebooks.has(notebook.id);
+                  const isSaving = savingToNotebook === notebook.id;
+                  const savedCount = notebook.saved_questions_count || 0;
                   return (
                     <button
                       key={notebook.id}
-                      onClick={() => !isSaved && handleSaveToNotebook(notebook.id)}
-                      disabled={isSaved}
+                      onClick={() => handleSaveToNotebook(notebook.id)}
+                      disabled={isSaving}
                       className={`w-full p-3 rounded-lg border text-left transition-all flex items-center justify-between ${
                         isSaved
-                          ? 'border-green-500/50 bg-green-500/10'
+                          ? 'border-green-500/50 bg-green-500/10 hover:bg-green-500/20'
                           : 'border-[var(--color-border)] bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-elevated)]'
-                      }`}
+                      } ${isSaving ? 'opacity-60' : ''}`}
                     >
                       <div className="min-w-0 flex-1 mr-2">
                         <p className="font-medium text-[var(--color-text-main)] text-sm truncate">{notebook.title}</p>
-                        {notebook.description && (
-                          <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">{notebook.description}</p>
-                        )}
+                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                          {savedCount > 0 ? `${savedCount} questões salvas` : 'Nenhuma questão salva'}
+                          {notebook.description && ` • ${notebook.description}`}
+                        </p>
                       </div>
-                      {isSaved ? (
-                        <Check size={18} className="text-green-500 flex-shrink-0" />
+                      {isSaving ? (
+                        <Loader2 size={18} className="animate-spin text-[var(--color-brand)] flex-shrink-0" />
+                      ) : isSaved ? (
+                        <div className="flex items-center gap-1 text-green-500">
+                          <Check size={16} />
+                          <Minus size={14} className="opacity-60" />
+                        </div>
                       ) : (
                         <Plus size={18} className="text-[var(--color-text-muted)] flex-shrink-0" />
                       )}
@@ -437,6 +775,135 @@ export function QuestionFeedbackTabs({
                 </button>
               </>
             )}
+          </div>
+        );
+
+      case 'duvidas':
+        return (
+          <div className="animate-fade-in flex flex-col h-[400px]">
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2">
+              {chatMessages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm ${
+                      msg.role === 'user'
+                        ? 'bg-[var(--color-brand)] text-black rounded-br-md'
+                        : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] rounded-bl-md border border-[var(--color-border)]'
+                    }`}
+                  >
+                    {msg.role === 'model' ? (
+                      <div className="text-[var(--color-text-main)] leading-relaxed">
+                        {renderMarkdown(msg.text)}
+                      </div>
+                    ) : (
+                      <span>{msg.text}</span>
+                    )}
+                    {msg.audio && (
+                      <div className="mt-3">
+                        <AudioPlayer src={msg.audio.audioUrl} type={msg.audio.type as 'explanation' | 'podcast'} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-4 py-3 rounded-2xl rounded-bl-md">
+                    <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
+                      <Loader2 size={16} className="animate-spin" />
+                      <span className="text-sm">Pensando...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatMessagesEndRef} />
+            </div>
+
+            {/* Chat Input */}
+            <div className="border-t border-[var(--color-border)] pt-4">
+              <div className="flex items-center gap-2">
+                {/* Shortcuts Button */}
+                <div className="relative" ref={shortcutsRef}>
+                  <button
+                    onClick={() => setShowChatShortcuts(!showChatShortcuts)}
+                    disabled={chatLoading || isGeneratingAudio}
+                    className="p-2.5 rounded-lg bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:border-[var(--color-brand)] transition-colors disabled:opacity-50"
+                    title="Atalhos"
+                  >
+                    <Sparkles size={18} />
+                  </button>
+
+                  {showChatShortcuts && (
+                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-lg shadow-xl overflow-hidden z-10">
+                      <button
+                        onClick={handleGenerateAudio}
+                        disabled={isGeneratingAudio}
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <Headphones size={16} className="text-[var(--color-brand)]" />
+                        Gerar Áudio
+                      </button>
+                      <button
+                        onClick={handleGeneratePodcast}
+                        disabled={isGeneratingAudio}
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <Radio size={16} className="text-purple-400" />
+                        Gerar Podcast
+                      </button>
+                      <button
+                        onClick={handleGenerateSummary}
+                        disabled={chatLoading}
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <FileText size={16} className="text-green-400" />
+                        Resumo Rápido
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input Field */}
+                <input
+                  ref={chatInputRef}
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleChatSend()}
+                  placeholder="Digite sua dúvida..."
+                  disabled={chatLoading}
+                  className="flex-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors disabled:opacity-50"
+                />
+
+                {/* Mic Button */}
+                <button
+                  onClick={handleMicClick}
+                  disabled={chatLoading}
+                  className={`p-2.5 rounded-lg border transition-colors ${
+                    isRecording
+                      ? 'bg-red-500 border-red-500 text-white'
+                      : 'bg-[var(--color-bg-elevated)] border-[var(--color-border)] text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:border-[var(--color-brand)]'
+                  } disabled:opacity-50`}
+                  title={isRecording ? 'Parar' : 'Falar'}
+                >
+                  {isRecording ? <Square size={18} /> : <Mic size={18} />}
+                </button>
+
+                {/* Send Button */}
+                <button
+                  onClick={handleChatSend}
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="p-2.5 rounded-lg bg-[var(--color-brand)] text-black hover:bg-[var(--color-brand-light)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Enviar"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
           </div>
         );
 
@@ -528,6 +995,74 @@ export function QuestionFeedbackTabs({
         }}
         initialMotivo={selectedReportMotivo}
       />
+
+      {/* Modal Novo Caderno */}
+      {showNewNotebookModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in">
+          <div className="bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl w-full max-w-md p-6 animate-slide-up">
+            <h3 className="text-lg font-bold text-[var(--color-text-main)] mb-4 flex items-center">
+              <FolderPlus size={20} className="mr-2 text-[var(--color-brand)]" />
+              Novo Caderno
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-sec)] mb-1.5">
+                  Nome do Caderno *
+                </label>
+                <input
+                  type="text"
+                  value={newNotebookTitle}
+                  onChange={(e) => setNewNotebookTitle(e.target.value)}
+                  placeholder="Ex: Questões de Direito Constitucional"
+                  className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-sec)] mb-1.5">
+                  Descrição (opcional)
+                </label>
+                <textarea
+                  value={newNotebookDescription}
+                  onChange={(e) => setNewNotebookDescription(e.target.value)}
+                  placeholder="Adicione uma descrição para o caderno..."
+                  rows={3}
+                  className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowNewNotebookModal(false);
+                  setNewNotebookTitle('');
+                  setNewNotebookDescription('');
+                }}
+                className="flex-1 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[var(--color-text-main)] rounded-lg font-medium text-sm hover:bg-[var(--color-bg-elevated)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateNotebook}
+                disabled={!newNotebookTitle.trim() || creatingNotebook}
+                className="flex-1 py-2.5 bg-[var(--color-brand)] text-black rounded-lg font-medium text-sm hover:bg-[var(--color-brand-light)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {creatingNotebook ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <>
+                    <Plus size={16} className="mr-1.5" />
+                    Criar Caderno
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

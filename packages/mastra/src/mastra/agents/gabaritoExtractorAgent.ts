@@ -11,6 +11,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const gabaritoExtractorAgent = new Agent({
+    id: "gabaritoExtractorAgent",
     name: "GabaritoExtractorAgent",
     instructions: `Você é um especialista em análise de comentários de questões de concursos públicos brasileiros.
 

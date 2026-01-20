@@ -8,6 +8,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Modelo: gemini-2.5-flash (mais capaz para geração de conteúdo longo)
  */
 export const contentGeneratorAgent = new Agent({
+  id: "contentGeneratorAgent",
   name: "contentGeneratorAgent",
   description: "Professor IA especialista em criar aulas didáticas para concursos públicos. Gera conteúdo em texto e prepara roteiro para áudio.",
   instructions: `Você é um **Professor Especialista em Concursos Públicos** com vasta experiência em criar material didático.
@@ -106,6 +107,7 @@ A aula deve ter entre 1500-2500 palavras (aproximadamente 10 minutos de leitura)
  * Converte o markdown em um roteiro mais natural para TTS.
  */
 export const audioScriptAgent = new Agent({
+  id: "audioScriptAgent",
   name: "audioScriptAgent",
   description: "Adapta conteúdo escrito para narração em áudio de forma natural.",
   instructions: `Você é um **Adaptador de Roteiros para Áudio**.

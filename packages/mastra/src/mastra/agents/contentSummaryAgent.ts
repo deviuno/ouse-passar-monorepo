@@ -8,6 +8,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Modelo: gemini-2.5-flash (rápido e eficiente para resumos)
  */
 export const contentSummaryAgent = new Agent({
+  id: "contentSummaryAgent",
   name: "contentSummaryAgent",
   description: "Professor IA especialista em criar resumos de última hora para concursos. Condensa o conteúdo mantendo apenas o essencial.",
   instructions: `Você é um **Professor Especialista em Revisão de Última Hora** para concursos públicos.
@@ -94,6 +95,7 @@ IMPORTANTE: Retorne APENAS o conteúdo em markdown. NÃO use \`\`\`markdown ou \
  * Cria narração de no máximo 3 minutos.
  */
 export const audioSummaryAgent = new Agent({
+  id: "audioSummaryAgent",
   name: "audioSummaryAgent",
   description: "Adapta resumos Reta Final para narração rápida em áudio.",
   instructions: `Você é um **Adaptador de Resumos para Áudio Rápido** do modo RETA FINAL.
