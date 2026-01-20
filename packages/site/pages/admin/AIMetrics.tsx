@@ -32,6 +32,8 @@ interface AIStats {
     inputTokens: number;
     outputTokens: number;
     totalCost: number;
+    totalCostUSD?: number;
+    totalCostBRL?: number;
     totalRequests: number;
     avgLatencyMs: number;
     errorRate: number;
@@ -42,7 +44,9 @@ interface ModelBreakdown {
     model: string;
     count: number;
     tokens: number;
-    cost: number;
+    cost?: number;
+    costUSD?: number;
+    costBRL?: number;
 }
 
 interface UsageData {
@@ -258,12 +262,19 @@ export const AIMetricsDashboard: React.FC = () => {
                             </div>
                             <span className="text-gray-400 text-sm font-medium">Custo Total</span>
                         </div>
-                        <p className="text-2xl font-bold text-white">{formatCurrency(stats.totalCost)}</p>
+                        <p className="text-2xl font-bold text-white">
+                            {stats.totalCostBRL !== undefined
+                                ? `R$ ${stats.totalCostBRL.toFixed(2).replace('.', ',')}`
+                                : formatCurrency(stats.totalCost || 0)
+                            }
+                        </p>
                         <p className="text-xs text-gray-500 mt-1">
-                            {usdToBrl ? (
+                            {stats.totalCostUSD !== undefined ? (
+                                <span className="text-gray-400">${stats.totalCostUSD.toFixed(4)} USD</span>
+                            ) : usdToBrl && stats.totalCost ? (
                                 <span className="text-green-400">{formatBrl(stats.totalCost)}</span>
                             ) : (
-                                'USD estimado'
+                                'Preços Vertex AI'
                             )}
                         </p>
                     </div>
@@ -453,9 +464,24 @@ export const AIMetricsDashboard: React.FC = () => {
                                             {formatNumber(item.tokens)}
                                         </td>
                                         <td className="text-right text-sm px-4 py-3">
-                                            <span className="text-gray-300">{formatCurrency(item.cost)}</span>
-                                            {usdToBrl && (
-                                                <span className="text-green-400 ml-2">({formatBrl(item.cost)})</span>
+                                            {item.costBRL !== undefined ? (
+                                                <span className="text-green-400">R$ {item.costBRL.toFixed(2).replace('.', ',')}</span>
+                                            ) : item.costUSD !== undefined ? (
+                                                <>
+                                                    <span className="text-gray-300">${item.costUSD.toFixed(4)}</span>
+                                                    {usdToBrl && (
+                                                        <span className="text-green-400 ml-2">({formatBrl(item.costUSD)})</span>
+                                                    )}
+                                                </>
+                                            ) : item.cost !== undefined ? (
+                                                <>
+                                                    <span className="text-gray-300">{formatCurrency(item.cost)}</span>
+                                                    {usdToBrl && (
+                                                        <span className="text-green-400 ml-2">({formatBrl(item.cost)})</span>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <span className="text-gray-500">-</span>
                                             )}
                                         </td>
                                     </tr>
