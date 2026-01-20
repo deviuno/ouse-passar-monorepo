@@ -117,6 +117,9 @@ import { MusicSettings } from './pages/admin/music/Settings';
 import { MusicLyricsGenerator } from './pages/admin/music/LyricsGenerator';
 import { MusicRequests } from './pages/admin/music/Requests';
 
+// AI Metrics
+import { AIMetricsDashboard } from './pages/admin/AIMetrics';
+
 // Wrapper for Home Page components
 const Home = () => {
   const navigate = useNavigate();
@@ -330,6 +333,9 @@ const App: React.FC = () => {
                 <Route path="music/configuracoes" element={<AdminOnlyRoute><MusicSettings /></AdminOnlyRoute>} />
                 <Route path="music/gerador" element={<AdminOnlyRoute><MusicLyricsGenerator /></AdminOnlyRoute>} />
                 <Route path="music/solicitacoes" element={<AdminOnlyRoute><MusicRequests /></AdminOnlyRoute>} />
+
+                {/* AI Metrics */}
+                <Route path="ai-metrics" element={<AdminOnlyRoute><AIMetricsDashboard /></AdminOnlyRoute>} />
 
                 {/* Documentação técnica - Acesso apenas via URL direta, sem links */}
                 <Route path="automacao-conteudo-missao" element={<AdminOnlyRoute><AutomacaoConteudoMissao /></AdminOnlyRoute>} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag, Sparkles, PlayCircle, FolderOpen, Layers, Headphones, Music, ListMusic, Wand2, Inbox } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, LogOut, BookOpen, User, ChevronDown, GraduationCap, ClipboardList, UserCheck, Plus, ShoppingCart, Package, Tag, LifeBuoy, Ticket, Flag, Sparkles, PlayCircle, FolderOpen, Layers, Headphones, Music, ListMusic, Wand2, Inbox, Zap } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -469,6 +469,15 @@ export const AdminLayout: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Métricas de IA */}
+                            <Link
+                                to="/admin/ai-metrics"
+                                className={`flex items-center px-4 py-3 rounded-sm text-sm font-bold uppercase tracking-wide transition-colors ${isActive('/admin/ai-metrics')}`}
+                            >
+                                <Zap className="w-5 h-5 mr-3" />
+                                Métricas de IA
+                            </Link>
                         </>
                     )}
                 </nav>

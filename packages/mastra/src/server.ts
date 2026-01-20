@@ -41,6 +41,7 @@ import { compressImage, getContentType, getFileExtension } from './services/imag
 import multer from 'multer';
 import { createScraperRoutes } from './routes/scraper.js';
 import { createTecConcursosScraperRoutes } from './routes/tecConcursosScraper.js';
+import { createAIMetricsRoutes } from './routes/aiMetrics.js';
 import { startImageProcessorCron, getImageProcessorStatus } from './cron/imageProcessor.js';
 import { startQuestionReviewerCron, getQuestionReviewerStatus } from './cron/questionReviewer.js';
 import { startGabaritoExtractorCron, getGabaritoExtractorStatus } from './cron/gabaritoExtractor.js';
@@ -8658,6 +8659,10 @@ app.use('/api/scraper', scraperRoutes);
 // Registrar rotas do TecConcursos Scraper (autônomo)
 const tecScraperRoutes = createTecConcursosScraperRoutes();
 app.use('/api/tec-scraper', tecScraperRoutes);
+
+// Registrar rotas de AI Metrics (Langfuse)
+const aiMetricsRoutes = createAIMetricsRoutes();
+app.use('/api/admin/ai-metrics', aiMetricsRoutes);
 
 // Endpoint para status dos cron jobs
 app.get('/api/scraper/cron-status', (req, res) => {
