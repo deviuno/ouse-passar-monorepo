@@ -600,8 +600,8 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         {
             id: 'audio',
             icon: <Headphones size={18} />,
-            label: 'Explicar em Áudio',
-            description: 'Gera uma explicação falada do conteúdo',
+            label: 'Gerar resumo em áudio',
+            description: 'Gera um resumo falado do conteúdo',
             action: handleGenerateAudio,
         },
         {

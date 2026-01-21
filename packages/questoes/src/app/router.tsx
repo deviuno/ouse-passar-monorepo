@@ -29,6 +29,10 @@ import TermsPage from '../pages/TermsPage';
 import PrivacyPage from '../pages/PrivacyPage';
 import CoursesPage from '../pages/CoursesPage';
 import CourseViewPage from '../pages/CourseViewPage';
+import GoldenNotebookPage from '../pages/GoldenNotebookPage';
+import GoldenNotebookDetailPage from '../pages/GoldenNotebookDetailPage';
+import MyErrorsPage from '../pages/MyErrorsPage';
+import MyContentPage from '../pages/MyContentPage';
 
 // Music pages
 import Music from '../pages/Music';
@@ -160,6 +164,25 @@ export const router = createBrowserRouter([
       {
         path: 'trilhas/:slug',
         element: <ModuleGuard module="praticar"><TrailEditalPage /></ModuleGuard>,
+      },
+      // Minhas Anotações - protected by ModuleGuard
+      {
+        path: 'minhas-anotacoes',
+        element: <ModuleGuard module="praticar"><GoldenNotebookPage /></ModuleGuard>,
+      },
+      {
+        path: 'minhas-anotacoes/:id',
+        element: <ModuleGuard module="praticar"><GoldenNotebookDetailPage /></ModuleGuard>,
+      },
+      // Meus Erros - protected by ModuleGuard
+      {
+        path: 'meus-erros',
+        element: <ModuleGuard module="praticar"><MyErrorsPage /></ModuleGuard>,
+      },
+      // Meus Conteúdos - protected by ModuleGuard
+      {
+        path: 'meus-conteudos',
+        element: <ModuleGuard module="praticar"><MyContentPage /></ModuleGuard>,
       },
       // Cursos
       {

@@ -31,6 +31,7 @@ import {
 import { useAuthStore } from "../stores/useAuthStore";
 import {
   fetchQuestions,
+  fetchQuestionsByIds,
   parseRawQuestion,
 } from "../services/questionsService";
 import {
@@ -94,9 +95,12 @@ export default function PracticePage() {
   const trailPreparatorioId = searchParams.get("preparatorioId");
   const editalItemTitle = searchParams.get("editalItemTitle");
   const preparatorioSlug = searchParams.get("preparatorioSlug");
+  const idsParam = searchParams.get("ids");
+  const practiceSource = searchParams.get("source"); // 'errors' when coming from MyErrorsPage
 
   // Auto-start refs
   const autoStartTriggeredRef = React.useRef(false);
+  const idsAutoStartTriggeredRef = React.useRef(false);
   const [autoStartPending, setAutoStartPending] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("autostart") === "true";
@@ -433,6 +437,16 @@ export default function PracticePage() {
     }
   }, [mode, autoStartPending]);
 
+  // Auto-start when specific IDs are provided (e.g., from MyErrorsPage)
+  useEffect(() => {
+    if (!idsParam || idsAutoStartTriggeredRef.current) return;
+    if (isLoadingFilters || isLoadingCount || mode !== "selection") return;
+
+    console.log('[PracticePage] Auto-starting with IDs from source:', practiceSource);
+    idsAutoStartTriggeredRef.current = true;
+    startPractice();
+  }, [idsParam, isLoadingFilters, isLoadingCount, mode, practiceSource]);
+
   // Reset state on route change
   useEffect(() => {
     setMode("selection");
@@ -628,7 +642,15 @@ export default function PracticePage() {
 
       let questionsToUse: ParsedQuestion[] = [];
 
-      if (usingMockData) {
+      // If specific question IDs are provided (e.g., from MyErrorsPage), fetch only those
+      if (idsParam) {
+        const ids = idsParam.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+        console.log('[PracticePage] Fetching specific question IDs:', ids.length);
+        if (ids.length > 0) {
+          questionsToUse = await fetchQuestionsByIds(ids);
+          console.log('[PracticePage] Fetched', questionsToUse.length, 'questions by IDs');
+        }
+      } else if (usingMockData) {
         let filtered = [...MOCK_QUESTIONS];
         if (activeFilters.materia.length > 0) {
           filtered = filtered.filter((q) => activeFilters.materia.includes(q.materia));

@@ -11,3 +11,5 @@ export { default as ReportQuestionModal } from './ReportQuestionModal';
 export { MentorChat } from './MentorChat';
 export { PegadinhaModal } from './PegadinhaModal';
 export { QuestionStatsModal } from './QuestionStatsModal';
+export { QuestionAnnotationBalloon } from './QuestionAnnotationBalloon';
+export { QuestionPreviewModal } from './QuestionPreviewModal';

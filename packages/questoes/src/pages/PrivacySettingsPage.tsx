@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Shield,
-  ArrowLeft,
   Eye,
   EyeOff,
   Users,
@@ -14,7 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Card, Button } from '../components/ui';
-import { useAuthStore } from '../stores';
+import { useAuthStore, useUIStore } from '../stores';
 import { supabase } from '../services/supabase';
 
 interface PrivacySettings {
@@ -86,6 +85,7 @@ function SettingItem({
 export default function PrivacySettingsPage() {
   const navigate = useNavigate();
   const { profile, updateProfile } = useAuthStore();
+  const { setHeaderOverride, clearHeaderOverride } = useUIStore();
   const [settings, setSettings] = useState<PrivacySettings>({
     show_profile_public: true,
     show_stats_public: true,
@@ -94,6 +94,20 @@ export default function PrivacySettingsPage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Set up header
+  useEffect(() => {
+    setHeaderOverride({
+      title: 'Privacidade',
+      showBackButton: true,
+      backPath: '/perfil',
+      hideIcon: true,
+    });
+
+    return () => {
+      clearHeaderOverride();
+    };
+  }, []);
 
   useEffect(() => {
     loadSettings();
@@ -148,33 +162,7 @@ export default function PrivacySettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#121212] pb-24 md:pb-8">
-      {/* Header */}
-      <div className="bg-gradient-to-b from-[#1A1A1A] to-[#121212] px-4 py-6 md:px-6">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 rounded-xl hover:bg-[#3A3A3A] transition-colors"
-            >
-              <ArrowLeft size={20} className="text-white" />
-            </button>
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-12 h-12 rounded-2xl bg-[#9B59B6]/10 flex items-center justify-center">
-                <Shield size={24} className="text-[#9B59B6]" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Privacidade</h1>
-                <p className="text-[#A0A0A0] text-sm">Controle suas informações</p>
-              </div>
-            </div>
-            {saving && (
-              <Loader2 size={20} className="text-[#FFB800] animate-spin" />
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-[var(--color-bg-main)] pb-24 md:pb-8 theme-transition">
       {/* Content */}
       <div className="px-4 md:px-6 max-w-2xl mx-auto">
         {loading ? (

@@ -29,6 +29,7 @@ import RippleEffect from "../ui/RippleEffect";
 import { validateQuestion } from "../../utils/questionValidator";
 import CorruptedQuestionCard from "./CorruptedQuestionCard";
 import { getOptimizedImageUrl } from "../../utils/image";
+import { QuestionAnnotationBalloon } from "./QuestionAnnotationBalloon";
 
 interface QuestionCardProps {
   question: ParsedQuestion;
@@ -395,22 +396,66 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const currentStats = buildStatsData();
 
   // Função para converter URLs de imagem em markdown antes de renderizar
-  const preprocessImageUrls = (text: string): string => {
+  const preprocessImageUrls = (text: string, imagensEnunciado?: string | null): string => {
     if (!text) return "";
 
-    // Padrão 1: "Disponível em: URL. Acesso em: ..."
-    let processed = text.replace(
+    let processed = text;
+
+    // Primeiro: substituir placeholders por URLs reais do campo imagens_enunciado
+    if (imagensEnunciado) {
+      // Extrair URLs do campo imagens_enunciado (formato: {url1,url2} ou {url})
+      const urlMatches = imagensEnunciado.match(/https?:\/\/[^\s,}]+/g);
+      if (urlMatches && urlMatches.length > 0) {
+        // Substituir placeholder "URL_DA_IMAGEM_AQUI" pela primeira URL real
+        processed = processed.replace(
+          /!\[([^\]]*)\]\(URL_DA_IMAGEM_AQUI\)/gi,
+          `![Imagem](${urlMatches[0]})`
+        );
+
+        // Se houver múltiplas imagens e múltiplos placeholders, substituir sequencialmente
+        let urlIndex = 0;
+        processed = processed.replace(
+          /!\[([^\]]*)\]\(URL_DA_IMAGEM_AQUI\)/gi,
+          () => {
+            const url = urlMatches[urlIndex] || urlMatches[0];
+            urlIndex++;
+            return `![Imagem](${url})`;
+          }
+        );
+      }
+    }
+
+    // Padrão 0: Corrigir markdown de link que deveria ser imagem [Imagem](url) -> ![Imagem](url)
+    processed = processed.replace(
+      /(?<!!)\[Imagem[^\]]*\]\((https?:\/\/[^)]+)\)/gi,
+      "\n\n![Imagem]($1)\n\n"
+    );
+
+    // Padrão 1: "Disponível em: URL. Acesso em: ..." com extensão de imagem
+    processed = processed.replace(
       /Disponível em:\s*(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))[^\n]*/gi,
       "\n\n![Imagem da questão]($1)\n\n"
     );
 
-    // Padrão 2: URLs diretas de imagem (não já em formato markdown)
+    // Padrão 2: "Disponível em: URL" para CDNs conhecidos (tecconcursos, etc)
+    processed = processed.replace(
+      /Disponível em:\s*(https?:\/\/cdn\.tecconcursos\.com\.br\/[^\s\)]+)[^\n]*/gi,
+      "\n\n![Imagem da questão]($1)\n\n"
+    );
+
+    // Padrão 3: URLs diretas de imagem com extensão (não já em formato markdown)
     processed = processed.replace(
       /(?<!\]\()(?<!\!)\b(https?:\/\/[^\s<>"]+\.(jpg|jpeg|png|gif|webp))\b(?!\))/gi,
       "\n\n![Imagem]($1)\n\n"
     );
 
-    // Padrão 3: Tags HTML <img src="...">
+    // Padrão 4: URLs do CDN TecConcursos (figuras sem extensão)
+    processed = processed.replace(
+      /(?<!\]\()(?<!\!)\b(https?:\/\/cdn\.tecconcursos\.com\.br\/figuras\/[^\s<>")\]]+)\b(?!\))/gi,
+      "\n\n![Imagem]($1)\n\n"
+    );
+
+    // Padrão 5: Tags HTML <img src="...">
     processed = processed.replace(
       /<img[^>]+src=["']([^"']+)["'][^>]*>/gi,
       "\n\n![Imagem]($1)\n\n"
@@ -551,9 +596,17 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
             ),
           }}
         >
-          {preprocessImageUrls(question.enunciado || "")}
+          {preprocessImageUrls(question.enunciado || "", question.imagens_enunciado)}
         </ReactMarkdown>
       </div>
+
+      {/* User Annotation Balloon */}
+      {userId && (
+        <QuestionAnnotationBalloon
+          questionId={question.id}
+          userId={userId}
+        />
+      )}
 
       {/* Alternatives */}
       <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">

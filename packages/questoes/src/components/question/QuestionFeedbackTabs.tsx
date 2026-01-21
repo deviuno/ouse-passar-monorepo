@@ -20,6 +20,8 @@ import {
   Radio,
   FileText,
   Minus,
+  BookMarked,
+  ChevronDown,
 } from 'lucide-react';
 import { ParsedQuestion } from '../../types';
 import { QuestionStatistics } from '../../services/questionFeedbackService';
@@ -42,6 +44,14 @@ import { AudioPlayer } from '../ui/AudioPlayer';
 import { renderMarkdown } from './chat';
 import { useBatteryStore } from '../../stores/useBatteryStore';
 import { getTimeUntilRecharge } from '../../types/battery';
+import {
+  getUserGoldenNotebooks,
+  createGoldenNotebook,
+  createAnnotation as createGoldenAnnotation,
+  getQuestionAnnotations,
+  GoldenNotebook as GoldenNotebookType,
+  GoldenAnnotation,
+} from '../../services/goldenNotebookService';
 
 type TabId = 'explicacao' | 'comentarios' | 'estatisticas' | 'cadernos' | 'anotacoes' | 'duvidas' | 'erro';
 
@@ -125,10 +135,18 @@ export function QuestionFeedbackTabs({
   const [newNotebookDescription, setNewNotebookDescription] = useState('');
   const [creatingNotebook, setCreatingNotebook] = useState(false);
 
-  // Anotações state
+  // Golden Notebook Anotações state
+  const [goldenNotebooks, setGoldenNotebooks] = useState<GoldenNotebookType[]>([]);
+  const [loadingGoldenNotebooks, setLoadingGoldenNotebooks] = useState(false);
+  const [selectedGoldenNotebook, setSelectedGoldenNotebook] = useState<string>('');
   const [annotation, setAnnotation] = useState('');
   const [savingAnnotation, setSavingAnnotation] = useState(false);
-  const [savedAnnotation, setSavedAnnotation] = useState<string | null>(null);
+  const [existingAnnotations, setExistingAnnotations] = useState<(GoldenAnnotation & { caderno_nome: string })[]>([]);
+  const [showNewGoldenNotebookModal, setShowNewGoldenNotebookModal] = useState(false);
+  const [newGoldenNotebookName, setNewGoldenNotebookName] = useState('');
+  const [newGoldenNotebookDescription, setNewGoldenNotebookDescription] = useState('');
+  const [newGoldenNotebookColor, setNewGoldenNotebookColor] = useState('#F59E0B');
+  const [creatingGoldenNotebook, setCreatingGoldenNotebook] = useState(false);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -362,6 +380,100 @@ export function QuestionFeedbackTabs({
     }
   }, [activeTab, userId, question.id]);
 
+  // Load golden notebooks when anotacoes tab is selected
+  useEffect(() => {
+    if (activeTab === 'anotacoes' && userId) {
+      loadGoldenNotebooks();
+    }
+  }, [activeTab, userId, question.id]);
+
+  const loadGoldenNotebooks = async () => {
+    if (!userId) return;
+    setLoadingGoldenNotebooks(true);
+    try {
+      const [notebooks, existingNotes] = await Promise.all([
+        getUserGoldenNotebooks(userId),
+        getQuestionAnnotations(userId, question.id),
+      ]);
+      setGoldenNotebooks(notebooks);
+      setExistingAnnotations(existingNotes);
+      // Pre-select first notebook if exists
+      if (notebooks.length > 0 && !selectedGoldenNotebook) {
+        setSelectedGoldenNotebook(notebooks[0].id);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar cadernos de ouro:', error);
+    } finally {
+      setLoadingGoldenNotebooks(false);
+    }
+  };
+
+  const handleSaveGoldenAnnotation = async () => {
+    if (!userId || !selectedGoldenNotebook || !annotation.trim()) return;
+
+    setSavingAnnotation(true);
+    try {
+      const newAnnotation = await createGoldenAnnotation(userId, {
+        caderno_id: selectedGoldenNotebook,
+        question_id: question.id,
+        conteudo: annotation,
+      });
+
+      // Find the notebook name for display
+      const notebook = goldenNotebooks.find(nb => nb.id === selectedGoldenNotebook);
+      setExistingAnnotations(prev => [
+        { ...newAnnotation, caderno_nome: notebook?.nome || '' },
+        ...prev,
+      ]);
+
+      // Update notebook count
+      setGoldenNotebooks(prev => prev.map(nb => {
+        if (nb.id === selectedGoldenNotebook) {
+          return { ...nb, anotacoes_count: nb.anotacoes_count + 1 };
+        }
+        return nb;
+      }));
+
+      // Clear form
+      setAnnotation('');
+      onShowToast?.('Anotação salva no Minhas Anotações!', 'success');
+    } catch (error) {
+      console.error('Erro ao salvar anotação:', error);
+      onShowToast?.('Erro ao salvar anotação', 'error');
+    } finally {
+      setSavingAnnotation(false);
+    }
+  };
+
+  const handleCreateGoldenNotebook = async () => {
+    if (!userId || !newGoldenNotebookName.trim()) return;
+
+    setCreatingGoldenNotebook(true);
+    try {
+      const newNotebook = await createGoldenNotebook(userId, {
+        nome: newGoldenNotebookName.trim(),
+        descricao: newGoldenNotebookDescription.trim() || undefined,
+        cor: newGoldenNotebookColor,
+      });
+
+      setGoldenNotebooks(prev => [newNotebook, ...prev]);
+      setSelectedGoldenNotebook(newNotebook.id);
+      setShowNewGoldenNotebookModal(false);
+      setNewGoldenNotebookName('');
+      setNewGoldenNotebookDescription('');
+      setNewGoldenNotebookColor('#F59E0B');
+      onShowToast?.('Minhas Anotações criado!', 'success');
+    } catch (error: any) {
+      if (error.code === '23505') {
+        onShowToast?.('Já existe um caderno com esse nome', 'error');
+      } else {
+        onShowToast?.('Erro ao criar caderno', 'error');
+      }
+    } finally {
+      setCreatingGoldenNotebook(false);
+    }
+  };
+
   const loadNotebooks = async () => {
     if (!userId) return;
     setLoadingNotebooks(true);
@@ -448,20 +560,7 @@ export function QuestionFeedbackTabs({
     }
   };
 
-  const handleSaveAnnotation = async () => {
-    if (!annotation.trim()) return;
-    setSavingAnnotation(true);
-    try {
-      // TODO: Implementar salvamento real no banco
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simula delay
-      setSavedAnnotation(annotation);
-      onShowToast?.('Anotação salva com sucesso!', 'success');
-    } catch (error) {
-      onShowToast?.('Erro ao salvar anotação', 'error');
-    } finally {
-      setSavingAnnotation(false);
-    }
-  };
+  // NOTE: Legacy handleSaveAnnotation removed - use handleSaveGoldenAnnotation for Golden Notebook saving
 
   // Build stats data
   const buildStatsData = () => {
@@ -722,56 +821,117 @@ export function QuestionFeedbackTabs({
       case 'anotacoes':
         return (
           <div className="animate-fade-in">
-            <h4 className="text-sm font-bold text-[var(--color-text-sec)] mb-4 flex items-center">
-              <StickyNote size={16} className="mr-2 text-[var(--color-brand)]" />
-              Criar Anotação
-            </h4>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-bold text-[var(--color-text-sec)] flex items-center">
+                <BookMarked size={16} className="mr-2 text-amber-500" />
+                Minhas Anotações
+              </h4>
+              {userId && (
+                <button
+                  onClick={() => setShowNewGoldenNotebookModal(true)}
+                  className="px-3 py-1.5 bg-amber-500 text-black rounded-lg font-medium text-xs hover:bg-amber-600 transition-colors flex items-center"
+                >
+                  <Plus size={14} className="mr-1" />
+                  Novo Caderno
+                </button>
+              )}
+            </div>
 
             {!userId ? (
               <p className="text-sm text-[var(--color-text-muted)] text-center py-4">
                 Faça login para criar anotações.
               </p>
-            ) : savedAnnotation ? (
-              <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-green-500 font-bold flex items-center">
-                    <Check size={14} className="mr-1" /> Anotação salva
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSavedAnnotation(null);
-                      setAnnotation(savedAnnotation);
-                    }}
-                    className="text-xs text-[var(--color-brand)] hover:underline"
-                  >
-                    Editar
-                  </button>
-                </div>
-                <p className="text-sm text-[var(--color-text-main)] whitespace-pre-wrap">{savedAnnotation}</p>
+            ) : loadingGoldenNotebooks ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="animate-spin text-amber-500" size={24} />
               </div>
             ) : (
               <>
-                <textarea
-                  value={annotation}
-                  onChange={(e) => setAnnotation(e.target.value)}
-                  placeholder="Escreva sua anotação sobre esta questão..."
-                  rows={4}
-                  className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-3 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors resize-none"
-                />
-                <button
-                  onClick={handleSaveAnnotation}
-                  disabled={!annotation.trim() || savingAnnotation}
-                  className="mt-3 w-full py-2.5 bg-[#ffac00] text-black rounded-lg font-medium text-sm hover:bg-[#ffbc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {savingAnnotation ? (
-                    <Loader2 className="animate-spin" size={18} />
-                  ) : (
-                    <>
-                      <StickyNote size={16} className="mr-2" />
-                      Salvar Anotação
-                    </>
-                  )}
-                </button>
+                {/* Existing Annotations */}
+                {existingAnnotations.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs text-[var(--color-text-muted)] mb-2">
+                      {existingAnnotations.length} anotaç{existingAnnotations.length === 1 ? 'ão' : 'ões'} nesta questão:
+                    </p>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {existingAnnotations.map((ann) => (
+                        <div
+                          key={ann.id}
+                          className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg p-3"
+                        >
+                          <div className="flex items-center gap-2 text-xs text-amber-500 mb-1">
+                            <BookMarked size={12} />
+                            {ann.caderno_nome}
+                          </div>
+                          <p className="text-sm text-[var(--color-text-sec)] line-clamp-2">{ann.conteudo}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* New Annotation Form */}
+                <div className="space-y-3">
+                  {/* Notebook selector */}
+                  <div>
+                    <label className="block text-xs text-[var(--color-text-muted)] mb-1.5">
+                      Salvar em:
+                    </label>
+                    {goldenNotebooks.length === 0 ? (
+                      <button
+                        onClick={() => setShowNewGoldenNotebookModal(true)}
+                        className="w-full text-left px-4 py-3 rounded-lg border border-dashed border-amber-500/50 bg-amber-500/5 text-amber-500 hover:bg-amber-500/10 transition-all text-sm flex items-center"
+                      >
+                        <Plus size={16} className="mr-2" />
+                        Criar meu primeiro Minhas Anotações
+                      </button>
+                    ) : (
+                      <div className="relative">
+                        <select
+                          value={selectedGoldenNotebook}
+                          onChange={(e) => setSelectedGoldenNotebook(e.target.value)}
+                          className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-amber-500 transition-colors appearance-none cursor-pointer"
+                        >
+                          {goldenNotebooks.map((nb) => (
+                            <option key={nb.id} value={nb.id}>
+                              {nb.nome} ({nb.anotacoes_count} anotações)
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div>
+                    <label className="block text-xs text-[var(--color-text-muted)] mb-1.5">
+                      Anotação:
+                    </label>
+                    <textarea
+                      value={annotation}
+                      onChange={(e) => setAnnotation(e.target.value)}
+                      placeholder="Escreva sua anotação sobre esta questão..."
+                      rows={4}
+                      className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-3 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-amber-500 transition-colors resize-none"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleSaveGoldenAnnotation}
+                    disabled={!annotation.trim() || !selectedGoldenNotebook || savingAnnotation}
+                    className="w-full py-2.5 bg-amber-500 text-black rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {savingAnnotation ? (
+                      <Loader2 className="animate-spin" size={18} />
+                    ) : (
+                      <>
+                        <BookMarked size={16} className="mr-2" />
+                        Salvar no Minhas Anotações
+                      </>
+                    )}
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -1050,6 +1210,99 @@ export function QuestionFeedbackTabs({
                 className="flex-1 py-2.5 bg-[#ffac00] text-black rounded-lg font-medium text-sm hover:bg-[#ffbc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {creatingNotebook ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <>
+                    <Plus size={16} className="mr-1.5" />
+                    Criar Caderno
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Novo Minhas Anotações */}
+      {showNewGoldenNotebookModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in">
+          <div className="bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl w-full max-w-md p-6 animate-slide-up">
+            <h3 className="text-lg font-bold text-[var(--color-text-main)] mb-4 flex items-center">
+              <BookMarked size={20} className="mr-2 text-amber-500" />
+              Novo Minhas Anotações
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-sec)] mb-1.5">
+                  Nome do Caderno *
+                </label>
+                <input
+                  type="text"
+                  value={newGoldenNotebookName}
+                  onChange={(e) => setNewGoldenNotebookName(e.target.value)}
+                  placeholder="Ex: Português - Crase"
+                  className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-amber-500 transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-sec)] mb-1.5">
+                  Descrição (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={newGoldenNotebookDescription}
+                  onChange={(e) => setNewGoldenNotebookDescription(e.target.value)}
+                  placeholder="Descrição do caderno"
+                  className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-sec)] mb-1.5">
+                  Cor
+                </label>
+                <div className="flex gap-2">
+                  {['#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#F97316'].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setNewGoldenNotebookColor(color)}
+                      className={`w-8 h-8 rounded-full transition-all ${
+                        newGoldenNotebookColor === color
+                          ? 'ring-2 ring-offset-2 ring-offset-[var(--color-bg-main)]'
+                          : ''
+                      }`}
+                      style={{
+                        backgroundColor: color,
+                        // Ring color is applied via CSS variable
+                        '--tw-ring-color': color,
+                      } as React.CSSProperties}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowNewGoldenNotebookModal(false);
+                  setNewGoldenNotebookName('');
+                  setNewGoldenNotebookDescription('');
+                  setNewGoldenNotebookColor('#F59E0B');
+                }}
+                className="flex-1 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[var(--color-text-main)] rounded-lg font-medium text-sm hover:bg-[var(--color-bg-elevated)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateGoldenNotebook}
+                disabled={!newGoldenNotebookName.trim() || creatingGoldenNotebook}
+                className="flex-1 py-2.5 bg-amber-500 text-black rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {creatingGoldenNotebook ? (
                   <Loader2 className="animate-spin" size={18} />
                 ) : (
                   <>

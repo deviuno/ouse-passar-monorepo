@@ -9,7 +9,6 @@ import {
   Trash2,
   Plus,
   Loader2,
-  ArrowLeft,
   Coffee,
   Zap,
   X,
@@ -31,7 +30,7 @@ interface NotebookSettings {
 export const NotebooksPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { addToast } = useUIStore();
+  const { addToast, setHeaderOverride, clearHeaderOverride } = useUIStore();
 
   const [notebooks, setNotebooks] = useState<Caderno[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -75,6 +74,20 @@ export const NotebooksPage: React.FC = () => {
 
     loadNotebooks();
   }, [user?.id]);
+
+  // Set up header
+  useEffect(() => {
+    setHeaderOverride({
+      title: 'Meus Cadernos',
+      showBackButton: true,
+      backPath: '/questoes',
+      hideIcon: true,
+    });
+
+    return () => {
+      clearHeaderOverride();
+    };
+  }, []);
 
   const handleStartFromNotebook = async (notebook: Caderno) => {
     setIsStarting(notebook.id);
@@ -212,24 +225,10 @@ export const NotebooksPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-main)] px-4 py-8 theme-transition">
+    <div className="min-h-screen bg-[var(--color-bg-main)] px-4 py-6 theme-transition">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/questoes')}
-              className="p-2 hover:bg-[var(--color-bg-elevated)] rounded-lg transition-colors"
-            >
-              <ArrowLeft size={24} className="text-[var(--color-text-sec)]" />
-            </button>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-[var(--color-text-main)]">Meus Cadernos</h1>
-              <p className="text-[var(--color-text-sec)] text-sm mt-1">
-                {notebooks.length} {notebooks.length === 1 ? 'caderno salvo' : 'cadernos salvos'}
-              </p>
-            </div>
-          </div>
+        {/* Top Action Button */}
+        <div className="flex justify-end mb-4">
           <Button
             onClick={() => navigate('/praticar?showFilters=true')}
             leftIcon={<Plus size={18} />}
@@ -575,7 +574,7 @@ export const NotebooksPage: React.FC = () => {
           title="Excluir Caderno"
           message={`Tem certeza que deseja excluir o caderno "${deletingNotebook?.title}"? Esta ação não pode ser desfeita.`}
           confirmText="Excluir"
-          confirmVariant="danger"
+          variant="danger"
           isLoading={isDeleting}
         />
       </div>

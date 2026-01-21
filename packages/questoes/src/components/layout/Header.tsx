@@ -204,28 +204,44 @@ export function Header() {
                 <ChevronLeft size={24} className="text-[var(--color-text-sec)]" />
               </button>
             )}
-            <div className="flex items-center gap-3">
-              {headerOverride.logoUrl ? (
-                <div className="w-10 h-10 bg-white rounded-lg p-1">
-                  <img
-                    src={headerOverride.logoUrl}
-                    alt=""
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="p-2 bg-emerald-500/10 rounded-lg">
-                  <Map size={24} className="text-emerald-500" />
-                </div>
-              )}
+            {/* Simple mode: only title, no icon */}
+            {headerOverride.hideIcon ? (
               <div>
                 <h1 className="text-lg font-bold text-[var(--color-text-main)]">{headerOverride.title}</h1>
                 {headerOverride.subtitle && (
-                  <p className="text-sm text-[var(--color-brand)]">{headerOverride.subtitle}</p>
+                  <p className="text-sm text-[var(--color-text-sec)]">{headerOverride.subtitle}</p>
                 )}
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                {headerOverride.logoUrl ? (
+                  <div className="w-10 h-10 bg-white rounded-lg p-1">
+                    <img
+                      src={headerOverride.logoUrl}
+                      alt=""
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="p-2 bg-emerald-500/10 rounded-lg">
+                    <Map size={24} className="text-emerald-500" />
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-lg font-bold text-[var(--color-text-main)]">{headerOverride.title}</h1>
+                  {headerOverride.subtitle && (
+                    <p className="text-sm text-[var(--color-brand)]">{headerOverride.subtitle}</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
+          {/* Right content */}
+          {headerOverride.rightContent && (
+            <div className="flex items-center">
+              {headerOverride.rightContent}
+            </div>
+          )}
         </div>
       </header>
     );
