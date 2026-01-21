@@ -291,6 +291,63 @@ router.get('/monthly-summary', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/admin/billing/all-services
+ * Debug endpoint to see all services in the billing table
+ */
+router.get('/all-services', async (_req: Request, res: Response) => {
+    try {
+        if (!BIGQUERY_BILLING_TABLE) {
+            return res.status(400).json({
+                success: false,
+                error: 'BigQuery billing table not configured',
+            });
+        }
+
+        const client = getBigQueryClient();
+
+        const query = `
+            SELECT
+                service.description as service_name,
+                SUM(cost) as total_cost_usd,
+                COUNT(*) as record_count,
+                MIN(DATE(usage_start_time)) as first_date,
+                MAX(DATE(usage_start_time)) as last_date
+            FROM \`${BIGQUERY_BILLING_TABLE}\`
+            WHERE cost > 0
+            GROUP BY service.description
+            ORDER BY total_cost_usd DESC
+            LIMIT 50
+        `;
+
+        console.log('[Billing] Fetching all services from billing table...');
+        const [rows] = await client.query({ query });
+
+        const services = (rows as any[]).map(row => ({
+            service: row.service_name,
+            totalCostUSD: Math.round((row.total_cost_usd || 0) * 10000) / 10000,
+            totalCostBRL: Math.round((row.total_cost_usd || 0) * USD_TO_BRL * 100) / 100,
+            recordCount: row.record_count,
+            firstDate: row.first_date?.value || row.first_date,
+            lastDate: row.last_date?.value || row.last_date,
+        }));
+
+        res.json({
+            success: true,
+            table: BIGQUERY_BILLING_TABLE,
+            serviceCount: services.length,
+            services,
+        });
+
+    } catch (error) {
+        console.error('[Billing] Error fetching all services:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+/**
  * GET /api/admin/billing/health
  * Check if BigQuery billing is properly configured
  */
