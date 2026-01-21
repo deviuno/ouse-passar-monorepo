@@ -3,8 +3,6 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronDown, Flame, Eye, BookOpen, Filter, Map } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTrailStore, useAuthStore, useUIStore } from '../../stores';
-import { useTheme } from '../../contexts/ThemeContext';
-import { LOGO_FOR_LIGHT_THEME, LOGO_FOR_DARK_THEME } from '../../constants';
 import { PreparatorioDropdown } from '../trail/PreparatorioDropdown';
 import { RoundSelector } from '../trail/RoundSelector';
 import { UserPreparatorio } from '../../types';
@@ -15,7 +13,7 @@ export function Header() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
-  const { practiceMode, headerOverride, isDarkMode } = useUIStore();
+  const { practiceMode, headerOverride } = useUIStore();
   const [showAssuntosPopover, setShowAssuntosPopover] = useState(false);
   const eyeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -117,16 +115,35 @@ export function Header() {
     const path = location.pathname;
     if (path === '/' || path === '/trilha') return 'Minhas Trilhas';
     if (path === '/questoes') return 'Ouse Questões';
-    if (path === '/praticar') return 'Nova Prática';
+    if (path === '/praticar') return 'Praticar';
     if (path === '/cadernos') return 'Meus Cadernos';
     if (path === '/trilhas') return 'Trilhas de Questões';
     if (path === '/simulados') return 'Meus Simulados';
     if (path === '/estatisticas') return 'Raio-X do Aluno';
     if (path === '/loja') return 'Loja';
     if (path === '/perfil') return 'Perfil';
+    if (path === '/anotacoes') return 'Minhas Anotações';
+    if (path === '/erros') return 'Meus Erros';
     // Support both old and new URL formats for missions
     if (isMissionPage) return getMissionTitle();
     return 'Ouse Questões';
+  };
+
+  // Render styled title for pages like "Ouse Questões" (matching "OUSE MUSIC" style)
+  const renderStyledTitle = (title: string) => {
+    // Check if title starts with "Ouse " to apply special styling
+    if (title.startsWith('Ouse ')) {
+      const restOfTitle = title.substring(5); // Remove "Ouse "
+      return (
+        <h1 className="text-lg font-sans uppercase tracking-wide">
+          <span className="text-[var(--color-text-main)] font-medium">OUSE </span>
+          <span className="text-[var(--color-brand)] font-semibold">{restOfTitle.toUpperCase()}</span>
+        </h1>
+      );
+    }
+    return (
+      <h1 className="text-lg font-bold text-[var(--color-text-main)]">{title}</h1>
+    );
   };
 
   // Practice Mode Header - quando está praticando questões
@@ -388,7 +405,7 @@ export function Header() {
             </>
           ) : (
             <>
-              {/* Mobile: Show Preparatorio Dropdown on Home, Logo on other pages */}
+              {/* Mobile: Show Preparatorio Dropdown on Home, Back + Title on other pages */}
               {isHomePage && userPreparatorios.length > 0 ? (
                 <div className="lg:hidden">
                   <PreparatorioDropdown
@@ -400,11 +417,15 @@ export function Header() {
                   />
                 </div>
               ) : (
-                <img
-                  src={isDarkMode ? LOGO_FOR_DARK_THEME : LOGO_FOR_LIGHT_THEME}
-                  alt="Ouse Passar"
-                  className="h-8 lg:hidden"
-                />
+                <div className="flex items-center gap-2 lg:hidden">
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="p-1.5 rounded-lg hover:bg-[var(--color-bg-card)] transition-colors"
+                  >
+                    <ChevronLeft size={22} className="text-[var(--color-text-sec)]" />
+                  </button>
+                  {renderStyledTitle(getPageTitle())}
+                </div>
               )}
             </>
           )}
@@ -422,9 +443,7 @@ export function Header() {
             </div>
           ) : (
             <div className="hidden lg:flex items-center gap-2">
-              <h1 className="text-xl font-bold text-[var(--color-text-main)] tracking-tight">
-                {getPageTitle()}
-              </h1>
+              {renderStyledTitle(getPageTitle())}
               {isMissionPage && currentMode === 'reta_final' && (
                 <span
                   className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold"

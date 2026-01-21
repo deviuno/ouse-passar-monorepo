@@ -5,6 +5,7 @@ import {
   FileText,
   BarChart2,
   ShoppingBag,
+  Headphones,
   LayoutGrid,
   Lock,
   CheckCircle,
@@ -24,6 +25,7 @@ const MODULE_CONFIG = [
   { key: 'trilha', label: 'Minhas Trilhas', icon: MapIcon, description: 'Mapa de estudos com missões e rodadas' },
   { key: 'praticar', label: 'Praticar Questões', icon: Target, description: 'Prática livre de questões (módulo principal)' },
   { key: 'simulados', label: 'Meus Simulados', icon: FileText, description: 'Simulados e provas completas' },
+  { key: 'music', label: 'Ouse Music', icon: Headphones, description: 'Músicas e podcasts para estudo' },
   { key: 'estatisticas', label: 'Estatísticas', icon: BarChart2, description: 'Raio-X de desempenho do aluno' },
   { key: 'loja', label: 'Loja', icon: ShoppingBag, description: 'Loja de itens e preparatórios' },
 ];

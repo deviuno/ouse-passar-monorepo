@@ -221,9 +221,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
 
   // Scroll para os botões de navegação após submissão (apenas se não estiverem visíveis)
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+
     if (isSubmitted && navigationButtonsRef.current) {
       // Pequeno delay para garantir que o DOM foi atualizado com o feedback
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         if (navigationButtonsRef.current) {
           const element = navigationButtonsRef.current;
           const rect = element.getBoundingClientRect();
@@ -253,7 +255,14 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
         }
       }, 100);
     }
-  }, [isSubmitted]);
+
+    // Cleanup timeout when question changes or component unmounts
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isSubmitted, question.id]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -738,7 +747,9 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                       "[QuestionCard] Botão Próxima/Finalizar clicado (nav)",
                       { isLastQuestion }
                     );
+                    // Scroll both window and any scrollable container
                     window.scrollTo({ top: 0, behavior: "smooth" });
+                    document.querySelector(".lg\\:overflow-y-auto")?.scrollTo({ top: 0, behavior: "smooth" });
                     onNext();
                   }}
                   className="w-full flex items-center justify-center py-3 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,172,0,0.3)] hover:shadow-[0_0_25px_rgba(255,172,0,0.5)] transition-all border-2 border-[#ffac00] hover:border-[#ffbc33] touch-feedback"
@@ -780,7 +791,9 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               <RippleEffect className="flex-1 rounded-xl">
                 <button
                   onClick={() => {
+                    // Scroll both window and any scrollable container
                     window.scrollTo({ top: 0, behavior: "smooth" });
+                    document.querySelector(".lg\\:overflow-y-auto")?.scrollTo({ top: 0, behavior: "smooth" });
                     onNext();
                   }}
                   className="w-full flex items-center justify-center py-3 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,172,0,0.3)] hover:shadow-[0_0_25px_rgba(255,172,0,0.5)] transition-all border-2 border-[#ffac00] hover:border-[#ffbc33] touch-feedback"

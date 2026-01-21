@@ -7,11 +7,11 @@ import { getOptimizedImageUrl } from '../../utils/image';
 
 // League tier configuration
 const leagueTiers: Record<LeagueTier, { label: string; color: string; emoji: string }> = {
-  ferro: { label: 'Liga Ferro', color: '#6E6E6E', emoji: '🔩' },
-  bronze: { label: 'Liga Bronze', color: '#CD7F32', emoji: '🥉' },
-  prata: { label: 'Liga Prata', color: '#C0C0C0', emoji: '🥈' },
-  ouro: { label: 'Liga Ouro', color: '#FFD700', emoji: '🥇' },
-  diamante: { label: 'Liga Diamante', color: '#B9F2FF', emoji: '💎' },
+  ferro: { label: 'Ferro', color: '#6E6E6E', emoji: '🔩' },
+  bronze: { label: 'Bronze', color: '#CD7F32', emoji: '🥉' },
+  prata: { label: 'Prata', color: '#C0C0C0', emoji: '🥈' },
+  ouro: { label: 'Ouro', color: '#FFD700', emoji: '🥇' },
+  diamante: { label: 'Diamante', color: '#B9F2FF', emoji: '💎' },
 };
 
 interface WeeklyRankingCardProps {
@@ -24,11 +24,11 @@ export function WeeklyRankingCard({ ranking, isLoading }: WeeklyRankingCardProps
     return (
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
-          <Crown size={20} className="text-[#FFB800]" />
+          <Crown size={18} className="text-[var(--color-brand)]" />
           <h3 className="text-[var(--color-text-main)] font-semibold">Ranking Semanal</h3>
         </div>
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="animate-spin text-[#FFB800]" size={32} />
+          <Loader2 className="animate-spin text-[var(--color-brand)]" size={24} />
         </div>
       </Card>
     );
@@ -38,12 +38,12 @@ export function WeeklyRankingCard({ ranking, isLoading }: WeeklyRankingCardProps
     return (
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
-          <Crown size={20} className="text-[#FFB800]" />
+          <Crown size={18} className="text-[var(--color-brand)]" />
           <h3 className="text-[var(--color-text-main)] font-semibold">Ranking Semanal</h3>
         </div>
         <div className="text-center py-8">
-          <p className="text-[#6E6E6E]">Nenhum ranking disponivel ainda.</p>
-          <p className="text-[#6E6E6E] text-sm mt-2">Continue praticando para aparecer no ranking!</p>
+          <p className="text-[var(--color-text-muted)] text-sm">Nenhum ranking disponível ainda.</p>
+          <p className="text-[var(--color-text-muted)] text-xs mt-2">Continue praticando para aparecer no ranking!</p>
         </div>
       </Card>
     );
@@ -55,22 +55,25 @@ export function WeeklyRankingCard({ ranking, isLoading }: WeeklyRankingCardProps
     <Card className="h-full">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Crown size={20} className="text-[#FFB800]" />
+          <Crown size={18} className="text-[var(--color-brand)]" />
           <h3 className="text-[var(--color-text-main)] font-semibold">Ranking Semanal</h3>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-lg">{leagueConfig.emoji}</span>
-          <span className="text-xs" style={{ color: leagueConfig.color }}>
-            {leagueConfig.label}
-          </span>
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+          style={{ backgroundColor: `${leagueConfig.color}15`, color: leagueConfig.color }}
+        >
+          <span>{leagueConfig.emoji}</span>
+          <span>{leagueConfig.label}</span>
         </div>
       </div>
 
       {/* Position indicator */}
-      <div className="text-center mb-4 p-2 bg-[var(--color-bg-elevated)] rounded-lg border border-[var(--color-border)]">
-        <span className="text-[#A0A0A0] text-sm">Sua posicao: </span>
-        <span className="text-[#FFB800] font-bold">{ranking.userPosition}º</span>
-        <span className="text-[#6E6E6E] text-sm"> de {ranking.totalMembers}</span>
+      <div className="flex items-center justify-between mb-4 p-3 rounded-xl bg-[var(--color-brand)]/5 border border-[var(--color-brand)]/20">
+        <span className="text-[var(--color-text-sec)] text-sm">Sua posição</span>
+        <div className="flex items-baseline gap-1">
+          <span className="text-[var(--color-brand)] font-bold text-lg tabular-nums">{ranking.userPosition}º</span>
+          <span className="text-[var(--color-text-muted)] text-xs">de {ranking.totalMembers}</span>
+        </div>
       </div>
 
       {/* Ranking list */}
@@ -78,24 +81,26 @@ export function WeeklyRankingCard({ ranking, isLoading }: WeeklyRankingCardProps
         {ranking.members.map((member, index) => (
           <motion.div
             key={member.id}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${member.isCurrentUser
-              ? 'bg-[#FFB800]/10 border border-[#FFB800]/30'
-              : 'bg-[var(--color-bg-elevated)] border border-[var(--color-border)]'
-              }`}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.03 }}
+            className={`flex items-center gap-3 p-2.5 rounded-xl transition-colors ${
+              member.isCurrentUser
+                ? 'bg-[var(--color-brand)]/5 border border-[var(--color-brand)]/20'
+                : 'bg-[var(--color-bg-main)]'
+            }`}
           >
             {/* Position */}
             <div
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${member.position === 1
-                ? 'bg-[#FFD700]/20 text-[#FFD700]'
-                : member.position === 2
-                  ? 'bg-[#C0C0C0]/20 text-[#C0C0C0]'
-                  : member.position === 3
-                    ? 'bg-[#CD7F32]/20 text-[#CD7F32]'
-                    : 'bg-[#3A3A3A] text-[#A0A0A0]'
-                }`}
+              className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                member.position === 1
+                  ? 'bg-[#FFD700]/20 text-[#FFD700]'
+                  : member.position === 2
+                    ? 'bg-[#C0C0C0]/20 text-[#C0C0C0]'
+                    : member.position === 3
+                      ? 'bg-[#CD7F32]/20 text-[#CD7F32]'
+                      : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]'
+              }`}
             >
               {member.position}
             </div>
@@ -110,28 +115,29 @@ export function WeeklyRankingCard({ ranking, isLoading }: WeeklyRankingCardProps
                   loading="lazy"
                 />
               ) : (
-                <User size={16} className="text-[#6E6E6E]" />
+                <User size={16} className="text-[var(--color-text-muted)]" />
               )}
             </div>
 
             {/* Name and level */}
             <div className="flex-1 min-w-0">
               <p
-                className={`text-sm font-medium truncate ${member.isCurrentUser ? 'text-[#FFB800]' : 'text-[var(--color-text-main)]'
-                  }`}
+                className={`text-sm font-medium truncate ${
+                  member.isCurrentUser ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-main)]'
+                }`}
               >
                 {member.name}
-                {member.isCurrentUser && ' (Voce)'}
+                {member.isCurrentUser && ' (Você)'}
               </p>
-              <p className="text-[10px] text-[#6E6E6E]">Nivel {member.level}</p>
+              <p className="text-[10px] text-[var(--color-text-muted)]">Nível {member.level}</p>
             </div>
 
             {/* XP */}
             <div className="text-right flex-shrink-0">
-              <p className="text-sm font-bold text-[#FFB800]">
+              <p className="text-sm font-bold text-[var(--color-brand)] tabular-nums">
                 {member.xp.toLocaleString('pt-BR')}
               </p>
-              <p className="text-[10px] text-[#6E6E6E]">XP</p>
+              <p className="text-[10px] text-[var(--color-text-muted)]">XP</p>
             </div>
           </motion.div>
         ))}
