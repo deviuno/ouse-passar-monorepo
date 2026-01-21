@@ -66,10 +66,10 @@
 
 /* Light Theme - Bold & Clarity (Vercel Style) with Slate Foundation */
 [data-theme="light"] {
-  /* Brand Colors - Amber that pops on slate backgrounds */
-  --color-brand: #D97706;
-  --color-brand-light: #F59E0B;
-  --color-brand-dark: #B45309;
+  /* Brand Colors - Yellow that pops on slate backgrounds */
+  --color-brand: #FFB800;
+  --color-brand-light: #FFC933;
+  --color-brand-dark: #E6A500;
 
   /* Backgrounds - Cool slate foundation */
   --color-bg-main: #F8FAFC;
@@ -989,7 +989,7 @@ button,
 [data-theme="light"] textarea:focus,
 [data-theme="light"] select:focus {
   border-color: var(--color-brand) !important;
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 184, 0, 0.15);
 }
 
 [data-theme="light"] input::placeholder,
@@ -1002,16 +1002,16 @@ button,
 [data-theme="light"] .bg-\[var\(--color-brand\)\] {
   background-color: var(--color-brand) !important;
   box-shadow:
-    0 1px 2px 0 rgba(217, 119, 6, 0.24),
-    0 4px 8px -2px rgba(217, 119, 6, 0.16);
+    0 1px 2px 0 rgba(255, 184, 0, 0.24),
+    0 4px 8px -2px rgba(255, 184, 0, 0.16);
 }
 
 [data-theme="light"] .bg-\[\#FFB800\]:hover,
 [data-theme="light"] .bg-\[var\(--color-brand\)\]:hover {
   background-color: var(--color-brand-light) !important;
   box-shadow:
-    0 2px 4px 0 rgba(245, 158, 11, 0.24),
-    0 8px 16px -4px rgba(245, 158, 11, 0.20);
+    0 2px 4px 0 rgba(255, 201, 51, 0.24),
+    0 8px 16px -4px rgba(255, 201, 51, 0.20);
 }
 
 /* Disabled button states - exclude question alternatives (.rounded-xl.border-2) */
@@ -1075,7 +1075,7 @@ button,
 }
 
 [data-theme="light"] .text-yellow-500 {
-  color: #D97706 !important;
+  color: #FFB800 !important;
 }
 
 [data-theme="light"] .text-red-500 {
@@ -1088,7 +1088,7 @@ button,
 }
 
 [data-theme="light"] .bg-yellow-500\/20 {
-  background-color: rgba(217, 119, 6, 0.12) !important;
+  background-color: rgba(255, 184, 0, 0.15) !important;
 }
 
 [data-theme="light"] .bg-red-500\/20 {
@@ -1131,9 +1131,9 @@ button,
   box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--color-brand);
 }
 
-/* Selection color - amber tint */
+/* Selection color - yellow tint */
 [data-theme="light"] ::selection {
-  background-color: rgba(217, 119, 6, 0.24);
+  background-color: rgba(255, 184, 0, 0.30);
   color: #0F172A;
 }
 
