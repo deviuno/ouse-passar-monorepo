@@ -64,8 +64,8 @@ export const ANIMATIONS = {
   EASING_BOUNCE: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
 };
 
-// Assets
-export const LOGO_URL = 'https://i.ibb.co/dJLPGVb7/ouse-passar-logo-n.webp';
+// Assets - stored in Supabase Storage (public-images bucket)
+export const LOGO_URL = 'https://avlttxzppcywybiaxxzd.supabase.co/storage/v1/object/public/public-images/logo-ouse-escuro.png';
 export const DEFAULT_AVATAR_URL = 'https://i.pravatar.cc/150?u=ousepassar';
 
 // Breakpoints

@@ -3,8 +3,7 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../stores';
-import { Button } from '../components/ui';
-import { LOGO_URL } from '../constants';
+import { Button, Logo } from '../components/ui';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
@@ -120,7 +119,9 @@ export default function AuthPage({ mode: initialMode }: AuthPageProps) {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src={LOGO_URL} alt="Ouse Passar" className="h-12 mx-auto mb-6" />
+          <div className="flex justify-center mb-6">
+            <Logo className="h-12" variant="dark" />
+          </div>
           <h1 className="text-2xl font-bold text-white mb-2">{titles[mode]}</h1>
           <p className="text-[#A0A0A0]">{subtitles[mode]}</p>
         </div>

@@ -10,7 +10,7 @@ import type {
 } from '../types/referral';
 
 const REFERRAL_STORAGE_KEY = 'ouse_referrer';
-const APP_DOMAIN = 'questoes.ousepassar.com.br';
+const APP_DOMAIN = 'ouse-questoes.vercel.app';
 const REFERRAL_PATH = '/ref';
 
 // ============================================

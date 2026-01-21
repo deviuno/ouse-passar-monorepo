@@ -40,6 +40,9 @@
   --color-border: #3A3A3A;
   --color-border-strong: #4A4A4A;
 
+  /* Progress track */
+  --color-progress-track: #3A3A3A;
+
   /* Shadows - Dark Mode (Subtle/Dark) */
   --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
   --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
@@ -87,6 +90,9 @@
   /* Borders - Refined slate */
   --color-border: #E2E8F0;
   --color-border-strong: #CBD5E1;
+
+  /* Progress track - light gray for light mode */
+  --color-progress-track: #E2E8F0;
 
   /* Shadows - Stripe-style layered depth */
   --shadow-card:

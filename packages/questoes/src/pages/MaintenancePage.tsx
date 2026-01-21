@@ -1,6 +1,6 @@
 import React from 'react';
 import { Wrench, RefreshCw } from 'lucide-react';
-import { LOGO_URL } from '../constants';
+import { Logo } from '../components/ui';
 
 interface MaintenancePageProps {
   onRetry?: () => void;
@@ -18,11 +18,9 @@ export function MaintenancePage({ onRetry }: MaintenancePageProps) {
   return (
     <div className="min-h-screen bg-[#1A1A1A] flex flex-col items-center justify-center p-6">
       {/* Logo */}
-      <img
-        src={LOGO_URL}
-        alt="Ouse Passar"
-        className="h-12 mb-8 opacity-80"
-      />
+      <div className="mb-8 opacity-80">
+        <Logo className="h-12" variant="dark" />
+      </div>
 
       {/* Icon */}
       <div className="w-24 h-24 rounded-full bg-[#FFB800]/10 flex items-center justify-center mb-6">

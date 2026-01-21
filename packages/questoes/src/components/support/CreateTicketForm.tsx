@@ -162,21 +162,21 @@ export function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-[#1A1A1A] border border-[#3A3A3A] rounded-2xl p-8 text-center"
+        className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-8 text-center"
       >
-        <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle size={40} className="text-green-500" />
+        <div className="w-20 h-20 bg-[var(--color-success)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle size={40} className="text-[var(--color-success)]" />
         </div>
-        <h3 className="text-white font-semibold text-xl mb-2">
+        <h3 className="text-[var(--color-text-main)] font-semibold text-xl mb-2">
           Ticket enviado com sucesso!
         </h3>
-        <p className="text-[#A0A0A0] mb-6">
+        <p className="text-[var(--color-text-sec)] mb-6">
           Nossa equipe vai analisar sua solicitação e responder em breve.
           Você será notificado quando houver uma resposta.
         </p>
         <button
           onClick={resetForm}
-          className="px-6 py-3 bg-[#2A2A2A] text-white rounded-xl hover:bg-[#3A3A3A] transition-colors"
+          className="px-6 py-3 bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] rounded-xl hover:bg-[var(--color-border)] transition-colors"
         >
           Enviar outro ticket
         </button>
@@ -185,12 +185,12 @@ export function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
   }
 
   return (
-    <div className="bg-[#1A1A1A] border border-[#3A3A3A] rounded-2xl p-6">
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6">
       <div className="space-y-5">
         {/* Seleção de Motivo */}
         <div>
-          <label className="block text-white text-sm font-medium mb-3">
-            Qual o motivo do contato? <span className="text-red-400">*</span>
+          <label className="block text-[var(--color-text-main)] text-sm font-medium mb-3">
+            Qual o motivo do contato? <span className="text-[var(--color-error)]">*</span>
           </label>
           <div className="grid grid-cols-2 gap-2">
             {TICKET_MOTIVOS.map((item) => (
@@ -205,8 +205,8 @@ export function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
                   text-left px-4 py-3 rounded-xl border transition-all text-sm
                   ${
                     motivo === item.value
-                      ? 'border-[#FFB800] bg-[#FFB800]/10 text-white'
-                      : 'border-[#3A3A3A] bg-[#242424] text-[#A0A0A0] hover:border-[#5A5A5A]'
+                      ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/10 text-[var(--color-text-main)]'
+                      : 'border-[var(--color-border)] bg-[var(--color-bg-elevated)] text-[var(--color-text-sec)] hover:border-[var(--color-border-strong)]'
                   }
                 `}
               >
@@ -224,15 +224,15 @@ export function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
             >
-              <label className="block text-white text-sm font-medium mb-2">
-                Descreva o motivo <span className="text-red-400">*</span>
+              <label className="block text-[var(--color-text-main)] text-sm font-medium mb-2">
+                Descreva o motivo <span className="text-[var(--color-error)]">*</span>
               </label>
               <input
                 type="text"
                 value={motivoOutro}
                 onChange={(e) => setMotivoOutro(e.target.value)}
                 placeholder="Ex: Problema com certificado..."
-                className="w-full px-4 py-3 rounded-xl border border-[#3A3A3A] bg-[#242424] text-white placeholder-[#6A6A6A] focus:outline-none focus:border-[#FFB800] transition-colors"
+                className="w-full px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand)] transition-colors"
               />
             </motion.div>
           )}
@@ -240,24 +240,24 @@ export function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
 
         {/* Mensagem */}
         <div>
-          <label className="block text-white text-sm font-medium mb-2">
-            Sua mensagem <span className="text-red-400">*</span>
+          <label className="block text-[var(--color-text-main)] text-sm font-medium mb-2">
+            Sua mensagem <span className="text-[var(--color-error)]">*</span>
           </label>
           <textarea
             value={mensagem}
             onChange={(e) => setMensagem(e.target.value)}
             placeholder="Descreva detalhadamente sua dúvida ou problema..."
             rows={5}
-            className="w-full px-4 py-3 rounded-xl border border-[#3A3A3A] bg-[#242424] text-white placeholder-[#6A6A6A] resize-none focus:outline-none focus:border-[#FFB800] transition-colors"
+            className="w-full px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] resize-none focus:outline-none focus:border-[var(--color-brand)] transition-colors"
           />
         </div>
 
         {/* Upload de Arquivos */}
         <div>
-          <label className="block text-white text-sm font-medium mb-2">
+          <label className="block text-[var(--color-text-main)] text-sm font-medium mb-2">
             Anexos (opcional)
           </label>
-          <p className="text-[#6A6A6A] text-xs mb-3">
+          <p className="text-[var(--color-text-muted)] text-xs mb-3">
             Imagens, PDFs ou arquivos ZIP. Máximo 10MB por arquivo.
           </p>
 
@@ -269,18 +269,18 @@ export function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
                 return (
                   <div
                     key={index}
-                    className="flex items-center gap-3 bg-[#242424] border border-[#3A3A3A] rounded-xl px-4 py-3"
+                    className="flex items-center gap-3 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3"
                   >
-                    <Icon size={20} className="text-[#FFB800] flex-shrink-0" />
+                    <Icon size={20} className="text-[var(--color-brand)] flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm truncate">{anexo.name}</p>
-                      <p className="text-[#6A6A6A] text-xs">
+                      <p className="text-[var(--color-text-main)] text-sm truncate">{anexo.name}</p>
+                      <p className="text-[var(--color-text-muted)] text-xs">
                         {formatFileSize(anexo.size)}
                       </p>
                     </div>
                     <button
                       onClick={() => removeAnexo(index)}
-                      className="p-1 text-[#6A6A6A] hover:text-red-400 transition-colors"
+                      className="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-error)] transition-colors"
                     >
                       <X size={18} />
                     </button>
@@ -292,7 +292,7 @@ export function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
 
           {/* Uploading indicator */}
           {uploadingFiles.length > 0 && (
-            <div className="flex items-center gap-2 text-[#A0A0A0] text-sm mb-3">
+            <div className="flex items-center gap-2 text-[var(--color-text-sec)] text-sm mb-3">
               <Loader2 size={16} className="animate-spin" />
               Enviando: {uploadingFiles.join(', ')}
             </div>
@@ -311,7 +311,7 @@ export function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingFiles.length > 0}
-            className="flex items-center gap-2 px-4 py-3 border border-dashed border-[#3A3A3A] rounded-xl text-[#A0A0A0] hover:border-[#FFB800] hover:text-[#FFB800] transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-3 border border-dashed border-[var(--color-border)] rounded-xl text-[var(--color-text-sec)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] transition-colors disabled:opacity-50"
           >
             <Upload size={18} />
             Anexar arquivos
@@ -320,7 +320,7 @@ export function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
 
         {/* Erro */}
         {error && (
-          <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2 text-[var(--color-error)] text-sm bg-[var(--color-error)]/10 border border-[var(--color-error)]/30 rounded-xl px-4 py-3">
             <AlertCircle size={18} />
             {error}
           </div>
@@ -334,8 +334,8 @@ export function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
             w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2
             ${
               isSubmitting || !motivo || !mensagem.trim()
-                ? 'bg-[#3A3A3A] text-[#6A6A6A] cursor-not-allowed'
-                : 'bg-[#FFB800] text-[#1A1A1A] hover:bg-[#E5A600]'
+                ? 'bg-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed'
+                : 'bg-[var(--color-brand)] text-black hover:brightness-110'
             }
           `}
         >

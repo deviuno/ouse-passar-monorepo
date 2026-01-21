@@ -168,7 +168,7 @@ export function Header() {
             >
               <ChevronLeft size={20} className="text-[var(--color-text-sec)]" />
             </button>
-            <span className="text-[var(--color-text-main)] font-bold truncate">{practiceMode.title || 'Nova Prática'}</span>
+            <span className="text-[var(--color-text-main)] font-bold truncate">{practiceMode.title || 'Praticar'}</span>
           </div>
 
           {/* Center: Counter */}

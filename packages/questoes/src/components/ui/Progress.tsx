@@ -91,12 +91,12 @@ export function CircularProgress({
   return (
     <div className="relative inline-flex items-center justify-center">
       <svg width={size} height={size} className="-rotate-90">
-        {/* Background circle */}
+        {/* Background circle - uses CSS variable for theme support */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="#3A3A3A"
+          className="stroke-[var(--color-progress-track)]"
           strokeWidth={strokeWidth}
           fill="none"
         />

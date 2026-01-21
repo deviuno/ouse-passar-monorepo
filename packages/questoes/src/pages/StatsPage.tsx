@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Award, Target, ChevronRight, Loader2, Zap, TrendingUp } from 'lucide-react';
-import { Card } from '../components/ui';
+import { useNavigate } from 'react-router-dom';
+import { Clock, Award, Target, ChevronRight, Loader2, TrendingUp, User } from 'lucide-react';
+import { Card, CircularProgress } from '../components/ui';
 import { useUserStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
+import { calculateXPProgress } from '../constants/levelConfig';
 import {
   getUserMateriaStats,
   getUserDailyEvolution,
@@ -32,8 +34,10 @@ import {
 } from '../components/stats';
 
 export default function StatsPage() {
+  const navigate = useNavigate();
   const { stats } = useUserStore();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
+  const xpProgress = calculateXPProgress(stats.xp);
 
   const [materiaStats, setMateriaStats] = useState<MateriaStats[]>([]);
   const [dailyEvolution, setDailyEvolution] = useState<DailyStats[]>([]);
@@ -155,42 +159,66 @@ export default function StatsPage() {
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)', backgroundSize: '24px 24px' }} />
 
         <div className="relative">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-brand)]/10 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-[var(--color-brand)]" />
-            </div>
+          {/* Header with Profile */}
+          <div className="flex items-start justify-between gap-4 mb-5">
             <div>
-              <h1 className="text-xl font-semibold text-[var(--color-text-main)]">Seu Desempenho</h1>
+              <h1 className="text-lg font-semibold text-[var(--color-text-main)]">Seu Desempenho</h1>
               <p className="text-sm text-[var(--color-text-muted)]">Visão geral do seu progresso</p>
             </div>
+
+            {/* Profile Photo with Progress Ring */}
+            <button
+              onClick={() => navigate('/perfil')}
+              className="relative group flex-shrink-0"
+              title="Ver Perfil"
+            >
+              <CircularProgress
+                value={xpProgress.percentage}
+                size={48}
+                strokeWidth={2.5}
+                color="brand"
+                showLabel={false}
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden">
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-[var(--color-bg-elevated)] flex items-center justify-center">
+                      <User size={16} className="text-[var(--color-text-sec)]" />
+                    </div>
+                  )}
+                </div>
+              </CircularProgress>
+              <div className="absolute inset-0 rounded-full bg-[var(--color-brand)]/0 group-hover:bg-[var(--color-brand)]/10 transition-colors" />
+            </button>
           </div>
 
-          {/* Main Accuracy Display */}
-          <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-12">
-            {/* Big Number - Accuracy */}
-            <div className="flex items-baseline gap-2">
-              <span className="text-6xl lg:text-7xl font-bold tabular-nums" style={{ color: globalAccuracy >= 70 ? 'var(--color-success)' : globalAccuracy >= 50 ? 'var(--color-brand)' : 'var(--color-error)' }}>
-                {globalAccuracy}
-              </span>
-              <span className="text-2xl text-[var(--color-text-muted)]">%</span>
-              <span className="text-sm text-[var(--color-text-muted)] ml-2">de acerto</span>
-            </div>
+          {/* Big Number - Accuracy */}
+          <div className="flex items-baseline gap-1 mb-4">
+            <span className="text-5xl sm:text-6xl font-bold tabular-nums" style={{ color: globalAccuracy >= 70 ? 'var(--color-success)' : globalAccuracy >= 50 ? 'var(--color-brand)' : 'var(--color-error)' }}>
+              {globalAccuracy}
+            </span>
+            <span className="text-xl text-[var(--color-text-muted)]">%</span>
+            <span className="text-sm text-[var(--color-text-muted)] ml-1">de acerto</span>
+          </div>
 
-            {/* Stat Pills */}
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--color-bg-main)] border border-[var(--color-border)]">
-                <span className="text-sm text-[var(--color-text-muted)]">Total</span>
-                <span className="text-sm font-semibold text-[var(--color-text-main)] tabular-nums">{stats.totalAnswered.toLocaleString('pt-BR')}</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--color-success)]/10 border border-[var(--color-success)]/20">
-                <span className="text-sm text-[var(--color-success)]">Acertos</span>
-                <span className="text-sm font-semibold text-[var(--color-success)] tabular-nums">{stats.correctAnswers.toLocaleString('pt-BR')}</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--color-error)]/10 border border-[var(--color-error)]/20">
-                <span className="text-sm text-[var(--color-error)]">Erros</span>
-                <span className="text-sm font-semibold text-[var(--color-error)] tabular-nums">{totalErrors.toLocaleString('pt-BR')}</span>
-              </div>
+          {/* Stat Pills */}
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-bg-main)] border border-[var(--color-border)]">
+              <span className="text-xs text-[var(--color-text-muted)]">Total</span>
+              <span className="text-xs font-semibold text-[var(--color-text-main)] tabular-nums">{stats.totalAnswered.toLocaleString('pt-BR')}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-success)]/10 border border-[var(--color-success)]/20">
+              <span className="text-xs text-[var(--color-success)]">Acertos</span>
+              <span className="text-xs font-semibold text-[var(--color-success)] tabular-nums">{stats.correctAnswers.toLocaleString('pt-BR')}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-error)]/10 border border-[var(--color-error)]/20">
+              <span className="text-xs text-[var(--color-error)]">Erros</span>
+              <span className="text-xs font-semibold text-[var(--color-error)] tabular-nums">{totalErrors.toLocaleString('pt-BR')}</span>
             </div>
           </div>
         </div>

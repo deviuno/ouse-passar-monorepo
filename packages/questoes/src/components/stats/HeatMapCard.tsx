@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { BarChart2, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BarChart2, Loader2, ChevronDown } from 'lucide-react';
 import { Card } from '../ui';
 import { MateriaStats } from '../../services/statsService';
 
@@ -9,7 +9,12 @@ interface HeatMapCardProps {
   isLoading?: boolean;
 }
 
+const INITIAL_DISPLAY_COUNT = 5;
+
 export function HeatMapCard({ stats, isLoading }: HeatMapCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasMoreItems = stats.length > INITIAL_DISPLAY_COUNT;
+  const displayedStats = isExpanded ? stats : stats.slice(0, INITIAL_DISPLAY_COUNT);
   if (isLoading) {
     return (
       <Card className="h-full">
@@ -58,37 +63,57 @@ export function HeatMapCard({ stats, isLoading }: HeatMapCardProps) {
       </div>
 
       <div className="space-y-4">
-        {stats.map((stat, index) => {
-          const color = getStatusColor(stat.status);
-          return (
-            <motion.div
-              key={stat.materia}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[var(--color-text-main)] text-sm font-medium truncate pr-2">{stat.materia}</span>
-                <span
-                  className="text-sm font-bold tabular-nums"
-                  style={{ color }}
-                >
-                  {stat.percentual}%
-                </span>
-              </div>
-              <div className="h-2 bg-[var(--color-bg-main)] rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${stat.percentual}%` }}
-                  transition={{ duration: 0.6, delay: index * 0.05, ease: 'easeOut' }}
-                  className="h-full rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-              </div>
-            </motion.div>
-          );
-        })}
+        <AnimatePresence mode="popLayout">
+          {displayedStats.map((stat, index) => {
+            const color = getStatusColor(stat.status);
+            return (
+              <motion.div
+                key={stat.materia}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ delay: index * 0.05 }}
+                layout
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[var(--color-text-main)] text-sm font-medium truncate pr-2">{stat.materia}</span>
+                  <span
+                    className="text-sm font-bold tabular-nums"
+                    style={{ color }}
+                  >
+                    {stat.percentual}%
+                  </span>
+                </div>
+                <div className="h-2 bg-[var(--color-bg-main)] rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${stat.percentual}%` }}
+                    transition={{ duration: 0.6, delay: index * 0.05, ease: 'easeOut' }}
+                    className="h-full rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
+
+      {/* Ver todas button */}
+      {hasMoreItems && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full flex items-center justify-center gap-1.5 mt-4 py-2 text-sm font-medium text-[var(--color-brand)] hover:text-[var(--color-brand-hover)] transition-colors"
+        >
+          <span>{isExpanded ? 'Ver menos' : `Ver todas (${stats.length})`}</span>
+          <motion.div
+            animate={{ rotate: isExpanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown size={16} />
+          </motion.div>
+        </button>
+      )}
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-4 mt-5 pt-4 border-t border-[var(--color-border)]">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, LogIn, UserPlus } from 'lucide-react';
-import { LOGO_URL } from '../../constants';
+import { Logo } from '../ui';
 
 interface InicioStepProps {
   onLogin: () => void;
@@ -17,14 +17,14 @@ export function InicioStep({ onLogin, onCreateAccount }: InicioStepProps) {
       className="text-center"
     >
       {/* Logo */}
-      <motion.img
-        src={LOGO_URL}
-        alt="Ouse Passar"
-        className="h-16 mx-auto mb-8"
+      <motion.div
+        className="flex justify-center mb-8"
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.2 }}
-      />
+      >
+        <Logo className="h-16" variant="dark" />
+      </motion.div>
 
       <h1 className="text-3xl font-bold text-white mb-3">
         Bem-vindo ao Ouse Passar!
