@@ -139,6 +139,8 @@ export interface CreatePreparatorioInput {
   content_types?: string[];
   // Campos técnicos
   banca?: string;
+  bancas_adicionais?: string[]; // Bancas alternativas para fallback
+  tipo_questao?: 'certo_errado' | 'multipla_escolha'; // Tipo de questão a ser apresentada
   orgao?: string;
   cargo?: string;
   nivel?: 'fundamental' | 'medio' | 'superior';
@@ -211,6 +213,8 @@ export interface UpdatePreparatorioInput {
   content_types?: string[];
   // Campos técnicos
   banca?: string;
+  bancas_adicionais?: string[]; // Bancas alternativas para fallback
+  tipo_questao?: 'certo_errado' | 'multipla_escolha'; // Tipo de questão a ser apresentada
   orgao?: string;
   cargo?: string;
   nivel?: 'fundamental' | 'medio' | 'superior';
@@ -312,6 +316,8 @@ export const preparatoriosService = {
         content_types: input.content_types || ['plano'],
         // Campos técnicos
         banca: input.banca,
+        bancas_adicionais: input.bancas_adicionais || [],
+        tipo_questao: input.tipo_questao || 'multipla_escolha',
         orgao: input.orgao,
         cargo: input.cargo,
         nivel: input.nivel,

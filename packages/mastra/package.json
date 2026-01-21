@@ -17,6 +17,7 @@
     "dependencies": {
         "@ai-sdk/google": "^3.0.10",
         "@ai-sdk/google-vertex": "^4.0.18",
+        "@google-cloud/bigquery": "^8.1.1",
         "@google/genai": "^1.33.0",
         "@langfuse/otel": "^4.5.1",
         "@mastra/core": "^1.0.0-beta.25",

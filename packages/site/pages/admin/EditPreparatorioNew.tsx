@@ -20,6 +20,8 @@ interface Preparatorio {
   created_at?: string;
   updated_at?: string;
   banca?: string | null;
+  bancas_adicionais?: string[] | null;
+  tipo_questao?: 'certo_errado' | 'multipla_escolha' | null;
   orgao?: string | null;
   cargo?: string | null;
   nivel?: string | null;
@@ -187,6 +189,8 @@ export const EditPreparatorioNew: React.FC = () => {
         logo_url: data.logoUrl || undefined,
         // Technical fields
         banca: data.banca || undefined,
+        bancas_adicionais: data.bancasAdicionais.length > 0 ? data.bancasAdicionais : undefined,
+        tipo_questao: data.tipoQuestao,
         orgao: data.orgao || undefined,
         cargo: data.cargo || undefined,
         nivel: data.nivel,
@@ -296,6 +300,8 @@ export const EditPreparatorioNew: React.FC = () => {
       imagemCapa: prep.imagem_capa || '',
       logoUrl: prep.logo_url || '',
       banca: prep.banca || '',
+      bancasAdicionais: prep.bancas_adicionais || [],
+      tipoQuestao: prep.tipo_questao || 'multipla_escolha',
       orgao: prep.orgao || '',
       cargo: prep.cargo || '',
       nivel: prep.nivel || 'medio',

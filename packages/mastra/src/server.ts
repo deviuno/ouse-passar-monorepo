@@ -42,6 +42,7 @@ import multer from 'multer';
 import { createScraperRoutes } from './routes/scraper.js';
 import { createTecConcursosScraperRoutes } from './routes/tecConcursosScraper.js';
 import { createAIMetricsRoutes } from './routes/aiMetrics.js';
+import { createBillingMetricsRoutes } from './routes/billingMetrics.js';
 import { startImageProcessorCron, getImageProcessorStatus } from './cron/imageProcessor.js';
 import { startQuestionReviewerCron, getQuestionReviewerStatus } from './cron/questionReviewer.js';
 import { startGabaritoExtractorCron, getGabaritoExtractorStatus } from './cron/gabaritoExtractor.js';
@@ -8665,6 +8666,10 @@ app.use('/api/tec-scraper', tecScraperRoutes);
 // Registrar rotas de AI Metrics (Langfuse)
 const aiMetricsRoutes = createAIMetricsRoutes();
 app.use('/api/admin/ai-metrics', aiMetricsRoutes);
+
+// Registrar rotas de Billing (Google Cloud BigQuery)
+const billingRoutes = createBillingMetricsRoutes();
+app.use('/api/admin/billing', billingRoutes);
 
 // Endpoint para status dos cron jobs
 app.get('/api/scraper/cron-status', (req, res) => {
