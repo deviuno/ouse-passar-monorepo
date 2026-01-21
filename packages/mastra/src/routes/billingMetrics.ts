@@ -313,7 +313,6 @@ router.get('/all-services', async (_req: Request, res: Response) => {
                 MIN(DATE(usage_start_time)) as first_date,
                 MAX(DATE(usage_start_time)) as last_date
             FROM \`${BIGQUERY_BILLING_TABLE}\`
-            WHERE cost > 0
             GROUP BY service.description
             ORDER BY total_cost_usd DESC
             LIMIT 50
