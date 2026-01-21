@@ -249,7 +249,7 @@ export const QuestionPreviewModal: React.FC<QuestionPreviewModalProps> = ({
                               <button
                                 onClick={handleSaveEdit}
                                 disabled={isSaving || !editConteudo.trim()}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50"
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#FFB800] text-black rounded-lg hover:bg-[#FFC933] transition-colors disabled:opacity-50"
                               >
                                 {isSaving ? (
                                   <Loader2 size={12} className="animate-spin" />
@@ -271,7 +271,7 @@ export const QuestionPreviewModal: React.FC<QuestionPreviewModalProps> = ({
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={handleStartEdit}
-                                  className="p-1 hover:bg-amber-500/10 rounded transition-colors"
+                                  className="p-1 hover:bg-[#FFB800]/10 rounded transition-colors"
                                   title="Editar anotação"
                                 >
                                   <Pencil size={12} className="text-amber-500/70" />

@@ -245,7 +245,6 @@ export const GoldenNotebookPage: React.FC = () => {
           <Button
             onClick={() => setShowCreateModal(true)}
             leftIcon={<Plus size={18} />}
-            className="!bg-amber-500 hover:!bg-amber-600"
           >
             Novo Caderno
           </Button>
@@ -327,7 +326,6 @@ export const GoldenNotebookPage: React.FC = () => {
                 </p>
                 <Button
                   onClick={() => setShowCreateModal(true)}
-                  className="!bg-amber-500 hover:!bg-amber-600"
                 >
                   Criar meu primeiro caderno
                 </Button>
@@ -482,7 +480,6 @@ export const GoldenNotebookPage: React.FC = () => {
                     fullWidth
                     onClick={editingNotebook ? handleUpdateNotebook : handleCreateNotebook}
                     disabled={isSaving || !formData.nome.trim()}
-                    className="!bg-amber-500 hover:!bg-amber-600"
                   >
                     {isSaving ? (
                       <Loader2 size={16} className="animate-spin" />

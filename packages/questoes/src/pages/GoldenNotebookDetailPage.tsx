@@ -445,7 +445,6 @@ export const GoldenNotebookDetailPage: React.FC = () => {
                     fullWidth
                     onClick={handleUpdateAnnotation}
                     disabled={isSaving || !formData.conteudo.trim()}
-                    className="!bg-amber-500 hover:!bg-amber-600"
                   >
                     {isSaving ? (
                       <Loader2 size={16} className="animate-spin" />

@@ -829,7 +829,7 @@ export function QuestionFeedbackTabs({
               {userId && (
                 <button
                   onClick={() => setShowNewGoldenNotebookModal(true)}
-                  className="px-3 py-1.5 bg-amber-500 text-black rounded-lg font-medium text-xs hover:bg-amber-600 transition-colors flex items-center"
+                  className="px-3 py-1.5 bg-[#FFB800] text-black rounded-lg font-medium text-xs hover:bg-[#FFC933] transition-colors flex items-center"
                 >
                   <Plus size={14} className="mr-1" />
                   Novo Caderno
@@ -880,7 +880,7 @@ export function QuestionFeedbackTabs({
                     {goldenNotebooks.length === 0 ? (
                       <button
                         onClick={() => setShowNewGoldenNotebookModal(true)}
-                        className="w-full text-left px-4 py-3 rounded-lg border border-dashed border-amber-500/50 bg-amber-500/5 text-amber-500 hover:bg-amber-500/10 transition-all text-sm flex items-center"
+                        className="w-full text-left px-4 py-3 rounded-lg border border-dashed border-[#FFB800]/50 bg-[#FFB800]/5 text-[#FFB800] hover:bg-[#FFB800]/10 transition-all text-sm flex items-center"
                       >
                         <Plus size={16} className="mr-2" />
                         Criar meu primeiro Minhas Anotações
@@ -920,7 +920,7 @@ export function QuestionFeedbackTabs({
                   <button
                     onClick={handleSaveGoldenAnnotation}
                     disabled={!annotation.trim() || !selectedGoldenNotebook || savingAnnotation}
-                    className="w-full py-2.5 bg-amber-500 text-black rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="w-full py-2.5 bg-[#FFB800] text-black rounded-lg font-medium text-sm hover:bg-[#FFC933] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {savingAnnotation ? (
                       <Loader2 className="animate-spin" size={18} />
@@ -1300,7 +1300,7 @@ export function QuestionFeedbackTabs({
               <button
                 onClick={handleCreateGoldenNotebook}
                 disabled={!newGoldenNotebookName.trim() || creatingGoldenNotebook}
-                className="flex-1 py-2.5 bg-amber-500 text-black rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="flex-1 py-2.5 bg-[#FFB800] text-black rounded-lg font-medium text-sm hover:bg-[#FFC933] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {creatingGoldenNotebook ? (
                   <Loader2 className="animate-spin" size={18} />
