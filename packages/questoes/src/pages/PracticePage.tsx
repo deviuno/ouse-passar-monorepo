@@ -959,7 +959,7 @@ export default function PracticePage() {
         </AnimatePresence>
 
         {/* Question Area */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1">
           <div className="max-w-[1000px] mx-auto h-full">
             <QuestionErrorBoundary questionId={currentQuestion?.id} onSkip={handleNext} onRetry={() => {}}>
               <QuestionCard

@@ -15,8 +15,8 @@ const queryClient = new QueryClient({
   },
 });
 
-// Skeleton de trilha para loading inicial
-function AppLoadingSkeleton() {
+// Skeleton de trilha para loading inicial (usado em / e /trilha)
+function TrailLoadingSkeleton() {
   const skeletonNodes = [0, 1, 2, 3, 4];
   const CONFIG = {
     ITEM_HEIGHT: 140,
@@ -67,6 +67,67 @@ function AppLoadingSkeleton() {
       </div>
     </div>
   );
+}
+
+// Skeleton de conteúdo para outras páginas
+function ContentLoadingSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#1A1A1A] p-4">
+      {/* Header skeleton */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-lg bg-[#2A2A2A] animate-pulse" />
+        <div className="flex-1">
+          <div className="h-5 w-48 bg-[#2A2A2A] rounded animate-pulse mb-2" />
+          <div className="h-4 w-64 bg-[#2A2A2A] rounded animate-pulse" />
+        </div>
+      </div>
+
+      {/* Card skeleton */}
+      <div className="bg-[#252525] rounded-xl p-4 mb-6 border border-[#3A3A3A]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#3A3A3A] animate-pulse" />
+          <div className="flex-1">
+            <div className="h-2 bg-[#3A3A3A] rounded-full animate-pulse" />
+          </div>
+          <div className="w-12 h-4 bg-[#3A3A3A] rounded animate-pulse" />
+        </div>
+      </div>
+
+      {/* Content skeleton - multiple paragraphs */}
+      <div className="space-y-4 flex-1">
+        <div className="space-y-2">
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-11/12" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-4/5" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-10/12" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-3/4" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-5/6" />
+        </div>
+      </div>
+
+      {/* Button skeleton */}
+      <div className="mt-6 pt-4 border-t border-[#3A3A3A]">
+        <div className="h-12 bg-[#3A3A3A] rounded-xl animate-pulse w-full" />
+      </div>
+    </div>
+  );
+}
+
+// Determina qual skeleton mostrar baseado na rota atual
+function AppLoadingSkeleton() {
+  const pathname = window.location.pathname;
+  // Trilha é a home (/) ou /trilha
+  const isTrailPage = pathname === '/' || pathname === '/trilha';
+
+  return isTrailPage ? <TrailLoadingSkeleton /> : <ContentLoadingSkeleton />;
 }
 
 function AppContent() {

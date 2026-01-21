@@ -239,51 +239,7 @@ export default function SimuladoExecPage() {
     saveProgress();
   }, [currentIndex, questions, saveProgress]);
 
-  const handleNext = useCallback(() => {
-    if (currentIndex < questions.length - 1) {
-      const newIndex = currentIndex + 1;
-      setCurrentIndex(newIndex);
-      currentIndexRef.current = newIndex;
-      saveProgress();
-    } else {
-      handleFinish();
-    }
-  }, [currentIndex, questions.length, saveProgress]);
-
-  const handlePrevious = useCallback(() => {
-    if (currentIndex > 0) {
-      const newIndex = currentIndex - 1;
-      setCurrentIndex(newIndex);
-      currentIndexRef.current = newIndex;
-      saveProgress();
-    }
-  }, [currentIndex, saveProgress]);
-
-  const handleGoToQuestion = useCallback((index: number) => {
-    setCurrentIndex(index);
-    currentIndexRef.current = index;
-    setShowGridModal(false);
-    saveProgress();
-  }, [saveProgress]);
-
-  const handleTimeout = async () => {
-    addToast('info', 'Tempo esgotado! Finalizando prova...');
-    await finishAttempt();
-  };
-
-  const handleFinish = () => {
-    // Check for unanswered questions
-    const answeredCount = Object.keys(answers).length;
-    if (answeredCount < questions.length) {
-      const unanswered = questions.length - answeredCount;
-      if (!window.confirm(`Voce tem ${unanswered} questao(oes) sem resposta. Deseja finalizar mesmo assim?`)) {
-        return;
-      }
-    }
-    finishAttempt();
-  };
-
-  const finishAttempt = async () => {
+  const finishAttempt = useCallback(async () => {
     if (!attempt?.id || !profile?.id || submitting) return;
 
     setSubmitting(true);
@@ -317,7 +273,51 @@ export default function SimuladoExecPage() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [attempt?.id, profile?.id, submitting, questions, simuladoId, addToast, navigate]);
+
+  const handleFinish = useCallback(() => {
+    // Check for unanswered questions
+    const answeredCount = Object.keys(answers).length;
+    if (answeredCount < questions.length) {
+      const unanswered = questions.length - answeredCount;
+      if (!window.confirm(`Voce tem ${unanswered} questao(oes) sem resposta. Deseja finalizar mesmo assim?`)) {
+        return;
+      }
+    }
+    finishAttempt();
+  }, [answers, questions.length, finishAttempt]);
+
+  const handleNext = useCallback(() => {
+    if (currentIndex < questions.length - 1) {
+      const newIndex = currentIndex + 1;
+      setCurrentIndex(newIndex);
+      currentIndexRef.current = newIndex;
+      saveProgress();
+    } else {
+      handleFinish();
+    }
+  }, [currentIndex, questions.length, saveProgress, handleFinish]);
+
+  const handlePrevious = useCallback(() => {
+    if (currentIndex > 0) {
+      const newIndex = currentIndex - 1;
+      setCurrentIndex(newIndex);
+      currentIndexRef.current = newIndex;
+      saveProgress();
+    }
+  }, [currentIndex, saveProgress]);
+
+  const handleGoToQuestion = useCallback((index: number) => {
+    setCurrentIndex(index);
+    currentIndexRef.current = index;
+    setShowGridModal(false);
+    saveProgress();
+  }, [saveProgress]);
+
+  const handleTimeout = useCallback(async () => {
+    addToast('info', 'Tempo esgotado! Finalizando prova...');
+    await finishAttempt();
+  }, [addToast, finishAttempt]);
 
   const handleExit = async () => {
     if (!attempt?.id) {

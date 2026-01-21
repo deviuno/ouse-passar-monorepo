@@ -1103,9 +1103,17 @@ export function QuestionFeedbackTabs({
   };
 
   return (
-    <div className="mt-6">
-      {/* Tabs Navigation */}
-      <div className="flex overflow-x-auto pb-2 mb-4 gap-1 scrollbar-hide -mx-3 px-3">
+    <>
+      {/* Tabs Navigation - rendered as sibling, outside content wrapper */}
+      {/* Uses -mx-7 to extend edge-to-edge past QuestionCard px-3 (12px) + main p-4 (16px) = 28px */}
+      <div
+        className="mt-6 -mx-7 flex overflow-x-auto pb-2 mb-4 gap-1 scrollbar-hide"
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+      >
+        {/* Left spacer - scrolls with content, maintains initial alignment (28px = w-7) */}
+        <div className="flex-shrink-0 w-7" aria-hidden="true" />
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -1120,9 +1128,11 @@ export function QuestionFeedbackTabs({
             {tab.label}
           </button>
         ))}
+        {/* Right spacer - ensures last tab can be fully visible (28px = w-7) */}
+        <div className="flex-shrink-0 w-7" aria-hidden="true" />
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content - separate element */}
       <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4">
         {renderTabContent()}
       </div>
@@ -1315,7 +1325,7 @@ export function QuestionFeedbackTabs({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
