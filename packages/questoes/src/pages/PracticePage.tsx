@@ -905,6 +905,8 @@ export default function PracticePage() {
 
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
+      // Scroll to top when navigating to next question
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       const timeSpent = sessionStartTime ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
       const isHardMode = studyMode === "hard";

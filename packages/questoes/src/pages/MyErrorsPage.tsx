@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   BookOpen,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '../components/ui';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -22,6 +23,7 @@ export const MyErrorsPage: React.FC = () => {
   const [errorsData, setErrorsData] = useState<UserErrorsStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedMaterias, setExpandedMaterias] = useState<Set<string>>(new Set());
+  const [expandedReviewedMaterias, setExpandedReviewedMaterias] = useState<Set<string>>(new Set());
 
   // Load errors on mount
   useEffect(() => {
@@ -71,6 +73,18 @@ export const MyErrorsPage: React.FC = () => {
     });
   };
 
+  const toggleReviewedMateria = (materia: string) => {
+    setExpandedReviewedMaterias(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(materia)) {
+        newSet.delete(materia);
+      } else {
+        newSet.add(materia);
+      }
+      return newSet;
+    });
+  };
+
   const handlePracticeAll = () => {
     if (!errorsData || errorsData.questionIds.length === 0) return;
 
@@ -91,6 +105,28 @@ export const MyErrorsPage: React.FC = () => {
 
     const idsParam = questionIds.join(',');
     navigate(`/praticar?ids=${idsParam}&source=errors`);
+  };
+
+  const handlePracticeAllReviewed = () => {
+    if (!errorsData || errorsData.reviewedQuestionIds.length === 0) return;
+
+    const idsParam = errorsData.reviewedQuestionIds.join(',');
+    navigate(`/praticar?ids=${idsParam}&source=reviewed`);
+  };
+
+  const handlePracticeReviewedMateria = (materia: MateriaErrorStats) => {
+    const ids = materia.assuntos.flatMap(a => a.questionIds);
+    if (ids.length === 0) return;
+
+    const idsParam = ids.join(',');
+    navigate(`/praticar?ids=${idsParam}&source=reviewed`);
+  };
+
+  const handlePracticeReviewedAssunto = (questionIds: number[]) => {
+    if (questionIds.length === 0) return;
+
+    const idsParam = questionIds.join(',');
+    navigate(`/praticar?ids=${idsParam}&source=reviewed`);
   };
 
   if (isLoading) {
@@ -153,8 +189,8 @@ export const MyErrorsPage: React.FC = () => {
           </motion.div>
         )}
 
-        {/* Empty State */}
-        {(!errorsData || errorsData.totalErrors === 0) && (
+        {/* Empty State - only show if no errors AND no reviewed */}
+        {(!errorsData || (errorsData.totalErrors === 0 && errorsData.totalReviewed === 0)) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -262,10 +298,10 @@ export const MyErrorsPage: React.FC = () => {
                                 </div>
                                 <button
                                   onClick={() => handlePracticeAssunto(assunto.questionIds)}
-                                  className="p-2 hover:bg-[var(--color-bg-card)] rounded-lg transition-colors"
-                                  title="Praticar este assunto"
+                                  className="px-3 py-1.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors flex items-center gap-1"
                                 >
-                                  <Play size={16} className="text-red-500" fill="currentColor" />
+                                  <Play size={14} fill="currentColor" />
+                                  Praticar
                                 </button>
                               </div>
                             ))}
@@ -287,6 +323,147 @@ export const MyErrorsPage: React.FC = () => {
               Dica: Focar nos assuntos com mais erros pode melhorar significativamente seu desempenho
             </p>
           </div>
+        )}
+
+        {/* Reviewed Questions Section */}
+        {errorsData && errorsData.totalReviewed > 0 && (
+          <>
+            <div className="mt-12 mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 size={24} className="text-emerald-500" />
+                <h2 className="text-lg font-bold text-[var(--color-text-main)]">
+                  Questões Revisadas
+                </h2>
+              </div>
+              <p className="text-sm text-[var(--color-text-sec)]">
+                Questões que você errou anteriormente, mas acertou depois. Continue praticando para reforçar o aprendizado!
+              </p>
+            </div>
+
+            {/* Practice All Reviewed Button */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6"
+            >
+              <button
+                onClick={handlePracticeAllReviewed}
+                className="w-full p-4 bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 border border-emerald-500/30 rounded-xl flex items-center justify-between hover:border-emerald-500/50 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                    <Play size={24} className="text-emerald-500" fill="currentColor" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-[var(--color-text-main)]">
+                      Reforçar Questões Revisadas
+                    </h3>
+                    <p className="text-sm text-[var(--color-text-sec)]">
+                      {errorsData.totalReviewed} questões para reforçar
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight size={24} className="text-emerald-500 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </motion.div>
+
+            {/* Reviewed Materias List */}
+            <div className="space-y-3">
+              {errorsData.reviewedMaterias.map((materia, index) => {
+                const isExpanded = expandedReviewedMaterias.has(materia.materia);
+
+                return (
+                  <motion.div
+                    key={`reviewed-${materia.materia}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl overflow-hidden theme-transition"
+                  >
+                    {/* Materia Header */}
+                    <div
+                      className="p-4 cursor-pointer hover:bg-[var(--color-bg-elevated)] transition-colors"
+                      onClick={() => toggleReviewedMateria(materia.materia)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                            <CheckCircle2 size={20} className="text-emerald-500" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-[var(--color-text-main)]">
+                              {materia.materia}
+                            </h3>
+                            <p className="text-sm text-[var(--color-text-sec)]">
+                              {materia.totalErrors} {materia.totalErrors === 1 ? 'questão revisada' : 'questões revisadas'} • {materia.assuntos.length} {materia.assuntos.length === 1 ? 'assunto' : 'assuntos'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePracticeReviewedMateria(materia);
+                            }}
+                            className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors flex items-center gap-1"
+                          >
+                            <Play size={14} fill="currentColor" />
+                            Reforçar
+                          </button>
+                          <motion.div
+                            animate={{ rotate: isExpanded ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <ChevronDown size={20} className="text-[var(--color-text-sec)]" />
+                          </motion.div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Assuntos List */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-4 pb-4 space-y-2">
+                            {materia.assuntos.map((assunto) => (
+                              <div
+                                key={`reviewed-assunto-${assunto.assunto}`}
+                                className="flex items-center justify-between p-3 bg-[var(--color-bg-elevated)] rounded-lg"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded bg-emerald-500/10 flex items-center justify-center">
+                                    <span className="text-sm font-bold text-emerald-500">
+                                      {assunto.errorCount}
+                                    </span>
+                                  </div>
+                                  <span className="text-sm text-[var(--color-text-main)]">
+                                    {assunto.assunto}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => handlePracticeReviewedAssunto(assunto.questionIds)}
+                                  className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors flex items-center gap-1"
+                                >
+                                  <Play size={14} fill="currentColor" />
+                                  Reforçar
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>
