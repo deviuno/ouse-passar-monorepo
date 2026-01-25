@@ -291,7 +291,7 @@ async function questaoJaExiste(
     .or(`enunciado.ilike.%${enunciadoLimpo.substring(0, 100)}%`)
     .limit(1);
 
-  return data && data.length > 0;
+  return !!(data && data.length > 0);
 }
 
 /**
