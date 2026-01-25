@@ -96,6 +96,7 @@ export interface DbQuestion {
   questao_revisada: string | null;
   is_pegadinha?: boolean;
   explicacao_pegadinha?: string | null;
+  is_ai_generated?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -133,6 +134,7 @@ const transformQuestion = (dbQuestion: DbQuestion): ParsedQuestion => {
     imagens_comentario: dbQuestion.imagens_comentario?.join(',') || null,
     isPegadinha: dbQuestion.is_pegadinha || false,
     explicacaoPegadinha: dbQuestion.explicacao_pegadinha,
+    isAiGenerated: dbQuestion.is_ai_generated || false,
   };
 };
 
@@ -164,6 +166,7 @@ export interface QuestionFilters {
   escolaridade?: string[];
   apenasRevisadas?: boolean;
   apenasComComentario?: boolean;
+  apenasIneditasOuse?: boolean;
   limit?: number;
   offset?: number;
   shuffle?: boolean;
@@ -241,6 +244,10 @@ export const fetchQuestions = async (filters?: QuestionFilters): Promise<ParsedQ
 
     if (filters?.apenasComComentario) {
       query = query.not('comentario', 'is', null).neq('comentario', '');
+    }
+
+    if (filters?.apenasIneditasOuse) {
+      query = query.eq('is_ai_generated', true);
     }
 
     if (filters?.limit) {
@@ -585,6 +592,7 @@ export const getQuestionsCount = async (filters?: Omit<QuestionFilters, 'limit' 
       p_cargos?: string[];
       p_apenas_revisadas?: boolean;
       p_apenas_com_comentario?: boolean;
+      p_apenas_ineditas_ouse?: boolean;
     } = {};
 
     if (filters?.materias && filters.materias.length > 0) {
@@ -618,6 +626,10 @@ export const getQuestionsCount = async (filters?: Omit<QuestionFilters, 'limit' 
 
     if (filters?.apenasComComentario) {
       params.p_apenas_com_comentario = true;
+    }
+
+    if (filters?.apenasIneditasOuse) {
+      params.p_apenas_ineditas_ouse = true;
     }
 
     const { data, error } = await questionsDb.rpc('get_questions_count', params);

@@ -108,6 +108,7 @@ router.get('/vertex-costs', async (req: Request, res: Response) => {
                     service.description LIKE '%Vertex AI%'
                     OR service.description LIKE '%Generative AI%'
                     OR service.description LIKE '%Cloud AI%'
+                    OR service.description LIKE '%Gemini%'
                 )
             GROUP BY
                 DATE(usage_start_time),
@@ -242,6 +243,7 @@ router.get('/monthly-summary', async (req: Request, res: Response) => {
                     service.description LIKE '%Vertex AI%'
                     OR service.description LIKE '%Generative AI%'
                     OR service.description LIKE '%Cloud AI%'
+                    OR service.description LIKE '%Gemini%'
                 )
             GROUP BY
                 FORMAT_DATE('%Y-%m', usage_start_time),

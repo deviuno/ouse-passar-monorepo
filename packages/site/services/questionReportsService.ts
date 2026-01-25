@@ -6,6 +6,7 @@ export type ReportMotivo =
   | 'enunciado_confuso'
   | 'alternativas_incorretas'
   | 'imagem_quebrada'
+  | 'solicitar_explicacao'
   | 'outro';
 
 export type ReportStatus = 'pendente' | 'em_analise' | 'resolvido' | 'rejeitado';
@@ -16,6 +17,7 @@ export const REPORT_MOTIVOS: { value: ReportMotivo; label: string }[] = [
   { value: 'enunciado_confuso', label: 'Enunciado confuso' },
   { value: 'alternativas_incorretas', label: 'Alternativas incorretas' },
   { value: 'imagem_quebrada', label: 'Imagem não carrega' },
+  { value: 'solicitar_explicacao', label: 'Solicitação de Explicação' },
   { value: 'outro', label: 'Outro motivo' },
 ];
 

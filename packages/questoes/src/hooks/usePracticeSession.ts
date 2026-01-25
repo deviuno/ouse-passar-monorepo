@@ -244,6 +244,7 @@ export function usePracticeSession(
               activeFilters.dificuldade.length > 0 ? activeFilters.dificuldade : undefined,
             apenasRevisadas: activeToggleFilters.apenasRevisadas || undefined,
             apenasComComentario: activeToggleFilters.apenasComComentario || undefined,
+            apenasIneditasOuse: activeToggleFilters.apenasIneditasOuse || undefined,
             limit: isTrailMode ? 500 : questionCount,
             shuffle: true,
           });

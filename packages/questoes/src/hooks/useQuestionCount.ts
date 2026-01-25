@@ -57,6 +57,12 @@ export function useQuestionCount(
 
       const hasFilters = hasActiveFilters(filters, toggleFilters);
 
+      // If a specific question ID is provided, count is 1
+      if (filters.questionId) {
+        setFilteredCount(1);
+        return;
+      }
+
       if (!hasFilters) {
         setFilteredCount(totalQuestions);
         return;
@@ -73,6 +79,7 @@ export function useQuestionCount(
           anos: filters.ano.length > 0 ? filters.ano.map(Number) : undefined,
           apenasRevisadas: toggleFilters.apenasRevisadas || undefined,
           apenasComComentario: toggleFilters.apenasComComentario || undefined,
+          apenasIneditasOuse: toggleFilters.apenasIneditasOuse || undefined,
         });
         setFilteredCount(count);
       } catch (error) {

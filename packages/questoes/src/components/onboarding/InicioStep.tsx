@@ -23,25 +23,25 @@ export function InicioStep({ onLogin, onCreateAccount }: InicioStepProps) {
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.2 }}
       >
-        <Logo className="h-16" variant="dark" />
+        <Logo className="h-10" variant="auto" />
       </motion.div>
 
-      <h1 className="text-3xl font-bold text-white mb-3">
+      <h1 className="text-3xl font-bold text-[var(--color-text-main)] mb-3">
         Bem-vindo ao Ouse Passar!
       </h1>
-      <p className="text-[#A0A0A0] mb-10 text-lg">
-        A plataforma que vai te ajudar a conquistar sua aprovacao.
+      <p className="text-[var(--color-text-sec)] mb-10 text-lg">
+        A plataforma que vai te ajudar a conquistar sua aprovação.
       </p>
 
-      {/* Opcoes */}
+      {/* Opções */}
       <div className="space-y-4">
         {/* Criar Conta */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onCreateAccount}
-          className="w-full bg-[#FFB800] hover:bg-[#E5A600] text-black font-bold py-4 px-6 rounded-2xl
-            flex items-center justify-center gap-3 transition-colors"
+          className="w-full bg-[var(--color-brand)] hover:brightness-110 text-black font-bold py-4 px-6 rounded-2xl
+            flex items-center justify-center gap-3 transition-all shadow-lg shadow-[var(--color-brand)]/20"
         >
           <UserPlus size={24} />
           <div className="text-left">
@@ -53,35 +53,35 @@ export function InicioStep({ onLogin, onCreateAccount }: InicioStepProps) {
           <ChevronRight size={24} className="ml-auto" />
         </motion.button>
 
-        {/* Ja tem conta */}
+        {/* Já tem conta */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onLogin}
-          className="w-full bg-[#252525] hover:bg-[#303030] text-white font-bold py-4 px-6 rounded-2xl
-            border-2 border-[#3A3A3A] hover:border-[#FFB800]/50
-            flex items-center justify-center gap-3 transition-all"
+          className="w-full bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] font-bold py-4 px-6 rounded-2xl
+            border-2 border-[var(--color-border)] hover:border-[var(--color-brand)]/50
+            flex items-center justify-center gap-3 transition-all shadow-sm"
         >
-          <LogIn size={24} className="text-[#FFB800]" />
+          <LogIn size={24} className="text-[var(--color-brand)]" />
           <div className="text-left">
-            <span className="block text-lg">Ja tenho uma conta</span>
-            <span className="block text-sm font-normal text-[#A0A0A0]">
+            <span className="block text-lg">Já tenho uma conta</span>
+            <span className="block text-sm font-normal text-[var(--color-text-sec)]">
               Fazer login
             </span>
           </div>
-          <ChevronRight size={24} className="ml-auto text-[#6E6E6E]" />
+          <ChevronRight size={24} className="ml-auto text-[var(--color-text-muted)]" />
         </motion.button>
       </div>
 
       {/* Footer */}
-      <p className="text-[#6E6E6E] text-sm mt-10">
-        Ao continuar, voce concorda com nossos{' '}
-        <a href="#" className="text-[#FFB800] hover:underline">
+      <p className="text-[var(--color-text-muted)] text-sm mt-10">
+        Ao continuar, você concorda com nossos{' '}
+        <a href="#" className="text-[var(--color-brand)] hover:underline">
           Termos de Uso
         </a>{' '}
         e{' '}
-        <a href="#" className="text-[#FFB800] hover:underline">
-          Politica de Privacidade
+        <a href="#" className="text-[var(--color-brand)] hover:underline">
+          Política de Privacidade
         </a>
       </p>
     </motion.div>

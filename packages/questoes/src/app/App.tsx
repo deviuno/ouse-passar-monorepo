@@ -32,11 +32,11 @@ function TrailLoadingSkeleton() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A]">
+    <div className="min-h-screen bg-gray-100 dark:bg-[#1A1A1A]">
       <div className="relative w-full pt-20" style={{ height: getPosition(skeletonNodes.length - 1).y + 150 }}>
         {/* Skeleton path line */}
         <div className="absolute left-1/2 top-0 w-1 h-full">
-          <div className="w-full h-full bg-gradient-to-b from-[#2A2A2A] via-[#3A3A3A] to-[#2A2A2A] opacity-30 rounded-full" />
+          <div className="w-full h-full bg-gradient-to-b from-gray-200 via-gray-300 to-gray-200 dark:from-[#2A2A2A] dark:via-[#3A3A3A] dark:to-[#2A2A2A] opacity-30 rounded-full" />
         </div>
 
         {/* Skeleton nodes */}
@@ -53,12 +53,12 @@ function TrailLoadingSkeleton() {
             >
               {/* Skeleton button */}
               <div
-                className="w-16 h-16 rounded-2xl bg-[#2A2A2A] border-2 border-[#3A3A3A] rotate-45 animate-pulse"
+                className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-[#2A2A2A] border-2 border-gray-300 dark:border-[#3A3A3A] rotate-45 animate-pulse"
                 style={{ animationDelay: `${index * 0.1}s` }}
               />
               {/* Skeleton label */}
               <div
-                className="mt-8 w-20 h-6 rounded-lg bg-[#2A2A2A] animate-pulse"
+                className="mt-8 w-20 h-6 rounded-lg bg-gray-200 dark:bg-[#2A2A2A] animate-pulse"
                 style={{ animationDelay: `${index * 0.1 + 0.2}s` }}
               />
             </div>
@@ -72,50 +72,50 @@ function TrailLoadingSkeleton() {
 // Skeleton de conteúdo para outras páginas
 function ContentLoadingSkeleton() {
   return (
-    <div className="min-h-screen bg-[#1A1A1A] p-4">
+    <div className="min-h-screen bg-gray-100 dark:bg-[#1A1A1A] p-4">
       {/* Header skeleton */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg bg-[#2A2A2A] animate-pulse" />
+        <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-[#2A2A2A] animate-pulse" />
         <div className="flex-1">
-          <div className="h-5 w-48 bg-[#2A2A2A] rounded animate-pulse mb-2" />
-          <div className="h-4 w-64 bg-[#2A2A2A] rounded animate-pulse" />
+          <div className="h-5 w-48 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse mb-2" />
+          <div className="h-4 w-64 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse" />
         </div>
       </div>
 
       {/* Card skeleton */}
-      <div className="bg-[#252525] rounded-xl p-4 mb-6 border border-[#3A3A3A]">
+      <div className="bg-white dark:bg-[#252525] rounded-xl p-4 mb-6 border border-gray-200 dark:border-[#3A3A3A]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#3A3A3A] animate-pulse" />
+          <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-[#3A3A3A] animate-pulse" />
           <div className="flex-1">
-            <div className="h-2 bg-[#3A3A3A] rounded-full animate-pulse" />
+            <div className="h-2 bg-gray-300 dark:bg-[#3A3A3A] rounded-full animate-pulse" />
           </div>
-          <div className="w-12 h-4 bg-[#3A3A3A] rounded animate-pulse" />
+          <div className="w-12 h-4 bg-gray-300 dark:bg-[#3A3A3A] rounded animate-pulse" />
         </div>
       </div>
 
       {/* Content skeleton - multiple paragraphs */}
       <div className="space-y-4 flex-1">
         <div className="space-y-2">
-          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
-          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-11/12" />
-          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
-          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-4/5" />
+          <div className="h-4 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse w-11/12" />
+          <div className="h-4 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse w-4/5" />
         </div>
         <div className="space-y-2">
-          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
-          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-10/12" />
-          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse w-10/12" />
+          <div className="h-4 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse w-full" />
         </div>
         <div className="space-y-2">
-          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-3/4" />
-          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-full" />
-          <div className="h-4 bg-[#2A2A2A] rounded animate-pulse w-5/6" />
+          <div className="h-4 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse w-3/4" />
+          <div className="h-4 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse w-full" />
+          <div className="h-4 bg-gray-200 dark:bg-[#2A2A2A] rounded animate-pulse w-5/6" />
         </div>
       </div>
 
       {/* Button skeleton */}
-      <div className="mt-6 pt-4 border-t border-[#3A3A3A]">
-        <div className="h-12 bg-[#3A3A3A] rounded-xl animate-pulse w-full" />
+      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-[#3A3A3A]">
+        <div className="h-12 bg-gray-300 dark:bg-[#3A3A3A] rounded-xl animate-pulse w-full" />
       </div>
     </div>
   );

@@ -14,6 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Flag,
+  Gem,
+  Pencil,
 } from "lucide-react";
 import {
   getQuestionStatistics,
@@ -48,6 +50,7 @@ interface QuestionCardProps {
   userRole?: "admin" | "user";
   showCorrectAnswers?: boolean; // When true, shows star on correct answer (admin or user with permission)
   previousAnswer?: { letter: string; correct: boolean } | null; // Resposta anterior (modo read-only)
+  onEditTimer?: () => void; // Callback to edit timer duration in simulado mode
 }
 
 const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -67,55 +70,15 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   userRole,
   showCorrectAnswers = false,
   previousAnswer = null,
+  onEditTimer,
 }) => {
-  // Estado do modal de report (definido primeiro para usar no card de erro)
+  // ============================================
+  // ALL HOOKS MUST BE CALLED FIRST (before any conditional returns)
+  // This is required by React's Rules of Hooks
+  // ============================================
+
+  // Estado do modal de report
   const [showReportModal, setShowReportModal] = useState(false);
-
-  // Validar questão antes de renderizar
-  const questionValidation = useMemo(() => {
-    try {
-      return validateQuestion({
-        enunciado: question?.enunciado,
-        parsedAlternativas: question?.parsedAlternativas,
-        gabarito: question?.gabarito,
-      });
-    } catch (error) {
-      console.error("[QuestionCard] Erro ao validar questão:", error);
-      return {
-        isValid: false,
-        isCorrupted: true,
-        errors: ["Erro ao validar questão"],
-        warnings: [],
-      };
-    }
-  }, [question?.id, question?.enunciado]);
-
-  // Se a questão está corrompida ou inválida, mostrar card de erro
-  if (!questionValidation.isValid || questionValidation.isCorrupted) {
-    return (
-      <>
-        <CorruptedQuestionCard
-          questionId={question?.id || 0}
-          onSkip={onNext}
-          onReport={() => setShowReportModal(true)}
-          errors={questionValidation.errors}
-        />
-        {showReportModal && (
-          <ReportQuestionModal
-            isOpen={showReportModal}
-            onClose={() => setShowReportModal(false)}
-            questionId={question?.id || 0}
-            questionInfo={{
-              materia: question?.materia,
-              assunto: question?.assunto,
-              banca: question?.banca,
-              ano: question?.ano,
-            }}
-          />
-        )}
-      </>
-    );
-  }
 
   // Se tem resposta anterior, inicia com ela selecionada e submetida (modo read-only)
   const [selectedAlt, setSelectedAlt] = useState<string | null>(
@@ -132,7 +95,6 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   >(savedDifficultyRating || null);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showPegadinhaModal, setShowPegadinhaModal] = useState(false);
-  // showReportModal já foi definido acima para uso no card de erro
 
   // Statistics state
   const [questionStats, setQuestionStats] = useState<QuestionStatistics | null>(
@@ -142,6 +104,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
 
   // Timer State
   const [timeLeft, setTimeLeft] = useState(initialTime * 60); // in seconds
+  const timeoutCalledRef = useRef(false); // Prevent multiple timeout calls
 
   // Ref para os botões de navegação principais
   const navigationButtonsRef = useRef<HTMLDivElement>(null);
@@ -168,6 +131,25 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   // Extract only DOM-valid event handlers (remove isSwiping and swipeDirection to avoid React warnings)
   const { onTouchStart, onTouchMove, onTouchEnd } = swipeHandlersRaw;
   const swipeHandlers = { onTouchStart, onTouchMove, onTouchEnd };
+
+  // Validar questão
+  const questionValidation = useMemo(() => {
+    try {
+      return validateQuestion({
+        enunciado: question?.enunciado,
+        parsedAlternativas: question?.parsedAlternativas,
+        gabarito: question?.gabarito,
+      });
+    } catch (error) {
+      console.error("[QuestionCard] Erro ao validar questão:", error);
+      return {
+        isValid: false,
+        isCorrupted: true,
+        errors: ["Erro ao validar questão"],
+        warnings: [],
+      };
+    }
+  }, [question?.id, question?.enunciado, question?.parsedAlternativas, question?.gabarito]);
 
   // Reset state when question changes
   useEffect(() => {
@@ -202,22 +184,40 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
     }
   }, [isSubmitted, question.id, questionStats, loadingStats]);
 
+  // Reset timer when initialTime changes (e.g., user changes timer preference)
+  useEffect(() => {
+    if (studyMode === "hard") {
+      setTimeLeft(initialTime * 60);
+      timeoutCalledRef.current = false; // Reset the timeout flag when timer resets
+    }
+  }, [initialTime, studyMode]);
+
   // Timer Effect
   useEffect(() => {
     if (studyMode === "hard") {
       const timer = setInterval(() => {
         setTimeLeft((prev) => {
-          if (prev <= 1 && onTimeout) {
+          if (prev <= 1) {
             clearInterval(timer);
-            onTimeout();
             return 0;
           }
-          return prev > 0 ? prev - 1 : 0;
+          return prev - 1;
         });
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [studyMode, onTimeout]);
+  }, [studyMode]);
+
+  // Handle timeout when timer reaches 0
+  useEffect(() => {
+    if (studyMode === "hard" && timeLeft === 0 && onTimeout && !timeoutCalledRef.current) {
+      timeoutCalledRef.current = true;
+      // Use setTimeout to ensure this runs outside of React's render cycle
+      setTimeout(() => {
+        onTimeout();
+      }, 0);
+    }
+  }, [studyMode, timeLeft, onTimeout]);
 
   // Scroll para os botões de navegação após submissão (apenas se não estiverem visíveis)
   useEffect(() => {
@@ -263,6 +263,37 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
       }
     };
   }, [isSubmitted, question.id]);
+
+  // ============================================
+  // CONDITIONAL RETURN - After all hooks
+  // ============================================
+
+  // Se a questão está corrompida ou inválida, mostrar card de erro
+  if (!questionValidation.isValid || questionValidation.isCorrupted) {
+    return (
+      <>
+        <CorruptedQuestionCard
+          questionId={question?.id || 0}
+          onSkip={onNext}
+          onReport={() => setShowReportModal(true)}
+          errors={questionValidation.errors}
+        />
+        {showReportModal && (
+          <ReportQuestionModal
+            isOpen={showReportModal}
+            onClose={() => setShowReportModal(false)}
+            questionId={question?.id || 0}
+            questionInfo={{
+              materia: question?.materia,
+              assunto: question?.assunto,
+              banca: question?.banca,
+              ano: question?.ano,
+            }}
+          />
+        )}
+      </>
+    );
+  }
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -554,18 +585,101 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                   <BrainCircuit size={10} className="mr-1" /> REVISÃO
                 </div>
               )}
+              {question.isAiGenerated && (
+                <div className="flex items-center text-[10px] px-2 py-0.5 rounded-full border text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700/50">
+                  <Gem size={10} className="mr-1" /> INÉDITA
+                </div>
+              )}
             </div>
+            {question.assunto && (
+              <p className="text-xs text-[var(--color-text-sec)] mb-1">
+                {question.assunto}
+              </p>
+            )}
             {renderQuestionInfos()}
           </div>
 
           {/* Countdown Timer (Only for Simulado Mode) */}
           {studyMode === "hard" && (
-            <div className="flex items-center bg-[var(--color-bg-card)] border border-red-900/50 rounded-lg px-2 py-1 ml-2 shadow-[0_0_10px_rgba(220,38,38,0.2)]">
-              <Timer size={14} className="text-red-500 mr-1 animate-pulse" />
-              <span className="font-mono font-bold text-red-500 text-sm">
-                {formatTime(timeLeft)}
-              </span>
-            </div>
+            <>
+              <div
+                className={`group relative flex items-center ml-2 rounded-lg transition-all duration-200 ${
+                  timeLeft <= 30
+                    ? 'bg-red-500/10'
+                    : 'bg-[var(--color-bg-elevated)]'
+                }`}
+                style={timeLeft <= 30 ? {
+                  animation: 'urgentPulse 0.6s ease-in-out infinite',
+                } : undefined}
+              >
+                {/* Timer display */}
+                <div
+                  className={`flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 transition-all duration-200 ${
+                    onEditTimer ? 'group-hover:pr-1' : ''
+                  }`}
+                >
+                  <div
+                    className={`flex items-center justify-center w-5 h-5 rounded-md transition-colors duration-200 ${
+                      timeLeft <= 30
+                        ? 'bg-red-500/20'
+                        : 'bg-red-500/10'
+                    }`}
+                  >
+                    <Timer
+                      size={12}
+                      className={`transition-colors duration-200 ${
+                        timeLeft <= 30 ? 'text-red-400' : 'text-red-500'
+                      }`}
+                    />
+                  </div>
+                  <span
+                    className={`font-mono font-semibold text-sm tabular-nums tracking-tight transition-colors duration-200 ${
+                      timeLeft <= 30 ? 'text-red-400' : 'text-red-500'
+                    }`}
+                  >
+                    {formatTime(timeLeft)}
+                  </span>
+                </div>
+
+                {/* Edit button - integrated, reveals on hover */}
+                {onEditTimer && (
+                  <button
+                    onClick={onEditTimer}
+                    className="flex items-center justify-center w-0 overflow-hidden opacity-0 group-hover:w-7 group-hover:opacity-100 h-full pr-1.5 transition-all duration-200 ease-out"
+                    title="Configurar tempo"
+                  >
+                    <div className="flex items-center justify-center w-5 h-5 rounded-md bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-brand)] hover:border-[var(--color-brand)] transition-colors duration-150">
+                      <Pencil size={10} />
+                    </div>
+                  </button>
+                )}
+
+                {/* Subtle border */}
+                <div
+                  className={`absolute inset-0 rounded-lg border pointer-events-none transition-colors duration-200 ${
+                    timeLeft <= 30
+                      ? 'border-red-500/40'
+                      : 'border-[var(--color-border)]'
+                  }`}
+                />
+              </div>
+
+              {/* Urgent timer animation keyframes */}
+              {timeLeft <= 30 && (
+                <style>{`
+                  @keyframes urgentPulse {
+                    0%, 100% {
+                      opacity: 1;
+                      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+                    }
+                    50% {
+                      opacity: 0.85;
+                      box-shadow: 0 0 12px 2px rgba(239, 68, 68, 0.3);
+                    }
+                  }
+                `}</style>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -609,8 +723,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
         </ReactMarkdown>
       </div>
 
-      {/* User Annotation Balloon */}
-      {userId && (
+      {/* User Annotation Balloon - only shows after answering in zen mode */}
+      {userId && isSubmitted && studyMode === "zen" && (
         <QuestionAnnotationBalloon
           questionId={question.id}
           userId={userId}

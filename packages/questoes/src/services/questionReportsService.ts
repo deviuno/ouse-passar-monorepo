@@ -6,6 +6,7 @@ export type ReportMotivo =
   | 'enunciado_confuso'
   | 'alternativas_incorretas'
   | 'imagem_quebrada'
+  | 'solicitar_explicacao'
   | 'outro';
 
 export const REPORT_MOTIVOS: { value: ReportMotivo; label: string }[] = [
@@ -16,6 +17,9 @@ export const REPORT_MOTIVOS: { value: ReportMotivo; label: string }[] = [
   { value: 'imagem_quebrada', label: 'Imagem não carrega' },
   { value: 'outro', label: 'Outro motivo' },
 ];
+
+// Motivo especial para solicitação de explicação (não aparece na lista de reports normais)
+export const SOLICITAR_EXPLICACAO_MOTIVO: ReportMotivo = 'solicitar_explicacao';
 
 export interface QuestionReportInput {
   questionId: number;

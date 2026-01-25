@@ -1,3 +1,4 @@
+export { EditTimerModal } from './EditTimerModal';
 export { EditalSidebar } from './EditalSidebar';
 export { HierarchicalAssuntosDropdown } from './HierarchicalAssuntosDropdown';
 export { MultiSelectDropdown } from './MultiSelectDropdown';

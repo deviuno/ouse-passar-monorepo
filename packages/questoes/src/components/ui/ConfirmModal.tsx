@@ -87,12 +87,12 @@ export function ConfirmModal({
         </div>
 
         {/* Title */}
-        <h3 className="text-xl font-bold text-white text-center mb-2">
+        <h3 className="text-xl font-bold text-[var(--color-text-main)] text-center mb-2">
           {title}
         </h3>
 
         {/* Message */}
-        <p className="text-[#A0A0A0] text-center text-sm mb-6">
+        <p className="text-[var(--color-text-sec)] text-center text-sm mb-6">
           {message}
         </p>
 
@@ -101,7 +101,7 @@ export function ConfirmModal({
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1 py-3 bg-[#3A3A3A] text-white rounded-xl font-semibold hover:bg-[#4A4A4A] transition-colors disabled:opacity-50"
+            className="flex-1 py-3 bg-gray-200 dark:bg-[#3A3A3A] text-[var(--color-text-main)] rounded-xl font-semibold hover:bg-gray-300 dark:hover:bg-[#4A4A4A] transition-colors disabled:opacity-50"
           >
             {cancelText}
           </button>

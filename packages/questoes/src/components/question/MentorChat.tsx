@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { chatWithTutor, TutorUserContext, GeneratedAudio } from '../../services/geminiService';
 import { generateAudioWithCache, generatePodcastWithCache } from '../../services/audioCacheService';
 import { musicService } from '../../services/musicService';
-import { AudioPlayer } from '../ui/AudioPlayer';
+import { userContentService } from '../../services/userContentService';
+import { AudioPlayer, AudioPlayerSkeleton } from '../ui/AudioPlayer';
 import { ParsedQuestion } from '../../types';
 import { useBatteryStore } from '../../stores/useBatteryStore';
 import { getTimeUntilRecharge } from '../../types/battery';
@@ -55,6 +56,7 @@ interface Message {
     role: 'user' | 'model';
     text: string;
     audio?: GeneratedAudio | null;
+    audioLoading?: boolean;
 }
 
 const MIN_HEIGHT = 300;
@@ -425,12 +427,20 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         }]);
         setMessages(prev => [...prev, {
             role: 'model',
-            text: '🎙️ Gerando áudio explicativo... Aguarde um momento.'
+            text: '',
+            audioLoading: true
         }]);
 
         try {
             // Usar serviço com cache (verifica cache antes de gerar)
-            const audio = await generateAudioWithCache(contentContext.title || 'o conteúdo', contentContext.text || '');
+            const audio = await generateAudioWithCache({
+                title: contentContext.title || 'o conteúdo',
+                content: contentContext.text || '',
+                userId,
+                materia: contentContext.question?.materia,
+                assunto: contentContext.question?.assunto,
+                questionId: contentContext.question?.id,
+            });
 
             if (audio) {
                 // Se veio do cache, simular delay para parecer que está gerando
@@ -489,12 +499,20 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         }]);
         setMessages(prev => [...prev, {
             role: 'model',
-            text: '🎙️ Gerando podcast com dois apresentadores... Isso pode levar alguns segundos.'
+            text: '',
+            audioLoading: true
         }]);
 
         try {
             // Usar serviço com cache (verifica cache antes de gerar)
-            const audio = await generatePodcastWithCache(contentContext.title || 'o conteúdo', contentContext.text || '');
+            const audio = await generatePodcastWithCache({
+                title: contentContext.title || 'o conteúdo',
+                content: contentContext.text || '',
+                userId,
+                materia: contentContext.question?.materia,
+                assunto: contentContext.question?.assunto,
+                questionId: contentContext.question?.id,
+            });
 
             if (audio) {
                 // Se veio do cache, simular delay para parecer que está gerando
@@ -593,6 +611,25 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         }
 
         setMessages(prev => [...prev, { role: 'model', text: response.text }]);
+
+        // Salvar resumo em texto no user_generated_content
+        if (userId && response.text) {
+            try {
+                await userContentService.create({
+                    userId,
+                    contentType: 'text_summary',
+                    title: contentContext.title || contentContext.question?.assunto || 'Resumo',
+                    materia: contentContext.question?.materia,
+                    assunto: contentContext.question?.assunto,
+                    textContent: response.text,
+                    questionId: contentContext.question?.id,
+                });
+                console.log('[MentorChat] Resumo em texto salvo com sucesso');
+            } catch (e) {
+                console.warn('[MentorChat] Erro ao salvar resumo em texto:', e);
+            }
+        }
+
         setIsLoading(false);
     };
 
@@ -771,11 +808,16 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                                 : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] rounded-tl-none border border-[var(--color-border)]'
                                                 }`}
                                         >
-                                            {msg.role === 'model' ? renderMarkdown(msg.text) : msg.text}
+                                            {msg.text && (msg.role === 'model' ? renderMarkdown(msg.text) : msg.text)}
+
+                                            {/* Audio Player Skeleton - shows while generating */}
+                                            {msg.audioLoading && (
+                                                <AudioPlayerSkeleton />
+                                            )}
 
                                             {/* Audio Player inline - shows when message has audio */}
-                                            {msg.audio && (
-                                                <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
+                                            {msg.audio && !msg.audioLoading && (
+                                                <div className={msg.text ? 'mt-3' : ''}>
                                                     <AudioPlayer
                                                         src={msg.audio.audioUrl}
                                                         type={msg.audio.type}

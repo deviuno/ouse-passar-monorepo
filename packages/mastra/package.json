@@ -12,7 +12,8 @@
         "start": "node dist/server.js",
         "start:worker": "node dist/scraper-worker.js",
         "start:parallel": "node dist/parallel-worker.js",
-        "migrate:questoes": "tsx scripts/migrate-questoes.ts"
+        "migrate:questoes": "tsx scripts/migrate-questoes.ts",
+        "importar:questoes": "tsx src/scripts/importarQuestoes.ts"
     },
     "dependencies": {
         "@ai-sdk/google": "^3.0.10",

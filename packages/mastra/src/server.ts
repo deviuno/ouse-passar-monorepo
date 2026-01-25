@@ -432,11 +432,124 @@ const simulateGenerationDelay = () => new Promise(resolve =>
     setTimeout(resolve, 4000 + Math.random() * 2000) // 4-6 seconds (~5 seconds average)
 );
 
-// Gemini Client for various AI operations
+/**
+ * Converte base64 PCM para buffer WAV
+ */
+function base64ToWavBuffer(base64Data: string): Buffer {
+    // Decode base64 to binary
+    const pcmData = Buffer.from(base64Data, 'base64');
+
+    // PCM specs from Gemini TTS: 24kHz, mono, 16-bit signed
+    const sampleRate = 24000;
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+    const blockAlign = numChannels * bitsPerSample / 8;
+
+    // Create WAV header (44 bytes)
+    const wavHeader = Buffer.alloc(44);
+
+    // "RIFF" chunk descriptor
+    wavHeader.write('RIFF', 0);
+    wavHeader.writeUInt32LE(36 + pcmData.length, 4);
+    wavHeader.write('WAVE', 8);
+
+    // "fmt " sub-chunk
+    wavHeader.write('fmt ', 12);
+    wavHeader.writeUInt32LE(16, 16); // Subchunk1Size
+    wavHeader.writeUInt16LE(1, 20); // AudioFormat (PCM)
+    wavHeader.writeUInt16LE(numChannels, 22);
+    wavHeader.writeUInt32LE(sampleRate, 24);
+    wavHeader.writeUInt32LE(byteRate, 28);
+    wavHeader.writeUInt16LE(blockAlign, 32);
+    wavHeader.writeUInt16LE(bitsPerSample, 34);
+
+    // "data" sub-chunk
+    wavHeader.write('data', 36);
+    wavHeader.writeUInt32LE(pcmData.length, 40);
+
+    // Combine header and PCM data
+    return Buffer.concat([wavHeader, pcmData]);
+}
+
+/**
+ * Upload audio to Supabase Storage and return public URL
+ */
+async function uploadAudioToStorage(
+    audioBase64: string,
+    assunto: string,
+    contentType: 'explanation' | 'podcast'
+): Promise<string | null> {
+    try {
+        // Converter base64 para WAV
+        const wavBuffer = base64ToWavBuffer(audioBase64);
+
+        // Gerar nome único para o arquivo
+        const sanitizedAssunto = assunto.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
+        const timestamp = Date.now();
+        const fileName = `${contentType}/${sanitizedAssunto}_${timestamp}.wav`;
+
+        console.log(`[Storage] Uploading ${contentType} audio (${(wavBuffer.length / 1024 / 1024).toFixed(2)}MB) to ${fileName}`);
+
+        // Upload para o Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('audio-cache')
+            .upload(fileName, wavBuffer, {
+                contentType: 'audio/wav',
+                upsert: true,
+            });
+
+        if (uploadError) {
+            console.error('[Storage] Upload error:', uploadError);
+            return null;
+        }
+
+        // Obter URL pública
+        const { data: urlData } = supabase.storage
+            .from('audio-cache')
+            .getPublicUrl(fileName);
+
+        console.log(`[Storage] Upload successful, URL: ${urlData.publicUrl.substring(0, 80)}...`);
+        return urlData.publicUrl;
+
+    } catch (error) {
+        console.error('[Storage] Error uploading audio:', error);
+        return null;
+    }
+}
+
+// Gemini Client for various AI operations (using Vertex AI)
 const getGeminiClient = () => {
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!apiKey) return null;
-    return new GoogleGenAI({ apiKey });
+    const project = process.env.GOOGLE_VERTEX_PROJECT;
+    const location = process.env.GOOGLE_VERTEX_LOCATION || 'us-central1';
+
+    if (!project) {
+        console.warn('[GeminiClient] GOOGLE_VERTEX_PROJECT não configurado');
+        return null;
+    }
+
+    return new GoogleGenAI({
+        vertexai: true,
+        project,
+        location,
+    });
+};
+
+// Gemini 3 Client with global endpoint (for newer models that require global)
+const getGemini3Client = () => {
+    const project = process.env.GOOGLE_VERTEX_PROJECT;
+
+    if (!project) {
+        console.warn('[Gemini3Client] GOOGLE_VERTEX_PROJECT não configurado');
+        return null;
+    }
+
+    // Gemini 3 requires global endpoint
+    return new GoogleGenAI({
+        vertexai: true,
+        project,
+        location: 'global',
+    });
 };
 
 // ==================== GERAÇÃO DE IMAGEM DE CAPA ====================
@@ -455,7 +568,7 @@ async function gerarImagemCapa(info: {
 }): Promise<string | null> {
     const client = getGeminiClient();
     if (!client) {
-        console.warn('[ImagemCapa] API key não configurada');
+        console.warn('[ImagemCapa] Vertex AI não configurado');
         return null;
     }
 
@@ -619,7 +732,7 @@ async function gerarImagemEducacional(
 ): Promise<string | null> {
     const client = getGeminiClient();
     if (!client) {
-        console.warn('[ImagemEducacional] API key não configurada');
+        console.warn('[ImagemEducacional] Vertex AI não configurado');
         return null;
     }
 
@@ -1181,7 +1294,7 @@ app.post('/api/preparatorio/buscar-logo', async (req, res) => {
 // Single speaker audio explanation
 app.post('/api/audio/explanation', async (req, res) => {
     try {
-        const { title, content } = req.body;
+        const { title, content, userId, materia, assunto, questionId } = req.body;
         const cacheKey = title || 'geral';
 
         // Check cache first
@@ -1190,28 +1303,57 @@ app.post('/api/audio/explanation', async (req, res) => {
 
         if (cached) {
             console.log(`[Cache] HIT! Returning cached explanation for "${cacheKey}" (accessed ${cached.access_count} times)`);
-            // Simulate generation delay so user thinks it's generating
-            await simulateGenerationDelay();
-            res.json({
-                success: true,
-                audioData: cached.audio_data,
-                text: cached.script_text,
-                fromCache: true
-            });
-            return;
+            // Upload cached data to Storage and return URL (fast response)
+            const audioUrl = await uploadAudioToStorage(cached.audio_data, cacheKey, 'explanation');
+            if (audioUrl) {
+                // Estimate duration: ~150 words per minute, ~5 chars per word
+                const estimatedDuration = Math.ceil((cached.script_text?.length || 0) / 5 / 150 * 60);
+
+                // Save to user content if userId provided (even from cache, track for user)
+                if (userId) {
+                    try {
+                        await supabase.from('user_generated_content').insert({
+                            user_id: userId,
+                            content_type: 'audio_explanation',
+                            title: title || 'Resumo em Áudio',
+                            materia: materia || null,
+                            assunto: assunto || null,
+                            audio_url: audioUrl,
+                            text_content: cached.script_text,
+                            duration_seconds: estimatedDuration,
+                            question_id: questionId || null,
+                        });
+                        console.log(`[Audio] Saved to user_generated_content for user ${userId}`);
+                    } catch (e) {
+                        console.warn('[Audio] Failed to save to user_generated_content:', e);
+                    }
+                }
+
+                res.json({
+                    success: true,
+                    audioUrl: audioUrl,
+                    text: cached.script_text,
+                    durationSeconds: estimatedDuration,
+                    fromCache: true
+                });
+                return;
+            }
+            // If upload fails, fall through to generate new
+            console.log('[Cache] Failed to upload cached audio, generating new...');
         }
 
         console.log(`[Cache] MISS - Generating new explanation for "${cacheKey}"`);
 
-        const client = getGeminiClient();
+        // Use Gemini 3 client (global endpoint) for faster generation
+        const client = getGemini3Client();
         if (!client) {
-            res.status(500).json({ success: false, error: "API key not configured" });
+            res.status(500).json({ success: false, error: "Vertex AI não configurado" });
             return;
         }
 
-        // First, generate a concise explanation text
+        // First, generate a concise explanation text using Gemini 3
         const textResponse = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Você é um professor didático. Crie uma explicação ORAL concisa (máximo 2 minutos de fala) sobre o seguinte tema para um aluno de concurso público:
 
 Tema: ${title}
@@ -1228,8 +1370,13 @@ Regras:
         const explanationText = textResponse.text || '';
         console.log(`[Audio] Generated text (${explanationText.length} chars), now generating TTS...`);
 
-        // Generate TTS audio
-        const audioResponse = await client.models.generateContent({
+        // Generate TTS audio using Gemini 2.5 (Gemini 3 doesn't support audio output yet)
+        const ttsClient = getGeminiClient();
+        if (!ttsClient) {
+            res.status(500).json({ success: false, error: "Vertex AI não configurado para TTS" });
+            return;
+        }
+        const audioResponse = await ttsClient.models.generateContent({
             model: 'gemini-2.5-flash-preview-tts',
             contents: `Fale de forma clara, amigável e didática em português brasileiro: ${explanationText}`,
             config: {
@@ -1255,13 +1402,49 @@ Regras:
 
         console.log(`[Audio] Successfully generated audio (${audioData.length} bytes base64)`);
 
+        // Upload to Storage and get URL (instead of returning huge base64)
+        const audioUrl = await uploadAudioToStorage(audioData, cacheKey, 'explanation');
+
+        if (!audioUrl) {
+            console.error('[Audio] Failed to upload to storage');
+            res.status(500).json({ success: false, error: "Failed to upload audio to storage" });
+            return;
+        }
+
         // Save to cache for future requests
         await saveToCache(cacheKey, 'explanation', audioData, explanationText);
 
+        // Estimate duration: PCM 24kHz, 16-bit, mono = 48000 bytes/second
+        // Base64 is ~1.33x the binary size
+        const binarySize = audioData.length * 0.75;
+        const durationSeconds = Math.ceil(binarySize / 48000);
+
+        // Save to user content if userId provided
+        if (userId) {
+            try {
+                await supabase.from('user_generated_content').insert({
+                    user_id: userId,
+                    content_type: 'audio_explanation',
+                    title: title || 'Resumo em Áudio',
+                    materia: materia || null,
+                    assunto: assunto || null,
+                    audio_url: audioUrl,
+                    text_content: explanationText,
+                    duration_seconds: durationSeconds,
+                    question_id: questionId || null,
+                });
+                console.log(`[Audio] Saved to user_generated_content for user ${userId}`);
+            } catch (e) {
+                console.warn('[Audio] Failed to save to user_generated_content:', e);
+            }
+        }
+
+        console.log(`[Audio] Returning URL response (fast!)`);
         res.json({
             success: true,
-            audioData: audioData,
+            audioUrl: audioUrl,
             text: explanationText,
+            durationSeconds: durationSeconds,
             fromCache: false
         });
 
@@ -1274,7 +1457,7 @@ Regras:
 // Multi-speaker podcast generation
 app.post('/api/audio/podcast', async (req, res) => {
     try {
-        const { title, content } = req.body;
+        const { title, content, userId, materia, assunto, questionId } = req.body;
         const cacheKey = title || 'geral';
 
         // Check cache first
@@ -1283,52 +1466,87 @@ app.post('/api/audio/podcast', async (req, res) => {
 
         if (cached) {
             console.log(`[Cache] HIT! Returning cached podcast for "${cacheKey}" (accessed ${cached.access_count} times)`);
-            // Simulate generation delay so user thinks it's generating
-            await simulateGenerationDelay();
-            res.json({
-                success: true,
-                audioData: cached.audio_data,
-                script: cached.script_text,
-                fromCache: true
-            });
-            return;
+            // Upload cached data to Storage and return URL (fast response)
+            const audioUrl = await uploadAudioToStorage(cached.audio_data, cacheKey, 'podcast');
+            if (audioUrl) {
+                // Estimate duration: ~150 words per minute, ~5 chars per word
+                const estimatedDuration = Math.ceil((cached.script_text?.length || 0) / 5 / 150 * 60);
+
+                // Save to user content if userId provided (even from cache, track for user)
+                if (userId) {
+                    try {
+                        await supabase.from('user_generated_content').insert({
+                            user_id: userId,
+                            content_type: 'podcast',
+                            title: title || 'Podcast',
+                            materia: materia || null,
+                            assunto: assunto || null,
+                            audio_url: audioUrl,
+                            text_content: cached.script_text,
+                            duration_seconds: estimatedDuration,
+                            question_id: questionId || null,
+                        });
+                        console.log(`[Podcast] Saved to user_generated_content for user ${userId}`);
+                    } catch (e) {
+                        console.warn('[Podcast] Failed to save to user_generated_content:', e);
+                    }
+                }
+
+                res.json({
+                    success: true,
+                    audioUrl: audioUrl,
+                    script: cached.script_text,
+                    durationSeconds: estimatedDuration,
+                    fromCache: true
+                });
+                return;
+            }
+            // If upload fails, fall through to generate new
+            console.log('[Cache] Failed to upload cached audio, generating new...');
         }
 
         console.log(`[Cache] MISS - Generating new podcast for "${cacheKey}"`);
 
-        const client = getGeminiClient();
+        // Use Gemini 3 client (global endpoint) for faster generation
+        const client = getGemini3Client();
         if (!client) {
-            res.status(500).json({ success: false, error: "API key not configured" });
+            res.status(500).json({ success: false, error: "Vertex AI não configurado" });
             return;
         }
 
-        // First, generate a podcast script with two speakers
+        // First, generate a podcast script with two speakers (Glau e Diego) using Gemini 3
         const scriptResponse = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `Crie um script de podcast CURTO (máximo 2-3 minutos) com dois apresentadores discutindo o seguinte tema de concurso público:
+            model: 'gemini-3-flash-preview',
+            contents: `Crie um script para o "Podcast Ouse Passar", um podcast educativo CURTO (máximo 2-3 minutos) com dois apresentadores discutindo o seguinte tema de concurso público:
 
 Tema: ${title}
 Conteúdo base: ${content?.substring(0, 2000) || 'Discussão geral do tema'}
 
 Formato OBRIGATÓRIO:
-- Use EXATAMENTE este formato para cada fala: "Ana: [fala]" ou "Carlos: [fala]"
-- Ana é a apresentadora principal, didática e entusiasmada
-- Carlos faz perguntas interessantes e traz exemplos práticos
+- Use EXATAMENTE este formato para cada fala: "Glau: [fala]" ou "Diego: [fala]"
+- Glau é a apresentadora principal do Podcast Ouse Passar, dinâmica e questionadora
+- Diego é o co-apresentador técnico e detalhista, traz explicações aprofundadas
+- Na abertura, mencione que é o Podcast Ouse Passar
 - Mantenha as falas curtas e naturais
 - Não use formatação markdown
 - Máximo 400 palavras total
 
 Exemplo:
-Ana: Olá pessoal! Hoje vamos falar sobre um tema super importante.
-Carlos: Verdade, Ana! Esse assunto cai muito em provas.
-Ana: Exatamente! Vamos explicar de forma simples...`
+Glau: E aí, concurseiro! Bem-vindo ao Podcast Ouse Passar! Hoje vamos falar sobre um tema super importante.
+Diego: Verdade, Glau! Esse assunto cai muito em provas.
+Glau: Diego, explica pra gente como funciona...`
         });
 
         const scriptText = scriptResponse.text || '';
         console.log(`[Podcast] Generated script (${scriptText.length} chars), now generating multi-speaker TTS...`);
 
-        // Generate multi-speaker TTS audio
-        const audioResponse = await client.models.generateContent({
+        // Generate multi-speaker TTS audio using Gemini 2.5 (Gemini 3 doesn't support audio output yet)
+        const ttsClient = getGeminiClient();
+        if (!ttsClient) {
+            res.status(500).json({ success: false, error: "Vertex AI não configurado para TTS" });
+            return;
+        }
+        const audioResponse = await ttsClient.models.generateContent({
             model: 'gemini-2.5-flash-preview-tts',
             contents: scriptText,
             config: {
@@ -1337,18 +1555,18 @@ Ana: Exatamente! Vamos explicar de forma simples...`
                     multiSpeakerVoiceConfig: {
                         speakerVoiceConfigs: [
                             {
-                                speaker: 'Ana',
+                                speaker: 'Glau',
                                 voiceConfig: {
                                     prebuiltVoiceConfig: {
-                                        voiceName: 'Aoede'
+                                        voiceName: 'Kore'
                                     }
                                 }
                             },
                             {
-                                speaker: 'Carlos',
+                                speaker: 'Diego',
                                 voiceConfig: {
                                     prebuiltVoiceConfig: {
-                                        voiceName: 'Charon'
+                                        voiceName: 'Puck'
                                     }
                                 }
                             }
@@ -1369,13 +1587,49 @@ Ana: Exatamente! Vamos explicar de forma simples...`
 
         console.log(`[Podcast] Successfully generated podcast audio (${audioData.length} bytes base64)`);
 
-        // Save to cache for future requests
+        // Upload to Storage and get URL (instead of returning huge base64)
+        const audioUrl = await uploadAudioToStorage(audioData, cacheKey, 'podcast');
+
+        if (!audioUrl) {
+            console.error('[Podcast] Failed to upload to storage');
+            res.status(500).json({ success: false, error: "Failed to upload audio to storage" });
+            return;
+        }
+
+        // Save URL to cache for future requests (not the full base64 data)
         await saveToCache(cacheKey, 'podcast', audioData, scriptText);
 
+        // Estimate duration: PCM 24kHz, 16-bit, mono = 48000 bytes/second
+        // Base64 is ~1.33x the binary size
+        const binarySize = audioData.length * 0.75;
+        const durationSeconds = Math.ceil(binarySize / 48000);
+
+        // Save to user content if userId provided
+        if (userId) {
+            try {
+                await supabase.from('user_generated_content').insert({
+                    user_id: userId,
+                    content_type: 'podcast',
+                    title: title || 'Podcast',
+                    materia: materia || null,
+                    assunto: assunto || null,
+                    audio_url: audioUrl,
+                    text_content: scriptText,
+                    duration_seconds: durationSeconds,
+                    question_id: questionId || null,
+                });
+                console.log(`[Podcast] Saved to user_generated_content for user ${userId}`);
+            } catch (e) {
+                console.warn('[Podcast] Failed to save to user_generated_content:', e);
+            }
+        }
+
+        console.log(`[Podcast] Returning URL response (fast!)`);
         res.json({
             success: true,
-            audioData: audioData,
+            audioUrl: audioUrl,
             script: scriptText,
+            durationSeconds: durationSeconds,
             fromCache: false
         });
 
@@ -1612,10 +1866,12 @@ app.post('/api/music/generate-podcast-audio', async (req, res) => {
 
         console.log(`[PodcastTTS] Generating audio for script (${script.length} chars)`);
 
-        // Initialize Gemini client
-        const genai = new GoogleGenAI({
-            apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.VITE_GEMINI_API_KEY
-        });
+        // Initialize Gemini client (using Vertex AI)
+        const genai = getGeminiClient();
+        if (!genai) {
+            res.status(500).json({ error: "Vertex AI não configurado" });
+            return;
+        }
 
         // Clean and format the script for TTS
         // Remove markdown formatting but keep speaker names
@@ -1913,7 +2169,7 @@ app.post('/api/tts/generate', async (req, res) => {
 
         const client = getGeminiClient();
         if (!client) {
-            res.status(500).json({ success: false, error: "API key not configured" });
+            res.status(500).json({ success: false, error: "Vertex AI não configurado" });
             return;
         }
 

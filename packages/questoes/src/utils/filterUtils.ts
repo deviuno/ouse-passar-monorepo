@@ -12,11 +12,13 @@ export interface FilterOptions {
   escolaridade: string[];
   modalidade: string[];
   dificuldade: string[];
+  questionId: string; // ID específico da questão (admin only)
 }
 
 export interface ToggleFilters {
   apenasRevisadas: boolean;
   apenasComComentario: boolean;
+  apenasIneditasOuse: boolean;
   // User history filters
   resolvi: boolean;
   naoResolvi: boolean;
@@ -38,11 +40,13 @@ export const DEFAULT_FILTER_OPTIONS: FilterOptions = {
   escolaridade: [],
   modalidade: [],
   dificuldade: [],
+  questionId: '',
 };
 
 export const DEFAULT_TOGGLE_FILTERS: ToggleFilters = {
   apenasRevisadas: false,
   apenasComComentario: false,
+  apenasIneditasOuse: false,
   resolvi: false,
   naoResolvi: false,
   errei: false,
@@ -51,6 +55,24 @@ export const DEFAULT_TOGGLE_FILTERS: ToggleFilters = {
   medio: false,
   dificil: false,
 };
+
+/**
+ * Normalizes toggle filters to ensure all properties exist
+ */
+export const normalizeToggleFilters = (
+  toggleFilters: Partial<ToggleFilters> | null | undefined
+): ToggleFilters => ({
+  apenasRevisadas: toggleFilters?.apenasRevisadas || false,
+  apenasComComentario: toggleFilters?.apenasComComentario || false,
+  apenasIneditasOuse: toggleFilters?.apenasIneditasOuse || false,
+  resolvi: toggleFilters?.resolvi || false,
+  naoResolvi: toggleFilters?.naoResolvi || false,
+  errei: toggleFilters?.errei || false,
+  acertei: toggleFilters?.acertei || false,
+  facil: toggleFilters?.facil || false,
+  medio: toggleFilters?.medio || false,
+  dificil: toggleFilters?.dificil || false,
+});
 
 /**
  * Normalizes filter options from database to ensure all arrays exist
@@ -67,6 +89,7 @@ export const normalizeFilters = (
   escolaridade: filters?.escolaridade || [],
   modalidade: filters?.modalidade || [],
   dificuldade: filters?.dificuldade || [],
+  questionId: filters?.questionId || '',
 });
 
 /**
@@ -77,17 +100,19 @@ export const countActiveFilters = (
   toggleFilters: ToggleFilters
 ): number => {
   return (
-    filters.materia.length +
-    filters.assunto.length +
-    filters.banca.length +
-    filters.orgao.length +
-    filters.cargo.length +
-    filters.ano.length +
-    filters.escolaridade.length +
-    filters.modalidade.length +
-    filters.dificuldade.length +
-    (toggleFilters.apenasRevisadas ? 1 : 0) +
-    (toggleFilters.apenasComComentario ? 1 : 0)
+    (filters?.materia?.length || 0) +
+    (filters?.assunto?.length || 0) +
+    (filters?.banca?.length || 0) +
+    (filters?.orgao?.length || 0) +
+    (filters?.cargo?.length || 0) +
+    (filters?.ano?.length || 0) +
+    (filters?.escolaridade?.length || 0) +
+    (filters?.modalidade?.length || 0) +
+    (filters?.dificuldade?.length || 0) +
+    (filters?.questionId ? 1 : 0) +
+    (toggleFilters?.apenasRevisadas ? 1 : 0) +
+    (toggleFilters?.apenasComComentario ? 1 : 0) +
+    (toggleFilters?.apenasIneditasOuse ? 1 : 0)
   );
 };
 
@@ -99,17 +124,19 @@ export const hasActiveFilters = (
   toggleFilters: ToggleFilters
 ): boolean => {
   return (
-    filters.materia.length > 0 ||
-    filters.assunto.length > 0 ||
-    filters.banca.length > 0 ||
-    filters.orgao.length > 0 ||
-    filters.cargo.length > 0 ||
-    filters.ano.length > 0 ||
-    filters.escolaridade.length > 0 ||
-    filters.modalidade.length > 0 ||
-    filters.dificuldade.length > 0 ||
-    toggleFilters.apenasRevisadas ||
-    toggleFilters.apenasComComentario
+    (filters?.materia?.length || 0) > 0 ||
+    (filters?.assunto?.length || 0) > 0 ||
+    (filters?.banca?.length || 0) > 0 ||
+    (filters?.orgao?.length || 0) > 0 ||
+    (filters?.cargo?.length || 0) > 0 ||
+    (filters?.ano?.length || 0) > 0 ||
+    (filters?.escolaridade?.length || 0) > 0 ||
+    (filters?.modalidade?.length || 0) > 0 ||
+    (filters?.dificuldade?.length || 0) > 0 ||
+    !!filters?.questionId ||
+    toggleFilters?.apenasRevisadas ||
+    toggleFilters?.apenasComComentario ||
+    toggleFilters?.apenasIneditasOuse
   );
 };
 

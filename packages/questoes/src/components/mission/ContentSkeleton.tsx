@@ -7,7 +7,7 @@ export function ContentSkeleton() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full p-4"
+      className="flex flex-col h-full p-4 bg-gray-50 dark:bg-transparent"
     >
       {/* Header skeleton */}
       <div className="flex items-center gap-3 mb-6">

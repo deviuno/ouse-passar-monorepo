@@ -69,8 +69,10 @@ export const useAuthStore = create<AuthState>()(
           });
           if (error) return { error: error.message };
           set({ user: data.user, session: data.session, isAuthenticated: true });
-          await get().fetchProfile();
-          await get().fetchOnboarding();
+          // Carregar profile e onboarding em paralelo (não bloquear o login)
+          Promise.all([get().fetchProfile(), get().fetchOnboarding()]).catch(
+            (err) => console.warn('Erro ao carregar dados do usuário:', err)
+          );
           return { error: null };
         } catch (err: any) {
           return { error: err.message || 'Erro ao fazer login' };
@@ -171,7 +173,14 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        const { user } = get();
         await supabase.auth.signOut();
+
+        // Limpar caches do usuário
+        if (user) {
+          localStorage.removeItem(`profile_${user.id}`);
+          localStorage.removeItem(`onboarding_${user.id}`);
+        }
 
         // Limpar localStorage completamente
         localStorage.removeItem('ousepassar_onboarding_completed');
@@ -223,6 +232,25 @@ export const useAuthStore = create<AuthState>()(
         const { user } = get();
         if (!user) return;
 
+        // Carregar do cache local primeiro (instantâneo)
+        const cachedProfile = localStorage.getItem(`profile_${user.id}`);
+        if (cachedProfile && !get().profile) {
+          try {
+            const cached = JSON.parse(cachedProfile) as UserProfile;
+            set({ profile: cached });
+            useUserStore.getState().setStats({
+              xp: cached.xp,
+              coins: cached.coins,
+              streak: cached.streak,
+              level: cached.level,
+              correctAnswers: cached.correct_answers,
+              totalAnswered: cached.total_answered,
+              avatarId: cached.avatar_id,
+              lastPracticeDate: cached.last_practice_date,
+            });
+          } catch {}
+        }
+
         try {
           const { data, error } = await supabase
             .from('user_profiles')
@@ -238,6 +266,9 @@ export const useAuthStore = create<AuthState>()(
           if (data) {
             const profileData = data as UserProfile;
             set({ profile: profileData });
+
+            // Salvar no cache local
+            localStorage.setItem(`profile_${user.id}`, JSON.stringify(profileData));
 
             // Sincronizar dados com useUserStore
             useUserStore.getState().setStats({
@@ -260,6 +291,14 @@ export const useAuthStore = create<AuthState>()(
         const { user } = get();
         if (!user) return;
 
+        // Carregar do cache local primeiro (instantâneo)
+        const cachedOnboarding = localStorage.getItem(`onboarding_${user.id}`);
+        if (cachedOnboarding && !get().onboarding) {
+          try {
+            set({ onboarding: JSON.parse(cachedOnboarding) as UserOnboarding });
+          } catch {}
+        }
+
         try {
           const { data, error } = await supabase
             .from('user_onboarding')
@@ -268,31 +307,17 @@ export const useAuthStore = create<AuthState>()(
             .single();
 
           if (error && error.code !== 'PGRST116') {
-            console.warn('Database fetch failed, checking local storage:', error.message);
-            // Try to load from localStorage
-            const localData = localStorage.getItem(`onboarding_${user.id}`);
-            if (localData) {
-              set({ onboarding: JSON.parse(localData) as UserOnboarding });
-            }
+            console.warn('Database fetch failed:', error.message);
             return;
           }
 
           if (data) {
             set({ onboarding: data as UserOnboarding });
-          } else {
-            // No data in DB, check localStorage
-            const localData = localStorage.getItem(`onboarding_${user.id}`);
-            if (localData) {
-              set({ onboarding: JSON.parse(localData) as UserOnboarding });
-            }
+            // Atualizar cache local
+            localStorage.setItem(`onboarding_${user.id}`, JSON.stringify(data));
           }
         } catch (err) {
-          console.warn('Error fetching onboarding, checking local storage:', err);
-          // Try to load from localStorage
-          const localData = localStorage.getItem(`onboarding_${user.id}`);
-          if (localData) {
-            set({ onboarding: JSON.parse(localData) as UserOnboarding });
-          }
+          console.warn('Error fetching onboarding:', err);
         }
       },
 
@@ -441,12 +466,11 @@ export const useAuthStore = create<AuthState>()(
         }
 
         try {
-          // Add timeout to prevent infinite loading
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), 5000)
-          );
-
+          // Timeout rápido de 5 segundos para sessão
           const sessionPromise = supabase.auth.getSession();
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Session timeout')), 5000)
+          );
 
           const { data: { session } } = await Promise.race([
             sessionPromise,
@@ -454,16 +478,20 @@ export const useAuthStore = create<AuthState>()(
           ]) as { data: { session: any } };
 
           if (session?.user) {
+            // Definir usuário imediatamente para liberar a UI
             set({
               user: session.user,
               session,
               isAuthenticated: true,
+              isLoading: false, // Liberar UI imediatamente
             });
-            // Fetch profile and onboarding with timeout
-            await Promise.race([
-              Promise.all([get().fetchProfile(), get().fetchOnboarding()]),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000)),
-            ]).catch(() => console.warn('Profile/onboarding fetch timeout'));
+
+            // Carregar dados em background (não bloqueia)
+            Promise.all([get().fetchProfile(), get().fetchOnboarding()]).catch(
+              (err) => console.warn('Background fetch error:', err)
+            );
+          } else {
+            set({ isLoading: false });
           }
 
           // Listen for auth changes
@@ -475,13 +503,14 @@ export const useAuthStore = create<AuthState>()(
             });
 
             if (session?.user) {
-              await get().fetchProfile();
-              await get().fetchOnboarding();
+              // Carregar em paralelo, não sequencial
+              Promise.all([get().fetchProfile(), get().fetchOnboarding()]).catch(
+                (err) => console.warn('Auth change fetch error:', err)
+              );
             }
           });
         } catch (err) {
           console.error('Error initializing auth:', err);
-        } finally {
           set({ isLoading: false });
         }
       },

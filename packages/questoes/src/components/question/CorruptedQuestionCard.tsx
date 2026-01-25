@@ -1,11 +1,13 @@
-import React from 'react';
-import { AlertTriangle, SkipForward, Flag } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { AlertTriangle, SkipForward, Flag, Loader2 } from 'lucide-react';
 
 interface CorruptedQuestionCardProps {
   questionId: number;
   onSkip: () => void;
   onReport?: () => void;
   errors?: string[];
+  autoSkip?: boolean;
+  autoSkipDelay?: number;
 }
 
 /**
@@ -15,8 +17,27 @@ const CorruptedQuestionCard: React.FC<CorruptedQuestionCardProps> = ({
   questionId,
   onSkip,
   onReport,
-  errors = []
+  errors = [],
+  autoSkip = true,
+  autoSkipDelay = 1500,
 }) => {
+  const hasSkipped = useRef(false);
+
+  // Auto-skip corrupted questions
+  useEffect(() => {
+    if (!autoSkip || hasSkipped.current) return;
+
+    const timer = setTimeout(() => {
+      if (!hasSkipped.current) {
+        hasSkipped.current = true;
+        console.log(`[CorruptedQuestionCard] Auto-skipping question ${questionId}`);
+        onSkip();
+      }
+    }, autoSkipDelay);
+
+    return () => clearTimeout(timer);
+  }, [questionId, onSkip, autoSkip, autoSkipDelay]);
+
   return (
     <div className="bg-[#1A1A1A] rounded-2xl p-6 md:p-8 border border-red-500/30 flex flex-col items-center justify-center min-h-[400px]">
       {/* Icon */}
@@ -32,8 +53,16 @@ const CorruptedQuestionCard: React.FC<CorruptedQuestionCardProps> = ({
       {/* Description */}
       <p className="text-gray-400 text-center mb-4 max-w-md">
         Esta questão possui problemas de formatação e não pode ser exibida no momento.
-        Nossa equipe já foi notificada e está trabalhando na correção.
+        {autoSkip && ' Pulando automaticamente...'}
       </p>
+
+      {/* Auto-skip indicator */}
+      {autoSkip && (
+        <div className="flex items-center gap-2 text-sm text-[#FFB800] mb-4">
+          <Loader2 size={16} className="animate-spin" />
+          <span>Carregando próxima questão...</span>
+        </div>
+      )}
 
       {/* Question ID */}
       <div className="text-xs text-gray-500 mb-6">
@@ -54,26 +83,28 @@ const CorruptedQuestionCard: React.FC<CorruptedQuestionCardProps> = ({
         </details>
       )}
 
-      {/* Actions */}
-      <div className="flex gap-3">
-        {onReport && (
-          <button
-            onClick={onReport}
-            className="flex items-center gap-2 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors"
-          >
-            <Flag size={18} />
-            Reportar problema
-          </button>
-        )}
+      {/* Actions - only show if not auto-skipping */}
+      {!autoSkip && (
+        <div className="flex gap-3">
+          {onReport && (
+            <button
+              onClick={onReport}
+              className="flex items-center gap-2 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors"
+            >
+              <Flag size={18} />
+              Reportar problema
+            </button>
+          )}
 
-        <button
-          onClick={onSkip}
-          className="flex items-center gap-2 px-6 py-3 bg-[#FFB800] hover:bg-[#FFC933] text-black font-bold rounded-xl transition-colors"
-        >
-          <SkipForward size={18} />
-          Próxima questão
-        </button>
-      </div>
+          <button
+            onClick={onSkip}
+            className="flex items-center gap-2 px-6 py-3 bg-[#FFB800] hover:bg-[#FFC933] text-black font-bold rounded-xl transition-colors"
+          >
+            <SkipForward size={18} />
+            Próxima questão
+          </button>
+        </div>
+      )}
     </div>
   );
 };

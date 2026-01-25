@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen,
   Play,
-  Eye,
   Edit,
   Trash2,
   Plus,
   Loader2,
-  Coffee,
-  Zap,
+  Leaf,
+  Timer,
   X,
   Filter,
+  MoreVertical,
 } from 'lucide-react';
 import { Button, Card, ConfirmModal } from '../components/ui';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -39,6 +39,32 @@ export const NotebooksPage: React.FC = () => {
   const [deletingNotebook, setDeletingNotebook] = useState<Caderno | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isStarting, setIsStarting] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMenuId) {
+        const menuRef = menuRefs.current[openMenuId];
+        const buttonRef = buttonRefs.current[openMenuId];
+        if (
+          menuRef &&
+          !menuRef.contains(event.target as Node) &&
+          buttonRef &&
+          !buttonRef.contains(event.target as Node)
+        ) {
+          setOpenMenuId(null);
+        }
+      }
+    };
+
+    if (openMenuId) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [openMenuId]);
 
   // Load notebooks on mount
   useEffect(() => {
@@ -283,14 +309,14 @@ export const NotebooksPage: React.FC = () => {
                   className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5 hover:border-[var(--color-text-muted)] transition-colors theme-transition flex flex-col min-h-[320px]"
                 >
                   {/* Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-2 bg-[var(--color-brand)]/10 rounded-lg">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="p-2 bg-[var(--color-brand)]/10 rounded-lg flex-shrink-0">
                         <BookOpen size={20} className="text-[var(--color-brand)]" />
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="font-bold text-[var(--color-text-main)] truncate">{notebook.title}</h3>
-                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-[var(--color-text-main)] leading-tight">{notebook.title}</h3>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-1">
                           {(notebook.saved_questions_count || 0) > 0 && (
                             <span className="text-[var(--color-brand)]">
                               {notebook.saved_questions_count} salvas
@@ -306,28 +332,51 @@ export const NotebooksPage: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-1">
+
+                    {/* Context Menu */}
+                    <div className="relative flex-shrink-0">
                       <button
-                        onClick={() => setViewingNotebook(notebook)}
-                        className="p-2 hover:bg-[var(--color-bg-elevated)] rounded-lg transition-colors"
-                        title="Ver filtros"
+                        ref={(el) => { buttonRefs.current[notebook.id] = el; }}
+                        onClick={() => setOpenMenuId(openMenuId === notebook.id ? null : notebook.id)}
+                        className="p-1.5 hover:bg-[var(--color-bg-elevated)] rounded-lg transition-colors"
+                        title="Opções"
                       >
-                        <Eye size={16} className="text-[var(--color-text-sec)]" />
+                        <MoreVertical size={16} className="text-[var(--color-text-muted)]" />
                       </button>
-                      <button
-                        onClick={() => handleEditNotebook(notebook)}
-                        className="p-2 hover:bg-[var(--color-bg-elevated)] rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Edit size={16} className="text-[var(--color-text-sec)]" />
-                      </button>
-                      <button
-                        onClick={() => setDeletingNotebook(notebook)}
-                        className="p-2 hover:bg-[var(--color-error)]/10 rounded-lg transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 size={16} className="text-[var(--color-error)]" />
-                      </button>
+
+                      <AnimatePresence>
+                        {openMenuId === notebook.id && (
+                          <motion.div
+                            ref={(el) => { menuRefs.current[notebook.id] = el; }}
+                            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute right-0 top-full mt-1 z-50 min-w-[140px] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg shadow-lg overflow-hidden"
+                          >
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                handleEditNotebook(notebook);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] transition-colors"
+                            >
+                              <Edit size={14} className="text-[var(--color-text-sec)]" />
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                setDeletingNotebook(notebook);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                              Excluir
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
 
@@ -385,22 +434,39 @@ export const NotebooksPage: React.FC = () => {
                               },
                             }));
                           }}
-                          className="relative inline-flex items-center h-7 rounded-full w-28 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] transition-colors"
+                          className="relative inline-flex items-center h-7 rounded-full w-[120px] bg-[var(--color-bg-elevated)] border border-[var(--color-border)] transition-colors"
                         >
+                          {/* Background labels - same size as active, just not bold */}
                           <span
-                            className={`absolute inline-flex items-center justify-center gap-1 h-6 rounded-full text-xs font-bold transition-all duration-300 ${
+                            className={`absolute left-[calc(25%-2px)] -translate-x-1/2 text-xs transition-opacity duration-200 ${
+                              settings.studyMode === 'zen' ? 'opacity-0' : 'opacity-100 text-[var(--color-text-muted)]'
+                            }`}
+                          >
+                            Zen
+                          </span>
+                          <span
+                            className={`absolute left-[calc(75%+2px)] -translate-x-1/2 text-xs transition-opacity duration-200 ${
+                              settings.studyMode === 'hard' ? 'opacity-0' : 'opacity-100 text-[var(--color-text-muted)]'
+                            }`}
+                          >
+                            Simu
+                          </span>
+
+                          {/* Active pill - equal width for both states */}
+                          <span
+                            className={`absolute inline-flex items-center justify-center gap-1 h-6 w-[calc(50%-2px)] rounded-full text-xs font-bold transition-all duration-200 ${
                               settings.studyMode === 'zen'
-                                ? 'left-0.5 w-[calc(50%-0.25rem)] bg-[var(--color-success)] text-black'
-                                : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.25rem)] bg-[var(--color-error)] text-white'
+                                ? 'left-0.5 bg-[var(--color-success)] text-black'
+                                : 'left-[calc(50%+1px)] bg-[var(--color-error)] text-white'
                             }`}
                           >
                             {settings.studyMode === 'zen' ? (
                               <>
-                                <Coffee size={12} /> Zen
+                                <Leaf size={12} /> Zen
                               </>
                             ) : (
                               <>
-                                <Zap size={12} /> Sim
+                                <Timer size={12} /> Simu
                               </>
                             )}
                           </span>

@@ -8,6 +8,7 @@ import {
   Briefcase,
   CheckCircle,
   Zap,
+  Hash,
 } from 'lucide-react';
 import { MultiSelectDropdown } from './MultiSelectDropdown';
 import { HierarchicalAssuntosDropdown } from './HierarchicalAssuntosDropdown';
@@ -45,6 +46,9 @@ export interface PracticeFilterPanelProps {
   showEscolaridade?: boolean;
   showModalidade?: boolean;
   showDificuldade?: boolean;
+
+  // Admin-only: show question ID filter
+  showQuestionIdFilter?: boolean;
 }
 
 const HISTORY_FILTERS = [
@@ -133,6 +137,7 @@ export function PracticeFilterPanel({
   showEscolaridade = true,
   showModalidade = true,
   showDificuldade = false,
+  showQuestionIdFilter = false,
 }: PracticeFilterPanelProps) {
   return (
     <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-4 md:p-5 theme-transition">
@@ -256,10 +261,15 @@ export function PracticeFilterPanel({
           onChange={() => onToggleToggleFilter('apenasComComentario')}
           label="Apenas com comentário"
         />
+        <ToggleSwitch
+          checked={toggleFilters.apenasIneditasOuse}
+          onChange={() => onToggleToggleFilter('apenasIneditasOuse')}
+          label="Questões inéditas da Ouse"
+        />
       </div>
 
-      {/* History and Difficulty Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-[var(--color-border)]">
+      {/* History, Difficulty Filters, and Question ID */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${showQuestionIdFilter ? 'lg:grid-cols-[2fr_2fr_1fr]' : ''} gap-6 pt-4 border-t border-[var(--color-border)]`}>
         {/* My History */}
         <div className="flex flex-wrap gap-3">
           <span className="text-xs text-[var(--color-text-muted)] uppercase font-bold w-full mb-1">
@@ -289,6 +299,26 @@ export function PracticeFilterPanel({
             />
           ))}
         </div>
+
+        {/* Question ID Filter (Admin only) */}
+        {showQuestionIdFilter && (
+          <div>
+            <label className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] uppercase font-bold mb-2">
+              <Hash size={14} />
+              ID da Questão
+            </label>
+            <input
+              type="text"
+              value={filters.questionId || ''}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^0-9]/g, '');
+                onSetFilters((prev) => ({ ...prev, questionId: value }));
+              }}
+              placeholder="Ex: 12345"
+              className="w-full px-3 py-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-main)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#ffac00] focus:ring-1 focus:ring-[#ffac00] transition-colors"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

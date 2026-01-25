@@ -41,6 +41,7 @@ import {
   PracticeFilterPanel,
   StudySettingsCard,
   NotebookEditForm,
+  EditTimerModal,
 } from "../components/practice";
 import { Caderno } from "../types";
 import {
@@ -50,6 +51,7 @@ import {
   getQuestionIdsByDifficulty,
 } from "../services/questionFeedbackService";
 import { createPracticeSession } from "../services/practiceSessionService";
+import { getNotebookSavedQuestionIds } from "../services/notebooksService";
 import { SessionResultsScreen } from "../components/practice/SessionResultsScreen";
 import {
   getGamificationSettings,
@@ -68,7 +70,7 @@ import {
 } from "../hooks";
 
 // Import utility functions
-import { normalizeFilters, countActiveFilters } from "../utils/filterUtils";
+import { normalizeFilters, normalizeToggleFilters, countActiveFilters } from "../utils/filterUtils";
 import {
   calculateXPReward,
   calculateCoinsReward,
@@ -77,7 +79,7 @@ import {
 export default function PracticePage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, fetchProfile } = useAuthStore();
+  const { user, profile, fetchProfile, updateProfile } = useAuthStore();
   const { incrementStats } = useUserStore();
   const { addToast, setPracticeMode, clearPracticeMode } = useUIStore();
   const { selectedPreparatorioId, getSelectedPreparatorio, userPreparatorios } =
@@ -107,6 +109,10 @@ export default function PracticePage() {
   });
   const [shouldAutoStart, setShouldAutoStart] = useState(() => {
     const params = new URLSearchParams(window.location.search);
+    // Don't auto-start if notebook_id is present - notebook loading will handle it
+    const hasNotebookId = params.has("notebook_id");
+    if (hasNotebookId) return false;
+
     const hasFilterParams =
       params.has("materia") ||
       params.has("materias") ||
@@ -157,9 +163,12 @@ export default function PracticePage() {
   });
   const [showEditalSidebar, setShowEditalSidebar] = useState(false);
   const [showSaveNotebookModal, setShowSaveNotebookModal] = useState(false);
+  const [showEditTimerModal, setShowEditTimerModal] = useState(false);
+  const [isSavingTimer, setIsSavingTimer] = useState(false);
   const [viewingNotebookFilters, setViewingNotebookFilters] = useState<Caderno | null>(null);
   const [newNotebookName, setNewNotebookName] = useState("");
   const [newNotebookDescription, setNewNotebookDescription] = useState("");
+  const [activeNotebookName, setActiveNotebookName] = useState<string | null>(null);
 
   // Use extracted hooks
   const {
@@ -278,6 +287,15 @@ export default function PracticePage() {
   // Sync practice mode with UIStore
   useEffect(() => {
     if (mode === "practicing") {
+      // Determine title and back path based on context
+      let title = editalItemTitle;
+      let backPath = preparatorioSlug ? `/trilhas/${preparatorioSlug}` : null;
+
+      if (activeNotebookName) {
+        title = activeNotebookName;
+        backPath = "/cadernos";
+      }
+
       setPracticeMode({
         isActive: true,
         correctCount: sessionStats.correct,
@@ -291,13 +309,13 @@ export default function PracticePage() {
         },
         isTrailMode: !!trailPreparatorioId,
         onToggleEdital: () => setShowEditalSidebar((prev) => !prev),
-        title: editalItemTitle,
-        backPath: preparatorioSlug ? `/trilhas/${preparatorioSlug}` : null,
+        title,
+        backPath,
       });
     } else {
       clearPracticeMode();
     }
-  }, [mode, sessionStats, showPracticingFilters, trailPreparatorioId, editalItemTitle, preparatorioSlug]);
+  }, [mode, sessionStats, showPracticingFilters, trailPreparatorioId, editalItemTitle, preparatorioSlug, activeNotebookName]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -367,7 +385,7 @@ export default function PracticePage() {
     const notebookToEdit = notebooks.find((nb) => nb.id === editNotebookId);
     if (notebookToEdit) {
       if (notebookToEdit.filters) setFilters(normalizeFilters(notebookToEdit.filters));
-      if (notebookToEdit.settings?.toggleFilters) setToggleFilters(notebookToEdit.settings.toggleFilters);
+      if (notebookToEdit.settings?.toggleFilters) setToggleFilters(normalizeToggleFilters(notebookToEdit.settings.toggleFilters));
       if (notebookToEdit.settings?.questionCount) setQuestionCount(notebookToEdit.settings.questionCount);
       if (notebookToEdit.settings?.studyMode) setStudyMode(notebookToEdit.settings.studyMode as PracticeMode);
 
@@ -376,8 +394,9 @@ export default function PracticePage() {
     }
   }, [searchParams, notebooks, editingNotebook, setFilters, setToggleFilters, startEditing]);
 
-  // Auto-start with filters
+  // Auto-start with filters (skip if loading from notebook)
   useEffect(() => {
+    if (isFromNotebook) return; // Notebook loading will handle it
     if (!autoStartPending || autoStartTriggeredRef.current) return;
     if (isLoadingFilters || isLoadingCount) return;
 
@@ -419,15 +438,16 @@ export default function PracticePage() {
       autoStartTriggeredRef.current = true;
       startPractice();
     }
-  }, [autoStartPending, isLoadingFilters, isLoadingCount, filters, searchParams]);
+  }, [autoStartPending, isLoadingFilters, isLoadingCount, filters, searchParams, isFromNotebook]);
 
-  // Auto-start without filters
+  // Auto-start without filters (skip if loading from notebook)
   useEffect(() => {
+    if (isFromNotebook) return; // Notebook loading will handle it
     if (shouldAutoStart && !isLoadingFilters && !isLoadingCount && mode === "selection" && !isLoading) {
       setShouldAutoStart(false);
       startPractice();
     }
-  }, [shouldAutoStart, isLoadingFilters, isLoadingCount, mode, isLoading]);
+  }, [shouldAutoStart, isLoadingFilters, isLoadingCount, mode, isLoading, isFromNotebook]);
 
   // Reset autoStartPending
   useEffect(() => {
@@ -457,6 +477,12 @@ export default function PracticePage() {
     setSessionStartTime(null);
 
     const params = new URLSearchParams(window.location.search);
+    // Don't auto-start if notebook_id is present - notebook loading will handle it
+    const hasNotebookId = params.has("notebook_id");
+    if (hasNotebookId) {
+      setShouldAutoStart(false);
+      return;
+    }
     const hasFilterParams =
       params.has("materia") || params.has("materias") || params.has("assunto") ||
       params.has("assuntos") || params.has("banca") || params.has("autostart");
@@ -524,7 +550,7 @@ export default function PracticePage() {
 
   const handleEditNotebookFilters = (notebook: Caderno) => {
     if (notebook.filters) setFilters(normalizeFilters(notebook.filters));
-    if (notebook.settings?.toggleFilters) setToggleFilters(notebook.settings.toggleFilters);
+    if (notebook.settings?.toggleFilters) setToggleFilters(normalizeToggleFilters(notebook.settings.toggleFilters));
 
     const settings = notebookSettings[notebook.id];
     if (settings) {
@@ -572,25 +598,94 @@ export default function PracticePage() {
 
   const handleStartFromNotebook = async (notebook: Caderno, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    setIsLoading(true);
+    setActiveNotebookName(notebook.title);
 
-    const notebookFilters = notebook.filters || {
-      materia: [], assunto: [], banca: [], orgao: [], cargo: [], ano: [],
-      escolaridade: [], modalidade: [], dificuldade: [],
-    };
-    const notebookToggleFilters = notebook.settings?.toggleFilters || {
-      apenasRevisadas: false, apenasComComentario: false,
-    };
+    try {
+      const notebookFilters = normalizeFilters(notebook.filters);
+      const notebookToggleFilters = normalizeToggleFilters(notebook.settings?.toggleFilters);
 
-    setFilters(notebookFilters);
-    setToggleFilters(notebookToggleFilters);
+      setFilters(notebookFilters);
+      setToggleFilters(notebookToggleFilters);
 
-    const settings = notebookSettings[notebook.id];
-    if (settings) {
+      const settings = notebookSettings[notebook.id] || {
+        questionCount: notebook.settings?.questionCount || 120,
+        studyMode: (notebook.settings?.studyMode as PracticeMode) || 'zen',
+      };
       setQuestionCount(settings.questionCount);
       setStudyMode(settings.studyMode);
-    }
 
-    await startPractice(notebookFilters, notebookToggleFilters);
+      const hasSavedQuestions = (notebook.saved_questions_count || 0) > 0;
+      const hasFilters = Object.values(notebookFilters).some(
+        (v) => Array.isArray(v) && v.length > 0
+      );
+
+      let allQuestions: ParsedQuestion[] = [];
+
+      // Fetch saved questions if any
+      if (hasSavedQuestions) {
+        const savedQuestionIds = await getNotebookSavedQuestionIds(notebook.id);
+        if (savedQuestionIds.length > 0) {
+          const savedQuestions = await fetchQuestionsByIds(savedQuestionIds);
+          allQuestions = [...savedQuestions];
+          console.log('[PracticePage] Saved questions loaded:', savedQuestions.length);
+        }
+      }
+
+      // Fetch filter-based questions if there are filters
+      if (hasFilters) {
+        const remainingCount = Math.max(0, settings.questionCount - allQuestions.length);
+
+        if (remainingCount > 0) {
+          const filterQuestions = await fetchQuestions({
+            materias: notebookFilters.materia.length > 0 ? notebookFilters.materia : undefined,
+            assuntos: notebookFilters.assunto.length > 0 ? notebookFilters.assunto : undefined,
+            bancas: notebookFilters.banca.length > 0 ? notebookFilters.banca : undefined,
+            orgaos: notebookFilters.orgao.length > 0 ? notebookFilters.orgao : undefined,
+            cargos: notebookFilters.cargo.length > 0 ? notebookFilters.cargo : undefined,
+            anos: notebookFilters.ano.length > 0 ? notebookFilters.ano.map(Number) : undefined,
+            escolaridade: notebookFilters.escolaridade.length > 0 ? notebookFilters.escolaridade : undefined,
+            modalidade: notebookFilters.modalidade.length > 0 ? notebookFilters.modalidade : undefined,
+            dificuldade: notebookFilters.dificuldade.length > 0 ? notebookFilters.dificuldade : undefined,
+            apenasRevisadas: notebookToggleFilters.apenasRevisadas || undefined,
+            apenasComComentario: notebookToggleFilters.apenasComComentario || undefined,
+            apenasIneditasOuse: notebookToggleFilters.apenasIneditasOuse || undefined,
+            limit: remainingCount + allQuestions.length,
+            shuffle: true,
+          });
+
+          // Remove duplicates (questions already in saved list)
+          const savedIds = new Set(allQuestions.map((q) => q.id));
+          const uniqueFilterQuestions = filterQuestions.filter((q) => !savedIds.has(q.id));
+
+          allQuestions = [...allQuestions, ...uniqueFilterQuestions.slice(0, remainingCount)];
+          console.log('[PracticePage] Filter questions added:', uniqueFilterQuestions.slice(0, remainingCount).length);
+        }
+      }
+
+      console.log('[PracticePage] Total questions for notebook:', allQuestions.length);
+
+      if (allQuestions.length === 0) {
+        addToast('info', 'Nenhuma questão encontrada neste caderno');
+        setIsLoading(false);
+        return;
+      }
+
+      // Limit to question count (saved questions are already first, filter questions follow)
+      const finalQuestions = allQuestions.slice(0, settings.questionCount);
+
+      setQuestions(finalQuestions);
+      setCurrentIndex(0);
+      setAnswers(new Map());
+      setSessionStats({ correct: 0, total: 0 });
+      setSessionStartTime(Date.now());
+      setMode("practicing");
+    } catch (error) {
+      console.error('[PracticePage] Error starting from notebook:', error);
+      addToast('error', 'Erro ao carregar questões do caderno');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const confirmDeleteNotebook = async () => {
@@ -613,8 +708,9 @@ export default function PracticePage() {
       return;
     }
 
-    const activeFilters = overrideFilters || filters;
-    const activeToggleFilters = overrideToggleFilters || toggleFilters;
+    // Ensure filters are always normalized to prevent undefined errors
+    const activeFilters = normalizeFilters(overrideFilters || filters);
+    const activeToggleFilters = normalizeToggleFilters(overrideToggleFilters || toggleFilters);
 
     try {
       const isTrailMode = !!trailPreparatorioId;
@@ -650,6 +746,14 @@ export default function PracticePage() {
           questionsToUse = await fetchQuestionsByIds(ids);
           console.log('[PracticePage] Fetched', questionsToUse.length, 'questions by IDs');
         }
+      } else if (activeFilters.questionId) {
+        // If a specific question ID is provided via filter (admin feature)
+        const questionId = parseInt(activeFilters.questionId, 10);
+        if (!isNaN(questionId)) {
+          console.log('[PracticePage] Fetching specific question ID from filter:', questionId);
+          questionsToUse = await fetchQuestionsByIds([questionId]);
+          console.log('[PracticePage] Fetched', questionsToUse.length, 'questions by filter ID');
+        }
       } else if (usingMockData) {
         let filtered = [...MOCK_QUESTIONS];
         if (activeFilters.materia.length > 0) {
@@ -677,6 +781,7 @@ export default function PracticePage() {
           dificuldade: activeFilters.dificuldade.length > 0 ? activeFilters.dificuldade : undefined,
           apenasRevisadas: activeToggleFilters.apenasRevisadas || undefined,
           apenasComComentario: activeToggleFilters.apenasComComentario || undefined,
+          apenasIneditasOuse: activeToggleFilters.apenasIneditasOuse || undefined,
           limit: isTrailMode ? 500 : questionCount,
           shuffle: true,
         });
@@ -833,7 +938,26 @@ export default function PracticePage() {
   const handlePrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
+    } else {
+      // Na primeira questão, scroll para o topo e abrir filtros
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      document.querySelector(".lg\\:overflow-y-auto")?.scrollTo({ top: 0, behavior: "smooth" });
+      setShowFilters(true);
     }
+  };
+
+  const handleBackToSelection = () => {
+    // If practicing from a notebook, navigate back to notebooks page
+    if (activeNotebookName) {
+      setActiveNotebookName(null);
+      navigate("/cadernos");
+      return;
+    }
+
+    setMode("selection");
+    setShowFilters(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.querySelector(".lg\\:overflow-y-auto")?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleBack = () => {
@@ -841,14 +965,57 @@ export default function PracticePage() {
       if (answers.size > 0) {
         setShowExitConfirm(true);
       } else {
-        navigate("/questoes");
+        handleBackToSelection();
       }
     }
   };
 
-  const handleTimeout = () => {
+  const handleTimeout = async () => {
     addToast("error", "Tempo esgotado!");
-    handleNext();
+
+    // No modo simulado, quando o tempo acaba, vai direto para os resultados
+    // independentemente de quantas questões foram respondidas
+    const timeSpent = sessionStartTime ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
+    const xpPerCorrect = gamificationSettings
+      ? gamificationSettings.xp_per_correct_hard_mode
+      : 100;
+    const xpEarned = sessionStats.correct * xpPerCorrect;
+
+    try {
+      if (user?.id) {
+        await createPracticeSession({
+          user_id: user.id,
+          study_mode: studyMode,
+          total_questions: sessionStats.total,
+          correct_answers: sessionStats.correct,
+          wrong_answers: sessionStats.total - sessionStats.correct,
+          time_spent_seconds: timeSpent,
+          filters: { ...filters, toggleFilters },
+          xp_earned: xpEarned,
+        });
+        await fetchProfile();
+      }
+    } catch (error) {
+      console.error("[PracticePage] Erro ao salvar sessão após timeout:", error);
+    }
+
+    setMode("results");
+  };
+
+  const handleSaveTimer = async (minutes: number) => {
+    if (!user?.id) return;
+
+    setIsSavingTimer(true);
+    try {
+      await updateProfile({ simulado_timer_minutes: minutes });
+      addToast("success", "Tempo do cronômetro atualizado!");
+      setShowEditTimerModal(false);
+    } catch (error) {
+      console.error("[PracticePage] Erro ao salvar tempo:", error);
+      addToast("error", "Erro ao salvar configuração de tempo.");
+    } finally {
+      setIsSavingTimer(false);
+    }
   };
 
   const handleShowToast = (message: string, type: "success" | "error" | "info") => {
@@ -911,6 +1078,7 @@ export default function PracticePage() {
                   onToggleToggleFilter={toggleToggleFilter}
                   onSetToggleFilters={setToggleFilters}
                   showDificuldade={true}
+                  showQuestionIdFilter={profile?.role === 'admin' || profile?.show_answers || false}
                 />
 
                 {/* Summary + Actions */}
@@ -966,17 +1134,18 @@ export default function PracticePage() {
                 question={currentQuestion}
                 isLastQuestion={currentIndex === questions.length - 1}
                 onNext={handleNext}
-                onPrevious={currentIndex > 0 ? handlePrevious : undefined}
+                onPrevious={handlePrevious}
                 onOpenTutor={() => setShowMentorChat(true)}
                 onAnswer={handleAnswer}
                 onRateDifficulty={handleRateDifficulty}
                 onTimeout={studyMode === "hard" ? handleTimeout : undefined}
                 studyMode={studyMode}
-                initialTime={studyMode === "hard" ? 3 : undefined}
+                initialTime={studyMode === "hard" ? (profile?.simulado_timer_minutes || 120) : undefined}
                 userId={user?.id}
                 userRole={profile?.role}
                 showCorrectAnswers={profile?.show_answers || false}
                 onShowToast={handleShowToast}
+                onEditTimer={studyMode === "hard" ? () => setShowEditTimerModal(true) : undefined}
               />
             </QuestionErrorBoundary>
           </div>
@@ -1007,7 +1176,10 @@ export default function PracticePage() {
         <ConfirmModal
           isOpen={showExitConfirm}
           onClose={() => setShowExitConfirm(false)}
-          onConfirm={() => navigate("/questoes")}
+          onConfirm={() => {
+            setActiveNotebookName(null);
+            navigate(activeNotebookName ? "/cadernos" : "/questoes");
+          }}
           title="Sair da Prática?"
           message="Você tem progresso não salvo. Se sair agora, suas respostas serão perdidas."
           confirmText="Sair"
@@ -1041,6 +1213,14 @@ export default function PracticePage() {
           isSaving={isSavingNotebook}
           isLoadingCount={isLoadingCount}
         />
+
+        <EditTimerModal
+          isOpen={showEditTimerModal}
+          onClose={() => setShowEditTimerModal(false)}
+          currentMinutes={profile?.simulado_timer_minutes || 120}
+          onSave={handleSaveTimer}
+          isSaving={isSavingTimer}
+        />
       </div>
     );
   }
@@ -1060,7 +1240,7 @@ export default function PracticePage() {
         timeSpent={timeSpent}
         xpEarned={xpEarned}
         onNewSession={startPractice}
-        onBackToMenu={() => setMode("selection")}
+        onBackToMenu={handleBackToSelection}
       />
     );
   }
@@ -1252,6 +1432,7 @@ export default function PracticePage() {
                 onSetFilters={setFilters}
                 onToggleToggleFilter={toggleToggleFilter}
                 onSetToggleFilters={setToggleFilters}
+                showQuestionIdFilter={profile?.role === 'admin' || profile?.show_answers || false}
               />
 
               {/* Summary Section with Actions */}
@@ -1353,7 +1534,7 @@ export default function PracticePage() {
       <ConfirmModal
         isOpen={showExitConfirm}
         onClose={() => setShowExitConfirm(false)}
-        onConfirm={() => setMode("selection")}
+        onConfirm={handleBackToSelection}
         title="Sair da Prática?"
         message="Você tem progresso não salvo. Se sair agora, suas respostas serão perdidas."
         confirmText="Sair"

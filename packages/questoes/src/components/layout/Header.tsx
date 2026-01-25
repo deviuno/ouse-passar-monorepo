@@ -129,20 +129,10 @@ export function Header() {
     return 'Ouse Questões';
   };
 
-  // Render styled title for pages like "Ouse Questões" (matching "OUSE MUSIC" style)
+  // Render styled title for pages
   const renderStyledTitle = (title: string) => {
-    // Check if title starts with "Ouse " to apply special styling
-    if (title.startsWith('Ouse ')) {
-      const restOfTitle = title.substring(5); // Remove "Ouse "
-      return (
-        <h1 className="text-lg font-sans uppercase tracking-wide">
-          <span className="text-[var(--color-text-main)] font-medium">OUSE </span>
-          <span className="text-[var(--color-brand)] font-semibold">{restOfTitle.toUpperCase()}</span>
-        </h1>
-      );
-    }
     return (
-      <h1 className="text-lg font-bold text-[var(--color-text-main)]">{title}</h1>
+      <h1 className="text-lg font-bold text-[var(--color-text-main)] uppercase tracking-wide">{title}</h1>
     );
   };
 

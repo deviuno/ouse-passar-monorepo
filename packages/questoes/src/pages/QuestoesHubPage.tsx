@@ -79,7 +79,7 @@ export const QuestoesHubPage: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl md:text-4xl font-bold text-[var(--color-text-main)] mb-3">
-            Ouse <span className="text-[var(--color-brand)]">Questões</span>
+            Ouse Questões
           </h1>
           <p className="text-[var(--color-text-sec)] text-lg">
             Escolha como deseja praticar hoje
@@ -119,7 +119,10 @@ export const QuestoesHubPage: React.FC = () => {
                 </div>
 
                 {/* Title */}
-                <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2 group-hover:text-[var(--color-brand)] transition-colors">
+                <h2
+                  className="text-xl font-bold text-[var(--color-text-main)] mb-2 transition-colors group-hover:[color:var(--hover-color)]"
+                  style={{ '--hover-color': card.color } as React.CSSProperties}
+                >
                   {card.title}
                 </h2>
 

@@ -37,10 +37,11 @@ import { getOptimizedImageUrl } from '../../utils/image';
 import CommentsSection from './CommentsSection';
 import { ReportQuestionModal } from './ReportQuestionModal';
 import { PegadinhaModal } from './PegadinhaModal';
-import { REPORT_MOTIVOS, ReportMotivo } from '../../services/questionReportsService';
+import { REPORT_MOTIVOS, ReportMotivo, SOLICITAR_EXPLICACAO_MOTIVO, createQuestionReport } from '../../services/questionReportsService';
 import { chatWithTutor, TutorUserContext, GeneratedAudio } from '../../services/geminiService';
 import { generateAudioWithCache, generatePodcastWithCache } from '../../services/audioCacheService';
-import { AudioPlayer } from '../ui/AudioPlayer';
+import { userContentService } from '../../services/userContentService';
+import { AudioPlayer, AudioPlayerSkeleton } from '../ui/AudioPlayer';
 import { renderMarkdown } from './chat';
 import { useBatteryStore } from '../../stores/useBatteryStore';
 import { getTimeUntilRecharge } from '../../types/battery';
@@ -75,6 +76,7 @@ interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   audio?: GeneratedAudio | null;
+  audioLoading?: boolean;
 }
 
 interface QuestionFeedbackTabsProps {
@@ -124,6 +126,10 @@ export function QuestionFeedbackTabs({
   const [showReportModal, setShowReportModal] = useState(false);
   const [showPegadinhaModal, setShowPegadinhaModal] = useState(false);
   const [selectedReportMotivo, setSelectedReportMotivo] = useState<ReportMotivo | undefined>(undefined);
+
+  // Solicitar explicação state
+  const [explanationRequested, setExplanationRequested] = useState(false);
+  const [requestingExplanation, setRequestingExplanation] = useState(false);
 
   // Cadernos state
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
@@ -281,10 +287,17 @@ export function QuestionFeedbackTabs({
 
     setIsGeneratingAudio(true);
     setChatMessages(prev => [...prev, { role: 'user', text: '🎧 Gerar explicação em áudio' }]);
-    setChatMessages(prev => [...prev, { role: 'model', text: '🎙️ Gerando áudio explicativo... Aguarde um momento.' }]);
+    setChatMessages(prev => [...prev, { role: 'model', text: '', audioLoading: true }]);
 
     try {
-      const audio = await generateAudioWithCache(question.assunto || 'a questão', question.enunciado);
+      const audio = await generateAudioWithCache({
+        title: question.assunto || 'a questão',
+        content: question.enunciado,
+        userId: userId || undefined,
+        materia: question.materia,
+        assunto: question.assunto,
+        questionId: question.id,
+      });
       if (audio) {
         if (audio.fromCache) await new Promise(resolve => setTimeout(resolve, 1500));
         setChatMessages(prev => {
@@ -321,10 +334,17 @@ export function QuestionFeedbackTabs({
 
     setIsGeneratingAudio(true);
     setChatMessages(prev => [...prev, { role: 'user', text: '🎙️ Gerar podcast sobre o tema' }]);
-    setChatMessages(prev => [...prev, { role: 'model', text: '🎙️ Gerando podcast... Isso pode levar alguns segundos.' }]);
+    setChatMessages(prev => [...prev, { role: 'model', text: '', audioLoading: true }]);
 
     try {
-      const audio = await generatePodcastWithCache(question.assunto || 'a questão', question.enunciado);
+      const audio = await generatePodcastWithCache({
+        title: question.assunto || 'a questão',
+        content: question.enunciado,
+        userId: userId || undefined,
+        materia: question.materia,
+        assunto: question.assunto,
+        questionId: question.id,
+      });
       if (audio) {
         if (audio.fromCache) await new Promise(resolve => setTimeout(resolve, 1500));
         setChatMessages(prev => {
@@ -365,6 +385,25 @@ export function QuestionFeedbackTabs({
     const response = await chatWithTutor(chatMessages, summaryPrompt, question, undefined, chatThreadId);
     if (response.threadId) setChatThreadId(response.threadId);
     setChatMessages(prev => [...prev, { role: 'model', text: response.text }]);
+
+    // Salvar resumo em texto no user_generated_content
+    if (userId && response.text) {
+      try {
+        await userContentService.create({
+          userId,
+          contentType: 'text_summary',
+          title: question.assunto || 'Resumo',
+          materia: question.materia,
+          assunto: question.assunto,
+          textContent: response.text,
+          questionId: question.id,
+        });
+        console.log('[QuestionFeedbackTabs] Resumo em texto salvo com sucesso');
+      } catch (e) {
+        console.warn('[QuestionFeedbackTabs] Erro ao salvar resumo em texto:', e);
+      }
+    }
+
     setChatLoading(false);
   };
 
@@ -372,6 +411,45 @@ export function QuestionFeedbackTabs({
   useEffect(() => {
     setSavedToNotebooks(new Set());
   }, [question.id]);
+
+  // Reset explanation request state when question changes
+  useEffect(() => {
+    setExplanationRequested(false);
+    setRequestingExplanation(false);
+  }, [question.id]);
+
+  // Handler for requesting explanation
+  const handleRequestExplanation = async () => {
+    if (!userId || requestingExplanation || explanationRequested) return;
+
+    setRequestingExplanation(true);
+    try {
+      const success = await createQuestionReport({
+        questionId: question.id,
+        userId,
+        motivo: SOLICITAR_EXPLICACAO_MOTIVO,
+        descricao: 'Solicitação de explicação para esta questão.',
+        questionInfo: {
+          materia: question.materia,
+          assunto: question.assunto,
+          banca: question.banca,
+          ano: question.ano,
+        },
+      });
+
+      if (success) {
+        setExplanationRequested(true);
+        onShowToast?.('Solicitação enviada com sucesso!', 'success');
+      } else {
+        onShowToast?.('Erro ao enviar solicitação', 'error');
+      }
+    } catch (error) {
+      console.error('Erro ao solicitar explicação:', error);
+      onShowToast?.('Erro ao enviar solicitação', 'error');
+    } finally {
+      setRequestingExplanation(false);
+    }
+  };
 
   // Load notebooks when tab is selected
   useEffect(() => {
@@ -608,50 +686,82 @@ export function QuestionFeedbackTabs({
                 <div className="h-4 bg-[var(--color-bg-elevated)] rounded animate-pulse w-5/6"></div>
               </div>
             ) : (
-              <div className="text-sm text-[var(--color-text-main)] leading-relaxed prose prose-sm max-w-none">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    h2: ({ children }) => (
-                      <h2 className="text-lg font-bold text-[var(--color-brand)] mt-4 mb-2">{children}</h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3 className="text-base font-bold text-[var(--color-text-main)] mt-3 mb-1">{children}</h3>
-                    ),
-                    p: ({ children }) => (
-                      <p className="mb-3 leading-relaxed text-[var(--color-text-main)]">{children}</p>
-                    ),
-                    strong: ({ children }) => (
-                      <strong className="font-bold text-[var(--color-text-main)]">{children}</strong>
-                    ),
-                    ul: ({ children }) => (
-                      <ul className="list-disc list-inside mb-3 space-y-1 text-[var(--color-text-main)]">{children}</ul>
-                    ),
-                    ol: ({ children }) => (
-                      <ol className="list-decimal list-inside mb-3 space-y-1 text-[var(--color-text-main)]">{children}</ol>
-                    ),
-                    blockquote: ({ children }) => (
-                      <blockquote className="border-l-4 border-[var(--color-brand)] pl-4 my-3 italic text-[var(--color-text-muted)]">{children}</blockquote>
-                    ),
-                    code: ({ children }) => (
-                      <code className="bg-[var(--color-bg-elevated)] px-1.5 py-0.5 rounded text-[var(--color-brand)] text-sm">{children}</code>
-                    ),
-                    img: ({ src, alt }) => (
-                      <img
-                        src={getOptimizedImageUrl(src, 800, 85)}
-                        alt={alt || 'Imagem'}
-                        className="max-w-full h-auto rounded-lg my-3 border border-[var(--color-border)]"
-                        loading="lazy"
-                      />
-                    ),
-                    a: ({ href, children }) => (
-                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand)] underline hover:text-[var(--color-brand-light)]">{children}</a>
-                    ),
-                  }}
-                >
-                  {preprocessImageUrls(explanation || 'Nenhuma explicação disponível para esta questão.')}
-                </ReactMarkdown>
-              </div>
+              <>
+                <div className="text-sm text-[var(--color-text-main)] leading-relaxed prose prose-sm max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h2: ({ children }) => (
+                        <h2 className="text-lg font-bold text-[var(--color-brand)] mt-4 mb-2">{children}</h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-base font-bold text-[var(--color-text-main)] mt-3 mb-1">{children}</h3>
+                      ),
+                      p: ({ children }) => (
+                        <p className="mb-3 leading-relaxed text-[var(--color-text-main)]">{children}</p>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-bold text-[var(--color-text-main)]">{children}</strong>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="list-disc list-inside mb-3 space-y-1 text-[var(--color-text-main)]">{children}</ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="list-decimal list-inside mb-3 space-y-1 text-[var(--color-text-main)]">{children}</ol>
+                      ),
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-4 border-[var(--color-brand)] pl-4 my-3 italic text-[var(--color-text-muted)]">{children}</blockquote>
+                      ),
+                      code: ({ children }) => (
+                        <code className="bg-[var(--color-bg-elevated)] px-1.5 py-0.5 rounded text-[var(--color-brand)] text-sm">{children}</code>
+                      ),
+                      img: ({ src, alt }) => (
+                        <img
+                          src={getOptimizedImageUrl(src, 800, 85)}
+                          alt={alt || 'Imagem'}
+                          className="max-w-full h-auto rounded-lg my-3 border border-[var(--color-border)]"
+                          loading="lazy"
+                        />
+                      ),
+                      a: ({ href, children }) => (
+                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand)] underline hover:text-[var(--color-brand-light)]">{children}</a>
+                      ),
+                    }}
+                  >
+                    {preprocessImageUrls(explanation || 'Nenhuma explicação disponível para esta questão.')}
+                  </ReactMarkdown>
+                </div>
+
+                {/* Solicitar explicação button - only shown when no explanation */}
+                {!explanation && userId && (
+                  <div className="mt-4 pt-4 border-t border-[var(--color-border)]">
+                    {explanationRequested ? (
+                      <div className="flex items-center gap-2 text-green-500 text-sm">
+                        <Check size={18} />
+                        <span>Solicitação enviada com sucesso!</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleRequestExplanation}
+                        disabled={requestingExplanation}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-main)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {requestingExplanation ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            <span>Enviando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <BookOpen size={16} />
+                            <span>Solicitar explicação</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
         );
@@ -954,15 +1064,18 @@ export function QuestionFeedbackTabs({
                         : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] rounded-bl-md border border-[var(--color-border)]'
                     }`}
                   >
-                    {msg.role === 'model' ? (
+                    {msg.text && (msg.role === 'model' ? (
                       <div className="text-[var(--color-text-main)] leading-relaxed">
                         {renderMarkdown(msg.text)}
                       </div>
                     ) : (
                       <span>{msg.text}</span>
+                    ))}
+                    {msg.audioLoading && (
+                      <AudioPlayerSkeleton />
                     )}
-                    {msg.audio && (
-                      <div className="mt-3">
+                    {msg.audio && !msg.audioLoading && (
+                      <div className={msg.text ? 'mt-3' : ''}>
                         <AudioPlayer src={msg.audio.audioUrl} type={msg.audio.type as 'explanation' | 'podcast'} />
                       </div>
                     )}

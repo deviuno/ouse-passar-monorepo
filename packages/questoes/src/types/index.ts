@@ -34,6 +34,7 @@ export interface ParsedQuestion extends Omit<RawQuestion, 'alternativas'> {
   alternativas: string;
   parsedAlternativas: Alternative[];
   isPegadinha?: boolean;
+  isAiGenerated?: boolean;
   communityStats?: CommunityStats[];
 }
 
