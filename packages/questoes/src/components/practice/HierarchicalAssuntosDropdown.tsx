@@ -7,12 +7,14 @@ import { TaxonomyNode } from '../../services/questionsService';
 // Funções de busca flexível
 // ============================================
 
-// Remove acentos e converte para minúsculas
+// Remove acentos, espaços extras e converte para minúsculas
 const normalizeText = (text: string): string => {
   return text
+    .normalize('NFD') // Separa caracteres base dos diacríticos
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacríticos (acentos)
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+    .replace(/\s+/g, ' ') // Múltiplos espaços → um espaço
+    .trim();
 };
 
 // Mapa de sinônimos e termos relacionados

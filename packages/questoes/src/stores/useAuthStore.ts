@@ -4,6 +4,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { UserProfile, UserOnboarding, OnboardingStepName } from '../types';
 import { useUserStore } from './useUserStore';
+import { sendWelcomeNotification } from '../services/notificationService';
 
 import { STORAGE_KEYS } from '../constants';
 
@@ -137,6 +138,11 @@ export const useAuthStore = create<AuthState>()(
               if (!onboardingError && onboardingData) {
                 set({ onboarding: onboardingData as UserOnboarding });
               }
+
+              // Enviar notificação de boas-vindas para novos usuários
+              sendWelcomeNotification(data.user.id, name).catch((err) =>
+                console.warn('[Auth] Erro ao enviar notificação de boas-vindas:', err)
+              );
             }
           }
 

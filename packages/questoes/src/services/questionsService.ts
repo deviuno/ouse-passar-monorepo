@@ -371,11 +371,20 @@ export const fetchFilterOptions = async (): Promise<{
       throw new Error('Nenhum dado retornado pela função get_all_filter_options');
     }
 
+    // Filtra valores inválidos (vazios, nulos, apenas "-", etc.)
+    const filterValidStrings = (arr: unknown[]): string[] =>
+      (arr || [])
+        .filter((v): v is string =>
+          typeof v === 'string' &&
+          v.trim() !== '' &&
+          v.trim() !== '-'
+        );
+
     return {
-      materias: (data?.materias || []) as string[],
-      bancas: (data?.bancas || []) as string[],
-      orgaos: (data?.orgaos || []) as string[],
-      cargos: (data?.cargos || []) as string[],
+      materias: filterValidStrings(data?.materias),
+      bancas: filterValidStrings(data?.bancas),
+      orgaos: filterValidStrings(data?.orgaos),
+      cargos: filterValidStrings(data?.cargos),
       anos: (data?.anos || []) as number[],
     };
   });

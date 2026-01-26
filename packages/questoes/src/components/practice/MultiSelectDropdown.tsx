@@ -15,6 +15,16 @@ export interface MultiSelectDropdownProps {
   displayFormatter?: (item: string) => string;
 }
 
+// Normaliza texto para busca: remove acentos, espaços extras e converte para minúsculas
+const normalizeSearchText = (text: string): string => {
+  return text
+    .normalize('NFD') // Separa caracteres base dos diacríticos
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacríticos (acentos)
+    .toLowerCase()
+    .replace(/\s+/g, ' ') // Múltiplos espaços → um espaço
+    .trim();
+};
+
 export function MultiSelectDropdown({
   label,
   icon,
@@ -47,12 +57,14 @@ export function MultiSelectDropdown({
 
   const filteredItems = useMemo(() => {
     if (!search.trim()) return items;
-    const searchLower = search.toLowerCase();
-    // Buscar tanto no valor original quanto no formatado
-    return items.filter((item) =>
-      item.toLowerCase().includes(searchLower) ||
-      formatItem(item).toLowerCase().includes(searchLower)
-    );
+    const searchNormalized = normalizeSearchText(search);
+    // Buscar tanto no valor original quanto no formatado, com normalização
+    return items.filter((item) => {
+      const itemNormalized = normalizeSearchText(item);
+      const formattedNormalized = normalizeSearchText(formatItem(item));
+      return itemNormalized.includes(searchNormalized) ||
+        formattedNormalized.includes(searchNormalized);
+    });
   }, [items, search, displayFormatter]);
 
   return (
