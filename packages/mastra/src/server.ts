@@ -8770,8 +8770,11 @@ app.post('/api/taxonomia/processar-grande', async (req, res) => {
             });
         }
 
-        // Filtrar não classificados
-        const assuntosNaoClassificados = todosAssuntos?.filter(a => a.taxonomia_id === null) || [];
+        // DEBUG: Log dos primeiros assuntos
+        console.log(`[Taxonomia-Grande] Primeiros 3 assuntos:`, todosAssuntos?.slice(0, 3)?.map(a => ({ nome: a.assunto_original, tid: a.taxonomia_id, tidType: typeof a.taxonomia_id })));
+
+        // Filtrar não classificados (verifica null, undefined, e falsy)
+        const assuntosNaoClassificados = todosAssuntos?.filter(a => !a.taxonomia_id) || [];
         console.log(`[Taxonomia-Grande] Total: ${todosAssuntos?.length}, Não classificados: ${assuntosNaoClassificados.length}`);
 
         if (assuntosNaoClassificados.length === 0) {
