@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal } from './Modal';
-import { AlertTriangle, LogOut, Trash2, XCircle } from 'lucide-react';
+import { AlertTriangle, LogOut, Trash2, XCircle, Info } from 'lucide-react';
 
 type ConfirmVariant = 'danger' | 'warning' | 'info';
 
@@ -13,7 +13,7 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   variant?: ConfirmVariant;
-  icon?: 'exit' | 'delete' | 'warning' | 'error';
+  icon?: 'exit' | 'delete' | 'warning' | 'error' | 'info';
   isLoading?: boolean;
 }
 
@@ -46,6 +46,7 @@ const icons = {
   delete: Trash2,
   warning: AlertTriangle,
   error: XCircle,
+  info: Info,
 };
 
 /**

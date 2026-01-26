@@ -152,6 +152,7 @@ export default function PracticePage() {
 
   // UI state
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showNoQuestionsModal, setShowNoQuestionsModal] = useState(false);
   const [deleteNotebookConfirm, setDeleteNotebookConfirm] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1024,6 +1025,14 @@ export default function PracticePage() {
     addToast(type, message);
   };
 
+  const handleStartPracticeClick = () => {
+    if (filteredCount === 0) {
+      setShowNoQuestionsModal(true);
+    } else {
+      startPractice();
+    }
+  };
+
   const currentQuestion = questions[currentIndex];
 
   // ==========================================
@@ -1487,9 +1496,13 @@ export default function PracticePage() {
                     </Button>
                     <Button
                       size="lg"
-                      onClick={() => startPractice()}
-                      disabled={isLoading || isLoadingFilters || filteredCount === 0}
-                      className="flex-1 sm:flex-[2] whitespace-nowrap bg-gradient-to-r from-[#ffac00] to-[#e69b00] text-black font-extrabold hover:shadow-lg hover:shadow-[#ffac00]/20 transition-all transform hover:scale-[1.02]"
+                      onClick={handleStartPracticeClick}
+                      disabled={isLoading || isLoadingFilters}
+                      className={`flex-1 sm:flex-[2] whitespace-nowrap font-extrabold transition-all transform hover:scale-[1.02] ${
+                        filteredCount === 0
+                          ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-gray-700 cursor-pointer'
+                          : 'bg-gradient-to-r from-[#ffac00] to-[#e69b00] text-black hover:shadow-lg hover:shadow-[#ffac00]/20'
+                      }`}
                       rightIcon={<Play size={20} fill="currentColor" />}
                     >
                       INICIAR PRÁTICA
@@ -1555,6 +1568,21 @@ export default function PracticePage() {
         cancelText="Cancelar"
         variant="danger"
         icon="delete"
+      />
+
+      <ConfirmModal
+        isOpen={showNoQuestionsModal}
+        onClose={() => setShowNoQuestionsModal(false)}
+        onConfirm={() => {
+          setShowNoQuestionsModal(false);
+          clearFilters();
+        }}
+        title="Nenhuma questão encontrada"
+        message={`Para os filtros selecionados, não encontramos nenhuma questão disponível.\n\nTente remover alguns filtros para ampliar a busca. Você pode acompanhar a quantidade de questões disponíveis no campo "Disponíveis" enquanto ajusta os filtros.`}
+        confirmText="Limpar Filtros"
+        cancelText="Ajustar Filtros"
+        variant="warning"
+        icon="info"
       />
 
       {trailPreparatorioId && (
