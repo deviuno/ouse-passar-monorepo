@@ -71,6 +71,32 @@ const DEFAULT_SETTINGS: PomodoroSettings = {
 };
 
 // ============================================================================
+// AUDIO CONTEXT (singleton for browser autoplay policy compliance)
+// ============================================================================
+
+let audioContext: AudioContext | null = null;
+
+const getAudioContext = (): AudioContext | null => {
+  if (!audioContext) {
+    try {
+      audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    } catch (e) {
+      console.warn('[StudyTimer] Could not create AudioContext:', e);
+      return null;
+    }
+  }
+  return audioContext;
+};
+
+// Must be called during user interaction (e.g., clicking start button)
+const initializeAudioContext = () => {
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume().catch(console.warn);
+  }
+};
+
+// ============================================================================
 // HELPERS
 // ============================================================================
 
@@ -106,24 +132,31 @@ const getNextPhase = (
   return 'study';
 };
 
-const playNotificationSound = () => {
+const playNotificationSound = async () => {
   try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    // Resume if suspended (fallback)
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
     // Create a simple beep using Web Audio API
-    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
 
     oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    gainNode.connect(ctx.destination);
 
     oscillator.frequency.value = 800;
     oscillator.type = 'sine';
 
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
 
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.5);
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.5);
   } catch (e) {
     console.warn('[StudyTimer] Could not play notification sound:', e);
   }
@@ -169,6 +202,11 @@ export const useStudyTimerStore = create<StudyTimerState>()(
       start: () => {
         const state = get();
 
+        // Initialize AudioContext on user interaction (required by browser autoplay policy)
+        if (state.settings.soundEnabled) {
+          initializeAudioContext();
+        }
+
         // Request notification permission on first start
         if (state.settings.notificationsEnabled) {
           requestNotificationPermission();
@@ -196,6 +234,13 @@ export const useStudyTimerStore = create<StudyTimerState>()(
 
       // Resume from pause
       resume: () => {
+        const state = get();
+
+        // Re-initialize AudioContext on user interaction (browser may have suspended it)
+        if (state.settings.soundEnabled) {
+          initializeAudioContext();
+        }
+
         set({ isPaused: false, isRunning: true });
         get()._startInterval();
       },
