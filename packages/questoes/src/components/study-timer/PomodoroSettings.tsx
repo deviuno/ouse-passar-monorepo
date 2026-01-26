@@ -24,10 +24,36 @@ export const PomodoroSettings: React.FC<PomodoroSettingsProps> = ({
     setLocalSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  const incrementMinutes = (key: 'studyDuration' | 'breakDuration' | 'longBreakDuration', delta: number) => {
-    const current = localSettings[key];
-    const newValue = Math.max(60, Math.min(3600, current + delta * 60)); // Min 1 min, max 60 min
-    updateSetting(key, newValue);
+  // Incremento para campos que avançam de 1 em 1 (Intervalo Curto)
+  const incrementByOne = (key: 'breakDuration', delta: number) => {
+    const currentMinutes = Math.floor(localSettings[key] / 60);
+    const newMinutes = Math.max(1, Math.min(60, currentMinutes + delta));
+    updateSetting(key, newMinutes * 60);
+  };
+
+  // Incremento para campos que avançam em múltiplos de 5 (Tempo de Estudo, Intervalo Longo)
+  // Sequência: 1, 5, 10, 15, 20, 25, 30...
+  const incrementByFive = (key: 'studyDuration' | 'longBreakDuration', direction: 'up' | 'down') => {
+    const currentMinutes = Math.floor(localSettings[key] / 60);
+    let newMinutes: number;
+
+    if (direction === 'up') {
+      if (currentMinutes < 5) {
+        newMinutes = 5;
+      } else {
+        newMinutes = Math.ceil(currentMinutes / 5) * 5 + 5;
+      }
+    } else {
+      if (currentMinutes <= 5) {
+        newMinutes = 1;
+      } else {
+        newMinutes = Math.floor((currentMinutes - 1) / 5) * 5;
+        if (newMinutes < 5) newMinutes = 1;
+      }
+    }
+
+    newMinutes = Math.max(1, Math.min(60, newMinutes));
+    updateSetting(key, newMinutes * 60);
   };
 
   const formatMinutes = (seconds: number) => Math.floor(seconds / 60);
@@ -45,7 +71,7 @@ export const PomodoroSettings: React.FC<PomodoroSettingsProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)]">
           <h2 className="text-lg font-semibold text-[var(--color-text-main)]">
-            Configuracoes Pomodoro
+            Configurações Pomodoro
           </h2>
           <button
             onClick={onClose}
@@ -64,7 +90,7 @@ export const PomodoroSettings: React.FC<PomodoroSettingsProps> = ({
             </label>
             <div className="flex items-center justify-between bg-[var(--color-bg-elevated)] rounded-lg px-4 py-3">
               <button
-                onClick={() => incrementMinutes('studyDuration', -5)}
+                onClick={() => incrementByFive('studyDuration', 'down')}
                 className="p-1.5 rounded-full hover:bg-[var(--color-border)] text-[var(--color-text-muted)] transition-colors"
               >
                 <Minus className="w-4 h-4" />
@@ -73,7 +99,7 @@ export const PomodoroSettings: React.FC<PomodoroSettingsProps> = ({
                 {formatMinutes(localSettings.studyDuration)} min
               </span>
               <button
-                onClick={() => incrementMinutes('studyDuration', 5)}
+                onClick={() => incrementByFive('studyDuration', 'up')}
                 className="p-1.5 rounded-full hover:bg-[var(--color-border)] text-[var(--color-text-muted)] transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -88,7 +114,7 @@ export const PomodoroSettings: React.FC<PomodoroSettingsProps> = ({
             </label>
             <div className="flex items-center justify-between bg-[var(--color-bg-elevated)] rounded-lg px-4 py-3">
               <button
-                onClick={() => incrementMinutes('breakDuration', -1)}
+                onClick={() => incrementByOne('breakDuration', -1)}
                 className="p-1.5 rounded-full hover:bg-[var(--color-border)] text-[var(--color-text-muted)] transition-colors"
               >
                 <Minus className="w-4 h-4" />
@@ -97,7 +123,7 @@ export const PomodoroSettings: React.FC<PomodoroSettingsProps> = ({
                 {formatMinutes(localSettings.breakDuration)} min
               </span>
               <button
-                onClick={() => incrementMinutes('breakDuration', 1)}
+                onClick={() => incrementByOne('breakDuration', 1)}
                 className="p-1.5 rounded-full hover:bg-[var(--color-border)] text-[var(--color-text-muted)] transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -112,7 +138,7 @@ export const PomodoroSettings: React.FC<PomodoroSettingsProps> = ({
             </label>
             <div className="flex items-center justify-between bg-[var(--color-bg-elevated)] rounded-lg px-4 py-3">
               <button
-                onClick={() => incrementMinutes('longBreakDuration', -5)}
+                onClick={() => incrementByFive('longBreakDuration', 'down')}
                 className="p-1.5 rounded-full hover:bg-[var(--color-border)] text-[var(--color-text-muted)] transition-colors"
               >
                 <Minus className="w-4 h-4" />
@@ -121,7 +147,7 @@ export const PomodoroSettings: React.FC<PomodoroSettingsProps> = ({
                 {formatMinutes(localSettings.longBreakDuration)} min
               </span>
               <button
-                onClick={() => incrementMinutes('longBreakDuration', 5)}
+                onClick={() => incrementByFive('longBreakDuration', 'up')}
                 className="p-1.5 rounded-full hover:bg-[var(--color-border)] text-[var(--color-text-muted)] transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -132,7 +158,7 @@ export const PomodoroSettings: React.FC<PomodoroSettingsProps> = ({
           {/* Sessions until long break */}
           <div>
             <label className="block text-sm text-[var(--color-text-muted)] mb-2">
-              Sessoes ate intervalo longo
+              Sessões até intervalo longo
             </label>
             <div className="flex items-center justify-between bg-[var(--color-bg-elevated)] rounded-lg px-4 py-3">
               <button
@@ -195,7 +221,7 @@ export const PomodoroSettings: React.FC<PomodoroSettingsProps> = ({
                   <BellOff className="w-5 h-5 text-[var(--color-text-muted)]" />
                 )}
                 <span className="text-sm text-[var(--color-text-main)]">
-                  Notificacao no navegador
+                  Notificação no navegador
                 </span>
               </div>
               <div

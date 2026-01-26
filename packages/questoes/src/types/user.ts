@@ -86,7 +86,7 @@ export interface UserStats {
   totalAnswered: number;
   coins: number;
   avatarId?: string;
-  lastPracticeDate?: string; // YYYY-MM-DD format for streak calculation
+  lastPracticeDate?: string | null; // YYYY-MM-DD format for streak calculation
 }
 
 export interface WeeklyRankingUser {

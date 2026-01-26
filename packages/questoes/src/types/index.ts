@@ -156,6 +156,7 @@ export interface UserStats {
   totalAnswered: number;
   coins: number;
   avatarId?: string;
+  lastPracticeDate?: string | null;
 }
 
 // Simulados
