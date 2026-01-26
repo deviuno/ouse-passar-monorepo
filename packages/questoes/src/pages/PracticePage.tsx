@@ -1114,9 +1114,20 @@ export default function PracticePage() {
                       <span className="truncate">Salvar Caderno</span>
                     </button>
                     <button
-                      onClick={() => { setShowPracticingFilters(false); startPractice(); }}
-                      disabled={isLoading || filteredCount === 0}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-[#ffac00] text-black font-bold rounded-xl hover:bg-[#ffbc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm lg:text-base lg:px-6"
+                      onClick={() => {
+                        if (filteredCount === 0) {
+                          setShowNoQuestionsModal(true);
+                        } else {
+                          setShowPracticingFilters(false);
+                          startPractice();
+                        }
+                      }}
+                      disabled={isLoading}
+                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-3 font-bold rounded-xl transition-colors whitespace-nowrap text-sm lg:text-base lg:px-6 ${
+                        filteredCount === 0
+                          ? 'bg-gray-400 text-gray-600 cursor-pointer'
+                          : 'bg-[#ffac00] text-black hover:bg-[#ffbc33]'
+                      } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {isLoading ? (
                         <><Loader2 size={16} className="animate-spin flex-shrink-0" /><span className="truncate">Carregando...</span></>
