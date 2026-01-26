@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal } from './Modal';
 import { AlertTriangle, LogOut, Trash2, XCircle, Info } from 'lucide-react';
 
-type ConfirmVariant = 'danger' | 'warning' | 'info';
+type ConfirmVariant = 'danger' | 'warning' | 'info' | 'primary';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -17,20 +17,22 @@ interface ConfirmModalProps {
   isLoading?: boolean;
 }
 
-const variantStyles: Record<ConfirmVariant, { bg: string; border: string; text: string; btnBg: string; btnHover: string }> = {
+const variantStyles: Record<ConfirmVariant, { bg: string; border: string; text: string; btnBg: string; btnHover: string; btnText: string }> = {
   danger: {
     bg: 'bg-red-500/10',
     border: 'border-red-500/30',
     text: 'text-red-400',
     btnBg: 'bg-red-500',
     btnHover: 'hover:bg-red-600',
+    btnText: 'text-white',
   },
   warning: {
-    bg: 'bg-orange-500/10',
-    border: 'border-orange-500/30',
-    text: 'text-orange-400',
-    btnBg: 'bg-orange-500',
-    btnHover: 'hover:bg-orange-600',
+    bg: 'bg-[#FFB800]/10',
+    border: 'border-[#FFB800]/30',
+    text: 'text-[#FFB800]',
+    btnBg: 'bg-[#FFB800]',
+    btnHover: 'hover:bg-[#FFC933]',
+    btnText: 'text-black',
   },
   info: {
     bg: 'bg-blue-500/10',
@@ -38,6 +40,15 @@ const variantStyles: Record<ConfirmVariant, { bg: string; border: string; text: 
     text: 'text-blue-400',
     btnBg: 'bg-blue-500',
     btnHover: 'hover:bg-blue-600',
+    btnText: 'text-white',
+  },
+  primary: {
+    bg: 'bg-[#FFB800]/10',
+    border: 'border-[#FFB800]/30',
+    text: 'text-[#FFB800]',
+    btnBg: 'bg-[#FFB800]',
+    btnHover: 'hover:bg-[#FFC933]',
+    btnText: 'text-black',
   },
 };
 
@@ -109,7 +120,7 @@ export function ConfirmModal({
           <button
             onClick={handleConfirm}
             disabled={isLoading}
-            className={`flex-1 py-3 ${styles.btnBg} text-white rounded-xl font-semibold ${styles.btnHover} transition-colors disabled:opacity-50`}
+            className={`flex-1 py-3 ${styles.btnBg} ${styles.btnText} rounded-xl font-semibold ${styles.btnHover} transition-colors disabled:opacity-50`}
           >
             {isLoading ? 'Aguarde...' : confirmText}
           </button>

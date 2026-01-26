@@ -1113,7 +1113,7 @@ export default function PracticePage() {
                       <Save size={16} className="lg:w-[18px] lg:h-[18px] flex-shrink-0" />
                       <span className="truncate">Salvar Caderno</span>
                     </button>
-                    <button
+                    <div
                       onClick={() => {
                         if (isLoading) return;
                         if (filteredCount === 0) {
@@ -1123,20 +1123,25 @@ export default function PracticePage() {
                           startPractice();
                         }
                       }}
-                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-3 font-bold rounded-xl transition-colors whitespace-nowrap text-sm lg:text-base lg:px-6 bg-[#ffac00] text-black ${
-                        isLoading
-                          ? 'opacity-50 cursor-not-allowed'
-                          : filteredCount === 0
-                            ? 'opacity-50 cursor-pointer hover:opacity-60'
-                            : 'hover:bg-[#ffbc33]'
-                      }`}
+                      className="flex-1 cursor-pointer"
                     >
-                      {isLoading ? (
-                        <><Loader2 size={16} className="animate-spin flex-shrink-0" /><span className="truncate">Carregando...</span></>
-                      ) : (
-                        <><Play size={16} className="lg:w-[18px] lg:h-[18px] flex-shrink-0" /><span className="truncate">Iniciar Treino</span></>
-                      )}
-                    </button>
+                      <button
+                        type="button"
+                        className={`w-full flex items-center justify-center gap-2 px-3 py-3 font-bold rounded-xl transition-colors whitespace-nowrap text-sm lg:text-base lg:px-6 bg-[#ffac00] text-black ${
+                          isLoading
+                            ? 'opacity-50 cursor-not-allowed'
+                            : filteredCount === 0
+                              ? 'opacity-50 cursor-pointer hover:opacity-60'
+                              : 'hover:bg-[#ffbc33]'
+                        }`}
+                      >
+                        {isLoading ? (
+                          <><Loader2 size={16} className="animate-spin flex-shrink-0" /><span className="truncate">Carregando...</span></>
+                        ) : (
+                          <><Play size={16} className="lg:w-[18px] lg:h-[18px] flex-shrink-0" /><span className="truncate">Iniciar Treino</span></>
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <button
                     onClick={() => setShowPracticingFilters(false)}
@@ -1244,6 +1249,21 @@ export default function PracticePage() {
           currentMinutes={profile?.simulado_timer_minutes || 120}
           onSave={handleSaveTimer}
           isSaving={isSavingTimer}
+        />
+
+        <ConfirmModal
+          isOpen={showNoQuestionsModal}
+          onClose={() => setShowNoQuestionsModal(false)}
+          onConfirm={() => {
+            setShowNoQuestionsModal(false);
+            clearFilters();
+          }}
+          title="Nenhuma questão encontrada"
+          message={`Para os filtros selecionados, não encontramos nenhuma questão disponível.\n\nTente remover alguns filtros para ampliar a busca. Você pode acompanhar a quantidade de questões disponíveis no campo "Disponíveis" enquanto ajusta os filtros.`}
+          confirmText="Limpar Filtros"
+          cancelText="Ajustar Filtros"
+          variant="warning"
+          icon="info"
         />
       </div>
     );
@@ -1507,22 +1527,28 @@ export default function PracticePage() {
                     <Button variant="secondary" size="lg" onClick={() => setShowSaveNotebookModal(true)} className="flex-1 whitespace-nowrap" leftIcon={<Save size={18} />}>
                       Salvar como Caderno
                     </Button>
-                    <button
+                    <div
                       onClick={() => {
                         if (isLoading || isLoadingFilters) return;
-                        handleStartPracticeClick();
+                        if (filteredCount === 0) {
+                          setShowNoQuestionsModal(true);
+                        } else {
+                          startPractice();
+                        }
                       }}
-                      className={`flex-1 sm:flex-[2] px-6 py-3.5 text-lg rounded-xl whitespace-nowrap font-extrabold transition-all transform inline-flex items-center justify-center gap-2 bg-gradient-to-r from-[#ffac00] to-[#e69b00] text-black ${
-                        isLoading || isLoadingFilters
-                          ? 'opacity-50 cursor-not-allowed'
-                          : filteredCount === 0
-                            ? 'opacity-50 cursor-pointer hover:opacity-60'
-                            : 'hover:shadow-lg hover:shadow-[#ffac00]/20 hover:scale-[1.02]'
-                      }`}
+                      className="flex-1 sm:flex-[2] cursor-pointer"
                     >
-                      INICIAR PRÁTICA
-                      <Play size={20} fill="currentColor" />
-                    </button>
+                      <Button
+                        size="lg"
+                        disabled={isLoading || isLoadingFilters}
+                        className={`w-full whitespace-nowrap bg-gradient-to-r from-[#ffac00] to-[#e69b00] text-black font-extrabold hover:shadow-lg hover:shadow-[#ffac00]/20 transition-all transform hover:scale-[1.02] ${
+                          filteredCount === 0 && !isLoading && !isLoadingFilters ? '!opacity-50' : ''
+                        }`}
+                        rightIcon={<Play size={20} fill="currentColor" />}
+                      >
+                        INICIAR PRÁTICA
+                      </Button>
+                    </div>
                   </>
                 )}
               </div>
