@@ -158,20 +158,6 @@ export const Users: React.FC = () => {
             // Carregar admin_users
             const adminUsers = await adminUsersService.getAll();
 
-            // Converter admin_users para ListItem
-            const adminListItems: ListItem[] = adminUsers.map(user => ({
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                type: 'admin_user' as const,
-                role: user.role,
-                is_active: user.is_active ?? true,
-                last_login: user.last_login,
-                avatar_url: user.avatar_url,
-                genero: user.genero,
-                created_at: user.created_at
-            }));
-
             // Carregar promotional_trials
             const { data: trials, error: trialsError } = await (supabase as any)
                 .from('promotional_trials')
@@ -181,6 +167,36 @@ export const Users: React.FC = () => {
             if (trialsError) {
                 console.error('Erro ao carregar testes grátis:', trialsError);
             }
+
+            // Criar set de emails que têm trial ativo (não expirado)
+            // Usuários com trial ativo NÃO devem aparecer como "cliente" na lista admin_users
+            const now = new Date();
+            const trialEmails = new Set(
+                (trials || [])
+                    .filter((trial: PromotionalTrial) => {
+                        // Trial ativo: não expirou ainda
+                        if (!trial.expires_at) return true; // Ainda não foi resgatado
+                        return new Date(trial.expires_at) > now;
+                    })
+                    .map((trial: PromotionalTrial) => trial.email.toLowerCase())
+            );
+
+            // Converter admin_users para ListItem
+            // IMPORTANTE: Excluir usuários que têm trial ativo (eles aparecem na lista de trials)
+            const adminListItems: ListItem[] = adminUsers
+                .filter(user => !trialEmails.has(user.email.toLowerCase()))
+                .map(user => ({
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    type: 'admin_user' as const,
+                    role: user.role,
+                    is_active: user.is_active ?? true,
+                    last_login: user.last_login,
+                    avatar_url: user.avatar_url,
+                    genero: user.genero,
+                    created_at: user.created_at
+                }));
 
             // Converter trials para ListItem
             const trialListItems: ListItem[] = (trials || []).map((trial: PromotionalTrial) => ({
