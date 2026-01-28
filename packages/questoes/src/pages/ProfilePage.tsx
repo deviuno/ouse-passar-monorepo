@@ -9,15 +9,9 @@ import {
   LogOut,
   ChevronRight,
   Edit2,
-  Camera,
   Award,
   Flame,
   Target,
-  Copy,
-  Check,
-  Users,
-  Gift,
-  DollarSign,
   Sun,
   Moon,
 } from 'lucide-react';
@@ -25,14 +19,6 @@ import { Card, Button, Modal, Progress, CircularProgress } from '../components/u
 import { useAuthStore, useUserStore } from '../stores';
 import { calculateXPProgress, calculateLevel } from '../constants/levelConfig';
 import { getOptimizedImageUrl } from '../utils/image';
-import {
-  getReferralLink,
-  getUserReferralStats,
-  generateUsername,
-} from '../services/referralService';
-import type { ReferralStats, ReferralLinkInfo } from '../types/referral';
-import { RewardsModal } from '../components/referral/RewardsModal';
-import { ReferralsListModal } from '../components/referral/ReferralsListModal';
 import { useTheme } from '../contexts/ThemeContext';
 
 function StatCard({
@@ -91,60 +77,10 @@ export default function ProfilePage() {
   const { theme, toggleTheme } = useTheme();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [showRewardsModal, setShowRewardsModal] = useState(false);
-  const [showReferralsModal, setShowReferralsModal] = useState(false);
-  const [referralLink, setReferralLink] = useState<ReferralLinkInfo | null>(null);
-  const [referralStats, setReferralStats] = useState<ReferralStats | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [isGeneratingUsername, setIsGeneratingUsername] = useState(false);
-  const [referralLoaded, setReferralLoaded] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const xpProgress = calculateXPProgress(stats.xp);
   const level = calculateLevel(stats.xp);
-
-  // Carregar dados de indicação
-  useEffect(() => {
-    if (profile?.id) {
-      Promise.all([
-        getReferralLink(profile.id),
-        getUserReferralStats(profile.id),
-      ]).then(([link, stats]) => {
-        setReferralLink(link);
-        setReferralStats(stats);
-        setReferralLoaded(true);
-      });
-    }
-  }, [profile?.id]);
-
-  // Gerar username para usuário existente
-  const handleGenerateUsername = async () => {
-    if (!profile?.id || !profile?.name) return;
-
-    setIsGeneratingUsername(true);
-    try {
-      const username = await generateUsername(profile.name, profile.id);
-      if (username) {
-        const link = await getReferralLink(profile.id);
-        setReferralLink(link);
-      }
-    } catch (error) {
-      console.error('Erro ao gerar username:', error);
-    } finally {
-      setIsGeneratingUsername(false);
-    }
-  };
-
-  const handleCopyLink = async () => {
-    if (!referralLink?.referral_url) return;
-    try {
-      await navigator.clipboard.writeText(referralLink.referral_url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (e) {
-      console.error('Erro ao copiar:', e);
-    }
-  };
 
   const handleLogout = async () => {
     await logout();
@@ -289,111 +225,6 @@ export default function ProfilePage() {
         />
       </div>
 
-      {/* Referral Section */}
-      {referralLoaded && (
-        <Card className="mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-success)]/20 flex items-center justify-center">
-              <Users size={20} className="text-[var(--color-success)]" />
-            </div>
-            <div>
-              <h3 className="text-[var(--color-text-main)] font-semibold">Indique e Ganhe</h3>
-              <p className="text-[var(--color-text-muted)] text-xs">Convide amigos e ganhe recompensas</p>
-            </div>
-          </div>
-
-          {referralLink ? (
-            <>
-              {/* Link de Indicação */}
-              <div className="bg-[var(--color-bg-main)] rounded-xl p-3 mb-4">
-                <p className="text-[var(--color-text-muted)] text-xs mb-1">Seu link de indicação:</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-[var(--color-bg-elevated)] rounded-lg px-3 py-2 overflow-hidden">
-                    <p className="text-[var(--color-text-main)] text-sm truncate">{referralLink.referral_url}</p>
-                  </div>
-                  <button
-                    onClick={handleCopyLink}
-                    className={`p-2 rounded-lg transition-all ${copied
-                        ? 'bg-[var(--color-success)] text-white'
-                        : 'bg-[#ffac00] text-black hover:bg-[#ffbc33]'
-                      }`}
-                  >
-                    {copied ? <Check size={18} /> : <Copy size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Stats de Indicação */}
-              {referralStats && (
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="bg-[var(--color-bg-main)] rounded-xl p-3 text-center">
-                    <Users size={16} className="mx-auto mb-1 text-[var(--color-info)]" />
-                    <p className="text-[var(--color-text-main)] font-bold">{referralStats.total_referrals}</p>
-                    <p className="text-[var(--color-text-muted)] text-[10px]">Indicados</p>
-                  </div>
-                  <div className="bg-[var(--color-bg-main)] rounded-xl p-3 text-center">
-                    <Gift size={16} className="mx-auto mb-1 text-[#9B59B6]" />
-                    <p className="text-[var(--color-text-main)] font-bold">{referralStats.available_points}</p>
-                    <p className="text-[var(--color-text-muted)] text-[10px]">Pontos</p>
-                  </div>
-                  <div className="bg-[var(--color-bg-main)] rounded-xl p-3 text-center">
-                    <DollarSign size={16} className="mx-auto mb-1 text-[var(--color-success)]" />
-                    <p className="text-[var(--color-text-main)] font-bold">
-                      R$ {(referralStats.total_commissions || 0).toFixed(0)}
-                    </p>
-                    <p className="text-[var(--color-text-muted)] text-[10px]">Comissões</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Botões de Ação */}
-              <div className="flex gap-2">
-                <Button
-                  fullWidth
-                  variant="secondary"
-                  onClick={() => setShowRewardsModal(true)}
-                >
-                  <Gift size={16} className="mr-2" />
-                  Recompensas
-                </Button>
-                <Button
-                  fullWidth
-                  variant="secondary"
-                  onClick={() => setShowReferralsModal(true)}
-                >
-                  <Users size={16} className="mr-2" />
-                  Indicados
-                </Button>
-              </div>
-            </>
-          ) : (
-            /* Usuário sem username - mostrar botão para ativar */
-            <div className="text-center">
-              <p className="text-[var(--color-text-sec)] text-sm mb-4">
-                Ative seu link de indicação para convidar amigos e ganhar recompensas!
-              </p>
-              <Button
-                fullWidth
-                onClick={handleGenerateUsername}
-                disabled={isGeneratingUsername}
-              >
-                {isGeneratingUsername ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin mr-2" />
-                    Ativando...
-                  </>
-                ) : (
-                  <>
-                    <Gift size={16} className="mr-2" />
-                    Ativar Link de Indicação
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-        </Card>
-      )}
-
       {/* Configurações - Toggle de Tema */}
       <Card className="mb-6">
         <div className="flex items-center justify-between">
@@ -493,27 +324,6 @@ export default function ProfilePage() {
         </div>
       </Modal>
 
-      {/* Rewards Modal */}
-      {profile?.id && (
-        <RewardsModal
-          isOpen={showRewardsModal}
-          onClose={() => setShowRewardsModal(false)}
-          userId={profile.id}
-        />
-      )}
-
-      {/* Referrals List Modal */}
-      {profile?.id && (
-        <ReferralsListModal
-          isOpen={showReferralsModal}
-          onClose={() => setShowReferralsModal(false)}
-          userId={profile.id}
-          onRequestWithdrawal={() => {
-            // TODO: Implementar solicitação de saque
-            alert('Funcionalidade de saque em breve!');
-          }}
-        />
-      )}
     </div>
   );
 }
