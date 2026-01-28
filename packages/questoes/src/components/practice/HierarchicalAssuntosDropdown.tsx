@@ -159,8 +159,10 @@ const TaxonomyNodeItem: React.FC<{
 }) => {
   const nodeId = `${node.materia}-${node.id}`;
   const isExpanded = expandedNodes.has(nodeId);
-  const hasChildren = node.filhos && node.filhos.length > 0;
+  const hasChildNodes = node.filhos && node.filhos.length > 0;
   const assuntosOriginais = node.assuntos_originais || [];
+  // Considera expandível se tem filhos OU se tem assuntos_originais
+  const hasChildren = hasChildNodes || assuntosOriginais.length > 0;
 
   // Calcular quantos assuntos estão selecionados neste nó e seus filhos
   const getAllAssuntos = (n: TaxonomyNode): string[] => {
@@ -256,40 +258,7 @@ const TaxonomyNodeItem: React.FC<{
         </span>
       </div>
 
-      {/* Mostrar assuntos originais que correspondem à busca (quando há busca ativa) */}
-      {searchTerm && assuntosOriginais.length > 0 && (
-        <div className="ml-8 border-l-2 border-[var(--color-border)]">
-          {assuntosOriginais
-            .filter(a => fuzzyMatch(searchTerm, a))
-            .map((assunto) => {
-              const isAssuntoSelected = selectedAssuntos.includes(assunto);
-              return (
-                <button
-                  key={assunto}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleAssunto(assunto);
-                  }}
-                  className={`w-full flex items-center gap-1.5 py-1 px-2 text-left text-xs transition-colors hover:bg-[var(--color-bg-elevated)] ${
-                    isAssuntoSelected ? 'bg-[var(--color-brand)]/10' : ''
-                  }`}
-                  style={{ paddingLeft: paddingLeft + 12 }}
-                >
-                  <div className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${
-                    isAssuntoSelected ? 'bg-[#ffac00] border-[#ffac00]' : 'border-[var(--color-border-strong)]'
-                  }`}>
-                    {isAssuntoSelected && <Check size={8} className="text-black" />}
-                  </div>
-                  <span className={`${isAssuntoSelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-sec)]'}`}>
-                    {assunto}
-                  </span>
-                </button>
-              );
-            })}
-        </div>
-      )}
-
-      {/* Filhos */}
+      {/* Filhos e Assuntos Originais */}
       <AnimatePresence>
         {isExpanded && hasChildren && (
           <motion.div
@@ -299,7 +268,8 @@ const TaxonomyNodeItem: React.FC<{
             transition={{ duration: 0.15 }}
             className="overflow-hidden"
           >
-            {node.filhos.map((filho) => (
+            {/* Renderizar nós filhos */}
+            {hasChildNodes && node.filhos.map((filho) => (
               <TaxonomyNodeItem
                 key={`${filho.materia}-${filho.id}`}
                 node={filho}
@@ -312,6 +282,39 @@ const TaxonomyNodeItem: React.FC<{
                 level={level + 1}
               />
             ))}
+
+            {/* Renderizar assuntos originais (quando não há filhos ou durante busca) */}
+            {assuntosOriginais.length > 0 && (
+              <div className={hasChildNodes ? "mt-1 pt-1 border-t border-[var(--color-border)]/50" : ""}>
+                {assuntosOriginais
+                  .filter(a => !searchTerm || fuzzyMatch(searchTerm, a))
+                  .map((assunto) => {
+                    const isAssuntoSelected = selectedAssuntos.includes(assunto);
+                    return (
+                      <button
+                        key={assunto}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleAssunto(assunto);
+                        }}
+                        className={`w-full flex items-center gap-1.5 py-1.5 px-2 text-left text-xs transition-colors hover:bg-[var(--color-bg-elevated)] ${
+                          isAssuntoSelected ? 'bg-[var(--color-brand)]/10' : ''
+                        }`}
+                        style={{ paddingLeft: paddingLeft + 20 }}
+                      >
+                        <div className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${
+                          isAssuntoSelected ? 'bg-[#ffac00] border-[#ffac00]' : 'border-[var(--color-border-strong)]'
+                        }`}>
+                          {isAssuntoSelected && <Check size={8} className="text-black" />}
+                        </div>
+                        <span className={`leading-tight ${isAssuntoSelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-sec)]'}`}>
+                          {assunto}
+                        </span>
+                      </button>
+                    );
+                  })}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
