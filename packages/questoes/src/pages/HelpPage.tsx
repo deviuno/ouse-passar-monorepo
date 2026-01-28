@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HelpCircle,
@@ -13,6 +14,7 @@ import {
   Sparkles,
   ExternalLink,
   Ticket,
+  Play,
 } from 'lucide-react';
 import { CreateTicketForm } from '../components/support/CreateTicketForm';
 
@@ -152,25 +154,46 @@ function TutorialAccordion({ tutorial }: { tutorial: TutorialSection }) {
 }
 
 export default function HelpPage() {
+  const navigate = useNavigate();
   const whatsappNumber = '5511989363790';
   const whatsappMessage = encodeURIComponent(
     'Olá! Preciso de ajuda com o Ouse Questões.'
   );
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
+  // Iniciar o tour guiado
+  const handleStartTour = () => {
+    // Limpa a flag de tour completo para permitir refazer
+    localStorage.removeItem('ousepassar_tour_completed');
+    // Define a flag para iniciar o tour
+    localStorage.setItem('ousepassar_start_tour', 'true');
+    // Navega para a home
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen bg-[var(--color-bg-main)] pb-24 md:pb-8">
       {/* Header */}
       <div className="bg-[var(--color-bg-card)] border-b border-[var(--color-border)] px-4 py-6 md:px-6">
         <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--color-brand)]/10 flex items-center justify-center">
-              <HelpCircle size={24} className="text-[var(--color-brand)]" />
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--color-brand)]/10 flex items-center justify-center">
+                <HelpCircle size={24} className="text-[var(--color-brand)]" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-[var(--color-text-main)]">Central de Ajuda</h1>
+                <p className="text-[var(--color-text-sec)] text-sm">Tire suas dúvidas sobre a plataforma</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-[var(--color-text-main)]">Central de Ajuda</h1>
-              <p className="text-[var(--color-text-sec)] text-sm">Tire suas dúvidas sobre a plataforma</p>
-            </div>
+            {/* Botão Tour Guiado */}
+            <button
+              onClick={handleStartTour}
+              className="flex items-center gap-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-black font-semibold px-4 py-2.5 rounded-xl transition-colors"
+            >
+              <Play size={18} />
+              <span className="hidden sm:inline">Tour Guiado</span>
+            </button>
           </div>
         </div>
       </div>
