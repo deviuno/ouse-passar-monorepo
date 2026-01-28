@@ -17,6 +17,7 @@ import {
   Play,
 } from 'lucide-react';
 import { CreateTicketForm } from '../components/support/CreateTicketForm';
+import { useUIStore } from '../stores';
 
 interface TutorialSection {
   id: string;
@@ -155,9 +156,9 @@ function TutorialAccordion({ tutorial }: { tutorial: TutorialSection }) {
 
 export default function HelpPage() {
   const navigate = useNavigate();
-  const whatsappNumber = '5511989363790';
+  const whatsappNumber = '5511998058119';
   const whatsappMessage = encodeURIComponent(
-    'Olá! Preciso de ajuda com o Ouse Questões.'
+    'Olá, preciso de ajuda com o App Ouse Questões'
   );
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
@@ -167,8 +168,14 @@ export default function HelpPage() {
     localStorage.removeItem('ousepassar_tour_completed');
     // Define a flag para iniciar o tour
     localStorage.setItem('ousepassar_start_tour', 'true');
+    // Atualiza o estado do store para permitir o tour
+    useUIStore.setState({ isTourCompleted: false });
     // Navega para a home
     navigate('/');
+    // Dispara o evento após um pequeno delay para garantir navegação
+    setTimeout(() => {
+      useUIStore.getState().startTour();
+    }, 600);
   };
 
   return (
