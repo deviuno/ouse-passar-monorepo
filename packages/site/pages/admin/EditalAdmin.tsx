@@ -65,7 +65,10 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
 }) => {
   const nodeId = `${node.materia}-${node.id}`;
   const isExpanded = expandedNodes.has(nodeId);
-  const hasChildren = node.filhos && node.filhos.length > 0;
+  const hasChildNodes = node.filhos && node.filhos.length > 0;
+  const assuntosOriginais = node.assuntos_originais || [];
+  // Considera expandível se tem filhos OU se tem assuntos_originais
+  const hasChildren = hasChildNodes || assuntosOriginais.length > 0;
 
   // Calcular todos os assuntos deste nó e filhos
   const getAllAssuntos = (n: TaxonomyNode): string[] => {
@@ -79,9 +82,13 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
   };
 
   const allNodeAssuntos = getAllAssuntos(node);
-  const selectedCount = allNodeAssuntos.filter(a => selectedAssuntos.includes(a)).length;
-  const isPartiallySelected = selectedCount > 0 && selectedCount < allNodeAssuntos.length;
-  const isFullySelected = selectedCount === allNodeAssuntos.length && allNodeAssuntos.length > 0;
+
+  // Se o nó não tem assuntos mapeados (nem ele nem seus filhos), usa o nome do nó como assunto
+  const selectableAssuntos = allNodeAssuntos.length > 0 ? allNodeAssuntos : [node.nome];
+
+  const selectedCount = selectableAssuntos.filter(a => selectedAssuntos.includes(a)).length;
+  const isPartiallySelected = selectedCount > 0 && selectedCount < selectableAssuntos.length;
+  const isFullySelected = selectedCount === selectableAssuntos.length && selectableAssuntos.length > 0;
 
   // Normalizar texto para busca
   const normalizeText = (text: string): string => {
@@ -101,9 +108,13 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
   if (!matchesSearch(node)) return null;
 
   const handleToggleNode = () => {
-    if (allNodeAssuntos.length > 0) {
-      onToggleMultiple(allNodeAssuntos, !isFullySelected);
-    }
+    onToggleMultiple(selectableAssuntos, !isFullySelected);
+  };
+
+  // Função para toggle de um assunto individual
+  const handleToggleAssunto = (assunto: string) => {
+    const isSelected = selectedAssuntos.includes(assunto);
+    onToggleMultiple([assunto], !isSelected);
   };
 
   const paddingLeft = 8 + level * 14;
@@ -114,6 +125,7 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
         className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors hover:bg-white/5 ${isFullySelected ? 'bg-brand-yellow/10' : ''
           }`}
         style={{ paddingLeft }}
+        onClick={handleToggleNode}
       >
         {/* Botão de expandir */}
         {hasChildren ? (
@@ -135,8 +147,7 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
         )}
 
         {/* Checkbox */}
-        <button
-          onClick={handleToggleNode}
+        <div
           className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${isFullySelected
               ? 'bg-brand-yellow border-brand-yellow'
               : isPartiallySelected
@@ -147,11 +158,10 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
           {(isFullySelected || isPartiallySelected) && (
             <Check size={8} className="text-black" />
           )}
-        </button>
+        </div>
 
         {/* Nome do nó */}
         <span
-          onClick={handleToggleNode}
           className={`flex-1 text-xs leading-tight ${isFullySelected ? 'text-brand-yellow' : 'text-gray-300'
             }`}
         >
@@ -159,17 +169,18 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
         </span>
 
         {/* Badge com contagem */}
-        {allNodeAssuntos.length > 0 && (
+        {selectableAssuntos.length > 0 && (
           <span className="text-[10px] text-gray-600 bg-white/5 px-1 py-0.5 rounded">
-            {selectedCount > 0 ? `${selectedCount}/` : ''}{allNodeAssuntos.length}
+            {selectedCount > 0 ? `${selectedCount}/` : ''}{selectableAssuntos.length}
           </span>
         )}
       </div>
 
-      {/* Filhos */}
+      {/* Filhos e Assuntos Originais */}
       {isExpanded && hasChildren && (
         <div>
-          {node.filhos.map((filho) => (
+          {/* Renderizar nós filhos */}
+          {hasChildNodes && node.filhos.map((filho) => (
             <TaxonomyTreeNode
               key={`${filho.materia}-${filho.id}`}
               node={filho}
@@ -181,6 +192,39 @@ const TaxonomyTreeNode: React.FC<TaxonomyTreeNodeProps> = ({
               level={level + 1}
             />
           ))}
+
+          {/* Renderizar assuntos originais (quando expandido) */}
+          {assuntosOriginais.length > 0 && (
+            <div className={hasChildNodes ? "mt-1 pt-1 border-t border-white/5" : ""}>
+              {assuntosOriginais
+                .filter(a => !searchTerm || normalizeText(a).includes(normalizeText(searchTerm)))
+                .map((assunto) => {
+                  const isAssuntoSelected = selectedAssuntos.includes(assunto);
+                  return (
+                    <button
+                      key={assunto}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleAssunto(assunto);
+                      }}
+                      className={`w-full flex items-center gap-1.5 py-1 px-2 text-left text-[10px] transition-colors hover:bg-white/5 ${
+                        isAssuntoSelected ? 'bg-brand-yellow/10' : ''
+                      }`}
+                      style={{ paddingLeft: paddingLeft + 18 }}
+                    >
+                      <div className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${
+                        isAssuntoSelected ? 'bg-brand-yellow border-brand-yellow' : 'border-gray-600'
+                      }`}>
+                        {isAssuntoSelected && <Check size={6} className="text-black" />}
+                      </div>
+                      <span className={`leading-tight break-words ${isAssuntoSelected ? 'text-brand-yellow' : 'text-gray-400'}`}>
+                        {assunto}
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -87,7 +87,10 @@ const TaxonomyNodeItem: React.FC<TaxonomyNodeItemProps> = ({
 }) => {
   const nodeId = `${node.materia}-${node.id}`;
   const isExpanded = expandedNodes.has(nodeId);
-  const hasChildren = node.filhos && node.filhos.length > 0;
+  const hasChildNodes = node.filhos && node.filhos.length > 0;
+  const assuntosOriginais = node.assuntos_originais || [];
+  // Considera expandível se tem filhos OU se tem assuntos_originais
+  const hasChildren = hasChildNodes || assuntosOriginais.length > 0;
 
   // Calcular todos os assuntos deste nó e filhos
   const getAllAssuntos = (n: TaxonomyNode): string[] => {
@@ -101,9 +104,13 @@ const TaxonomyNodeItem: React.FC<TaxonomyNodeItemProps> = ({
   };
 
   const allNodeAssuntos = getAllAssuntos(node);
-  const selectedCount = allNodeAssuntos.filter(a => selectedAssuntos.includes(a)).length;
-  const isPartiallySelected = selectedCount > 0 && selectedCount < allNodeAssuntos.length;
-  const isFullySelected = selectedCount === allNodeAssuntos.length && allNodeAssuntos.length > 0;
+
+  // Se o nó não tem assuntos mapeados (nem ele nem seus filhos), usa o nome do nó como assunto
+  const selectableAssuntos = allNodeAssuntos.length > 0 ? allNodeAssuntos : [node.nome];
+
+  const selectedCount = selectableAssuntos.filter(a => selectedAssuntos.includes(a)).length;
+  const isPartiallySelected = selectedCount > 0 && selectedCount < selectableAssuntos.length;
+  const isFullySelected = selectedCount === selectableAssuntos.length && selectableAssuntos.length > 0;
 
   // Verificar se corresponde à busca
   const matchesSearch = (n: TaxonomyNode): boolean => {
@@ -118,9 +125,13 @@ const TaxonomyNodeItem: React.FC<TaxonomyNodeItemProps> = ({
   if (!matchesSearch(node)) return null;
 
   const handleToggleNode = () => {
-    if (allNodeAssuntos.length > 0) {
-      onToggleMultiple(allNodeAssuntos, !isFullySelected);
-    }
+    onToggleMultiple(selectableAssuntos, !isFullySelected);
+  };
+
+  // Função para toggle de um assunto individual
+  const handleToggleAssunto = (assunto: string) => {
+    const isSelected = selectedAssuntos.includes(assunto);
+    onToggleMultiple([assunto], !isSelected);
   };
 
   const paddingLeft = 8 + level * 16;
@@ -132,6 +143,7 @@ const TaxonomyNodeItem: React.FC<TaxonomyNodeItemProps> = ({
           isFullySelected ? 'bg-brand-yellow/10' : ''
         }`}
         style={{ paddingLeft }}
+        onClick={handleToggleNode}
       >
         {/* Botão de expandir */}
         {hasChildren ? (
@@ -153,8 +165,7 @@ const TaxonomyNodeItem: React.FC<TaxonomyNodeItemProps> = ({
         )}
 
         {/* Checkbox */}
-        <button
-          onClick={handleToggleNode}
+        <div
           className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
             isFullySelected
               ? 'bg-brand-yellow border-brand-yellow'
@@ -166,11 +177,10 @@ const TaxonomyNodeItem: React.FC<TaxonomyNodeItemProps> = ({
           {(isFullySelected || isPartiallySelected) && (
             <Check className="w-3 h-3 text-black" />
           )}
-        </button>
+        </div>
 
         {/* Nome do nó */}
         <span
-          onClick={handleToggleNode}
           className={`flex-1 text-sm ${
             isFullySelected ? 'text-brand-yellow' : 'text-gray-300'
           }`}
@@ -179,17 +189,18 @@ const TaxonomyNodeItem: React.FC<TaxonomyNodeItemProps> = ({
         </span>
 
         {/* Badge com contagem */}
-        {allNodeAssuntos.length > 0 && (
+        {selectableAssuntos.length > 0 && (
           <span className="text-xs text-gray-600 bg-brand-dark px-1.5 py-0.5 rounded">
-            {selectedCount > 0 ? `${selectedCount}/` : ''}{allNodeAssuntos.length}
+            {selectedCount > 0 ? `${selectedCount}/` : ''}{selectableAssuntos.length}
           </span>
         )}
       </div>
 
-      {/* Filhos */}
+      {/* Filhos e Assuntos Originais */}
       {isExpanded && hasChildren && (
         <div>
-          {node.filhos.map((filho) => (
+          {/* Renderizar nós filhos */}
+          {hasChildNodes && node.filhos.map((filho) => (
             <TaxonomyNodeItem
               key={`${filho.materia}-${filho.id}`}
               node={filho}
@@ -201,6 +212,39 @@ const TaxonomyNodeItem: React.FC<TaxonomyNodeItemProps> = ({
               level={level + 1}
             />
           ))}
+
+          {/* Renderizar assuntos originais (quando expandido) */}
+          {assuntosOriginais.length > 0 && (
+            <div className={hasChildNodes ? "mt-1 pt-1 border-t border-white/5" : ""}>
+              {assuntosOriginais
+                .filter(a => !searchTerm || fuzzyMatch(searchTerm, a))
+                .map((assunto) => {
+                  const isAssuntoSelected = selectedAssuntos.includes(assunto);
+                  return (
+                    <button
+                      key={assunto}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleAssunto(assunto);
+                      }}
+                      className={`w-full flex items-center gap-2 py-1.5 px-2 text-left text-xs transition-colors hover:bg-white/5 ${
+                        isAssuntoSelected ? 'bg-brand-yellow/10' : ''
+                      }`}
+                      style={{ paddingLeft: paddingLeft + 20 }}
+                    >
+                      <div className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${
+                        isAssuntoSelected ? 'bg-brand-yellow border-brand-yellow' : 'border-gray-600'
+                      }`}>
+                        {isAssuntoSelected && <Check className="w-2 h-2 text-black" />}
+                      </div>
+                      <span className={`leading-tight break-words ${isAssuntoSelected ? 'text-brand-yellow' : 'text-gray-400'}`}>
+                        {assunto}
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
+          )}
         </div>
       )}
     </div>
