@@ -5,126 +5,225 @@ import {
   HelpCircle,
   MessageCircle,
   ChevronDown,
-  BookOpen,
+  ChevronRight,
   Target,
-  Zap,
   Trophy,
   BarChart3,
-  Flame,
   Sparkles,
   ExternalLink,
   Ticket,
   Play,
+  Battery,
+  User,
+  Rocket,
+  Shield,
 } from 'lucide-react';
 import { CreateTicketForm } from '../components/support/CreateTicketForm';
 import { useUIStore } from '../stores';
 
-interface TutorialSection {
+// Types
+interface HelpSection {
   id: string;
   icon: React.ElementType;
+  iconColor: string;
   title: string;
-  content: string[];
+  description: string;
+  items: HelpItem[];
 }
 
-const tutorials: TutorialSection[] = [
+interface HelpItem {
+  title: string;
+  content: string;
+  highlight?: string;
+}
+
+// Help content data
+const helpSections: HelpSection[] = [
   {
-    id: 'trilha',
-    icon: Target,
-    title: 'Como funciona a Trilha?',
-    content: [
-      'A trilha é seu caminho personalizado de estudos, organizada em rodadas e missões.',
-      'Cada rodada contém várias missões que você deve completar em ordem.',
-      'Complete uma missão para desbloquear a próxima. Algumas missões têm pré-requisitos.',
-      'Ao finalizar todas as missões de uma rodada, a próxima rodada é desbloqueada automaticamente.',
+    id: 'getting-started',
+    icon: Rocket,
+    iconColor: '#FFB800',
+    title: 'Primeiros Passos',
+    description: 'Como começar a usar o Ouse Questões',
+    items: [
+      {
+        title: 'O que é a Trilha?',
+        content: 'A Trilha é seu caminho personalizado de estudos. Ela organiza as questões em rodadas e missões, guiando você de forma progressiva pelo conteúdo.',
+      },
+      {
+        title: 'Como funciona uma Missão?',
+        content: 'Cada missão é um conjunto de questões sobre um tema específico. Comece lendo o conteúdo explicativo, depois responda as questões. Você precisa atingir 70% de aproveitamento para completar a missão.',
+        highlight: '70% para passar',
+      },
+      {
+        title: 'Modo Praticar',
+        content: 'Além da Trilha, você pode praticar questões avulsas. Escolha matérias, bancas e filtros para personalizar seu treino. Ideal para revisar conteúdos específicos.',
+      },
     ],
   },
   {
-    id: 'missoes',
-    icon: BookOpen,
-    title: 'O que são as Missões?',
-    content: [
-      'Missões são conjuntos de questões sobre um tema específico.',
-      'Cada missão começa com um conteúdo explicativo para você estudar.',
-      'Após ler o conteúdo, você responde as questões da missão.',
-      'Você precisa atingir 70% de aproveitamento para completar a missão com sucesso.',
-    ],
-  },
-  {
-    id: 'xp',
-    icon: Zap,
-    title: 'Como ganho XP e subo de nível?',
-    content: [
-      'Você ganha XP (pontos de experiência) ao responder questões corretamente.',
-      'Quanto mais questões você acerta, mais XP você ganha.',
-      'Ao acumular XP suficiente, você sobe de nível automaticamente.',
-      'Níveis mais altos desbloqueiam conquistas e mostram seu progresso.',
-    ],
-  },
-  {
-    id: 'ofensiva',
-    icon: Flame,
-    title: 'O que é a Ofensiva?',
-    content: [
-      'A ofensiva mostra quantos dias seguidos você estudou.',
-      'Estude pelo menos uma questão por dia para manter sua ofensiva.',
-      'Quanto maior sua ofensiva, mais disciplinado você está sendo!',
-      'Marcos especiais (7, 14, 30 dias) são celebrados com notificações.',
-    ],
-  },
-  {
-    id: 'estatisticas',
-    icon: BarChart3,
-    title: 'Como acompanho meu progresso?',
-    content: [
-      'Acesse a página de Estatísticas no menu lateral.',
-      'Veja seu desempenho por matéria e identifique pontos fracos.',
-      'Acompanhe sua evolução semanal com gráficos.',
-      'Compare seu desempenho com outros estudantes no ranking.',
-    ],
-  },
-  {
-    id: 'praticar',
-    icon: Sparkles,
-    title: 'Modo Praticar',
-    content: [
-      'O modo Praticar permite estudar questões avulsas fora da trilha.',
-      'Escolha matérias, bancas e dificuldade para personalizar seu treino.',
-      'Ideal para revisar conteúdos específicos ou treinar antes de provas.',
-      'As questões praticadas também contam para suas estatísticas.',
-    ],
-  },
-  {
-    id: 'conquistas',
+    id: 'gamification',
     icon: Trophy,
-    title: 'Conquistas e Recompensas',
-    content: [
-      'Complete desafios para desbloquear conquistas especiais.',
-      'Ganhe moedas ao completar missões e acertar questões.',
-      'Use suas moedas na loja para comprar itens e personalizações.',
-      'Acompanhe suas conquistas na página de Perfil.',
+    iconColor: '#FFD700',
+    title: 'Gamificação',
+    description: 'Entenda o sistema de recompensas',
+    items: [
+      {
+        title: 'XP e Níveis',
+        content: 'Você ganha XP (pontos de experiência) ao acertar questões. A cada 1.000 XP, você sobe de nível. Seu nível aparece no perfil e mostra seu progresso geral.',
+        highlight: '1.000 XP = 1 Nível',
+      },
+      {
+        title: 'Moedas',
+        content: 'Ganhe moedas ao completar missões e acertar questões. Use-as para desbloquear conquistas e itens especiais na plataforma.',
+      },
+      {
+        title: 'Conquistas',
+        content: 'Complete desafios para desbloquear conquistas especiais. Elas ficam visíveis no seu perfil e mostram suas realizações.',
+      },
+    ],
+  },
+  {
+    id: 'profile',
+    icon: User,
+    iconColor: '#3498DB',
+    title: 'Perfil e Estatísticas',
+    description: 'Os números que mostram seu progresso',
+    items: [
+      {
+        title: 'Questões Respondidas',
+        content: 'Total de questões que você já respondeu. Quanto mais praticar, melhor será sua preparação para o concurso.',
+      },
+      {
+        title: 'Taxa de Acertos',
+        content: 'Porcentagem de questões que você acertou. Busque manter acima de 70% para garantir uma boa preparação.',
+        highlight: 'Meta: acima de 70%',
+      },
+      {
+        title: 'Ofensiva (Streak)',
+        content: 'Mostra quantos dias seguidos você estudou. Mantenha sua ofensiva estudando pelo menos uma questão por dia. Marcos especiais são celebrados em 7, 14 e 30 dias.',
+        highlight: 'Estude todos os dias!',
+      },
+      {
+        title: 'Tempo Médio',
+        content: 'Tempo médio que você leva para responder cada questão. Ajuda a entender seu ritmo de estudo.',
+      },
+    ],
+  },
+  {
+    id: 'leagues',
+    icon: Shield,
+    iconColor: '#9B59B6',
+    title: 'Sistema de Ligas',
+    description: 'Compete com outros estudantes',
+    items: [
+      {
+        title: 'Como funcionam as Ligas?',
+        content: 'Você é classificado em uma liga baseada no seu desempenho semanal. Suba de liga ao ficar entre os melhores da sua liga atual.',
+      },
+      {
+        title: 'Liga Ferro 🔩',
+        content: 'Liga inicial. Todos começam aqui. Estude regularmente para subir!',
+      },
+      {
+        title: 'Liga Bronze 🥉',
+        content: 'Segundo nível. Você já demonstrou consistência nos estudos.',
+      },
+      {
+        title: 'Liga Prata 🥈',
+        content: 'Terceiro nível. Seus estudos estão dando resultado!',
+      },
+      {
+        title: 'Liga Ouro 🥇',
+        content: 'Quarto nível. Você está entre os dedicados!',
+      },
+      {
+        title: 'Liga Diamante 💎',
+        content: 'Nível máximo! Reservado para os estudantes mais dedicados.',
+      },
+    ],
+  },
+  {
+    id: 'battery',
+    icon: Battery,
+    iconColor: '#2ECC71',
+    title: 'Sistema de Bateria',
+    description: 'Sua energia diária de estudos',
+    items: [
+      {
+        title: 'O que é a Bateria?',
+        content: 'A bateria é sua energia diária para usar os recursos da plataforma. Cada ação consome uma quantidade de energia.',
+      },
+      {
+        title: 'Consumo por Ação',
+        content: 'Questão: -2 energia | Iniciar Missão: -5 energia | Chat com IA: -3 energia | Gerar Áudio: -5 energia | Gerar Podcast: -10 energia | Resumo IA: -5 energia',
+      },
+      {
+        title: 'Recarga da Bateria',
+        content: 'Sua bateria é recarregada automaticamente todo dia à meia-noite. Planeje seus estudos considerando sua energia disponível.',
+        highlight: 'Recarga à meia-noite',
+      },
+      {
+        title: 'Bateria Ilimitada',
+        content: 'Com o plano premium, você tem bateria ilimitada para estudar sem restrições, a qualquer hora do dia.',
+      },
+    ],
+  },
+  {
+    id: 'stats',
+    icon: BarChart3,
+    iconColor: '#E74C3C',
+    title: 'Página de Estatísticas',
+    description: 'Acompanhe sua evolução detalhada',
+    items: [
+      {
+        title: 'Mapa de Calor',
+        content: 'Mostra seu desempenho por matéria. Cores mais escuras indicam mais acertos. Identifique rapidamente seus pontos fortes e fracos.',
+      },
+      {
+        title: 'Gráfico de Evolução',
+        content: 'Visualize seu progresso ao longo do tempo. Veja quantas questões você respondeu e sua taxa de acerto por dia.',
+      },
+      {
+        title: 'Ranking Semanal',
+        content: 'Compare seu desempenho com outros estudantes da mesma liga. Os melhores sobem de liga!',
+      },
+      {
+        title: 'Recomendações',
+        content: 'Receba sugestões personalizadas de estudo baseadas no seu desempenho. O sistema identifica onde você precisa focar.',
+      },
     ],
   },
 ];
 
-function TutorialAccordion({ tutorial }: { tutorial: TutorialSection }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const Icon = tutorial.icon;
+// Accordion Item Component
+function AccordionSection({ section, isOpen, onToggle }: {
+  section: HelpSection;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const Icon = section.icon;
 
   return (
-    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl overflow-hidden">
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden">
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-4 flex items-center justify-between hover:bg-[var(--color-bg-elevated)] transition-colors"
+        onClick={onToggle}
+        className="w-full p-4 flex items-center gap-4 hover:bg-[var(--color-bg-elevated)] transition-colors"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[var(--color-brand)]/10 flex items-center justify-center">
-            <Icon size={20} className="text-[var(--color-brand)]" />
-          </div>
-          <span className="text-[var(--color-text-main)] font-medium text-left">{tutorial.title}</span>
+        <div
+          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `${section.iconColor}15` }}
+        >
+          <Icon size={24} style={{ color: section.iconColor }} />
+        </div>
+        <div className="flex-1 text-left">
+          <h3 className="text-[var(--color-text-main)] font-semibold">{section.title}</h3>
+          <p className="text-[var(--color-text-muted)] text-sm">{section.description}</p>
         </div>
         <motion.div
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
+          className="flex-shrink-0"
         >
           <ChevronDown size={20} className="text-[var(--color-text-muted)]" />
         </motion.div>
@@ -138,14 +237,28 @@ function TutorialAccordion({ tutorial }: { tutorial: TutorialSection }) {
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="px-4 pb-4 pt-0">
-              <div className="pl-[52px] space-y-2">
-                {tutorial.content.map((paragraph, index) => (
-                  <p key={index} className="text-[var(--color-text-sec)] text-sm leading-relaxed">
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
+            <div className="px-4 pb-4 space-y-3">
+              {section.items.map((item, index) => (
+                <div
+                  key={index}
+                  className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-[var(--color-brand)]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-[var(--color-brand)] text-xs font-bold">{index + 1}</span>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-[var(--color-text-main)] font-medium mb-1">{item.title}</h4>
+                      <p className="text-[var(--color-text-sec)] text-sm leading-relaxed">{item.content}</p>
+                      {item.highlight && (
+                        <span className="inline-block mt-2 px-3 py-1 bg-[var(--color-brand)]/10 text-[var(--color-brand)] text-xs font-medium rounded-full">
+                          {item.highlight}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
@@ -154,25 +267,61 @@ function TutorialAccordion({ tutorial }: { tutorial: TutorialSection }) {
   );
 }
 
+// Quick Link Card Component
+function QuickLinkCard({ icon: Icon, title, description, onClick, color }: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  onClick: () => void;
+  color: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 text-left hover:border-[var(--color-border-strong)] transition-all group"
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `${color}15` }}
+        >
+          <Icon size={20} style={{ color }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="text-[var(--color-text-main)] font-medium group-hover:text-[var(--color-brand)] transition-colors">{title}</h4>
+          <p className="text-[var(--color-text-muted)] text-sm truncate">{description}</p>
+        </div>
+        <ChevronRight size={16} className="text-[var(--color-text-muted)] group-hover:text-[var(--color-brand)] transition-colors flex-shrink-0 mt-1" />
+      </div>
+    </button>
+  );
+}
+
 export default function HelpPage() {
   const navigate = useNavigate();
+  const [openSections, setOpenSections] = useState<string[]>(['getting-started']);
+  const [showTicketForm, setShowTicketForm] = useState(false);
+
   const whatsappNumber = '5511998058119';
   const whatsappMessage = encodeURIComponent(
     'Olá, preciso de ajuda com o App Ouse Questões'
   );
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
+  const toggleSection = (sectionId: string) => {
+    setOpenSections(prev =>
+      prev.includes(sectionId)
+        ? prev.filter(id => id !== sectionId)
+        : [...prev, sectionId]
+    );
+  };
+
   // Iniciar o tour guiado
   const handleStartTour = () => {
-    // Limpa a flag de tour completo para permitir refazer
     localStorage.removeItem('ousepassar_tour_completed');
-    // Define a flag para iniciar o tour
     localStorage.setItem('ousepassar_start_tour', 'true');
-    // Atualiza o estado do store para permitir o tour
     useUIStore.setState({ isTourCompleted: false });
-    // Navega para a home
     navigate('/');
-    // Dispara o evento após um pequeno delay para garantir navegação
     setTimeout(() => {
       useUIStore.getState().startTour();
     }, 600);
@@ -181,19 +330,18 @@ export default function HelpPage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg-main)] pb-24 md:pb-8">
       {/* Header */}
-      <div className="bg-[var(--color-bg-card)] border-b border-[var(--color-border)] px-4 py-6 md:px-6">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-[var(--color-brand)]/10 flex items-center justify-center">
-                <HelpCircle size={24} className="text-[var(--color-brand)]" />
+      <div className="bg-[var(--color-bg-card)] border-b border-[var(--color-border)]">
+        <div className="max-w-3xl mx-auto px-4 py-6 md:px-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-[var(--color-brand)]/10 flex items-center justify-center">
+                <HelpCircle size={28} className="text-[var(--color-brand)]" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-[var(--color-text-main)]">Central de Ajuda</h1>
-                <p className="text-[var(--color-text-sec)] text-sm">Tire suas dúvidas sobre a plataforma</p>
+                <p className="text-[var(--color-text-sec)] text-sm">Aprenda a usar todos os recursos</p>
               </div>
             </div>
-            {/* Botão Tour Guiado */}
             <button
               onClick={handleStartTour}
               className="flex items-center gap-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-black font-semibold px-4 py-2.5 rounded-xl transition-colors"
@@ -206,64 +354,137 @@ export default function HelpPage() {
       </div>
 
       {/* Content */}
-      <div className="px-4 md:px-6 max-w-2xl mx-auto pt-6">
-        {/* Tutorials Section */}
+      <div className="max-w-3xl mx-auto px-4 md:px-6 pt-6">
+        {/* Quick Links */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">Tutoriais</h2>
+          <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+            Acesso Rápido
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <QuickLinkCard
+              icon={Target}
+              title="Trilha de Estudos"
+              description="Sua jornada de aprendizado"
+              onClick={() => navigate('/trilha')}
+              color="#FFB800"
+            />
+            <QuickLinkCard
+              icon={Sparkles}
+              title="Praticar Questões"
+              description="Estude no seu ritmo"
+              onClick={() => navigate('/praticar')}
+              color="#9B59B6"
+            />
+            <QuickLinkCard
+              icon={BarChart3}
+              title="Estatísticas"
+              description="Seu desempenho detalhado"
+              onClick={() => navigate('/estatisticas')}
+              color="#3498DB"
+            />
+            <QuickLinkCard
+              icon={User}
+              title="Seu Perfil"
+              description="Configurações e progresso"
+              onClick={() => navigate('/perfil')}
+              color="#2ECC71"
+            />
+          </div>
+        </div>
+
+        {/* Tutorial Sections */}
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+            Tutoriais
+          </h2>
           <div className="space-y-3">
-            {tutorials.map((tutorial) => (
-              <TutorialAccordion key={tutorial.id} tutorial={tutorial} />
+            {helpSections.map((section) => (
+              <AccordionSection
+                key={section.id}
+                section={section}
+                isOpen={openSections.includes(section.id)}
+                onToggle={() => toggleSection(section.id)}
+              />
             ))}
           </div>
         </div>
 
-        {/* Ticket Section */}
+        {/* Support Section */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-brand)]/10 flex items-center justify-center">
-              <Ticket size={20} className="text-[var(--color-brand)]" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-[var(--color-text-main)]">Abrir um Ticket</h2>
-              <p className="text-[var(--color-text-muted)] text-sm">Envie sua dúvida ou problema para nossa equipe</p>
-            </div>
-          </div>
-          <CreateTicketForm />
-        </div>
+          <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+            Suporte
+          </h2>
 
-        {/* WhatsApp Contact */}
-        <div className="bg-[#25D366]/10 border border-[#25D366]/30 rounded-2xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#25D366] flex items-center justify-center flex-shrink-0">
-              <MessageCircle size={28} className="text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-[var(--color-text-main)] font-semibold text-lg mb-1">
-                Precisa de mais ajuda?
-              </h3>
-              <p className="text-[var(--color-text-sec)] text-sm mb-4">
-                Nossa equipe de suporte está pronta para te ajudar.
-                Fale conosco pelo WhatsApp!
-              </p>
-              <a
-                href={whatsappLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20BD5A]
-                  text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+          {/* Ticket Toggle */}
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden mb-3">
+            <button
+              onClick={() => setShowTicketForm(!showTicketForm)}
+              className="w-full p-4 flex items-center gap-4 hover:bg-[var(--color-bg-elevated)] transition-colors"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[var(--color-brand)]/10 flex items-center justify-center flex-shrink-0">
+                <Ticket size={24} className="text-[var(--color-brand)]" />
+              </div>
+              <div className="flex-1 text-left">
+                <h3 className="text-[var(--color-text-main)] font-semibold">Abrir um Ticket</h3>
+                <p className="text-[var(--color-text-muted)] text-sm">Envie sua dúvida ou problema</p>
+              </div>
+              <motion.div
+                animate={{ rotate: showTicketForm ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex-shrink-0"
               >
-                <MessageCircle size={20} />
-                Chamar no WhatsApp
-                <ExternalLink size={16} className="opacity-70" />
-              </a>
+                <ChevronDown size={20} className="text-[var(--color-text-muted)]" />
+              </motion.div>
+            </button>
+
+            <AnimatePresence>
+              {showTicketForm && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="px-4 pb-4">
+                    <CreateTicketForm />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* WhatsApp Contact */}
+          <div className="bg-[#25D366]/10 border border-[#25D366]/30 rounded-2xl p-5">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-[#25D366] flex items-center justify-center flex-shrink-0">
+                <MessageCircle size={24} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-[var(--color-text-main)] font-semibold mb-1">
+                  Precisa de ajuda?
+                </h3>
+                <p className="text-[var(--color-text-sec)] text-sm mb-3">
+                  Nossa equipe está pronta para te ajudar pelo WhatsApp!
+                </p>
+                <a
+                  href={whatsappLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20BD5A] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors"
+                >
+                  <MessageCircle size={18} />
+                  Chamar no WhatsApp
+                  <ExternalLink size={14} className="opacity-70" />
+                </a>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Contact Info */}
-        <div className="mt-6 text-center">
+        {/* Footer Info */}
+        <div className="text-center pb-6">
           <p className="text-[var(--color-text-muted)] text-sm">
-            Horário de atendimento: Segunda a Sexta, 9h às 18h
+            Atendimento: Segunda a Sexta, 9h às 18h
           </p>
         </div>
       </div>
