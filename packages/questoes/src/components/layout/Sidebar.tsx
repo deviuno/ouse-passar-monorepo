@@ -51,6 +51,7 @@ const MODULE_LABELS: Record<ModuleName, string> = {
   trilha: 'Minhas Trilhas',
   praticar: 'Ouse Questões',
   simulados: 'Meus Simulados',
+  cursos: 'Meus Cursos',
   estatisticas: 'Estatísticas',
   loja: 'Loja',
   music: 'Ouse Music',
@@ -133,6 +134,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
             onClick={() => navigate('/perfil')}
             className="relative group flex-shrink-0"
             title={isCollapsed ? `${profile?.name || 'Estudante'} - ${stats.xp} XP` : undefined}
+            data-tour="header-profile"
           >
             <CircularProgress
               value={xpProgress.percentage}
@@ -191,7 +193,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
                   />
                 </div>
               </div>
-              <p className="text-[var(--color-text-sec)] text-[11px] -mt-0.5">
+              <p className="text-[var(--color-text-sec)] text-[11px] -mt-0.5" data-tour="header-xp">
                 {stats.xp} XP
               </p>
             </div>
@@ -201,7 +203,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
         {/* Stats Row - Only show when expanded */}
         {!isCollapsed && (
           <div className="flex items-center justify-between mt-3 text-sm max-w-[170px]">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1" data-tour="header-streak">
               <span className="text-xl">🔥</span>
               <span className="text-[var(--color-text-main)] font-medium">{stats.streak}</span>
             </div>
@@ -218,7 +220,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
 
         {/* Battery Indicator - Only show when preparatório is selected */}
         {showBattery && !isCollapsed && (
-          <div className="mt-3">
+          <div className="mt-3" data-tour="header-battery">
             <BatteryIndicator
               current={batteryStatus.battery_current}
               max={batteryStatus.battery_max}

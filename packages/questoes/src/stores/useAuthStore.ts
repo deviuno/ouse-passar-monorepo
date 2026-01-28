@@ -8,6 +8,14 @@ import { sendWelcomeNotification } from '../services/notificationService';
 
 import { STORAGE_KEYS } from '../constants';
 
+interface PromotionalTrialResult {
+  has_trial: boolean;
+  trial_days?: number;
+  expires_at?: string;
+  campaign?: string;
+  message?: string;
+}
+
 interface AuthState {
   user: User | null;
   session: Session | null;
@@ -15,6 +23,7 @@ interface AuthState {
   onboarding: UserOnboarding | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  promotionalTrial: PromotionalTrialResult | null;
 
   // Actions
   setUser: (user: User | null) => void;
@@ -22,6 +31,8 @@ interface AuthState {
   setProfile: (profile: UserProfile | null) => void;
   setOnboarding: (onboarding: UserOnboarding | null) => void;
   setLoading: (loading: boolean) => void;
+  setPromotionalTrial: (trial: PromotionalTrialResult | null) => void;
+  clearPromotionalTrial: () => void;
 
   // Auth methods
   login: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -55,9 +66,12 @@ export const useAuthStore = create<AuthState>()(
       onboarding: null,
       isLoading: true,
       isAuthenticated: false,
+      promotionalTrial: null,
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setSession: (session) => set({ session }),
+      setPromotionalTrial: (trial) => set({ promotionalTrial: trial }),
+      clearPromotionalTrial: () => set({ promotionalTrial: null }),
       setProfile: (profile) => set({ profile }),
       setOnboarding: (onboarding) => set({ onboarding }),
       setLoading: (isLoading) => set({ isLoading }),
@@ -101,11 +115,21 @@ export const useAuthStore = create<AuthState>()(
               phone,
             });
 
+            // Verificar e resgatar trial promocional (se disponível)
+            const { data: trialResult } = await supabase.rpc('check_and_redeem_promotional_trial', {
+              p_user_id: data.user.id,
+              p_email: email.toLowerCase(),
+            });
+            if (trialResult?.has_trial) {
+              console.log('[Auth] Trial promocional resgatado:', trialResult);
+              set({ promotionalTrial: trialResult });
+            }
+
             // Criar registro de onboarding inicial
             // Usar INSERT com conflict handling
             const onboardingRecord = {
               user_id: data.user.id,
-              onboarding_step: 'concurso' as OnboardingStepName,
+              onboarding_step: 'nivel' as OnboardingStepName,
             };
 
             // Primeiro tentar buscar se já existe
@@ -119,7 +143,7 @@ export const useAuthStore = create<AuthState>()(
               // Já existe, fazer UPDATE
               const { data: updatedData, error: updateError } = await supabase
                 .from('user_onboarding')
-                .update({ onboarding_step: 'concurso' as OnboardingStepName })
+                .update({ onboarding_step: 'nivel' as OnboardingStepName })
                 .eq('user_id', data.user.id)
                 .select()
                 .single();
@@ -509,6 +533,24 @@ export const useAuthStore = create<AuthState>()(
             });
 
             if (session?.user) {
+              // Para novos logins (incluindo OAuth), verificar trial promocional
+              if (event === 'SIGNED_IN' && session.user.email) {
+                (async () => {
+                  try {
+                    const { data: trialResult } = await supabase.rpc('check_and_redeem_promotional_trial', {
+                      p_user_id: session.user.id,
+                      p_email: session.user.email!.toLowerCase(),
+                    });
+                    if (trialResult?.has_trial) {
+                      console.log('[Auth] Trial promocional resgatado (OAuth):', trialResult);
+                      set({ promotionalTrial: trialResult });
+                    }
+                  } catch (err) {
+                    console.warn('[Auth] Erro ao verificar trial:', err);
+                  }
+                })();
+              }
+
               // Carregar em paralelo, não sequencial
               Promise.all([get().fetchProfile(), get().fetchOnboarding()]).catch(
                 (err) => console.warn('Auth change fetch error:', err)
@@ -526,6 +568,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         // Only persist these fields
         isAuthenticated: state.isAuthenticated,
+        promotionalTrial: state.promotionalTrial,
       }),
     }
   )

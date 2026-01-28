@@ -13,6 +13,7 @@
     "@remix-run/router": "^1.21.0",
     "@supabase/supabase-js": "^2.84.0",
     "@tanstack/react-query": "^5.90.12",
+    "canvas-confetti": "^1.9.4",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.26",
     "jspdf": "^3.0.4",
@@ -20,6 +21,7 @@
     "mermaid": "^11.12.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-joyride": "^2.9.3",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^6.30.2",
     "recharts": "^3.5.1",
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

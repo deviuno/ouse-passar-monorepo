@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Plus, Edit2, Trash2, X, User, Shield, ShoppingBag, Calendar, ChevronRight, ChevronLeft, Camera, Loader2, Search, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, User, Shield, ShoppingBag, Calendar, ChevronRight, ChevronLeft, Camera, Loader2, Search, Filter, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
 import { Tables } from '../../lib/database.types';
@@ -8,12 +8,69 @@ import { useAuth } from '../../lib/AuthContext';
 import { vendedorScheduleService } from '../../services/schedulingService';
 import { SellerScheduleConfig } from '../../components/admin/SellerScheduleConfig';
 import { supabase } from '../../lib/supabase';
+import { useToast } from '../../components/ui/Toast';
+
+// Tipo para os tipos de usuário (incluindo teste grátis)
+type UserTypeOption = UserRole | 'free_trial';
+
+// Tipo para registros de teste grátis
+interface PromotionalTrial {
+    id: string;
+    email: string;
+    name: string | null;
+    trial_days: number;
+    campaign: string;
+    redeemed_at: string | null;
+    redeemed_by: string | null;
+    expires_at: string | null;
+    created_at: string;
+}
+
+// Tipo unificado para exibição na lista
+interface ListItem {
+    id: string;
+    email: string;
+    name: string;
+    type: 'admin_user' | 'free_trial';
+    role?: UserRole;
+    is_active?: boolean;
+    last_login?: string | null;
+    avatar_url?: string | null;
+    genero?: string | null;
+    // Campos específicos de teste grátis
+    trial_days?: number;
+    trial_redeemed?: boolean;
+    trial_expires_at?: string | null;
+    created_at?: string | null;
+}
+
+// Opções de período de teste grátis
+const TRIAL_PERIOD_OPTIONS = [
+    { value: 7, label: '7 dias' },
+    { value: 15, label: '15 dias' },
+    { value: 30, label: '1 mês' },
+    { value: 90, label: '3 meses' },
+    { value: 180, label: '6 meses' },
+    { value: 365, label: '1 ano' },
+];
+
+// Formatar período para exibição
+const formatTrialPeriod = (days: number) => {
+    if (days === 7) return '7 dias';
+    if (days === 15) return '15 dias';
+    if (days === 30) return '1 mês';
+    if (days === 90) return '3 meses';
+    if (days === 180) return '6 meses';
+    if (days === 365) return '1 ano';
+    return `${days} dias`;
+};
 
 export const Users: React.FC = () => {
     const { user: currentUser } = useAuth();
     const navigate = useNavigate();
-    const [users, setUsers] = useState<AdminUser[]>([]);
-    const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([]);
+    const toast = useToast();
+    const [users, setUsers] = useState<ListItem[]>([]);
+    const [filteredUsers, setFilteredUsers] = useState<ListItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Filters
@@ -21,7 +78,7 @@ export const Users: React.FC = () => {
     const [roleFilter, setRoleFilter] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+    const [editingUser, setEditingUser] = useState<ListItem | null>(null);
     const [modalStep, setModalStep] = useState<1 | 2>(1);
     const [createdUserId, setCreatedUserId] = useState<string | null>(null);
     const [vendedoresWithSchedule, setVendedoresWithSchedule] = useState<Set<string>>(new Set());
@@ -31,7 +88,9 @@ export const Users: React.FC = () => {
         email: '',
         password: '',
         role: 'cliente' as UserRole,
-        genero: 'feminino' as UserGender
+        genero: 'feminino' as UserGender,
+        userType: 'cliente' as UserTypeOption,
+        trialDays: 30 as number
     });
 
     // Avatar
@@ -40,10 +99,11 @@ export const Users: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Modal de confirmação de exclusão
-    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; userId: string | null; userName: string }>({
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; itemId: string | null; itemName: string; itemType: 'admin_user' | 'free_trial' | null }>({
         isOpen: false,
-        userId: null,
-        userName: ''
+        itemId: null,
+        itemName: '',
+        itemType: null
     });
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -58,21 +118,35 @@ export const Users: React.FC = () => {
         // Search Term (Name or Email)
         if (searchTerm) {
             const lowerTerm = searchTerm.toLowerCase();
-            result = result.filter(user =>
-                user.name.toLowerCase().includes(lowerTerm) ||
-                user.email.toLowerCase().includes(lowerTerm)
+            result = result.filter(item =>
+                item.name.toLowerCase().includes(lowerTerm) ||
+                item.email.toLowerCase().includes(lowerTerm)
             );
         }
 
         // Role Filter
         if (roleFilter !== 'all') {
-            result = result.filter(user => user.role === roleFilter);
+            if (roleFilter === 'free_trial') {
+                result = result.filter(item => item.type === 'free_trial');
+            } else {
+                result = result.filter(item => item.type === 'admin_user' && item.role === roleFilter);
+            }
         }
 
         // Status Filter
         if (statusFilter !== 'all') {
-            const isActive = statusFilter === 'active';
-            result = result.filter(user => user.is_active === isActive);
+            result = result.filter(item => {
+                if (item.type === 'free_trial') {
+                    // Para testes grátis: pendente = não resgatado, iniciado = resgatado
+                    if (statusFilter === 'active') return item.trial_redeemed === true;
+                    if (statusFilter === 'inactive') return item.trial_redeemed === false;
+                    return true;
+                } else {
+                    // Para admin_users: ativo/inativo
+                    const isActive = statusFilter === 'active';
+                    return item.is_active === isActive;
+                }
+            });
         }
 
         setFilteredUsers(result);
@@ -81,11 +155,51 @@ export const Users: React.FC = () => {
     const loadUsers = async () => {
         setLoading(true);
         try {
-            const data = await adminUsersService.getAll();
-            setUsers(data);
+            // Carregar admin_users
+            const adminUsers = await adminUsersService.getAll();
+
+            // Converter admin_users para ListItem
+            const adminListItems: ListItem[] = adminUsers.map(user => ({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                type: 'admin_user' as const,
+                role: user.role,
+                is_active: user.is_active ?? true,
+                last_login: user.last_login,
+                avatar_url: user.avatar_url,
+                genero: user.genero,
+                created_at: user.created_at
+            }));
+
+            // Carregar promotional_trials
+            const { data: trials, error: trialsError } = await (supabase as any)
+                .from('promotional_trials')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (trialsError) {
+                console.error('Erro ao carregar testes grátis:', trialsError);
+            }
+
+            // Converter trials para ListItem
+            const trialListItems: ListItem[] = (trials || []).map((trial: PromotionalTrial) => ({
+                id: trial.id,
+                email: trial.email,
+                name: trial.name || trial.email.split('@')[0], // Usa o nome ou a parte do email
+                type: 'free_trial' as const,
+                trial_days: trial.trial_days,
+                trial_redeemed: trial.redeemed_at !== null, // Resgatado se redeemed_at não for null
+                trial_expires_at: trial.expires_at,
+                created_at: trial.created_at
+            }));
+
+            // Combinar as listas
+            const allItems = [...adminListItems, ...trialListItems];
+            setUsers(allItems);
 
             // Verificar quais vendedores têm agenda configurada
-            const vendedores = data.filter(u => u.role === 'vendedor');
+            const vendedores = adminUsers.filter(u => u.role === 'vendedor');
             const schedulePromises = vendedores.map(async v => {
                 const hasSchedule = await vendedorScheduleService.hasSchedule(v.id);
                 return { id: v.id, hasSchedule };
@@ -99,18 +213,20 @@ export const Users: React.FC = () => {
         setLoading(false);
     };
 
-    const handleOpenModal = (user?: AdminUser) => {
-        if (user) {
-            setEditingUser(user);
+    const handleOpenModal = (item?: ListItem) => {
+        if (item && item.type === 'admin_user') {
+            setEditingUser(item);
             setFormData({
-                name: user.name,
-                email: user.email,
+                name: item.name,
+                email: item.email,
                 password: '',
-                role: user.role,
-                genero: user.genero || 'feminino'
+                role: item.role!,
+                genero: (item.genero as UserGender) || 'feminino',
+                userType: item.role!,
+                trialDays: 30
             });
-            setAvatarUrl(user.avatar_url || null);
-            setCreatedUserId(user.id);
+            setAvatarUrl(item.avatar_url || null);
+            setCreatedUserId(item.id);
         } else {
             setEditingUser(null);
             setFormData({
@@ -118,7 +234,9 @@ export const Users: React.FC = () => {
                 email: '',
                 password: '',
                 role: 'cliente',
-                genero: 'feminino'
+                genero: 'feminino',
+                userType: 'cliente',
+                trialDays: 30
             });
             setAvatarUrl(null);
             setCreatedUserId(null);
@@ -233,43 +351,53 @@ export const Users: React.FC = () => {
     };
 
     // Abre o modal de confirmação de exclusão
-    const openDeleteModal = (user: AdminUser) => {
-        if (user.id === currentUser?.id) {
+    const openDeleteModal = (item: ListItem) => {
+        if (item.type === 'admin_user' && item.id === currentUser?.id) {
             alert('Você não pode excluir sua própria conta!');
             return;
         }
         setDeleteModal({
             isOpen: true,
-            userId: user.id,
-            userName: user.name
+            itemId: item.id,
+            itemName: item.type === 'free_trial' ? item.email : item.name,
+            itemType: item.type
         });
     };
 
     // Fecha o modal de confirmação
     const closeDeleteModal = () => {
         if (!isDeleting) {
-            setDeleteModal({ isOpen: false, userId: null, userName: '' });
+            setDeleteModal({ isOpen: false, itemId: null, itemName: '', itemType: null });
         }
     };
 
     // Confirma a exclusão
     const handleConfirmDelete = async () => {
-        if (!deleteModal.userId) return;
+        if (!deleteModal.itemId || !deleteModal.itemType) return;
 
         setIsDeleting(true);
         try {
-            await adminUsersService.delete(deleteModal.userId);
+            if (deleteModal.itemType === 'admin_user') {
+                await adminUsersService.delete(deleteModal.itemId);
+            } else {
+                // Deletar da tabela promotional_trials
+                const { error } = await (supabase as any)
+                    .from('promotional_trials')
+                    .delete()
+                    .eq('id', deleteModal.itemId);
+                if (error) throw error;
+            }
             loadUsers();
             closeDeleteModal();
         } catch (error) {
-            console.error('Erro ao excluir usuário:', error);
-            alert('Erro ao excluir usuário');
+            console.error('Erro ao excluir:', error);
+            alert(deleteModal.itemType === 'free_trial' ? 'Erro ao excluir teste grátis' : 'Erro ao excluir usuário');
         }
         setIsDeleting(false);
     };
 
-    const handleDelete = (user: AdminUser) => {
-        openDeleteModal(user);
+    const handleDelete = (item: ListItem) => {
+        openDeleteModal(item);
     };
 
     const handleToggleActive = async (id: string, currentStatus: boolean) => {
@@ -290,6 +418,48 @@ export const Users: React.FC = () => {
         e.preventDefault();
 
         try {
+            // Se é teste grátis, inserir na tabela promotional_trials
+            if (formData.userType === 'free_trial') {
+                // Calcular data de expiração
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + formData.trialDays);
+
+                // Inserir na tabela promotional_trials
+                const { error: trialError } = await (supabase as any)
+                    .from('promotional_trials')
+                    .insert({
+                        email: formData.email.toLowerCase(),
+                        name: formData.name || null,
+                        trial_days: formData.trialDays,
+                        campaign: 'admin_manual',
+                        created_at: new Date().toISOString()
+                    });
+
+                if (trialError) {
+                    // Se o email já existe, atualizar
+                    if (trialError.code === '23505') {
+                        const { error: updateError } = await (supabase as any)
+                            .from('promotional_trials')
+                            .update({
+                                name: formData.name || null,
+                                trial_days: formData.trialDays,
+                                redeemed_at: null,
+                                redeemed_by: null,
+                                expires_at: null
+                            })
+                            .eq('email', formData.email.toLowerCase());
+
+                        if (updateError) throw updateError;
+                    } else {
+                        throw trialError;
+                    }
+                }
+
+                handleCloseModal();
+                toast.success(`Teste grátis de ${formatTrialPeriod(formData.trialDays)} liberado para ${formData.email}`);
+                return;
+            }
+
             if (editingUser) {
                 await adminUsersService.update(editingUser.id, {
                     name: formData.name,
@@ -340,22 +510,26 @@ export const Users: React.FC = () => {
         handleCloseModal();
     };
 
-    const handleOpenScheduleConfig = (user: AdminUser) => {
-        setEditingUser(user);
-        setCreatedUserId(user.id);
+    const handleOpenScheduleConfig = (item: ListItem) => {
+        if (item.type !== 'admin_user') return;
+        setEditingUser(item);
+        setCreatedUserId(item.id);
         setFormData({
-            name: user.name,
-            email: user.email,
+            name: item.name,
+            email: item.email,
             password: '',
-            role: user.role,
-            genero: user.genero || 'feminino'
+            role: item.role!,
+            genero: (item.genero as UserGender) || 'feminino',
+            userType: item.role!,
+            trialDays: 30
         });
         setModalStep(2);
         setIsModalOpen(true);
     };
 
-    const getRoleIconColor = (role: UserRole) => {
-        switch (role) {
+    const getItemIconColor = (item: ListItem) => {
+        if (item.type === 'free_trial') return 'text-green-400';
+        switch (item.role) {
             case 'admin':
                 return 'text-red-400';
             case 'vendedor':
@@ -365,8 +539,11 @@ export const Users: React.FC = () => {
         }
     };
 
-    const getRoleLabel = (role: UserRole) => {
-        switch (role) {
+    const getItemLabel = (item: ListItem) => {
+        if (item.type === 'free_trial') {
+            return `Teste (${formatTrialPeriod(item.trial_days || 30)})`;
+        }
+        switch (item.role) {
             case 'admin':
                 return 'Administrador';
             case 'vendedor':
@@ -376,8 +553,11 @@ export const Users: React.FC = () => {
         }
     };
 
-    const getRoleColor = (role: UserRole) => {
-        switch (role) {
+    const getItemColor = (item: ListItem) => {
+        if (item.type === 'free_trial') {
+            return 'bg-green-500/20 text-green-400 border-green-500/30';
+        }
+        switch (item.role) {
             case 'admin':
                 return 'bg-red-500/20 text-red-400 border-red-500/30';
             case 'vendedor':
@@ -385,6 +565,24 @@ export const Users: React.FC = () => {
             default:
                 return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
         }
+    };
+
+    const getItemStatus = (item: ListItem) => {
+        if (item.type === 'free_trial') {
+            return item.trial_redeemed ? 'Iniciado' : 'Pendente';
+        }
+        return item.is_active ? 'Ativo' : 'Inativo';
+    };
+
+    const getItemStatusColor = (item: ListItem) => {
+        if (item.type === 'free_trial') {
+            return item.trial_redeemed
+                ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+        }
+        return item.is_active
+            ? 'bg-green-500/20 text-green-400 border-green-500/30'
+            : 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     };
 
     return (
@@ -427,6 +625,7 @@ export const Users: React.FC = () => {
                             <option value="admin">Administrador</option>
                             <option value="vendedor">Vendedor</option>
                             <option value="cliente">Cliente</option>
+                            <option value="free_trial">Teste Grátis</option>
                         </select>
                     </div>
 
@@ -439,8 +638,8 @@ export const Users: React.FC = () => {
                             className="bg-brand-dark border border-white/10 rounded-sm text-white text-sm px-3 py-2 outline-none focus:border-brand-yellow/50 transition-colors"
                         >
                             <option value="all">Todos os Status</option>
-                            <option value="active">Ativo</option>
-                            <option value="inactive">Inativo</option>
+                            <option value="active">Ativo / Iniciado</option>
+                            <option value="inactive">Inativo / Pendente</option>
                         </select>
                     </div>
 
@@ -484,65 +683,71 @@ export const Users: React.FC = () => {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredUsers.map((user) => (
+                                    filteredUsers.map((item) => (
                                         <tr
-                                            key={user.id}
-                                            className={`hover:bg-white/5 transition-colors ${user.role === 'cliente' ? 'cursor-pointer' : ''}`}
-                                            onClick={() => user.role === 'cliente' && navigate(`/admin/users/${user.id}`)}
+                                            key={item.id}
+                                            className={`hover:bg-white/5 transition-colors ${item.type === 'admin_user' && item.role === 'cliente' ? 'cursor-pointer' : ''}`}
+                                            onClick={() => item.type === 'admin_user' && item.role === 'cliente' && navigate(`/admin/users/${item.id}`)}
                                         >
                                             <td className="p-4">
                                                 <div className="flex items-center">
                                                     <div className="w-10 h-10 rounded-full flex items-center justify-center mr-3 overflow-hidden bg-brand-dark border border-white/10">
-                                                        {user.avatar_url ? (
+                                                        {item.avatar_url ? (
                                                             <img
-                                                                src={user.avatar_url}
-                                                                alt={user.name}
+                                                                src={item.avatar_url}
+                                                                alt={item.name}
                                                                 className="w-full h-full object-cover"
                                                             />
+                                                        ) : item.type === 'free_trial' ? (
+                                                            <Gift className={`w-5 h-5 ${getItemIconColor(item)}`} />
                                                         ) : (
-                                                            <User className={`w-5 h-5 ${getRoleIconColor(user.role)}`} />
+                                                            <User className={`w-5 h-5 ${getItemIconColor(item)}`} />
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <p className="text-white font-bold">{user.name}</p>
-                                                        <p className="text-gray-500 text-xs">{user.email}</p>
+                                                        <p className="text-white font-bold">{item.type === 'free_trial' ? item.email : item.name}</p>
+                                                        <p className="text-gray-500 text-xs">{item.type === 'free_trial' ? `Teste: ${formatTrialPeriod(item.trial_days || 30)}` : item.email}</p>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="p-4">
-                                                <span className={`px-3 py-1 rounded text-xs font-bold uppercase border ${getRoleColor(user.role)}`}>
-                                                    {getRoleLabel(user.role)}
+                                                <span className={`px-3 py-1 rounded text-xs font-bold uppercase border ${getItemColor(item)}`}>
+                                                    {getItemLabel(item)}
                                                 </span>
                                             </td>
                                             <td className="p-4">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleToggleActive(user.id, !!user.is_active);
-                                                    }}
-                                                    disabled={user.id === currentUser?.id}
-                                                    className={`px-3 py-1 rounded text-xs font-bold uppercase transition-colors ${user.is_active
-                                                        ? 'bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30'
-                                                        : 'bg-gray-500/20 text-gray-400 border border-gray-500/30 hover:bg-gray-500/30'
-                                                        } ${user.id === currentUser?.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                >
-                                                    {user.is_active ? 'Ativo' : 'Inativo'}
-                                                </button>
+                                                {item.type === 'free_trial' ? (
+                                                    <span className={`px-3 py-1 rounded text-xs font-bold uppercase border ${getItemStatusColor(item)}`}>
+                                                        {getItemStatus(item)}
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleToggleActive(item.id, !!item.is_active);
+                                                        }}
+                                                        disabled={item.id === currentUser?.id}
+                                                        className={`px-3 py-1 rounded text-xs font-bold uppercase transition-colors ${getItemStatusColor(item)} ${item.id === currentUser?.id ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
+                                                    >
+                                                        {getItemStatus(item)}
+                                                    </button>
+                                                )}
                                             </td>
                                             <td className="p-4">
                                                 <span className="text-gray-400 text-sm">
-                                                    {user.last_login
-                                                        ? new Date(user.last_login).toLocaleString('pt-BR')
-                                                        : 'Nunca'}
+                                                    {item.type === 'free_trial'
+                                                        ? (item.created_at ? new Date(item.created_at).toLocaleDateString('pt-BR') : '-')
+                                                        : (item.last_login ? new Date(item.last_login).toLocaleString('pt-BR') : 'Nunca')
+                                                    }
                                                 </span>
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex justify-end space-x-2">
-                                                    {user.role === 'vendedor' && (
+                                                    {item.type === 'admin_user' && item.role === 'vendedor' && (
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleOpenScheduleConfig(user);
+                                                                handleOpenScheduleConfig(item);
                                                             }}
                                                             className="p-2 text-gray-400 hover:text-brand-yellow transition-colors"
                                                             title="Configurar Agenda"
@@ -550,23 +755,25 @@ export const Users: React.FC = () => {
                                                             <Calendar className="w-4 h-4" />
                                                         </button>
                                                     )}
+                                                    {item.type === 'admin_user' && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenModal(item);
+                                                            }}
+                                                            className="p-2 text-gray-400 hover:text-brand-yellow transition-colors"
+                                                            title="Editar"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            handleOpenModal(user);
+                                                            handleDelete(item);
                                                         }}
-                                                        className="p-2 text-gray-400 hover:text-brand-yellow transition-colors"
-                                                        title="Editar"
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleDelete(user);
-                                                        }}
-                                                        disabled={user.id === currentUser?.id}
-                                                        className={`p-2 text-gray-400 hover:text-red-500 transition-colors ${user.id === currentUser?.id ? 'opacity-50 cursor-not-allowed' : ''
+                                                        disabled={item.type === 'admin_user' && item.id === currentUser?.id}
+                                                        className={`p-2 text-gray-400 hover:text-red-500 transition-colors ${item.type === 'admin_user' && item.id === currentUser?.id ? 'opacity-50 cursor-not-allowed' : ''
                                                             }`}
                                                         title="Excluir"
                                                     >
@@ -613,7 +820,8 @@ export const Users: React.FC = () => {
 
                             {modalStep === 1 ? (
                                 <form onSubmit={handleSubmit} className="space-y-4">
-                                    {/* Avatar Uploader */}
+                                    {/* Avatar Uploader - apenas para usuários normais */}
+                                    {formData.userType !== 'free_trial' && (
                                     <div className="flex flex-col items-center mb-4">
                                         <label className="block text-gray-400 text-xs font-bold uppercase mb-3">Foto de Perfil</label>
                                         <div className="relative">
@@ -667,15 +875,54 @@ export const Users: React.FC = () => {
 
                                         <p className="text-gray-600 text-xs mt-2">JPG, PNG ou GIF. Máx 2MB</p>
                                     </div>
+                                    )}
 
+                                    {/* Tipo de Usuário - Primeiro campo para controlar os demais */}
                                     <div>
-                                        <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Nome</label>
+                                        <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Tipo de Usuário</label>
+                                        <select
+                                            value={formData.userType}
+                                            onChange={(e) => {
+                                                const newType = e.target.value as UserTypeOption;
+                                                setFormData({
+                                                    ...formData,
+                                                    userType: newType,
+                                                    role: newType === 'free_trial' ? 'cliente' : newType as UserRole
+                                                });
+                                            }}
+                                            className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                                            disabled={!!editingUser}
+                                        >
+                                            <option value="cliente">Cliente</option>
+                                            <option value="vendedor">Vendedor</option>
+                                            <option value="admin">Administrador</option>
+                                            {!editingUser && <option value="free_trial">Teste Grátis</option>}
+                                        </select>
+                                        {formData.userType === 'free_trial' && (
+                                            <p className="text-green-400 text-xs mt-2 flex items-center gap-1">
+                                                <Gift className="w-3 h-3" />
+                                                O usuário receberá o período de teste ao se cadastrar com este e-mail
+                                            </p>
+                                        )}
+                                        {formData.userType === 'vendedor' && (
+                                            <p className="text-gray-500 text-xs mt-2 flex items-center gap-1">
+                                                <Calendar className="w-3 h-3" />
+                                                Após salvar, você poderá configurar a agenda do vendedor
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Campo Nome */}
+                                    <div>
+                                        <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
+                                            Nome {formData.userType === 'free_trial' && <span className="text-gray-600">(opcional)</span>}
+                                        </label>
                                         <input
                                             type="text"
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                             className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-                                            required
+                                            required={formData.userType !== 'free_trial'}
                                         />
                                     </div>
 
@@ -690,40 +937,42 @@ export const Users: React.FC = () => {
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
-                                            Senha {editingUser && <span className="text-gray-600">(deixe em branco para manter)</span>}
-                                        </label>
-                                        <input
-                                            type="password"
-                                            value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-                                            required={!editingUser}
-                                        />
-                                    </div>
+                                    {/* Senha - Apenas para usuários normais (não teste grátis) */}
+                                    {formData.userType !== 'free_trial' && (
+                                        <div>
+                                            <label className="block text-gray-400 text-xs font-bold uppercase mb-2">
+                                                Senha {editingUser && <span className="text-gray-600">(deixe em branco para manter)</span>}
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={formData.password}
+                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                                                required={!editingUser}
+                                            />
+                                        </div>
+                                    )}
 
-                                    <div>
-                                        <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Tipo de Usuário</label>
-                                        <select
-                                            value={formData.role}
-                                            onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                                            className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
-                                        >
-                                            <option value="cliente">Cliente</option>
-                                            <option value="vendedor">Vendedor</option>
-                                            <option value="admin">Administrador</option>
-                                        </select>
-                                        {formData.role === 'vendedor' && (
-                                            <p className="text-gray-500 text-xs mt-2 flex items-center gap-1">
-                                                <Calendar className="w-3 h-3" />
-                                                Após salvar, você poderá configurar a agenda do vendedor
-                                            </p>
-                                        )}
-                                    </div>
+                                    {/* Período de Teste - Apenas para teste grátis */}
+                                    {formData.userType === 'free_trial' && (
+                                        <div>
+                                            <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Período de Teste</label>
+                                            <select
+                                                value={formData.trialDays}
+                                                onChange={(e) => setFormData({ ...formData, trialDays: parseInt(e.target.value) })}
+                                                className="w-full bg-brand-dark border border-white/10 p-3 text-white focus:border-brand-yellow outline-none transition-colors"
+                                            >
+                                                {TRIAL_PERIOD_OPTIONS.map((option) => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
 
                                     {/* Campo de Gênero - apenas para vendedores */}
-                                    {formData.role === 'vendedor' && (
+                                    {formData.userType === 'vendedor' && (
                                         <div>
                                             <label className="block text-gray-400 text-xs font-bold uppercase mb-2">Gênero</label>
                                             <select
@@ -752,10 +1001,15 @@ export const Users: React.FC = () => {
                                             type="submit"
                                             className="bg-brand-yellow text-brand-darker px-8 py-3 font-bold uppercase text-xs hover:bg-brand-yellow/90 transition-colors flex items-center gap-2"
                                         >
-                                            {formData.role === 'vendedor' ? (
+                                            {formData.userType === 'vendedor' ? (
                                                 <>
                                                     Próximo
                                                     <ChevronRight className="w-4 h-4" />
+                                                </>
+                                            ) : formData.userType === 'free_trial' ? (
+                                                <>
+                                                    <Gift className="w-4 h-4" />
+                                                    Liberar Teste
                                                 </>
                                             ) : (
                                                 'Salvar'
@@ -795,9 +1049,12 @@ export const Users: React.FC = () => {
                 isOpen={deleteModal.isOpen}
                 onClose={closeDeleteModal}
                 onConfirm={handleConfirmDelete}
-                title="Excluir Usuário"
-                message={`Tem certeza que deseja excluir o usuário "${deleteModal.userName}"? Esta ação não pode ser desfeita.`}
-                itemName={deleteModal.userName}
+                title={deleteModal.itemType === 'free_trial' ? 'Excluir Teste Grátis' : 'Excluir Usuário'}
+                message={deleteModal.itemType === 'free_trial'
+                    ? `Tem certeza que deseja excluir o teste grátis para "${deleteModal.itemName}"? Esta ação não pode ser desfeita.`
+                    : `Tem certeza que deseja excluir o usuário "${deleteModal.itemName}"? Esta ação não pode ser desfeita.`
+                }
+                itemName={deleteModal.itemName}
                 isLoading={isDeleting}
             />
         </div >

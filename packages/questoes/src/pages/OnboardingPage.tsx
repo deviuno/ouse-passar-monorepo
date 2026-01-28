@@ -10,7 +10,6 @@ import { calcularQuestoesPorSchedule, descreverCalculoQuestoes } from '../lib';
 import {
   InicioStep,
   CadastroStep,
-  ConcursoStep,
   NivelStep,
   DisponibilidadeStep,
   LoadingStep,
@@ -38,7 +37,6 @@ export default function OnboardingPage() {
     setEmail,
     setPhone,
     setPassword,
-    setConcursoAlvo,
     setNivelConhecimento,
     toggleDay,
     setDayMinutes,
@@ -103,38 +101,12 @@ export default function OnboardingPage() {
         return;
       }
 
-      // Sucesso - avançar para próxima etapa (concurso)
-      console.log('[OnboardingPage] Cadastro OK, avançando para concurso');
+      // Sucesso - avançar para próxima etapa (nivel)
+      console.log('[OnboardingPage] Cadastro OK, avançando para nivel');
       nextStep();
       console.log('[OnboardingPage] Novo step após cadastro:', useOnboardingStore.getState().currentStep);
     } catch (err: any) {
       setError(err.message || 'Erro ao criar conta');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Handler para concurso (salva e avança)
-  const handleConcursoSelect = async (concurso: string) => {
-    console.log('[OnboardingPage] handleConcursoSelect - step atual:', currentStep, '- concurso:', concurso);
-
-    // Validar que estamos no step correto
-    if (currentStep !== 'concurso') {
-      console.error('[OnboardingPage] ERRO: handleConcursoSelect chamado no step errado:', currentStep);
-      return;
-    }
-
-    setConcursoAlvo(concurso);
-    setIsSubmitting(true);
-
-    try {
-      await updateOnboardingStep('nivel', { concurso_alvo: concurso });
-      console.log('[OnboardingPage] Concurso salvo, avançando para nivel');
-      nextStep();
-      console.log('[OnboardingPage] Novo step após concurso:', useOnboardingStore.getState().currentStep);
-    } catch (err) {
-      console.warn('Erro ao salvar concurso:', err);
-      nextStep(); // Continuar mesmo se falhar
     } finally {
       setIsSubmitting(false);
     }
@@ -185,7 +157,7 @@ export default function OnboardingPage() {
   // Handler final (completa o onboarding)
   const handleComplete = async () => {
     const preferences = getPreferencesData();
-    const { user } = useAuthStore.getState();
+    const { user, promotionalTrial } = useAuthStore.getState();
 
     try {
       // Finalizar onboarding no banco
@@ -196,48 +168,27 @@ export default function OnboardingPage() {
       });
 
       // Criar o primeiro preparatório do usuário (user_trail)
-      if (user?.id && preferences?.target_contest_id) {
-        try {
-          // Calcular quantidade de questões por missão baseado na disponibilidade
-          const questoesPorMissao = preferences?.schedule
-            ? calcularQuestoesPorSchedule(preferences.schedule)
-            : 20;
-
-          // Log para debug
-          if (preferences?.schedule) {
-            const calculo = descreverCalculoQuestoes(
-              Object.values(preferences.schedule).reduce((a, b) => a + b, 0),
-              Object.values(preferences.schedule).filter(m => m > 0).length
-            );
-            console.log('[Onboarding] Cálculo de questões:', calculo);
-          }
-
-          await userPreparatoriosService.addPreparatorioToUser(
-            user.id,
-            preferences.target_contest_id,
-            (preferences.proficiency_level as UserLevel) || 'iniciante',
-            questoesPorMissao
-          );
-
-          console.log('[Onboarding] Preparatório criado com', questoesPorMissao, 'questões por missão');
-        } catch (prepErr) {
-          console.warn('Erro ao criar preparatório inicial:', prepErr);
-          // Não bloquear o fluxo se falhar
-        }
-      }
+      // Não criar mais preparatório automaticamente já que não selecionamos concurso
+      // O usuário pode criar preparatórios manualmente depois
 
       // Salvar em localStorage para demo mode
       localStorage.setItem('ousepassar_onboarding_completed', 'true');
 
       // Flag para iniciar o tour guiado na HomePage
-      localStorage.setItem('ousepassar_start_tour', 'true');
+      // Só definir se o usuário NÃO tiver trial promocional
+      // Se tiver trial, o modal vai aparecer e controlar o início do tour
+      if (!promotionalTrial?.has_trial) {
+        localStorage.setItem('ousepassar_start_tour', 'true');
+      }
 
       navigate('/', { replace: true });
     } catch (err) {
       console.error('Erro ao finalizar onboarding:', err);
       // Em modo demo, ir mesmo assim
       localStorage.setItem('ousepassar_onboarding_completed', 'true');
-      localStorage.setItem('ousepassar_start_tour', 'true');
+      if (!promotionalTrial?.has_trial) {
+        localStorage.setItem('ousepassar_start_tour', 'true');
+      }
       navigate('/', { replace: true });
     }
   };
@@ -281,14 +232,6 @@ export default function OnboardingPage() {
             />
           </>
         );
-      case 'concurso':
-        console.log('[OnboardingPage] Renderizando ConcursoStep');
-        return (
-          <ConcursoStep
-            selected={data.concurso_alvo}
-            onSelect={handleConcursoSelect}
-          />
-        );
       case 'nivel':
         console.log('[OnboardingPage] Renderizando NivelStep');
         return (
@@ -317,7 +260,7 @@ export default function OnboardingPage() {
   };
 
   // Determinar se deve mostrar header com progresso
-  const showProgressHeader = ['cadastro', 'concurso', 'nivel', 'disponibilidade'].includes(currentStep);
+  const showProgressHeader = ['cadastro', 'nivel', 'disponibilidade'].includes(currentStep);
   const showFooterButton = ['cadastro', 'disponibilidade'].includes(currentStep);
 
   return (
@@ -344,7 +287,7 @@ export default function OnboardingPage() {
 
       {/* Content */}
       <div className="flex-1 flex items-center justify-center p-6">
-        <div className={`w-full ${currentStep === 'concurso' ? 'max-w-4xl' : 'max-w-md'}`}>
+        <div className="w-full max-w-md">
           <AnimatePresence mode="wait">
             <div key={currentStep}>{renderStep()}</div>
           </AnimatePresence>

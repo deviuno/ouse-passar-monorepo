@@ -50,14 +50,12 @@ export const INITIAL_USER_STATS: UserStats = {
 // Onboarding steps (conforme documentação)
 // 0. Início (Já tem conta? ou Criar conta)
 // 1. Cadastro (Nome, Email, Celular, Senha)
-// 2. Concurso (escolha do concurso alvo)
-// 3. Nivelamento (Iniciante, Intermediário, Avançado)
-// 4. Disponibilidade (dias + horas por dia)
-// 5. Loading (geração da trilha) -> Redireciona para Home com Tour Guiado
+// 2. Nivelamento (Iniciante, Intermediário, Avançado)
+// 3. Disponibilidade (dias + horas por dia)
+// 4. Loading (geração da trilha) -> Redireciona para Home com Tour Guiado
 export const ONBOARDING_STEPS = [
   'inicio',
   'cadastro',
-  'concurso',
   'nivel',
   'disponibilidade',
   'loading',

@@ -4,6 +4,7 @@ import { router } from './router';
 import { useAuthStore } from '../stores';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import { PromotionalTrialModal } from '../components/promotional/PromotionalTrialModal';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -131,17 +132,78 @@ function AppLoadingSkeleton() {
 }
 
 function AppContent() {
-  const { initialize, isLoading } = useAuthStore();
+  const { initialize, isLoading, promotionalTrial, clearPromotionalTrial } = useAuthStore();
+  const [showTrialModal, setShowTrialModal] = React.useState(false);
 
   useEffect(() => {
     initialize();
   }, [initialize]);
 
+  // Verificar se deve mostrar o modal do trial
+  // Só mostrar após o onboarding estar completo
+  useEffect(() => {
+    const onboardingCompleted = localStorage.getItem('ousepassar_onboarding_completed') === 'true';
+    const trialModalShown = localStorage.getItem('ousepassar_trial_modal_shown') === 'true';
+
+    console.log('[App] Verificando trial modal:', {
+      hasPromotionalTrial: promotionalTrial?.has_trial,
+      onboardingCompleted,
+      trialModalShown,
+      promotionalTrial,
+    });
+
+    if (promotionalTrial?.has_trial) {
+      // Mostrar o modal apenas se:
+      // 1. Tem trial disponível
+      // 2. Onboarding foi completado
+      // 3. Modal ainda não foi mostrado nesta sessão
+      if (onboardingCompleted && !trialModalShown) {
+        console.log('[App] Condições atendidas, mostrando modal em 500ms');
+        // Pequeno delay para garantir que a home carregou
+        const timer = setTimeout(() => {
+          setShowTrialModal(true);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [promotionalTrial]);
+
+  // Handler para fechar o modal do trial
+  const handleCloseTrialModal = () => {
+    setShowTrialModal(false);
+    localStorage.setItem('ousepassar_trial_modal_shown', 'true');
+    clearPromotionalTrial();
+  };
+
+  // Handler para iniciar o tour após o modal promocional
+  const handleStartTour = () => {
+    setShowTrialModal(false);
+    localStorage.setItem('ousepassar_trial_modal_shown', 'true');
+    // Define flag para o MainLayout iniciar o tour
+    localStorage.setItem('ousepassar_start_tour', 'true');
+    clearPromotionalTrial();
+    // Pequeno delay para fechar o modal antes de iniciar o tour
+    setTimeout(() => {
+      window.dispatchEvent(new Event('start-product-tour'));
+    }, 300);
+  };
+
   if (isLoading) {
     return <AppLoadingSkeleton />;
   }
 
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <PromotionalTrialModal
+        isOpen={showTrialModal}
+        onClose={handleCloseTrialModal}
+        onStartTour={handleStartTour}
+        trialDays={promotionalTrial?.trial_days}
+        expiresAt={promotionalTrial?.expires_at}
+      />
+    </>
+  );
 }
 
 export default function App() {

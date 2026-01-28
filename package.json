@@ -23,7 +23,8 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "xlsx": "^0.18.5"
   },
   "dependencies": {
     "react-virtualized-auto-sizer": "^2.0.2",

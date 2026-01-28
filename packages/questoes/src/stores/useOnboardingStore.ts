@@ -205,8 +205,6 @@ export const useOnboardingStore = create<OnboardingState>()((set, get) => ({
           data.password?.trim() &&
           data.password.length >= 6
         );
-      case 'concurso':
-        return !!data.concurso_alvo;
       case 'nivel':
         return !!data.nivel_conhecimento;
       case 'disponibilidade':
@@ -222,8 +220,8 @@ export const useOnboardingStore = create<OnboardingState>()((set, get) => ({
   getProgress: () => {
     const { currentStep } = get();
     // Excluir 'inicio' e 'loading' do progresso visual
-    // Steps visuais: cadastro (1), concurso (2), nivel (3), disponibilidade (4)
-    const visualSteps = ['cadastro', 'concurso', 'nivel', 'disponibilidade'];
+    // Steps visuais: cadastro (1), nivel (2), disponibilidade (3)
+    const visualSteps = ['cadastro', 'nivel', 'disponibilidade'];
     const total = visualSteps.length;
     const currentVisualIndex = visualSteps.indexOf(currentStep);
     const current = currentVisualIndex >= 0 ? currentVisualIndex + 1 : 0;

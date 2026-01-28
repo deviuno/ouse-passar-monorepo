@@ -37,6 +37,19 @@ export function MainLayout() {
     }
   }, [isTourCompleted, location.pathname, startTour]);
 
+  // Listen for the start-product-tour event (triggered by PromotionalTrialModal)
+  useEffect(() => {
+    const handleStartTour = () => {
+      if (!isTourCompleted && location.pathname === '/') {
+        localStorage.removeItem('ousepassar_start_tour');
+        startTour();
+      }
+    };
+
+    window.addEventListener('start-product-tour', handleStartTour);
+    return () => window.removeEventListener('start-product-tour', handleStartTour);
+  }, [isTourCompleted, location.pathname, startTour]);
+
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[var(--color-bg-main)] text-[var(--color-text-main)] theme-transition scrollbar-hide">
       {/* Scroll to top on route change */}

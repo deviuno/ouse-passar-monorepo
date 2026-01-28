@@ -11,6 +11,7 @@ export interface ModuleAccess {
   trilha: ModuleConfig;
   praticar: ModuleConfig;
   simulados: ModuleConfig;
+  cursos: ModuleConfig;
   estatisticas: ModuleConfig;
   loja: ModuleConfig;
   music: ModuleConfig;
@@ -32,6 +33,7 @@ export const routeToModule: Record<string, ModuleName> = {
   '/cadernos': 'praticar',
   '/trilhas': 'praticar',
   '/simulados': 'simulados',
+  '/cursos': 'cursos',
   '/estatisticas': 'estatisticas',
   '/loja': 'loja',
   '/music': 'music',
@@ -48,6 +50,11 @@ export function getModuleFromPath(path: string): ModuleName | null {
     if (route !== '/' && path.startsWith(route)) {
       return module;
     }
+  }
+
+  // Check for cursos sub-routes
+  if (path.startsWith('/cursos')) {
+    return 'cursos';
   }
 
   // Check for loja sub-routes
@@ -88,6 +95,7 @@ export function useModuleAccess(): ModuleAccess {
         trilha: FULL_ACCESS_CONFIG,
         praticar: FULL_ACCESS_CONFIG,
         simulados: FULL_ACCESS_CONFIG,
+        cursos: FULL_ACCESS_CONFIG,
         estatisticas: FULL_ACCESS_CONFIG,
         loja: FULL_ACCESS_CONFIG,
         music: FULL_ACCESS_CONFIG,
@@ -101,6 +109,7 @@ export function useModuleAccess(): ModuleAccess {
       trilha: settings.trilha,
       praticar: settings.praticar,
       simulados: settings.simulados,
+      cursos: settings.cursos,
       estatisticas: settings.estatisticas,
       loja: settings.loja,
       music: settings.music,
