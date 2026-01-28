@@ -213,7 +213,9 @@ const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
   const [flatAssuntos, setFlatAssuntos] = useState<string[]>([]); // Fallback
   const [isLoading, setIsLoading] = useState(false);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [openUpward, setOpenUpward] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Matéria efetiva (custom ou parent)
   const effectiveMateria = customMateria || (parentMaterias.length > 0 ? parentMaterias[0] : null);
@@ -231,6 +233,23 @@ const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Calcular se deve abrir para cima ou para baixo
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const dropdownHeight = 400; // Altura aproximada do dropdown
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      // Se não há espaço suficiente abaixo mas há acima, abrir para cima
+      if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+        setOpenUpward(true);
+      } else {
+        setOpenUpward(false);
+      }
+    }
+  }, [isOpen]);
 
   // Carregar taxonomia quando abrir ou trocar matéria
   useEffect(() => {
@@ -341,6 +360,7 @@ const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
   return (
     <div ref={dropdownRef} className="relative min-w-[200px]">
       <button
+        ref={buttonRef}
         onClick={(e) => {
           e.stopPropagation();
           if (!disabled && effectiveMateria) setIsOpen(!isOpen);
@@ -371,7 +391,7 @@ const AssuntoDropdownWithMateriaSelector: React.FC<AssuntoDropdownProps> = ({
 
       {isOpen && (
         <div
-          className="absolute right-0 z-50 w-96 mt-1 bg-brand-dark border border-white/10 rounded shadow-xl overflow-hidden"
+          className={`absolute right-0 z-50 w-96 bg-brand-dark border border-white/10 rounded shadow-xl ${openUpward ? 'bottom-full mb-1' : 'top-full mt-1'}`}
           onClick={e => e.stopPropagation()}
         >
           {/* Header: Toggle entre assuntos e matérias */}
@@ -1267,9 +1287,9 @@ export const EditalAdmin: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="bg-brand-card border border-white/10 rounded-sm overflow-hidden">
+        <div className="bg-brand-card border border-white/10 rounded-sm">
           {/* Toolbar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-brand-dark/50">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-brand-dark/50 rounded-t-sm">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => {
