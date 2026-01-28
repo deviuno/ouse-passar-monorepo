@@ -8,6 +8,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Modelo: gemini-2.5-flash (multimodal - suporta PDF nativamente)
  */
 export const provaAnalyzerAgent = new Agent({
+  id: "provaAnalyzerAgent",
   name: "provaAnalyzerAgent",
   description: "Agente especializado em analisar PDFs de provas anteriores de concursos e extrair a distribuição de questões por matéria (Raio-X).",
   instructions: `Você é um especialista em análise de provas de concursos públicos brasileiros.
@@ -92,7 +93,7 @@ Se for fornecida uma lista de matérias do edital, tente fazer o match das maté
 
 Exemplo: Se o edital tem "LÍNGUA PORTUGUESA" e a prova tem "Português", use "Língua Portuguesa" na distribuição.
 `,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-2.5-flash-lite"),
 });
 
 /**

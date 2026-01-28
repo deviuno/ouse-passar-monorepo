@@ -167,7 +167,7 @@ export function SessionResultsScreen({
             fullWidth
             size="lg"
             onClick={onNewSession}
-            className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black font-extrabold hover:shadow-lg hover:shadow-[var(--color-brand)]/20"
+            className="bg-[#ffac00] hover:bg-[#ffbc33] text-black font-extrabold hover:shadow-lg hover:shadow-[#ffac00]/20"
             leftIcon={<RotateCcw size={20} />}
           >
             Nova Sessão

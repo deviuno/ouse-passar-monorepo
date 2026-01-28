@@ -9,6 +9,7 @@ interface SearchableSelectProps {
   label: string;
   loading?: boolean;
   allowCustom?: boolean;
+  displayFormatter?: (value: string) => string;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -19,13 +20,19 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   label,
   loading = false,
   allowCustom = true,
+  displayFormatter,
 }) => {
+  // Helper to format display text
+  const formatDisplay = (text: string) => displayFormatter ? displayFormatter(text) : text;
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredOptions = options.filter(opt =>
-    opt.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = (options || []).filter(opt => {
+    if (!opt) return false;
+    const searchLower = searchTerm.toLowerCase();
+    const display = formatDisplay(opt).toLowerCase();
+    return opt.toLowerCase().includes(searchLower) || display.includes(searchLower);
+  });
 
   const handleSelect = (opt: string) => {
     onChange(opt);
@@ -49,7 +56,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       <div className="relative">
         <input
           type="text"
-          value={isOpen ? searchTerm : value}
+          value={isOpen ? searchTerm : formatDisplay(value)}
           onChange={(e) => {
             setSearchTerm(e.target.value);
             if (!isOpen) setIsOpen(true);
@@ -111,7 +118,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                     className={`w-full text-left px-4 py-2 hover:bg-white/5 transition-colors ${opt === value ? 'text-brand-yellow bg-brand-yellow/10' : 'text-white'
                       }`}
                   >
-                    {opt}
+                    {formatDisplay(opt)}
                   </button>
                 ))}
                 {filteredOptions.length > 50 && (

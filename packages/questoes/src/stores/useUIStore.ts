@@ -1,3 +1,4 @@
+import React from 'react';
 import { create } from 'zustand';
 import { ToastMessage, ToastType, GamificationModalType } from '../types';
 
@@ -73,6 +74,8 @@ interface UIState {
     logoUrl?: string;
     showBackButton: boolean;
     backPath: string;
+    hideIcon?: boolean; // When true, shows only back button + title (no icon)
+    rightContent?: React.ReactNode; // Optional right-side content
   } | null;
   setHeaderOverride: (override: UIState['headerOverride']) => void;
   clearHeaderOverride: () => void;

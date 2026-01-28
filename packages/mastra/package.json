@@ -12,18 +12,21 @@
         "start": "node dist/server.js",
         "start:worker": "node dist/scraper-worker.js",
         "start:parallel": "node dist/parallel-worker.js",
-        "migrate:questoes": "tsx scripts/migrate-questoes.ts"
+        "migrate:questoes": "tsx scripts/migrate-questoes.ts",
+        "importar:questoes": "tsx src/scripts/importarQuestoes.ts"
     },
     "dependencies": {
-        "@ai-sdk/google": "^2.0.46",
-        "@ai-sdk/google-vertex": "^4.0.16",
+        "@ai-sdk/google": "^3.0.10",
+        "@ai-sdk/google-vertex": "^4.0.18",
+        "@google-cloud/bigquery": "^8.1.1",
         "@google/genai": "^1.33.0",
         "@langfuse/otel": "^4.5.1",
-        "@mastra/core": "^0.24.9",
-        "@mastra/langfuse": "^0.2.3",
-        "@mastra/libsql": "^0.16.4",
-        "@mastra/mcp": "^0.14.5",
-        "@mastra/memory": "^0.15.13",
+        "@mastra/core": "^1.0.0-beta.25",
+        "@mastra/langfuse": "^1.0.0-beta.14",
+        "@mastra/libsql": "^1.0.0-beta.13",
+        "@mastra/mcp": "^1.0.0-beta.10",
+        "@mastra/memory": "^1.0.0-beta.15",
+        "@mastra/observability": "^1.0.0-beta.13",
         "@opentelemetry/sdk-node": "^0.203.0",
         "@opentelemetry/sdk-trace-node": "^2.4.0",
         "@supabase/supabase-js": "^2.87.3",
@@ -44,7 +47,7 @@
         "@types/cors": "^2.8.17",
         "@types/express": "^5.0.0",
         "@types/node": "^22.10.2",
-        "mastra": "^0.18.9",
+        "mastra": "^1.0.0-beta.17",
         "tsx": "^4.19.2",
         "typescript": "^5.7.2"
     }

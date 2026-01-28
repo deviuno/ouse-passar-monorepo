@@ -16,42 +16,39 @@ export function NivelStep({ selected, onSelect }: NivelStepProps) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -50 }}
     >
-      <h2 className="text-2xl font-bold text-white mb-2">Qual o seu nivel de preparacao?</h2>
-      <p className="text-[#A0A0A0] mb-6">
-        Isso ajusta a dificuldade e volume de questoes.
+      <h2 className="text-2xl font-bold text-[var(--color-text-main)] mb-2">Qual seu nível de conhecimento?</h2>
+      <p className="text-[var(--color-text-sec)] mb-6">
+        Isso nos ajuda a preparar uma trilha personalizada para você.
       </p>
 
       <div className="space-y-3">
-        {NIVEL_OPTIONS.map((nivel) => (
+        {NIVEL_OPTIONS.map((option) => (
           <motion.button
-            key={nivel.id}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onSelect(nivel.id as UserLevel)}
+            key={option.id}
+            whileHover={{ scale: 1.01, x: 5 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={() => onSelect(option.id as UserLevel)}
             className={`
-              w-full p-4 rounded-xl text-left transition-all
-              flex items-start gap-4
-              ${selected === nivel.id
-                ? 'bg-[#FFB800]/20 border-2 border-[#FFB800]'
-                : 'bg-[#252525] border-2 border-transparent hover:border-[#3A3A3A]'
+              w-full p-4 rounded-2xl flex items-center gap-4 text-left transition-all
+              ${selected === option.id
+                ? 'bg-[var(--color-brand)] text-black shadow-lg shadow-[var(--color-brand)]/20'
+                : 'bg-[var(--color-bg-card)] text-[var(--color-text-main)] border border-[var(--color-border)] hover:border-[var(--color-brand)]/50'
               }
             `}
           >
-            <span className="text-3xl">{nivel.emoji}</span>
+            <span className="text-3xl">{option.emoji}</span>
             <div className="flex-1">
-              <p className="text-white font-medium">{nivel.title}</p>
-              <p className="text-[#A0A0A0] text-sm">{nivel.desc}</p>
-              <p className="text-[#FFB800] text-xs mt-1">{nivel.config}</p>
+              <h3 className="font-bold text-lg leading-tight">{option.title}</h3>
+              <p className={`text-sm ${selected === option.id ? 'text-black/70' : 'text-[var(--color-text-sec)]'}`}>
+                {option.desc}
+              </p>
             </div>
-            {selected === nivel.id && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="w-6 h-6 rounded-full bg-[#FFB800] flex items-center justify-center flex-shrink-0"
-              >
-                <Check size={14} className="text-black" />
-              </motion.div>
-            )}
+            <div className={`
+              text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md
+              ${selected === option.id ? 'bg-black/10 text-black' : 'bg-[var(--color-bg-elevated)] text-[var(--color-brand)]'}
+            `}>
+              {option.config}
+            </div>
           </motion.button>
         ))}
       </div>

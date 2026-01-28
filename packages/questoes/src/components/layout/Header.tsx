@@ -3,8 +3,6 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronDown, Flame, Eye, BookOpen, Filter, Map } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTrailStore, useAuthStore, useUIStore } from '../../stores';
-import { useTheme } from '../../contexts/ThemeContext';
-import { LOGO_FOR_LIGHT_THEME, LOGO_FOR_DARK_THEME } from '../../constants';
 import { PreparatorioDropdown } from '../trail/PreparatorioDropdown';
 import { RoundSelector } from '../trail/RoundSelector';
 import { UserPreparatorio } from '../../types';
@@ -15,7 +13,7 @@ export function Header() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
-  const { practiceMode, headerOverride, isDarkMode } = useUIStore();
+  const { practiceMode, headerOverride } = useUIStore();
   const [showAssuntosPopover, setShowAssuntosPopover] = useState(false);
   const eyeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -117,16 +115,25 @@ export function Header() {
     const path = location.pathname;
     if (path === '/' || path === '/trilha') return 'Minhas Trilhas';
     if (path === '/questoes') return 'Ouse Questões';
-    if (path === '/praticar') return 'Nova Prática';
+    if (path === '/praticar') return 'Praticar';
     if (path === '/cadernos') return 'Meus Cadernos';
     if (path === '/trilhas') return 'Trilhas de Questões';
     if (path === '/simulados') return 'Meus Simulados';
     if (path === '/estatisticas') return 'Raio-X do Aluno';
     if (path === '/loja') return 'Loja';
     if (path === '/perfil') return 'Perfil';
+    if (path === '/anotacoes') return 'Minhas Anotações';
+    if (path === '/erros') return 'Meus Erros';
     // Support both old and new URL formats for missions
     if (isMissionPage) return getMissionTitle();
     return 'Ouse Questões';
+  };
+
+  // Render styled title for pages
+  const renderStyledTitle = (title: string) => {
+    return (
+      <h1 className="text-lg font-bold text-[var(--color-text-main)] uppercase tracking-wide">{title}</h1>
+    );
   };
 
   // Practice Mode Header - quando está praticando questões
@@ -151,7 +158,7 @@ export function Header() {
             >
               <ChevronLeft size={20} className="text-[var(--color-text-sec)]" />
             </button>
-            <span className="text-[var(--color-text-main)] font-bold truncate">{practiceMode.title || 'Nova Prática'}</span>
+            <span className="text-[var(--color-text-main)] font-bold truncate">{practiceMode.title || 'Praticar'}</span>
           </div>
 
           {/* Center: Counter */}
@@ -176,7 +183,7 @@ export function Header() {
             <button
               onClick={() => practiceMode.onToggleFilters?.()}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium flex-shrink-0 ${practiceMode.showFilters
-                ? 'bg-[var(--color-brand)] text-black'
+                ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
                 : 'hover:bg-[var(--color-bg-card)] text-[var(--color-text-sec)] hover:text-[var(--color-text-main)]'
                 }`}
             >
@@ -204,28 +211,44 @@ export function Header() {
                 <ChevronLeft size={24} className="text-[var(--color-text-sec)]" />
               </button>
             )}
-            <div className="flex items-center gap-3">
-              {headerOverride.logoUrl ? (
-                <div className="w-10 h-10 bg-white rounded-lg p-1">
-                  <img
-                    src={headerOverride.logoUrl}
-                    alt=""
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="p-2 bg-emerald-500/10 rounded-lg">
-                  <Map size={24} className="text-emerald-500" />
-                </div>
-              )}
+            {/* Simple mode: only title, no icon */}
+            {headerOverride.hideIcon ? (
               <div>
                 <h1 className="text-lg font-bold text-[var(--color-text-main)]">{headerOverride.title}</h1>
                 {headerOverride.subtitle && (
-                  <p className="text-sm text-[var(--color-brand)]">{headerOverride.subtitle}</p>
+                  <p className="text-sm text-[var(--color-text-sec)]">{headerOverride.subtitle}</p>
                 )}
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                {headerOverride.logoUrl ? (
+                  <div className="w-10 h-10 bg-white rounded-lg p-1">
+                    <img
+                      src={headerOverride.logoUrl}
+                      alt=""
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="p-2 bg-emerald-500/10 rounded-lg">
+                    <Map size={24} className="text-emerald-500" />
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-lg font-bold text-[var(--color-text-main)]">{headerOverride.title}</h1>
+                  {headerOverride.subtitle && (
+                    <p className="text-sm text-[var(--color-brand)]">{headerOverride.subtitle}</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
+          {/* Right content */}
+          {headerOverride.rightContent && (
+            <div className="flex items-center">
+              {headerOverride.rightContent}
+            </div>
+          )}
         </div>
       </header>
     );
@@ -372,7 +395,7 @@ export function Header() {
             </>
           ) : (
             <>
-              {/* Mobile: Show Preparatorio Dropdown on Home, Logo on other pages */}
+              {/* Mobile: Show Preparatorio Dropdown on Home, Back + Title on other pages */}
               {isHomePage && userPreparatorios.length > 0 ? (
                 <div className="lg:hidden">
                   <PreparatorioDropdown
@@ -384,11 +407,15 @@ export function Header() {
                   />
                 </div>
               ) : (
-                <img
-                  src={isDarkMode ? LOGO_FOR_DARK_THEME : LOGO_FOR_LIGHT_THEME}
-                  alt="Ouse Passar"
-                  className="h-8 lg:hidden"
-                />
+                <div className="flex items-center gap-2 lg:hidden">
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="p-1.5 rounded-lg hover:bg-[var(--color-bg-card)] transition-colors"
+                  >
+                    <ChevronLeft size={22} className="text-[var(--color-text-sec)]" />
+                  </button>
+                  {renderStyledTitle(getPageTitle())}
+                </div>
               )}
             </>
           )}
@@ -406,9 +433,7 @@ export function Header() {
             </div>
           ) : (
             <div className="hidden lg:flex items-center gap-2">
-              <h1 className="text-xl font-bold text-[var(--color-text-main)] tracking-tight">
-                {getPageTitle()}
-              </h1>
+              {renderStyledTitle(getPageTitle())}
               {isMissionPage && currentMode === 'reta_final' && (
                 <span
                   className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold"

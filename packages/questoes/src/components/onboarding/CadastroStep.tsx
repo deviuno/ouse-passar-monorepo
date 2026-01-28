@@ -38,88 +38,88 @@ export function CadastroStep({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -50 }}
     >
-      <h2 className="text-2xl font-bold text-white mb-2">Crie sua conta</h2>
-      <p className="text-[#A0A0A0] mb-6">
-        Preencha seus dados para comecar sua jornada de estudos.
+      <h2 className="text-2xl font-bold text-[var(--color-text-main)] mb-2">Crie sua conta</h2>
+      <p className="text-[var(--color-text-sec)] mb-6">
+        Preencha seus dados para começar sua jornada de estudos.
       </p>
 
       <div className="space-y-4">
         {/* Nome */}
         <div>
-          <label className="block text-sm text-[#A0A0A0] mb-2">Nome completo</label>
+          <label className="block text-sm text-[var(--color-text-sec)] mb-2">Nome completo</label>
           <div className="relative">
-            <User size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+            <User size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               type="text"
               value={data.name || ''}
               onChange={(e) => onNameChange(e.target.value)}
               placeholder="Seu nome completo"
-              className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl py-3 pl-12 pr-4
-                text-white placeholder-[#6E6E6E]
-                focus:outline-none focus:border-[#FFB800] transition-colors"
+              className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-12 pr-4
+                text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
+                focus:outline-none focus:border-[var(--color-brand)] transition-colors"
             />
           </div>
         </div>
 
         {/* Email */}
         <div>
-          <label className="block text-sm text-[#A0A0A0] mb-2">E-mail</label>
+          <label className="block text-sm text-[var(--color-text-sec)] mb-2">E-mail</label>
           <div className="relative">
-            <Mail size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+            <Mail size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               type="email"
               value={data.email || ''}
               onChange={(e) => onEmailChange(e.target.value)}
               placeholder="seu@email.com"
-              className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl py-3 pl-12 pr-4
-                text-white placeholder-[#6E6E6E]
-                focus:outline-none focus:border-[#FFB800] transition-colors"
+              className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-12 pr-4
+                text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
+                focus:outline-none focus:border-[var(--color-brand)] transition-colors"
             />
           </div>
         </div>
 
         {/* Celular */}
         <div>
-          <label className="block text-sm text-[#A0A0A0] mb-2">Celular (WhatsApp)</label>
+          <label className="block text-sm text-[var(--color-text-sec)] mb-2">Celular (WhatsApp)</label>
           <div className="relative">
-            <Phone size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+            <Phone size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               type="tel"
               value={data.phone || ''}
               onChange={handlePhoneChange}
               placeholder="(11) 99999-9999"
               maxLength={15}
-              className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl py-3 pl-12 pr-4
-                text-white placeholder-[#6E6E6E]
-                focus:outline-none focus:border-[#FFB800] transition-colors"
+              className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-12 pr-4
+                text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
+                focus:outline-none focus:border-[var(--color-brand)] transition-colors"
             />
           </div>
         </div>
 
         {/* Senha */}
         <div>
-          <label className="block text-sm text-[#A0A0A0] mb-2">Senha</label>
+          <label className="block text-sm text-[var(--color-text-sec)] mb-2">Senha</label>
           <div className="relative">
-            <Lock size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+            <Lock size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               type={showPassword ? 'text' : 'password'}
               value={data.password || ''}
               onChange={(e) => onPasswordChange(e.target.value)}
-              placeholder="Minimo 6 caracteres"
-              className="w-full bg-[#252525] border border-[#3A3A3A] rounded-xl py-3 pl-12 pr-12
-                text-white placeholder-[#6E6E6E]
-                focus:outline-none focus:border-[#FFB800] transition-colors"
+              placeholder="Mínimo 6 caracteres"
+              className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-12 pr-12
+                text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
+                focus:outline-none focus:border-[var(--color-brand)] transition-colors"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6E6E6E] hover:text-white"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
             >
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
           {data.password && data.password.length < 6 && (
-            <p className="text-red-400 text-xs mt-1">A senha deve ter no minimo 6 caracteres</p>
+            <p className="text-[var(--color-error)] text-xs mt-1">A senha deve ter no mínimo 6 caracteres</p>
           )}
         </div>
       </div>

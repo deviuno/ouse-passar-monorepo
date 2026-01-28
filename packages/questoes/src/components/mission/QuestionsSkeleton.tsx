@@ -7,7 +7,7 @@ export function QuestionsSkeleton() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col h-full p-4"
+      className="flex flex-col h-full p-4 bg-gray-50 dark:bg-transparent"
     >
       {/* Progress bar skeleton */}
       <div className="flex items-center gap-4 mb-6">
@@ -36,10 +36,10 @@ export function QuestionsSkeleton() {
           {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="flex items-center gap-3 p-4 bg-[var(--color-bg-main)] rounded-xl border border-[var(--color-border)]"
+              className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-[var(--color-bg-main)] rounded-xl border border-gray-200 dark:border-[var(--color-border)]"
             >
-              <div className="w-8 h-8 rounded-full bg-[var(--color-bg-elevated)] animate-pulse flex-shrink-0" />
-              <div className="flex-1 h-4 bg-[var(--color-bg-elevated)] rounded animate-pulse" />
+              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-[var(--color-bg-elevated)] animate-pulse flex-shrink-0" />
+              <div className="flex-1 h-4 bg-gray-200 dark:bg-[var(--color-bg-elevated)] rounded animate-pulse" />
             </div>
           ))}
         </div>

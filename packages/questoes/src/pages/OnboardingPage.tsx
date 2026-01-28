@@ -321,7 +321,7 @@ export default function OnboardingPage() {
   const showFooterButton = ['cadastro', 'disponibilidade'].includes(currentStep);
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A] flex flex-col">
+    <div className="min-h-screen bg-[var(--color-bg-main)] flex flex-col">
       {/* Header with Progress */}
       {showProgressHeader && (
         <div className="p-4">

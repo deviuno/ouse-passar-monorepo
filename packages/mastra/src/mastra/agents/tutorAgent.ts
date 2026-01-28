@@ -3,6 +3,7 @@ import { vertex } from "../../lib/modelProvider.js";
 import { Memory } from "@mastra/memory";
 
 export const tutorAgent = new Agent({
+  id: "tutorAgent",
   name: "tutorAgent",
   description: "Professor IA especialista em concursos públicos brasileiros. Ajuda alunos a entender questões e conceitos de forma didática.",
   instructions: `Você é o **Professor IA**, um tutor especialista em concursos públicos brasileiros.
@@ -55,7 +56,7 @@ A alternativa correta é a **[COPIAR LETRA EXATA DO GABARITO]**.
 - Use emojis com moderação (📌, ✅, ⚠️, 💡)
 
 LEMBRE-SE: Você é um TRANSMISSOR do gabarito, não um AVALIADOR da questão.`,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-2.5-flash-lite"),
   memory: new Memory({
     options: {
       lastMessages: 10,

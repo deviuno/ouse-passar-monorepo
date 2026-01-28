@@ -34,6 +34,7 @@ export interface ParsedQuestion extends Omit<RawQuestion, 'alternativas'> {
   alternativas: string;
   parsedAlternativas: Alternative[];
   isPegadinha?: boolean;
+  isAiGenerated?: boolean;
   communityStats?: CommunityStats[];
 }
 
@@ -155,6 +156,7 @@ export interface UserStats {
   totalAnswered: number;
   coins: number;
   avatarId?: string;
+  lastPracticeDate?: string | null;
 }
 
 // Simulados
@@ -181,7 +183,16 @@ export interface Caderno {
     toggleFilters?: any;
   };
   questions_count?: number;
+  saved_questions_count?: number;
   is_favorite: boolean;
+  created_at: string;
+}
+
+export interface CadernoQuestao {
+  id: string;
+  caderno_id: string;
+  questao_id: number;
+  nota?: string;
   created_at: string;
 }
 

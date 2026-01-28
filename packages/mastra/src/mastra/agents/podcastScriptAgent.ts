@@ -8,6 +8,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Modelo: gemini-2.5-pro (melhor modelo para tarefas criativas complexas)
  */
 export const podcastScriptAgent = new Agent({
+  id: "podcastScriptAgent",
   name: "podcastScriptAgent",
   description: "Roteirista de podcast especialista em criar roteiros educativos sobre concursos públicos para o Ouse Passar Podcast.",
   instructions: `Você é um **Roteirista de Podcast Especialista** em criar roteiros educativos para o podcast **"Ouse Passar Podcast"**.
@@ -124,7 +125,7 @@ A quantidade de texto deve ser proporcional à duração solicitada:
 **[DIEGO]:** Então vamos lá. O tema de hoje é...
 
 (continua...)`,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default podcastScriptAgent;

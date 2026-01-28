@@ -102,7 +102,7 @@ export function ViewNotebookFiltersModal({
                 fullWidth
                 size="lg"
                 onClick={() => onEdit(notebook)}
-                className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-black font-bold text-sm lg:text-lg"
+                className="bg-[#ffac00] hover:bg-[#ffbc33] text-black font-bold text-sm lg:text-lg"
                 leftIcon={<Edit size={16} className="lg:w-[18px] lg:h-[18px]" />}
               >
                 Editar

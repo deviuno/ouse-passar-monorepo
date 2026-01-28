@@ -3,6 +3,8 @@
  *
  * Fetches data from Langfuse API to display token usage,
  * costs, and performance metrics in the admin panel.
+ *
+ * IMPORTANT: Costs are calculated using Vertex AI pricing, not Langfuse's calculatedTotalCost
  */
 
 import { Router, Request, Response } from 'express';
@@ -13,6 +15,49 @@ const router = Router();
 const LANGFUSE_BASE_URL = process.env.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
 const LANGFUSE_PUBLIC_KEY = process.env.LANGFUSE_PUBLIC_KEY;
 const LANGFUSE_SECRET_KEY = process.env.LANGFUSE_SECRET_KEY;
+
+// Vertex AI Pricing (USD per 1M tokens) - Updated January 2025
+// Source: https://cloud.google.com/vertex-ai/generative-ai/pricing
+const VERTEX_PRICING: Record<string, { input: number; output: number }> = {
+    // Gemini 2.5 Flash-Lite (most economical)
+    'gemini-2.5-flash-lite': { input: 0.10, output: 0.40 },
+    // Gemini 2.5 Flash
+    'gemini-2.5-flash': { input: 0.15, output: 0.60 },
+    'gemini-2.5-flash-preview-tts': { input: 0.15, output: 0.60 },
+    // Gemini 2.5 Pro
+    'gemini-2.5-pro': { input: 1.25, output: 5.00 },
+    // Gemini 2.0 Flash (legacy)
+    'gemini-2.0-flash': { input: 0.10, output: 0.40 },
+    'gemini-2.0-flash-lite': { input: 0.075, output: 0.30 },
+    // Gemini 1.5 (legacy)
+    'gemini-1.5-flash': { input: 0.075, output: 0.30 },
+    'gemini-1.5-pro': { input: 1.25, output: 5.00 },
+    // Default fallback
+    'default': { input: 0.15, output: 0.60 },
+};
+
+// USD to BRL exchange rate (updated periodically)
+const USD_TO_BRL = 6.0;
+
+// Calculate cost in USD based on Vertex AI pricing
+function calculateCostUSD(model: string, inputTokens: number, outputTokens: number): number {
+    // Normalize model name
+    const normalizedModel = model.toLowerCase().replace(/^models\//, '');
+
+    // Find matching pricing
+    let pricing = VERTEX_PRICING['default'];
+    for (const [key, value] of Object.entries(VERTEX_PRICING)) {
+        if (normalizedModel.includes(key)) {
+            pricing = value;
+            break;
+        }
+    }
+
+    const inputCost = (inputTokens / 1_000_000) * pricing.input;
+    const outputCost = (outputTokens / 1_000_000) * pricing.output;
+
+    return inputCost + outputCost;
+}
 
 // Helper to make authenticated requests to Langfuse API
 async function langfuseRequest(endpoint: string, options: RequestInit = {}) {
@@ -37,6 +82,58 @@ async function langfuseRequest(endpoint: string, options: RequestInit = {}) {
     }
 
     return response.json();
+}
+
+// Sleep helper
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Fetch ALL observations with pagination and rate limiting
+async function fetchAllObservations(from: Date, to: Date, maxPages: number = 50): Promise<any[]> {
+    const allData: any[] = [];
+    let page = 1;
+    const limit = 100; // Langfuse max per page
+    let retries = 0;
+    const maxRetries = 3;
+
+    while (page <= maxPages) {
+        try {
+            const result = await langfuseRequest(
+                `/observations?type=GENERATION&fromTimestamp=${from.toISOString()}&toTimestamp=${to.toISOString()}&limit=${limit}&page=${page}`
+            );
+
+            const data = result.data || [];
+            allData.push(...data);
+            retries = 0; // Reset retries on success
+
+            // Check if there are more pages
+            const totalItems = result.meta?.totalItems || 0;
+            const fetchedSoFar = page * limit;
+
+            if (data.length < limit || fetchedSoFar >= totalItems) {
+                break; // No more data
+            }
+
+            page++;
+
+            // Add delay between requests to avoid rate limiting
+            await sleep(200);
+        } catch (error: any) {
+            // Handle rate limiting with exponential backoff
+            if (error.message?.includes('429') && retries < maxRetries) {
+                retries++;
+                const backoffMs = Math.pow(2, retries) * 1000; // 2s, 4s, 8s
+                console.log(`[AI Metrics] Rate limited, waiting ${backoffMs}ms before retry ${retries}/${maxRetries}`);
+                await sleep(backoffMs);
+                continue; // Retry same page
+            }
+
+            console.error(`[AI Metrics] Error fetching page ${page}:`, error);
+            break;
+        }
+    }
+
+    console.log(`[AI Metrics] Fetched ${allData.length} observations from ${page} pages`);
+    return allData;
 }
 
 // Helper to get date range based on period
@@ -71,21 +168,17 @@ router.get('/stats', async (req: Request, res: Response) => {
         const period = (req.query.period as string) || 'week';
         const { from, to } = getDateRange(period);
 
-        // Fetch observations (generations) from Langfuse
-        const observations = await langfuseRequest(
-            `/observations?type=GENERATION&fromTimestamp=${from.toISOString()}&toTimestamp=${to.toISOString()}&limit=100`
-        );
-
-        const data = observations.data || [];
+        // Fetch ALL observations with pagination
+        const data = await fetchAllObservations(from, to);
 
         // Calculate aggregated stats
         let totalInputTokens = 0;
         let totalOutputTokens = 0;
-        let totalCost = 0;
+        let totalCostUSD = 0;
         let totalRequests = data.length;
         let totalLatency = 0;
         let errorCount = 0;
-        const modelUsage: Record<string, { count: number; tokens: number; cost: number }> = {};
+        const modelUsage: Record<string, { count: number; inputTokens: number; outputTokens: number; costUSD: number }> = {};
 
         for (const obs of data) {
             // Token usage
@@ -94,9 +187,12 @@ router.get('/stats', async (req: Request, res: Response) => {
             totalInputTokens += inputTokens;
             totalOutputTokens += outputTokens;
 
-            // Cost
-            const cost = obs.calculatedTotalCost || 0;
-            totalCost += cost;
+            // Get model name
+            const model = obs.model || obs.modelId || 'unknown';
+
+            // Calculate cost using Vertex AI pricing
+            const costUSD = calculateCostUSD(model, inputTokens, outputTokens);
+            totalCostUSD += costUSD;
 
             // Latency
             if (obs.startTime && obs.endTime) {
@@ -111,13 +207,13 @@ router.get('/stats', async (req: Request, res: Response) => {
             }
 
             // Model usage breakdown
-            const model = obs.model || obs.modelId || 'unknown';
             if (!modelUsage[model]) {
-                modelUsage[model] = { count: 0, tokens: 0, cost: 0 };
+                modelUsage[model] = { count: 0, inputTokens: 0, outputTokens: 0, costUSD: 0 };
             }
             modelUsage[model].count++;
-            modelUsage[model].tokens += inputTokens + outputTokens;
-            modelUsage[model].cost += cost;
+            modelUsage[model].inputTokens += inputTokens;
+            modelUsage[model].outputTokens += outputTokens;
+            modelUsage[model].costUSD += costUSD;
         }
 
         const avgLatency = totalRequests > 0 ? Math.round(totalLatency / totalRequests) : 0;
@@ -127,9 +223,17 @@ router.get('/stats', async (req: Request, res: Response) => {
         const modelBreakdown = Object.entries(modelUsage)
             .map(([model, stats]) => ({
                 model,
-                ...stats,
+                count: stats.count,
+                tokens: stats.inputTokens + stats.outputTokens,
+                inputTokens: stats.inputTokens,
+                outputTokens: stats.outputTokens,
+                costUSD: Math.round(stats.costUSD * 10000) / 10000,
+                costBRL: Math.round(stats.costUSD * USD_TO_BRL * 100) / 100,
             }))
             .sort((a, b) => b.count - a.count);
+
+        // Convert to BRL
+        const totalCostBRL = totalCostUSD * USD_TO_BRL;
 
         res.json({
             success: true,
@@ -138,13 +242,20 @@ router.get('/stats', async (req: Request, res: Response) => {
                 totalTokens: totalInputTokens + totalOutputTokens,
                 inputTokens: totalInputTokens,
                 outputTokens: totalOutputTokens,
-                totalCost: Math.round(totalCost * 10000) / 10000, // Round to 4 decimal places
+                totalCostUSD: Math.round(totalCostUSD * 10000) / 10000,
+                totalCostBRL: Math.round(totalCostBRL * 100) / 100,
+                totalCost: Math.round(totalCostBRL * 100) / 100, // BRL for backward compatibility
                 totalRequests,
                 avgLatencyMs: avgLatency,
                 errorRate: Math.round(errorRate * 100) / 100,
                 errorCount,
             },
             modelBreakdown,
+            pricing: {
+                source: 'Vertex AI',
+                currency: 'BRL',
+                exchangeRate: USD_TO_BRL,
+            },
         });
     } catch (error) {
         console.error('[AI Metrics] Error fetching stats:', error);
@@ -157,27 +268,73 @@ router.get('/stats', async (req: Request, res: Response) => {
 
 /**
  * GET /api/admin/ai-metrics/traces
- * Returns recent traces with details
+ * Returns recent observations (generations) with details
  */
 router.get('/traces', async (req: Request, res: Response) => {
     try {
         const limit = parseInt(req.query.limit as string) || 50;
         const page = parseInt(req.query.page as string) || 1;
 
-        // Fetch traces from Langfuse
-        const traces = await langfuseRequest(`/traces?limit=${limit}&page=${page}`);
+        // Fetch observations from Langfuse with retry
+        let observations;
+        let retries = 0;
+        const maxRetries = 3;
 
-        const formattedTraces = (traces.data || []).map((trace: any) => ({
-            id: trace.id,
-            name: trace.name,
-            timestamp: trace.timestamp,
-            latencyMs: trace.latency,
-            inputTokens: trace.usage?.input || trace.usage?.promptTokens || 0,
-            outputTokens: trace.usage?.output || trace.usage?.completionTokens || 0,
-            totalCost: trace.calculatedTotalCost || 0,
-            status: trace.level || 'DEFAULT',
-            metadata: trace.metadata,
-        }));
+        while (retries <= maxRetries) {
+            try {
+                observations = await langfuseRequest(`/observations?type=GENERATION&limit=${limit}&page=${page}`);
+                break;
+            } catch (error: any) {
+                if (error.message?.includes('429') && retries < maxRetries) {
+                    retries++;
+                    await sleep(Math.pow(2, retries) * 1000);
+                    continue;
+                }
+                throw error;
+            }
+        }
+
+        if (!observations) {
+            throw new Error('Failed to fetch observations after retries');
+        }
+
+        const formattedTraces = (observations.data || []).map((obs: any) => {
+            // Calculate latency from start/end time
+            let latencyMs = 0;
+            if (obs.startTime && obs.endTime) {
+                const start = new Date(obs.startTime).getTime();
+                const end = new Date(obs.endTime).getTime();
+                latencyMs = end - start;
+            } else if (obs.latency) {
+                latencyMs = obs.latency;
+            }
+
+            // Get token usage
+            const inputTokens = obs.usage?.input || obs.usage?.promptTokens || obs.promptTokens || 0;
+            const outputTokens = obs.usage?.output || obs.usage?.completionTokens || obs.completionTokens || 0;
+            const totalTokens = obs.usage?.total || obs.totalTokens || (inputTokens + outputTokens);
+
+            // Get model and calculate cost
+            const model = obs.model || obs.modelId || 'unknown';
+            const costUSD = calculateCostUSD(model, inputTokens, outputTokens);
+            const costBRL = costUSD * USD_TO_BRL;
+
+            return {
+                id: obs.id,
+                name: obs.name || obs.model || 'generation',
+                timestamp: obs.startTime || obs.createdAt,
+                latencyMs,
+                inputTokens,
+                outputTokens,
+                totalTokens,
+                totalCostUSD: Math.round(costUSD * 1000000) / 1000000,
+                totalCostBRL: Math.round(costBRL * 10000) / 10000,
+                totalCost: Math.round(costBRL * 10000) / 10000, // BRL for backward compatibility
+                status: obs.level || 'DEFAULT',
+                model,
+                metadata: obs.metadata,
+            };
+        });
 
         res.json({
             success: true,
@@ -185,7 +342,7 @@ router.get('/traces', async (req: Request, res: Response) => {
             pagination: {
                 page,
                 limit,
-                totalItems: traces.meta?.totalItems || formattedTraces.length,
+                totalItems: observations.meta?.totalItems || formattedTraces.length,
             },
         });
     } catch (error) {
@@ -206,18 +363,17 @@ router.get('/usage-over-time', async (req: Request, res: Response) => {
         const period = (req.query.period as string) || 'week';
         const { from, to } = getDateRange(period);
 
-        // Fetch observations from Langfuse
-        const observations = await langfuseRequest(
-            `/observations?type=GENERATION&fromTimestamp=${from.toISOString()}&toTimestamp=${to.toISOString()}&limit=100`
-        );
-
-        const data = observations.data || [];
+        // Fetch ALL observations with pagination
+        const data = await fetchAllObservations(from, to);
 
         // Aggregate by day
         const dailyStats: Record<string, {
             date: string;
             tokens: number;
-            cost: number;
+            inputTokens: number;
+            outputTokens: number;
+            costUSD: number;
+            costBRL: number;
             requests: number;
         }> = {};
 
@@ -228,16 +384,24 @@ router.get('/usage-over-time', async (req: Request, res: Response) => {
                 dailyStats[date] = {
                     date,
                     tokens: 0,
-                    cost: 0,
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    costUSD: 0,
+                    costBRL: 0,
                     requests: 0,
                 };
             }
 
             const inputTokens = obs.usage?.input || obs.usage?.promptTokens || 0;
             const outputTokens = obs.usage?.output || obs.usage?.completionTokens || 0;
+            const model = obs.model || obs.modelId || 'unknown';
+            const costUSD = calculateCostUSD(model, inputTokens, outputTokens);
 
             dailyStats[date].tokens += inputTokens + outputTokens;
-            dailyStats[date].cost += obs.calculatedTotalCost || 0;
+            dailyStats[date].inputTokens += inputTokens;
+            dailyStats[date].outputTokens += outputTokens;
+            dailyStats[date].costUSD += costUSD;
+            dailyStats[date].costBRL += costUSD * USD_TO_BRL;
             dailyStats[date].requests++;
         }
 
@@ -246,13 +410,20 @@ router.get('/usage-over-time', async (req: Request, res: Response) => {
             .sort((a, b) => a.date.localeCompare(b.date))
             .map(day => ({
                 ...day,
-                cost: Math.round(day.cost * 10000) / 10000,
+                costUSD: Math.round(day.costUSD * 10000) / 10000,
+                costBRL: Math.round(day.costBRL * 100) / 100,
+                cost: Math.round(day.costBRL * 100) / 100, // BRL for backward compatibility
             }));
 
         res.json({
             success: true,
             period,
             data: usageData,
+            pricing: {
+                source: 'Vertex AI',
+                currency: 'BRL',
+                exchangeRate: USD_TO_BRL,
+            },
         });
     } catch (error) {
         console.error('[AI Metrics] Error fetching usage over time:', error);
@@ -284,6 +455,11 @@ router.get('/health', async (_req: Request, res: Response) => {
             success: true,
             configured: true,
             message: 'Langfuse connection successful',
+            pricing: {
+                source: 'Vertex AI',
+                currency: 'BRL',
+                exchangeRate: USD_TO_BRL,
+            },
         });
     } catch (error) {
         res.json({
@@ -292,6 +468,21 @@ router.get('/health', async (_req: Request, res: Response) => {
             message: error instanceof Error ? error.message : 'Failed to connect to Langfuse',
         });
     }
+});
+
+/**
+ * GET /api/admin/ai-metrics/pricing
+ * Returns current pricing configuration
+ */
+router.get('/pricing', async (_req: Request, res: Response) => {
+    res.json({
+        success: true,
+        pricing: VERTEX_PRICING,
+        exchangeRate: {
+            USD_TO_BRL,
+            lastUpdated: '2025-01-20',
+        },
+    });
 });
 
 export function createAIMetricsRoutes() {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Loader2 } from 'lucide-react';
+import { Calendar, Loader2 } from 'lucide-react';
 import { Card } from '../ui';
 import { DailyStats } from '../../services/statsService';
 
@@ -14,11 +14,11 @@ export function EvolutionChart({ data, isLoading }: EvolutionChartProps) {
     return (
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
-          <TrendingUp size={20} className="text-[#2ECC71]" />
-          <h3 className="text-[var(--color-text-main)] font-semibold">Evolucao Diaria</h3>
+          <Calendar size={18} className="text-[var(--color-brand)]" />
+          <h3 className="text-[var(--color-text-main)] font-semibold">Evolução Diária</h3>
         </div>
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="animate-spin text-[#2ECC71]" size={32} />
+          <Loader2 className="animate-spin text-[var(--color-brand)]" size={24} />
         </div>
       </Card>
     );
@@ -28,57 +28,75 @@ export function EvolutionChart({ data, isLoading }: EvolutionChartProps) {
     return (
       <Card className="h-full">
         <div className="flex items-center gap-2 mb-4">
-          <TrendingUp size={20} className="text-[#2ECC71]" />
-          <h3 className="text-[var(--color-text-main)] font-semibold">Evolucao Diaria</h3>
+          <Calendar size={18} className="text-[var(--color-brand)]" />
+          <h3 className="text-[var(--color-text-main)] font-semibold">Evolução Diária</h3>
         </div>
         <div className="text-center py-8">
-          <p className="text-[#6E6E6E]">Nenhum dado de evolucao disponivel ainda.</p>
+          <p className="text-[var(--color-text-muted)] text-sm">Nenhum dado de evolução disponível ainda.</p>
         </div>
       </Card>
     );
   }
 
   const maxQuestoes = Math.max(...data.map((d) => d.questoes), 1);
+  const totalQuestions = data.reduce((acc, d) => acc + d.questoes, 0);
+  const daysWithActivity = data.filter(d => d.questoes > 0);
+  const averageAccuracy = daysWithActivity.length > 0
+    ? Math.round(daysWithActivity.reduce((acc, d) => acc + d.acerto, 0) / daysWithActivity.length)
+    : 0;
 
   return (
     <Card className="h-full">
       <div className="flex items-center gap-2 mb-4">
-        <TrendingUp size={20} className="text-[#2ECC71]" />
-        <h3 className="text-[var(--color-text-main)] font-semibold">Evolucao Diaria</h3>
+        <Calendar size={18} className="text-[var(--color-brand)]" />
+        <h3 className="text-[var(--color-text-main)] font-semibold">Evolução Diária</h3>
       </div>
 
-      <div className="flex items-end justify-between gap-1 h-32">
+      {/* Bar Chart */}
+      <div className="flex items-end justify-between gap-2 h-28 mb-2">
+        {data.map((day, index) => {
+          const hasData = day.questoes > 0;
+          const heightPercent = hasData ? (day.questoes / maxQuestoes) * 100 : 0;
+
+          return (
+            <div key={day.dia + index} className="flex-1 flex flex-col items-center">
+              <div className="relative w-full flex flex-col items-center">
+                {hasData && (
+                  <span className="text-[10px] text-[var(--color-text-sec)] font-medium tabular-nums mb-1">
+                    {day.acerto}%
+                  </span>
+                )}
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: hasData ? `${Math.max(heightPercent, 8)}%` : 4 }}
+                  transition={{ duration: 0.5, delay: index * 0.05, ease: 'easeOut' }}
+                  className={`w-full max-w-[32px] rounded-t-md ${hasData ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-bg-elevated)]'}`}
+                  style={{ minHeight: hasData ? '16px' : '4px' }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Day Labels */}
+      <div className="flex justify-between gap-2 mb-4">
         {data.map((day, index) => (
-          <div key={day.dia + index} className="flex-1 flex flex-col items-center gap-1">
-            <motion.div
-              initial={{ height: 0 }}
-              animate={{ height: day.questoes > 0 ? `${(day.questoes / maxQuestoes) * 100}%` : '4px' }}
-              transition={{ duration: 0.5, delay: index * 0.05 }}
-              className={`w-full rounded-t-lg relative min-h-[4px] ${day.questoes > 0 ? 'bg-[#FFB800]' : 'bg-[var(--color-bg-elevated)]'}`}
-            >
-              {day.questoes > 0 && (
-                <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-[var(--color-text-sec)]">
-                  {day.acerto}%
-                </span>
-              )}
-            </motion.div>
-            <span className="text-[var(--color-text-muted)] text-[10px]">{day.dia}</span>
+          <div key={day.dia + index} className="flex-1 text-center">
+            <span className="text-[var(--color-text-muted)] text-[10px] font-medium uppercase">{day.dia}</span>
           </div>
         ))}
       </div>
 
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--color-border)]">
+      {/* Summary Stats */}
+      <div className="flex items-center justify-between pt-4 border-t border-[var(--color-border)]">
         <div>
-          <p className="text-[var(--color-text-muted)] text-xs">Ultimos 7 dias</p>
-          <p className="text-[var(--color-text-main)] font-bold">{data.reduce((acc, d) => acc + d.questoes, 0)} questoes</p>
+          <p className="text-[var(--color-text-muted)] text-xs">Últimos 7 dias</p>
+          <p className="text-[var(--color-text-main)] font-bold tabular-nums">{totalQuestions.toLocaleString('pt-BR')} questões</p>
         </div>
         <div className="text-right">
-          <p className="text-[var(--color-text-muted)] text-xs">Media de acerto</p>
-          <p className="text-[#2ECC71] font-bold">
-            {data.filter(d => d.questoes > 0).length > 0
-              ? Math.round(data.filter(d => d.questoes > 0).reduce((acc, d) => acc + d.acerto, 0) / data.filter(d => d.questoes > 0).length)
-              : 0}%
-          </p>
+          <p className="text-[var(--color-text-muted)] text-xs">Média de acerto</p>
+          <p className="text-[var(--color-success)] font-bold tabular-nums">{averageAccuracy}%</p>
         </div>
       </div>
     </Card>

@@ -28,8 +28,10 @@ export const COLORS = {
 };
 
 
-export const LOGO_FOR_LIGHT_THEME = "https://i.ibb.co/gZfHDygW/logo-ouse-claro.png";
-export const LOGO_FOR_DARK_THEME = "https://i.ibb.co/27GBPsgN/logo-ouse-escuro2.png";
+// Logo URLs - stored in Supabase Storage (public-images bucket)
+// Upload logos to: https://avlttxzppcywybiaxxzd.supabase.co/storage/v1/object/public/public-images/
+export const LOGO_FOR_LIGHT_THEME = "https://avlttxzppcywybiaxxzd.supabase.co/storage/v1/object/public/public-images/logo-ouse-claro.png";
+export const LOGO_FOR_DARK_THEME = "https://avlttxzppcywybiaxxzd.supabase.co/storage/v1/object/public/public-images/logo-ouse-escuro.png";
 // Default to dark for fallback
 export const LOGO_URL = LOGO_FOR_DARK_THEME;
 export const USER_AVATAR_URL = "https://i.pravatar.cc/150?u=ousepassar";

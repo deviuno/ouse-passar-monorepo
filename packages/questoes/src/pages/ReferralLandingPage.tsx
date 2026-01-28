@@ -2,13 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Loader2, AlertCircle, Gift, Target, Zap } from 'lucide-react';
-import { Button } from '../components/ui';
+import { Button, Logo } from '../components/ui';
 import {
   getUserByUsername,
   saveReferrerToStorage,
   trackReferralVisit,
 } from '../services/referralService';
-import { LOGO_URL } from '../constants';
 
 interface ReferrerInfo {
   id: string;
@@ -97,7 +96,7 @@ export default function ReferralLandingPage() {
     <div className="min-h-screen bg-[#121212] flex flex-col">
       {/* Header */}
       <div className="p-4 flex justify-center">
-        <img src={LOGO_URL} alt="Ouse Passar" className="h-8" />
+        <Logo className="h-8" variant="dark" />
       </div>
 
       {/* Content */}

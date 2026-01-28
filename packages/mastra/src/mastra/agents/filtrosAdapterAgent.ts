@@ -13,7 +13,7 @@
  * O agente registra todas as adaptações feitas para auditoria pelo admin.
  */
 
-import { Agent } from "@mastra/core";
+import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -343,6 +343,7 @@ async function salvarFiltrosOtimizados(
 // ==================== AGENTE ====================
 
 export const filtrosAdapterAgent = new Agent({
+    id: "filtrosAdapterAgent",
     name: "FiltrosAdapterAgent",
     instructions: `Você é um agente especializado em adaptar termos de editais de concursos para os termos usados em bancos de questões.
 
@@ -363,7 +364,7 @@ Regras importantes:
 - Considere variações de acentuação e capitalização
 - Se não encontrar correspondência, retorne null
 - Sempre retorne uma explicação clara da adaptação feita`,
-    model: vertex("gemini-2.5-flash"),
+    model: vertex("gemini-2.5-flash-lite"),
 });
 
 // ==================== FUNÇÕES DE ADAPTAÇÃO ====================

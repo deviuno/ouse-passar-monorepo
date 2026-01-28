@@ -52,28 +52,35 @@ let filterOptionsCache: {
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
-// Mapeamento de nomes curtos de bancas para nomes completos no banco
-const BANCA_NAME_MAP: Record<string, string> = {
-  'CEBRASPE': 'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos',
-  'Cebraspe': 'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos',
-  'CESPE': 'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos',
-  'CESPE/CEBRASPE': 'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos',
-  'FCC': 'Fundação Carlos Chagas',
-  'FGV': 'Fundação Getúlio Vargas',
-  'VUNESP': 'Fundação para o Vestibular da Universidade Estadual Paulista',
-  'IDECAN': 'Instituto de Desenvolvimento Educacional, Cultural e Assistencial Nacional',
-  'AOCP': 'Instituto AOCP',
-  'IBFC': 'Instituto Brasileiro de Formação e Capacitação',
-  'IADES': 'Instituto Brasileiro de Apoio e Desenvolvimento Executivo',
-  'FUNIVERSA': 'Fundação Universa',
-  'FUMARC': 'Fundação Mariana Resende Costa',
-  'UFG': 'Instituto Verbena da Universidade Federal de Goiás',
-  'IBADE': 'IBADE', // Já é o nome correto
-};
+// Grupos de bancas sinônimas - quando selecionar uma, busca todas do grupo
+const BANCA_SYNONYM_GROUPS: string[][] = [
+  // CESPE / CEBRASPE - todas as variantes usadas no banco
+  [
+    'CEBRASPE (CESPE)',
+    'Centro Brasileiro de Pesquisa em Avaliação e Seleção e de Promoção de Eventos',
+    'Centro de Seleção e de Promoção de Eventos - UnB',
+  ],
+];
 
-// Normaliza nome de banca para o formato do banco de dados
-const normalizeBancaName = (banca: string): string => {
-  return BANCA_NAME_MAP[banca] || banca;
+// Expande bancas selecionadas para incluir sinônimos
+const expandBancaSynonyms = (bancas: string[]): string[] => {
+  const expanded = new Set<string>(bancas);
+
+  for (const banca of bancas) {
+    // Verificar se a banca pertence a algum grupo de sinônimos
+    for (const group of BANCA_SYNONYM_GROUPS) {
+      if (group.some(synonym =>
+        synonym.toLowerCase() === banca.toLowerCase() ||
+        banca.toLowerCase().includes('cebraspe') ||
+        banca.toLowerCase().includes('cespe')
+      )) {
+        // Adicionar todos os sinônimos do grupo
+        group.forEach(synonym => expanded.add(synonym));
+      }
+    }
+  }
+
+  return Array.from(expanded);
 };
 
 // Tipo para questão do banco de dados
@@ -96,6 +103,7 @@ export interface DbQuestion {
   questao_revisada: string | null;
   is_pegadinha?: boolean;
   explicacao_pegadinha?: string | null;
+  is_ai_generated?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -133,6 +141,7 @@ const transformQuestion = (dbQuestion: DbQuestion): ParsedQuestion => {
     imagens_comentario: dbQuestion.imagens_comentario?.join(',') || null,
     isPegadinha: dbQuestion.is_pegadinha || false,
     explicacaoPegadinha: dbQuestion.explicacao_pegadinha,
+    isAiGenerated: dbQuestion.is_ai_generated || false,
   };
 };
 
@@ -164,6 +173,7 @@ export interface QuestionFilters {
   escolaridade?: string[];
   apenasRevisadas?: boolean;
   apenasComComentario?: boolean;
+  apenasIneditasOuse?: boolean;
   limit?: number;
   offset?: number;
   shuffle?: boolean;
@@ -217,10 +227,10 @@ export const fetchQuestions = async (filters?: QuestionFilters): Promise<ParsedQ
     }
 
     if (filters?.bancas && filters.bancas.length > 0) {
-      // Normalizar nomes de bancas para o formato do banco
-      const normalizedBancas = filters.bancas.map(normalizeBancaName);
-      console.log('[fetchQuestions] Bancas normalizadas:', filters.bancas, '->', normalizedBancas);
-      query = query.in('banca', normalizedBancas);
+      // Expandir bancas para incluir sinônimos (CESPE/CEBRASPE são tratados como equivalentes)
+      const expandedBancas = expandBancaSynonyms(filters.bancas);
+      console.log('[fetchQuestions] Bancas filtro:', filters.bancas, '→ expandido:', expandedBancas);
+      query = query.in('banca', expandedBancas);
     }
 
     if (filters?.orgaos && filters.orgaos.length > 0) {
@@ -241,6 +251,10 @@ export const fetchQuestions = async (filters?: QuestionFilters): Promise<ParsedQ
 
     if (filters?.apenasComComentario) {
       query = query.not('comentario', 'is', null).neq('comentario', '');
+    }
+
+    if (filters?.apenasIneditasOuse) {
+      query = query.eq('is_ai_generated', true);
     }
 
     if (filters?.limit) {
@@ -291,6 +305,41 @@ export const fetchQuestionById = async (id: number): Promise<ParsedQuestion | nu
   return data ? transformQuestion(data) : null;
 };
 
+// Busca múltiplas questões por IDs
+export const fetchQuestionsByIds = async (ids: number[]): Promise<ParsedQuestion[]> => {
+  if (!ids || ids.length === 0) return [];
+
+  console.log('[fetchQuestionsByIds] Buscando questões por IDs:', ids.length, 'questões');
+
+  return withRetry(async () => {
+    const { data, error } = await questionsDb
+      .from('questoes_concurso')
+      .select('*')
+      .in('id', ids)
+      // Filtro oculto: apenas questões ativas e válidas
+      .eq('ativo', true)
+      .not('enunciado', 'is', null)
+      .neq('enunciado', '')
+      .neq('enunciado', 'deleted');
+
+    if (error) {
+      console.error('[fetchQuestionsByIds] Erro ao buscar questões:', error);
+      throw error;
+    }
+
+    const questions = (data || []).map(transformQuestion);
+
+    // Reordenar para manter a ordem original dos IDs
+    const questionsMap = new Map(questions.map(q => [q.id, q]));
+    const orderedQuestions = ids
+      .map(id => questionsMap.get(id))
+      .filter((q): q is ParsedQuestion => q !== undefined);
+
+    console.log('[fetchQuestionsByIds] Retornando', orderedQuestions.length, 'questões');
+    return orderedQuestions;
+  });
+};
+
 // Busca opções de filtro disponíveis (valores distintos)
 // Usa função RPC do Postgres para performance otimizada
 // Com cache e retry automático
@@ -322,11 +371,20 @@ export const fetchFilterOptions = async (): Promise<{
       throw new Error('Nenhum dado retornado pela função get_all_filter_options');
     }
 
+    // Filtra valores inválidos (vazios, nulos, apenas "-", etc.)
+    const filterValidStrings = (arr: unknown[]): string[] =>
+      (arr || [])
+        .filter((v): v is string =>
+          typeof v === 'string' &&
+          v.trim() !== '' &&
+          v.trim() !== '-'
+        );
+
     return {
-      materias: (data?.materias || []) as string[],
-      bancas: (data?.bancas || []) as string[],
-      orgaos: (data?.orgaos || []) as string[],
-      cargos: (data?.cargos || []) as string[],
+      materias: filterValidStrings(data?.materias),
+      bancas: filterValidStrings(data?.bancas),
+      orgaos: filterValidStrings(data?.orgaos),
+      cargos: filterValidStrings(data?.cargos),
       anos: (data?.anos || []) as number[],
     };
   });
@@ -550,6 +608,7 @@ export const getQuestionsCount = async (filters?: Omit<QuestionFilters, 'limit' 
       p_cargos?: string[];
       p_apenas_revisadas?: boolean;
       p_apenas_com_comentario?: boolean;
+      p_apenas_ineditas_ouse?: boolean;
     } = {};
 
     if (filters?.materias && filters.materias.length > 0) {
@@ -561,8 +620,10 @@ export const getQuestionsCount = async (filters?: Omit<QuestionFilters, 'limit' 
     }
 
     if (filters?.bancas && filters.bancas.length > 0) {
-      // Normalizar nomes de bancas para o formato do banco
-      params.p_bancas = filters.bancas.map(normalizeBancaName);
+      // Expandir bancas para incluir sinônimos (CESPE/CEBRASPE são tratados como equivalentes)
+      const expandedBancas = expandBancaSynonyms(filters.bancas);
+      params.p_bancas = expandedBancas;
+      console.log('[getQuestionsCount] Bancas filtro:', filters.bancas, '→ expandido:', expandedBancas);
     }
 
     if (filters?.orgaos && filters.orgaos.length > 0) {
@@ -585,6 +646,10 @@ export const getQuestionsCount = async (filters?: Omit<QuestionFilters, 'limit' 
       params.p_apenas_com_comentario = true;
     }
 
+    if (filters?.apenasIneditasOuse) {
+      params.p_apenas_ineditas_ouse = true;
+    }
+
     const { data, error } = await questionsDb.rpc('get_questions_count', params);
 
     if (error) {
@@ -600,6 +665,7 @@ export const getQuestionsCount = async (filters?: Omit<QuestionFilters, 'limit' 
 export const questionsService = {
   fetchQuestions,
   fetchQuestionById,
+  fetchQuestionsByIds,
   fetchFilterOptions,
   fetchAssuntosByMaterias,
   fetchTaxonomiaByMateria,

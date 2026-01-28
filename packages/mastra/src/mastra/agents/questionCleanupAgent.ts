@@ -11,6 +11,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const questionCleanupAgent = new Agent({
+    id: "questionCleanupAgent",
     name: "QuestionCleanupAgent",
     instructions: `Você é um especialista em extrair conteúdo limpo de HTML corrompido de questões de concursos.
 
@@ -121,7 +122,7 @@ Antes de retornar, verifique:
 4. Não há código de template no resultado?
 
 Se alguma validação falhar, retorne success: false com explicação.`,
-    model: vertex("gemini-2.5-flash"),
+    model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default questionCleanupAgent;

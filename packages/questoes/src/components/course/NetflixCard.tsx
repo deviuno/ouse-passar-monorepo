@@ -55,7 +55,7 @@ export const NetflixCard: React.FC<NetflixCardProps> = ({ course, onOpen }) => {
 
         {/* Play Button Overlay */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
-          <div className="bg-[var(--color-brand)] rounded-full p-4 shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
+          <div className="bg-[#ffac00] rounded-full p-4 shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
             <Play size={24} className="text-black fill-current" />
           </div>
         </div>
@@ -65,7 +65,7 @@ export const NetflixCard: React.FC<NetflixCardProps> = ({ course, onOpen }) => {
           <div className="absolute bottom-0 left-0 right-0 z-20">
             <div className="h-1 bg-white/20">
               <div
-                className="h-full bg-[var(--color-brand)]"
+                className="h-full bg-[#ffac00]"
                 style={{ width: `${progress}%` }}
               />
             </div>

@@ -12,6 +12,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const comentarioFormatterAgent = new Agent({
+    id: "comentarioFormatterAgent",
     name: "ComentarioFormatterAgent",
     instructions: `Você é um especialista em formatação de textos educacionais para questões de concursos públicos brasileiros.
 
@@ -262,7 +263,7 @@ Retorne APENAS um JSON válido (sem markdown extra, sem explicações antes ou d
 7. **NUNCA invente URLs de imagens**
 
 8. Se o texto menciona "figura" ou "imagem" sem URL, NÃO adicione imagem`,
-    model: vertex("gemini-2.5-flash"),
+    model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default comentarioFormatterAgent;

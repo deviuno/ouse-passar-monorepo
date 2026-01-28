@@ -17,8 +17,7 @@ import {
   Headphones,
 } from 'lucide-react';
 import { useAuthStore, useUserStore, useUIStore, useNotificationStore, useTrailStore, useBatteryStore } from '../../stores';
-import { useTheme } from '../../contexts/ThemeContext';
-import { LOGO_FOR_LIGHT_THEME, LOGO_FOR_DARK_THEME } from '../../constants';
+import { Logo } from '../ui';
 import { CircularProgress } from '../ui/Progress';
 import { calculateXPProgress } from '../../constants/levelConfig';
 import { NotificationPopover } from './NotificationPopover';
@@ -64,8 +63,6 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
   const { stats } = useUserStore();
   const { notifications } = useNotificationStore();
   const { toggleSidebar } = useUIStore();
-  const { theme } = useTheme();
-  const isDarkMode = theme === 'dark';
   const { selectedPreparatorioId, getSelectedPreparatorio } = useTrailStore();
   const selectedPrep = getSelectedPreparatorio();
   const {
@@ -116,7 +113,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
           </button>
         ) : (
           <>
-            <img src={isDarkMode ? LOGO_FOR_DARK_THEME : LOGO_FOR_LIGHT_THEME} alt="Ouse Passar" className="h-7 object-contain" />
+            <Logo className="h-7" />
             <button
               onClick={toggleSidebar}
               className="p-1.5 rounded-lg hover:bg-[var(--color-bg-elevated)] transition-colors"
@@ -201,6 +198,24 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
           )}
         </div>
 
+        {/* Stats Row - Only show when expanded */}
+        {!isCollapsed && (
+          <div className="flex items-center justify-between mt-3 text-sm max-w-[170px]">
+            <div className="flex items-center gap-1">
+              <span className="text-xl">🔥</span>
+              <span className="text-[var(--color-text-main)] font-medium">{stats.streak}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xl">💰</span>
+              <span className="text-[var(--color-brand)] font-medium">{stats.coins}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xl">⭐</span>
+              <span className="text-[var(--color-text-main)] font-medium">{stats.correctAnswers}</span>
+            </div>
+          </div>
+        )}
+
         {/* Battery Indicator - Only show when preparatório is selected */}
         {showBattery && !isCollapsed && (
           <div className="mt-3">
@@ -222,24 +237,6 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
               compact={true}
               onClick={() => setIsBatteryInfoOpen(true)}
             />
-          </div>
-        )}
-
-        {/* Stats Row - Only show when expanded */}
-        {!isCollapsed && (
-          <div className="flex items-center justify-between mt-3 text-sm max-w-[170px]">
-            <div className="flex items-center gap-1">
-              <span className="text-xl">🔥</span>
-              <span className="text-[var(--color-text-main)] font-medium">{stats.streak}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-xl">💰</span>
-              <span className="text-[var(--color-brand)] font-medium">{stats.coins}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-xl">⭐</span>
-              <span className="text-[var(--color-text-main)] font-medium">{stats.correctAnswers}</span>
-            </div>
           </div>
         )}
       </div>
@@ -339,7 +336,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
                 >
                   {isActive && (
                     <motion.div
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--color-brand)] rounded-r-full"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#ffac00] rounded-r-full"
                       initial={{ opacity: 0, scale: 0.8, y: '-50%' }}
                       animate={{ opacity: 1, scale: 1, y: '-50%' }}
                       transition={{ duration: 0.2 }}

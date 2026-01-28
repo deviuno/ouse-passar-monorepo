@@ -11,3 +11,4 @@ export { MermaidDiagram } from './MermaidDiagram';
 export { MarkdownContent } from './MarkdownContent';
 export { ScrollToTop } from './ScrollToTop';
 export { RetaFinalUpsellModal } from './RetaFinalUpsellModal';
+export { Logo } from './Logo';

@@ -20,6 +20,20 @@ export const MODALIDADES = [
   { value: 'hibrido', label: 'Híbrido' },
 ];
 
+export const TIPOS_QUESTAO = [
+  { value: 'multipla_escolha', label: 'Múltipla Escolha' },
+  { value: 'certo_errado', label: 'Certo/Errado' },
+];
+
+export const ESCOLARIDADES = [
+  { value: '', label: 'Selecione...' },
+  { value: 'fundamental', label: 'Ensino Fundamental' },
+  { value: 'medio', label: 'Ensino Médio' },
+  { value: 'tecnico', label: 'Ensino Técnico' },
+  { value: 'superior', label: 'Ensino Superior' },
+  { value: 'pos_graduacao', label: 'Pós-Graduação' },
+];
+
 export const REGIOES = [
   'Nacional',
   'Norte',

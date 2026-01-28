@@ -199,6 +199,69 @@ export async function getQuestionStatistics(questionId: number): Promise<Questio
   }
 }
 
+// Get question IDs filtered by difficulty level
+// First returns questions rated by the user, then community-rated questions
+export async function getQuestionIdsByDifficulty(
+  userId: string,
+  difficultyLevels: DifficultyRating[],
+  limit?: number
+): Promise<{ userRated: number[]; communityRated: number[] }> {
+  const result = { userRated: [] as number[], communityRated: [] as number[] };
+
+  if (difficultyLevels.length === 0) {
+    return result;
+  }
+
+  try {
+    // 1. Get questions that the USER rated with the selected difficulty levels
+    const { data: userRatings, error: userError } = await supabase
+      .from('question_difficulty_ratings')
+      .select('question_id')
+      .eq('user_id', userId)
+      .in('difficulty', difficultyLevels);
+
+    if (userError) {
+      console.error('[QuestionFeedback] Error fetching user difficulty ratings:', userError);
+    } else if (userRatings) {
+      result.userRated = userRatings.map(r => r.question_id);
+    }
+
+    // 2. Get questions that the COMMUNITY rated with those levels
+    // (questions with at least 3 ratings in the selected difficulty levels)
+    const { data: communityRatings, error: communityError } = await supabase
+      .from('question_difficulty_ratings')
+      .select('question_id, difficulty')
+      .in('difficulty', difficultyLevels)
+      .neq('user_id', userId); // Exclude user's own ratings
+
+    if (communityError) {
+      console.error('[QuestionFeedback] Error fetching community difficulty ratings:', communityError);
+    } else if (communityRatings) {
+      // Count ratings per question
+      const ratingCounts = new Map<number, number>();
+      communityRatings.forEach(r => {
+        const count = ratingCounts.get(r.question_id) || 0;
+        ratingCounts.set(r.question_id, count + 1);
+      });
+
+      // Filter questions with at least 3 community ratings
+      const communityQuestionIds = Array.from(ratingCounts.entries())
+        .filter(([_, count]) => count >= 3)
+        .sort((a, b) => b[1] - a[1]) // Sort by most ratings first
+        .map(([questionId]) => questionId)
+        .filter(id => !result.userRated.includes(id)); // Exclude already included user-rated questions
+
+      result.communityRated = communityQuestionIds;
+    }
+
+    console.log(`[QuestionFeedback] Difficulty filter: ${result.userRated.length} user-rated, ${result.communityRated.length} community-rated`);
+    return result;
+  } catch (e) {
+    console.error('[QuestionFeedback] Exception getting questions by difficulty:', e);
+    return result;
+  }
+}
+
 // Check if user has already answered this question
 export async function hasUserAnsweredQuestion(
   questionId: number,

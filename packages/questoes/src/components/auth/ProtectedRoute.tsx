@@ -20,10 +20,10 @@ function TrailLoadingSkeleton() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A]">
+    <div className="min-h-screen bg-gray-100 dark:bg-[#1A1A1A]">
       <div className="relative w-full pt-20" style={{ height: getPosition(4).y + 150 }}>
         <div className="absolute left-1/2 top-0 w-1 h-full">
-          <div className="w-full h-full bg-gradient-to-b from-[#2A2A2A] via-[#3A3A3A] to-[#2A2A2A] opacity-30 rounded-full" />
+          <div className="w-full h-full bg-gradient-to-b from-gray-200 via-gray-300 to-gray-200 dark:from-[#2A2A2A] dark:via-[#3A3A3A] dark:to-[#2A2A2A] opacity-30 rounded-full" />
         </div>
         {skeletonNodes.map((_, index) => {
           const pos = getPosition(index);
@@ -33,8 +33,8 @@ function TrailLoadingSkeleton() {
               className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
               style={{ top: pos.y, left: `calc(50% + ${pos.x}px)` }}
             >
-              <div className="w-16 h-16 rounded-2xl bg-[#2A2A2A] border-2 border-[#3A3A3A] rotate-45 animate-pulse" />
-              <div className="mt-8 w-20 h-6 rounded-lg bg-[#2A2A2A] animate-pulse" />
+              <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-[#2A2A2A] border-2 border-gray-300 dark:border-[#3A3A3A] rotate-45 animate-pulse" />
+              <div className="mt-8 w-20 h-6 rounded-lg bg-gray-200 dark:bg-[#2A2A2A] animate-pulse" />
             </div>
           );
         })}

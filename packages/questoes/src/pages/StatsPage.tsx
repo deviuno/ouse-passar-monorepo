@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Award, Target, ChevronRight, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Clock, Award, Target, ChevronRight, Loader2, TrendingUp, User } from 'lucide-react';
 import { Card, CircularProgress } from '../components/ui';
 import { useUserStore } from '../stores';
 import { useAuthStore } from '../stores/useAuthStore';
+import { calculateXPProgress } from '../constants/levelConfig';
 import {
   getUserMateriaStats,
   getUserDailyEvolution,
@@ -32,8 +34,10 @@ import {
 } from '../components/stats';
 
 export default function StatsPage() {
+  const navigate = useNavigate();
   const { stats } = useUserStore();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
+  const xpProgress = calculateXPProgress(stats.xp);
 
   const [materiaStats, setMateriaStats] = useState<MateriaStats[]>([]);
   const [dailyEvolution, setDailyEvolution] = useState<DailyStats[]>([]);
@@ -144,106 +148,147 @@ export default function StatsPage() {
     loadRanking();
   }, [user?.id]);
 
+  // Calculate errors
+  const totalErrors = stats.totalAnswered - stats.correctAnswers;
+
   return (
-    <div className="p-4 pb-24 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[var(--color-text-main)] mb-2">Raio-X do Aluno</h1>
-        <p className="text-[var(--color-text-muted)]">
-          Sua performance detalhada e pontos de melhoria
-        </p>
+    <div className="p-4 pb-24 max-w-5xl mx-auto space-y-6">
+      {/* Hero Stats Section */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--color-bg-card)] to-[var(--color-bg-elevated)] border border-[var(--color-border)] p-6">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+
+        <div className="relative">
+          {/* Header with Profile */}
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h1 className="text-lg font-semibold text-[var(--color-text-main)]">Seu Desempenho</h1>
+              <p className="text-sm text-[var(--color-text-muted)]">Visão geral do seu progresso</p>
+            </div>
+
+            {/* Profile Photo with Progress Ring */}
+            <button
+              onClick={() => navigate('/perfil')}
+              className="relative group flex-shrink-0"
+              title="Ver Perfil"
+            >
+              <CircularProgress
+                value={xpProgress.percentage}
+                size={48}
+                strokeWidth={2.5}
+                color="brand"
+                showLabel={false}
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden">
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-[var(--color-bg-elevated)] flex items-center justify-center">
+                      <User size={16} className="text-[var(--color-text-sec)]" />
+                    </div>
+                  )}
+                </div>
+              </CircularProgress>
+              <div className="absolute inset-0 rounded-full bg-[var(--color-brand)]/0 group-hover:bg-[var(--color-brand)]/10 transition-colors" />
+            </button>
+          </div>
+
+          {/* Big Number - Accuracy */}
+          <div className="flex items-baseline gap-1 mb-4">
+            <span className="text-5xl sm:text-6xl font-bold tabular-nums" style={{ color: globalAccuracy >= 70 ? 'var(--color-success)' : globalAccuracy >= 50 ? 'var(--color-brand)' : 'var(--color-error)' }}>
+              {globalAccuracy}
+            </span>
+            <span className="text-xl text-[var(--color-text-muted)]">%</span>
+            <span className="text-sm text-[var(--color-text-muted)] ml-1">de acerto</span>
+          </div>
+
+          {/* Stat Pills */}
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-bg-main)] border border-[var(--color-border)]">
+              <span className="text-xs text-[var(--color-text-muted)]">Total</span>
+              <span className="text-xs font-semibold text-[var(--color-text-main)] tabular-nums">{stats.totalAnswered.toLocaleString('pt-BR')}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-success)]/10 border border-[var(--color-success)]/20">
+              <span className="text-xs text-[var(--color-success)]">Acertos</span>
+              <span className="text-xs font-semibold text-[var(--color-success)] tabular-nums">{stats.correctAnswers.toLocaleString('pt-BR')}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-error)]/10 border border-[var(--color-error)]/20">
+              <span className="text-xs text-[var(--color-error)]">Erros</span>
+              <span className="text-xs font-semibold text-[var(--color-error)] tabular-nums">{totalErrors.toLocaleString('pt-BR')}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Main Stats + Quick Stats - Combined row on desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-        {/* Circular Progress - Spans 2 cols on mobile, 1 on desktop */}
-        <Card className="text-center col-span-1">
-          <CircularProgress
-            value={globalAccuracy}
-            size={80}
-            strokeWidth={8}
-            color={globalAccuracy >= 70 ? 'success' : globalAccuracy >= 50 ? 'brand' : 'error'}
-          />
-          <p className="text-[var(--color-text-muted)] text-sm mt-2">Taxa de Acerto</p>
-        </Card>
-
-        {/* Stats Summary */}
-        <Card className="col-span-1">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--color-text-muted)] text-sm">Questões</span>
-              <span className="text-[var(--color-text-main)] font-bold">{stats.totalAnswered}</span>
+      {/* Quick Stats Row */}
+      <div className="grid grid-cols-3 gap-2">
+        {/* Average Time */}
+        <Card className="!p-3 !py-4">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-9 h-9 rounded-lg bg-[var(--color-info)]/10 flex items-center justify-center mb-2">
+              <Clock className="w-4 h-4 text-[var(--color-info)]" />
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--color-text-muted)] text-sm">Acertos</span>
-              <span className="text-[#2ECC71] font-bold">{stats.correctAnswers}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--color-text-muted)] text-sm">Erros</span>
-              <span className="text-[#E74C3C] font-bold">
-                {stats.totalAnswered - stats.correctAnswers}
-              </span>
-            </div>
+            <p className="text-lg font-bold text-[var(--color-text-main)] tabular-nums">
+              {averageTime > 0 ? `${averageTime}s` : '—'}
+            </p>
+            <p className="text-[11px] text-[var(--color-text-muted)] leading-tight">Tempo médio</p>
           </div>
         </Card>
 
-        {/* Quick Stats - Hidden on mobile, shown on desktop */}
-        <Card className="hidden lg:flex flex-col items-center justify-center h-full">
-          <Clock size={24} className="text-[#3498DB] mb-2" />
-          <p className="text-[var(--color-text-main)] font-bold text-lg">{averageTime > 0 ? `${averageTime}s` : '-'}</p>
-          <p className="text-[var(--color-text-muted)] text-xs">Tempo médio</p>
+        {/* Streak */}
+        <Card className="!p-3 !py-4">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-9 h-9 rounded-lg bg-[var(--color-brand)]/10 flex items-center justify-center mb-2">
+              <Award className="w-4 h-4 text-[var(--color-brand)]" />
+            </div>
+            <p className="text-lg font-bold text-[var(--color-text-main)] tabular-nums">
+              {stats.streak}
+            </p>
+            <p className="text-[11px] text-[var(--color-text-muted)] leading-tight">Ofensiva</p>
+          </div>
         </Card>
-        <Card className="hidden lg:flex flex-col items-center justify-center h-full">
-          <Award size={24} className="text-[#FFB800] mb-2" />
-          <p className="text-[var(--color-text-main)] font-bold text-lg">{stats.streak}</p>
-          <p className="text-[var(--color-text-muted)] text-xs">Ofensiva</p>
-        </Card>
-        <Card className="hidden lg:flex flex-col items-center justify-center h-full">
-          <Target size={24} className="text-[#2ECC71] mb-2" />
-          <p className="text-[var(--color-text-main)] font-bold text-lg">{completedMissions}</p>
-          <p className="text-[var(--color-text-muted)] text-xs">Missões</p>
+
+        {/* Missions */}
+        <Card className="!p-3 !py-4">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-9 h-9 rounded-lg bg-[var(--color-success)]/10 flex items-center justify-center mb-2">
+              <Target className="w-4 h-4 text-[var(--color-success)]" />
+            </div>
+            <p className="text-lg font-bold text-[var(--color-text-main)] tabular-nums">
+              {completedMissions}
+            </p>
+            <p className="text-[11px] text-[var(--color-text-muted)] leading-tight">Missões</p>
+          </div>
         </Card>
       </div>
 
-      {/* Quick Stats - Mobile only */}
-      <div className="grid grid-cols-3 gap-3 mb-4 lg:hidden">
-        <Card className="flex flex-col items-center justify-center py-3">
-          <Clock size={22} className="text-[#3498DB] mb-1.5" />
-          <p className="text-[var(--color-text-main)] font-bold text-base">{averageTime > 0 ? `${averageTime}s` : '-'}</p>
-          <p className="text-[var(--color-text-muted)] text-xs">Tempo médio</p>
-        </Card>
-        <Card className="flex flex-col items-center justify-center py-3">
-          <Award size={22} className="text-[#FFB800] mb-1.5" />
-          <p className="text-[var(--color-text-main)] font-bold text-base">{stats.streak}</p>
-          <p className="text-[var(--color-text-muted)] text-xs">Ofensiva</p>
-        </Card>
-        <Card className="flex flex-col items-center justify-center py-3">
-          <Target size={22} className="text-[#2ECC71] mb-1.5" />
-          <p className="text-[var(--color-text-main)] font-bold text-base">{completedMissions}</p>
-          <p className="text-[var(--color-text-muted)] text-xs">Missões</p>
-        </Card>
-      </div>
-
-      {/* Heat Map + Comparison - Two columns on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      {/* Performance Analysis - Two columns on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <HeatMapCard stats={materiaStats} isLoading={isLoading} />
         <ComparisonCard percentile={percentile} subjectEvolution={subjectEvolution} isLoading={isLoading} />
       </div>
 
       {/* Evolution + Recommendations - Two columns on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <EvolutionChart data={dailyEvolution} isLoading={isLoading} />
 
-        {/* Action Items */}
+        {/* Recommendations */}
         <Card className="h-full">
-          <h3 className="text-[var(--color-text-main)] font-semibold mb-3">Recomendações</h3>
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp size={18} className="text-[var(--color-brand)]" />
+            <h3 className="text-[var(--color-text-main)] font-semibold">Recomendações</h3>
+          </div>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="animate-spin text-[#FFB800]" size={32} />
+              <Loader2 className="animate-spin text-[var(--color-brand)]" size={24} />
             </div>
           ) : recommendations.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-[var(--color-text-muted)]">Continue estudando para receber recomendações personalizadas!</p>
+              <p className="text-[var(--color-text-muted)] text-sm">Continue estudando para receber recomendações personalizadas!</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -252,22 +297,21 @@ export default function StatsPage() {
                 return (
                   <button
                     key={index}
-                    className="w-full flex items-center justify-between p-3 rounded-lg hover:opacity-80 transition-opacity"
-                    style={{ backgroundColor: `${rec.color}15` }}
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-[var(--color-bg-elevated)] border border-[var(--color-border)] hover:border-[var(--color-border-strong)] transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: `${rec.color}30` }}
+                        className="w-9 h-9 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${rec.color}15` }}
                       >
                         <IconComponent size={16} style={{ color: rec.color }} />
                       </div>
                       <div className="text-left">
-                        <p className="text-[var(--color-text-main)] text-sm">{rec.title}</p>
+                        <p className="text-[var(--color-text-main)] text-sm font-medium">{rec.title}</p>
                         <p className="text-[var(--color-text-muted)] text-xs">{rec.description}</p>
                       </div>
                     </div>
-                    <ChevronRight size={18} className="text-[#6E6E6E]" />
+                    <ChevronRight size={16} className="text-[var(--color-text-muted)]" />
                   </button>
                 );
               })}
@@ -278,7 +322,6 @@ export default function StatsPage() {
 
       {/* Achievements and Ranking Section - Two columns on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Achievements */}
         <AchievementsCard
           achievements={achievements}
           unlockedIds={unlockedAchievementIds}
@@ -289,8 +332,6 @@ export default function StatsPage() {
           }}
           isLoading={isLoadingAchievements}
         />
-
-        {/* Weekly Ranking */}
         <WeeklyRankingCard
           ranking={leagueRanking}
           isLoading={isLoadingRanking}

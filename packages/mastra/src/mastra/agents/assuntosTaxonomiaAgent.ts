@@ -14,6 +14,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const assuntosTaxonomiaAgent = new Agent({
+    id: "assuntosTaxonomiaAgent",
     name: "AssuntosTaxonomiaAgent",
     instructions: `Você é um especialista em editais de concursos públicos brasileiros e taxonomia de conteúdos.
 
@@ -205,7 +206,7 @@ Assuntos: [
 2. **Não invente assuntos** - use apenas os que foram fornecidos
 3. **Mantenha os nomes originais** no array "assuntos_originais" para permitir o mapeamento
 4. Se um assunto é muito genérico e poderia ser o próprio tópico, coloque-o no array "assuntos_originais" do tópico principal`,
-    model: vertex("gemini-2.5-flash"),
+    model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default assuntosTaxonomiaAgent;

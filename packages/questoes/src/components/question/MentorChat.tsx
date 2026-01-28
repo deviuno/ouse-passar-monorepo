@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { chatWithTutor, TutorUserContext, GeneratedAudio } from '../../services/geminiService';
 import { generateAudioWithCache, generatePodcastWithCache } from '../../services/audioCacheService';
 import { musicService } from '../../services/musicService';
-import { AudioPlayer } from '../ui/AudioPlayer';
+import { userContentService } from '../../services/userContentService';
+import { AudioPlayer, AudioPlayerSkeleton } from '../ui/AudioPlayer';
 import { ParsedQuestion } from '../../types';
 import { useBatteryStore } from '../../stores/useBatteryStore';
 import { getTimeUntilRecharge } from '../../types/battery';
@@ -55,6 +56,7 @@ interface Message {
     role: 'user' | 'model';
     text: string;
     audio?: GeneratedAudio | null;
+    audioLoading?: boolean;
 }
 
 const MIN_HEIGHT = 300;
@@ -425,12 +427,20 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         }]);
         setMessages(prev => [...prev, {
             role: 'model',
-            text: '🎙️ Gerando áudio explicativo... Aguarde um momento.'
+            text: '',
+            audioLoading: true
         }]);
 
         try {
             // Usar serviço com cache (verifica cache antes de gerar)
-            const audio = await generateAudioWithCache(contentContext.title || 'o conteúdo', contentContext.text || '');
+            const audio = await generateAudioWithCache({
+                title: contentContext.title || 'o conteúdo',
+                content: contentContext.text || '',
+                userId,
+                materia: contentContext.question?.materia,
+                assunto: contentContext.question?.assunto,
+                questionId: contentContext.question?.id,
+            });
 
             if (audio) {
                 // Se veio do cache, simular delay para parecer que está gerando
@@ -489,12 +499,20 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         }]);
         setMessages(prev => [...prev, {
             role: 'model',
-            text: '🎙️ Gerando podcast com dois apresentadores... Isso pode levar alguns segundos.'
+            text: '',
+            audioLoading: true
         }]);
 
         try {
             // Usar serviço com cache (verifica cache antes de gerar)
-            const audio = await generatePodcastWithCache(contentContext.title || 'o conteúdo', contentContext.text || '');
+            const audio = await generatePodcastWithCache({
+                title: contentContext.title || 'o conteúdo',
+                content: contentContext.text || '',
+                userId,
+                materia: contentContext.question?.materia,
+                assunto: contentContext.question?.assunto,
+                questionId: contentContext.question?.id,
+            });
 
             if (audio) {
                 // Se veio do cache, simular delay para parecer que está gerando
@@ -593,6 +611,25 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         }
 
         setMessages(prev => [...prev, { role: 'model', text: response.text }]);
+
+        // Salvar resumo em texto no user_generated_content
+        if (userId && response.text) {
+            try {
+                await userContentService.create({
+                    userId,
+                    contentType: 'text_summary',
+                    title: contentContext.title || contentContext.question?.assunto || 'Resumo',
+                    materia: contentContext.question?.materia,
+                    assunto: contentContext.question?.assunto,
+                    textContent: response.text,
+                    questionId: contentContext.question?.id,
+                });
+                console.log('[MentorChat] Resumo em texto salvo com sucesso');
+            } catch (e) {
+                console.warn('[MentorChat] Erro ao salvar resumo em texto:', e);
+            }
+        }
+
         setIsLoading(false);
     };
 
@@ -600,8 +637,8 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         {
             id: 'audio',
             icon: <Headphones size={18} />,
-            label: 'Explicar em Áudio',
-            description: 'Gera uma explicação falada do conteúdo',
+            label: 'Gerar resumo em áudio',
+            description: 'Gera um resumo falado do conteúdo',
             action: handleGenerateAudio,
         },
         {
@@ -710,7 +747,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                         className="w-full max-w-[850px] bg-[var(--color-bg-card)] border border-[var(--color-border)] border-b-0 rounded-t-xl shadow-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-[var(--color-bg-elevated)] transition-colors pointer-events-auto"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="bg-[var(--color-brand)] p-1.5 rounded-lg">
+                            <div className="bg-[#ffac00] p-1.5 rounded-lg">
                                 <Zap size={20} className="text-black fill-black" />
                             </div>
                             <span className="font-bold text-[var(--color-text-main)]">Seu Mentor IA</span>
@@ -767,15 +804,20 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                     <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         <div
                                             className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                                                ? 'bg-[var(--color-brand)] text-black font-medium rounded-tr-none'
+                                                ? 'bg-[#ffac00] text-black font-medium rounded-tr-none'
                                                 : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] rounded-tl-none border border-[var(--color-border)]'
                                                 }`}
                                         >
-                                            {msg.role === 'model' ? renderMarkdown(msg.text) : msg.text}
+                                            {msg.text && (msg.role === 'model' ? renderMarkdown(msg.text) : msg.text)}
+
+                                            {/* Audio Player Skeleton - shows while generating */}
+                                            {msg.audioLoading && (
+                                                <AudioPlayerSkeleton />
+                                            )}
 
                                             {/* Audio Player inline - shows when message has audio */}
-                                            {msg.audio && (
-                                                <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
+                                            {msg.audio && !msg.audioLoading && (
+                                                <div className={msg.text ? 'mt-3' : ''}>
                                                     <AudioPlayer
                                                         src={msg.audio.audioUrl}
                                                         type={msg.audio.type}
@@ -850,7 +892,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                     }}
                                     disabled={isGeneratingAudio || isCollapsed}
                                     className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${showShortcuts
-                                            ? 'bg-[var(--color-brand)] text-black'
+                                            ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
                                             : 'text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-bg-elevated)]'
                                         } ${(isGeneratingAudio || isCollapsed) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     title="Atalhos de IA"
@@ -890,7 +932,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                         data-send-button
                                         onClick={(e) => handleSend(e)}
                                         disabled={!inputValue.trim() || isLoading}
-                                        className="p-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        className="p-2 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
                                         <Send size={18} />
                                     </button>

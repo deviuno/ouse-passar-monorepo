@@ -2,6 +2,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const editalParserAgent = new Agent({
+  id: "editalParserAgent",
   name: "editalParserAgent",
   description: "Agente especializado em analisar textos de editais de concursos e extrair a estrutura hierarquica de conteudos.",
   instructions: `Voce e um especialista em analise de editais de concursos publicos brasileiros.
@@ -111,5 +112,5 @@ RACIOCINIO LOGICO: 1. Estruturas Logicas. 2. Logica de argumentacao. 3. Diagrama
     }
   ]
 }`,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-2.5-flash-lite"),
 });

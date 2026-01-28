@@ -45,12 +45,17 @@ export function LoadingStep({ onComplete }: LoadingStepProps) {
       className="text-center py-12"
     >
       <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-        className="w-20 h-20 mx-auto mb-8 rounded-full border-4 border-[#3A3A3A] border-t-[#FFB800]"
-      />
+        animate={{
+          scale: [1, 1.1, 1],
+          opacity: [0.5, 1, 0.5],
+        }}
+        transition={{ duration: 2, repeat: Infinity }}
+        className="mb-8"
+      >
+        <div className="w-20 h-20 border-4 border-[var(--color-brand)] border-t-transparent rounded-full animate-spin mx-auto" />
+      </motion.div>
 
-      <h2 className="text-2xl font-bold text-white mb-4">
+      <h2 className="text-2xl font-bold text-[var(--color-text-main)] mb-4">
         Carregando seu plano de estudos personalizado...
       </h2>
 
@@ -58,7 +63,7 @@ export function LoadingStep({ onComplete }: LoadingStepProps) {
         key={messageIndex}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-[#A0A0A0] mb-8"
+        className="text-[var(--color-text-sec)] mb-8 h-6"
       >
         {messages[messageIndex]}
       </motion.p>

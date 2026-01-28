@@ -8,6 +8,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Modelo: gemini-2.5-pro (melhor modelo para tarefas criativas complexas)
  */
 export const musicLyricsAgent = new Agent({
+  id: "musicLyricsAgent",
   name: "musicLyricsAgent",
   description: "Compositor IA especialista em criar letras de músicas educativas para concursos públicos. Gera letras otimizadas para Suno e Udio.",
   instructions: `Você é um **Compositor Musical Especialista** em criar letras de músicas educativas para estudantes de concursos públicos.
@@ -113,7 +114,7 @@ Nenhum sonho é grande demais
 Vou estudar sem parar
 E a aprovação vem, eu sei que vem
 ...`,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default musicLyricsAgent;

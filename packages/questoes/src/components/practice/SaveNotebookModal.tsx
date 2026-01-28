@@ -111,7 +111,7 @@ export function SaveNotebookModal({
                   fullWidth
                   onClick={onSave}
                   disabled={!notebookName.trim() || isSaving || isLoadingCount}
-                  className="rounded-xl py-3 bg-[var(--color-brand)] text-black font-bold hover:bg-[var(--color-brand-hover)]"
+                  className="rounded-xl py-3 bg-[#ffac00] text-black font-bold hover:bg-[#ffbc33]"
                 >
                   {isSaving ? <Loader2 className="animate-spin" size={20} /> : 'Salvar Caderno'}
                 </Button>

@@ -57,6 +57,8 @@ export const NewPreparatorio: React.FC = () => {
         logo_url: data.logoUrl || undefined,
         // Technical fields
         banca: data.banca || undefined,
+        bancas_adicionais: data.bancasAdicionais.length > 0 ? data.bancasAdicionais : undefined,
+        tipo_questao: data.tipoQuestao,
         orgao: data.orgao || undefined,
         cargo: data.cargo || undefined,
         nivel: data.nivel,

@@ -12,17 +12,49 @@ import {
   Plus,
   Check,
   AlertTriangle,
+  Send,
+  Mic,
+  Square,
+  Sparkles,
+  Headphones,
+  Radio,
+  FileText,
+  Minus,
+  BookMarked,
+  ChevronDown,
 } from 'lucide-react';
 import { ParsedQuestion } from '../../types';
 import { QuestionStatistics } from '../../services/questionFeedbackService';
-import { getUserNotebooks, Notebook } from '../../services/notebooksService';
+import {
+  getUserNotebooks,
+  createNotebook,
+  Notebook,
+  getNotebooksContainingQuestion,
+  toggleQuestionInNotebook,
+} from '../../services/notebooksService';
+import { FilterOptions } from '../../utils/filterUtils';
 import { getOptimizedImageUrl } from '../../utils/image';
 import CommentsSection from './CommentsSection';
 import { ReportQuestionModal } from './ReportQuestionModal';
 import { PegadinhaModal } from './PegadinhaModal';
-import { REPORT_MOTIVOS, ReportMotivo } from '../../services/questionReportsService';
+import { REPORT_MOTIVOS, ReportMotivo, SOLICITAR_EXPLICACAO_MOTIVO, createQuestionReport } from '../../services/questionReportsService';
+import { chatWithTutor, TutorUserContext, GeneratedAudio } from '../../services/geminiService';
+import { generateAudioWithCache, generatePodcastWithCache } from '../../services/audioCacheService';
+import { userContentService } from '../../services/userContentService';
+import { AudioPlayer, AudioPlayerSkeleton } from '../ui/AudioPlayer';
+import { renderMarkdown } from './chat';
+import { useBatteryStore } from '../../stores/useBatteryStore';
+import { getTimeUntilRecharge } from '../../types/battery';
+import {
+  getUserGoldenNotebooks,
+  createGoldenNotebook,
+  createAnnotation as createGoldenAnnotation,
+  getQuestionAnnotations,
+  GoldenNotebook as GoldenNotebookType,
+  GoldenAnnotation,
+} from '../../services/goldenNotebookService';
 
-type TabId = 'explicacao' | 'comentarios' | 'estatisticas' | 'cadernos' | 'anotacoes' | 'erro';
+type TabId = 'explicacao' | 'comentarios' | 'estatisticas' | 'cadernos' | 'anotacoes' | 'duvidas' | 'erro';
 
 interface Tab {
   id: TabId;
@@ -36,8 +68,16 @@ const TABS: Tab[] = [
   { id: 'estatisticas', label: 'Estatísticas', icon: <BarChart2 size={16} /> },
   { id: 'cadernos', label: 'Cadernos', icon: <FolderPlus size={16} /> },
   { id: 'anotacoes', label: 'Anotações', icon: <StickyNote size={16} /> },
+  { id: 'duvidas', label: 'Tirar Dúvidas', icon: <Sparkles size={16} /> },
   { id: 'erro', label: 'Notificar', icon: <Flag size={16} /> },
 ];
+
+interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+  audio?: GeneratedAudio | null;
+  audioLoading?: boolean;
+}
 
 interface QuestionFeedbackTabsProps {
   question: ParsedQuestion;
@@ -48,6 +88,8 @@ interface QuestionFeedbackTabsProps {
   onShowToast?: (message: string, type: 'success' | 'error' | 'info') => void;
   selectedAlt: string | null;
   isCorrect: boolean;
+  preparatorioId?: string;
+  checkoutUrl?: string;
 }
 
 // Função para converter URLs de imagem em markdown
@@ -77,35 +119,450 @@ export function QuestionFeedbackTabs({
   onShowToast,
   selectedAlt,
   isCorrect,
+  preparatorioId,
+  checkoutUrl,
 }: QuestionFeedbackTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('explicacao');
   const [showReportModal, setShowReportModal] = useState(false);
   const [showPegadinhaModal, setShowPegadinhaModal] = useState(false);
   const [selectedReportMotivo, setSelectedReportMotivo] = useState<ReportMotivo | undefined>(undefined);
 
+  // Solicitar explicação state
+  const [explanationRequested, setExplanationRequested] = useState(false);
+  const [requestingExplanation, setRequestingExplanation] = useState(false);
+
   // Cadernos state
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loadingNotebooks, setLoadingNotebooks] = useState(false);
   const [savedToNotebooks, setSavedToNotebooks] = useState<Set<string>>(new Set());
+  const [savingToNotebook, setSavingToNotebook] = useState<string | null>(null);
+  const [showNewNotebookModal, setShowNewNotebookModal] = useState(false);
+  const [newNotebookTitle, setNewNotebookTitle] = useState('');
+  const [newNotebookDescription, setNewNotebookDescription] = useState('');
+  const [creatingNotebook, setCreatingNotebook] = useState(false);
 
-  // Anotações state
+  // Golden Notebook Anotações state
+  const [goldenNotebooks, setGoldenNotebooks] = useState<GoldenNotebookType[]>([]);
+  const [loadingGoldenNotebooks, setLoadingGoldenNotebooks] = useState(false);
+  const [selectedGoldenNotebook, setSelectedGoldenNotebook] = useState<string>('');
   const [annotation, setAnnotation] = useState('');
   const [savingAnnotation, setSavingAnnotation] = useState(false);
-  const [savedAnnotation, setSavedAnnotation] = useState<string | null>(null);
+  const [existingAnnotations, setExistingAnnotations] = useState<(GoldenAnnotation & { caderno_nome: string })[]>([]);
+  const [showNewGoldenNotebookModal, setShowNewGoldenNotebookModal] = useState(false);
+  const [newGoldenNotebookName, setNewGoldenNotebookName] = useState('');
+  const [newGoldenNotebookDescription, setNewGoldenNotebookDescription] = useState('');
+  const [newGoldenNotebookColor, setNewGoldenNotebookColor] = useState('#F59E0B');
+  const [creatingGoldenNotebook, setCreatingGoldenNotebook] = useState(false);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatThreadId, setChatThreadId] = useState<string | undefined>(undefined);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [showChatShortcuts, setShowChatShortcuts] = useState(false);
+  const recognitionRef = React.useRef<any>(null);
+  const chatMessagesEndRef = React.useRef<HTMLDivElement>(null);
+  const chatInputRef = React.useRef<HTMLInputElement>(null);
+  const shortcutsRef = React.useRef<HTMLDivElement>(null);
+
+  // Battery store
+  const { consumeBattery } = useBatteryStore();
+
+  // Chat greeting message
+  const getChatGreeting = () => {
+    const assunto = question.assunto || question.materia || 'esta questão';
+    return `Olá! 👋 Sou seu **Professor Virtual**. Vi que você está estudando **${assunto}**.\n\nComo posso te ajudar?`;
+  };
+
+  // Initialize chat messages
+  useEffect(() => {
+    if (activeTab === 'duvidas' && chatMessages.length === 0) {
+      setChatMessages([{ role: 'model', text: getChatGreeting() }]);
+    }
+  }, [activeTab]);
+
+  // Reset chat when question changes
+  useEffect(() => {
+    setChatMessages([]);
+    setChatThreadId(undefined);
+  }, [question.id]);
+
+  // Scroll chat to bottom
+  useEffect(() => {
+    if (activeTab === 'duvidas') {
+      chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, activeTab]);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window) {
+      // @ts-ignore
+      const recognition = new window.webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'pt-BR';
+      recognition.onstart = () => setIsRecording(true);
+      recognition.onend = () => setIsRecording(false);
+      recognition.onerror = () => setIsRecording(false);
+      recognition.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) setChatInput(transcript);
+      };
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  // Close shortcuts dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (shortcutsRef.current && !shortcutsRef.current.contains(event.target as Node)) {
+        setShowChatShortcuts(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Battery check helper
+  const getBatteryEmptyMessage = (): string => {
+    const { hours, minutes } = getTimeUntilRecharge();
+    let timeMsg = hours > 0 ? `${hours}h${minutes > 0 ? ` e ${minutes}min` : ''}` : `${minutes} minutos`;
+    let message = `⚡ **Ops! Sua energia acabou.**\n\nVocê não tem energia suficiente para usar o chat agora.\n\n`;
+    message += `🔋 Sua bateria será recarregada em **${timeMsg}**.\n\n`;
+    if (checkoutUrl) {
+      message += `💡 **Dica:** Adquira o acesso ilimitado e nunca mais se preocupe com energia!`;
+    }
+    return message;
+  };
+
+  const checkAndConsumeBattery = async (actionType: 'chat_message' | 'chat_audio' | 'chat_podcast' | 'chat_summary'): Promise<boolean> => {
+    if (!userId || !preparatorioId) return true;
+    const result = await consumeBattery(userId, preparatorioId, actionType, {});
+    if (!result.success && result.error === 'insufficient_battery') {
+      setChatMessages(prev => [...prev, { role: 'model', text: getBatteryEmptyMessage() }]);
+      return false;
+    }
+    return result.success || result.is_premium === true;
+  };
+
+  // Chat handlers
+  const handleChatSend = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const userText = chatInput;
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', text: userText }]);
+
+    const canProceed = await checkAndConsumeBattery('chat_message');
+    if (!canProceed) return;
+
+    setChatLoading(true);
+    const response = await chatWithTutor(chatMessages, userText, question, undefined, chatThreadId);
+    if (response.threadId) setChatThreadId(response.threadId);
+    setChatMessages(prev => [...prev, { role: 'model', text: response.text }]);
+    setChatLoading(false);
+  };
+
+  const handleMicClick = () => {
+    if (!recognitionRef.current) {
+      alert('Navegador sem suporte a voz.');
+      return;
+    }
+    if (isRecording) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
+  };
+
+  const handleGenerateAudio = async () => {
+    setShowChatShortcuts(false);
+    const canProceed = await checkAndConsumeBattery('chat_audio');
+    if (!canProceed) return;
+
+    setIsGeneratingAudio(true);
+    setChatMessages(prev => [...prev, { role: 'user', text: '🎧 Gerar explicação em áudio' }]);
+    setChatMessages(prev => [...prev, { role: 'model', text: '', audioLoading: true }]);
+
+    try {
+      const audio = await generateAudioWithCache({
+        title: question.assunto || 'a questão',
+        content: question.enunciado,
+        userId: userId || undefined,
+        materia: question.materia,
+        assunto: question.assunto,
+        questionId: question.id,
+      });
+      if (audio) {
+        if (audio.fromCache) await new Promise(resolve => setTimeout(resolve, 1500));
+        setChatMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = {
+            role: 'model',
+            text: `🎧 **Áudio gerado!**\n\nOuça a explicação:`,
+            audio: { audioUrl: audio.audioUrl, type: 'explanation' }
+          };
+          return newMessages;
+        });
+      } else {
+        setChatMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = { role: 'model', text: '❌ Não foi possível gerar o áudio.' };
+          return newMessages;
+        });
+      }
+    } catch (error) {
+      setChatMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = { role: 'model', text: '❌ Erro ao gerar áudio.' };
+        return newMessages;
+      });
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
+
+  const handleGeneratePodcast = async () => {
+    setShowChatShortcuts(false);
+    const canProceed = await checkAndConsumeBattery('chat_podcast');
+    if (!canProceed) return;
+
+    setIsGeneratingAudio(true);
+    setChatMessages(prev => [...prev, { role: 'user', text: '🎙️ Gerar podcast sobre o tema' }]);
+    setChatMessages(prev => [...prev, { role: 'model', text: '', audioLoading: true }]);
+
+    try {
+      const audio = await generatePodcastWithCache({
+        title: question.assunto || 'a questão',
+        content: question.enunciado,
+        userId: userId || undefined,
+        materia: question.materia,
+        assunto: question.assunto,
+        questionId: question.id,
+      });
+      if (audio) {
+        if (audio.fromCache) await new Promise(resolve => setTimeout(resolve, 1500));
+        setChatMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = {
+            role: 'model',
+            text: `🎙️ **Podcast gerado!**\n\nOuça a discussão:`,
+            audio: { audioUrl: audio.audioUrl, type: 'podcast' }
+          };
+          return newMessages;
+        });
+      } else {
+        setChatMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = { role: 'model', text: '❌ Não foi possível gerar o podcast.' };
+          return newMessages;
+        });
+      }
+    } catch (error) {
+      setChatMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = { role: 'model', text: '❌ Erro ao gerar podcast.' };
+        return newMessages;
+      });
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    setShowChatShortcuts(false);
+    const canProceed = await checkAndConsumeBattery('chat_summary');
+    if (!canProceed) return;
+
+    const summaryPrompt = 'Faça um resumo rápido e objetivo dos pontos principais desta questão.';
+    setChatMessages(prev => [...prev, { role: 'user', text: summaryPrompt }]);
+    setChatLoading(true);
+    const response = await chatWithTutor(chatMessages, summaryPrompt, question, undefined, chatThreadId);
+    if (response.threadId) setChatThreadId(response.threadId);
+    setChatMessages(prev => [...prev, { role: 'model', text: response.text }]);
+
+    // Salvar resumo em texto no user_generated_content
+    if (userId && response.text) {
+      try {
+        await userContentService.create({
+          userId,
+          contentType: 'text_summary',
+          title: question.assunto || 'Resumo',
+          materia: question.materia,
+          assunto: question.assunto,
+          textContent: response.text,
+          questionId: question.id,
+        });
+        console.log('[QuestionFeedbackTabs] Resumo em texto salvo com sucesso');
+      } catch (e) {
+        console.warn('[QuestionFeedbackTabs] Erro ao salvar resumo em texto:', e);
+      }
+    }
+
+    setChatLoading(false);
+  };
+
+  // Reset saved notebooks when question changes
+  useEffect(() => {
+    setSavedToNotebooks(new Set());
+  }, [question.id]);
+
+  // Reset explanation request state when question changes
+  useEffect(() => {
+    setExplanationRequested(false);
+    setRequestingExplanation(false);
+  }, [question.id]);
+
+  // Handler for requesting explanation
+  const handleRequestExplanation = async () => {
+    if (!userId || requestingExplanation || explanationRequested) return;
+
+    setRequestingExplanation(true);
+    try {
+      const success = await createQuestionReport({
+        questionId: question.id,
+        userId,
+        motivo: SOLICITAR_EXPLICACAO_MOTIVO,
+        descricao: 'Solicitação de explicação para esta questão.',
+        questionInfo: {
+          materia: question.materia,
+          assunto: question.assunto,
+          banca: question.banca,
+          ano: question.ano,
+        },
+      });
+
+      if (success) {
+        setExplanationRequested(true);
+        onShowToast?.('Solicitação enviada com sucesso!', 'success');
+      } else {
+        onShowToast?.('Erro ao enviar solicitação', 'error');
+      }
+    } catch (error) {
+      console.error('Erro ao solicitar explicação:', error);
+      onShowToast?.('Erro ao enviar solicitação', 'error');
+    } finally {
+      setRequestingExplanation(false);
+    }
+  };
 
   // Load notebooks when tab is selected
   useEffect(() => {
-    if (activeTab === 'cadernos' && userId && notebooks.length === 0) {
+    if (activeTab === 'cadernos' && userId) {
       loadNotebooks();
     }
-  }, [activeTab, userId]);
+  }, [activeTab, userId, question.id]);
+
+  // Load golden notebooks when anotacoes tab is selected
+  useEffect(() => {
+    if (activeTab === 'anotacoes' && userId) {
+      loadGoldenNotebooks();
+    }
+  }, [activeTab, userId, question.id]);
+
+  const loadGoldenNotebooks = async () => {
+    if (!userId) return;
+    setLoadingGoldenNotebooks(true);
+    try {
+      const [notebooks, existingNotes] = await Promise.all([
+        getUserGoldenNotebooks(userId),
+        getQuestionAnnotations(userId, question.id),
+      ]);
+      setGoldenNotebooks(notebooks);
+      setExistingAnnotations(existingNotes);
+      // Pre-select first notebook if exists
+      if (notebooks.length > 0 && !selectedGoldenNotebook) {
+        setSelectedGoldenNotebook(notebooks[0].id);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar cadernos de ouro:', error);
+    } finally {
+      setLoadingGoldenNotebooks(false);
+    }
+  };
+
+  const handleSaveGoldenAnnotation = async () => {
+    if (!userId || !selectedGoldenNotebook || !annotation.trim()) return;
+
+    setSavingAnnotation(true);
+    try {
+      const newAnnotation = await createGoldenAnnotation(userId, {
+        caderno_id: selectedGoldenNotebook,
+        question_id: question.id,
+        conteudo: annotation,
+      });
+
+      // Find the notebook name for display
+      const notebook = goldenNotebooks.find(nb => nb.id === selectedGoldenNotebook);
+      setExistingAnnotations(prev => [
+        { ...newAnnotation, caderno_nome: notebook?.nome || '' },
+        ...prev,
+      ]);
+
+      // Update notebook count
+      setGoldenNotebooks(prev => prev.map(nb => {
+        if (nb.id === selectedGoldenNotebook) {
+          return { ...nb, anotacoes_count: nb.anotacoes_count + 1 };
+        }
+        return nb;
+      }));
+
+      // Clear form
+      setAnnotation('');
+      onShowToast?.('Anotação salva no Minhas Anotações!', 'success');
+    } catch (error) {
+      console.error('Erro ao salvar anotação:', error);
+      onShowToast?.('Erro ao salvar anotação', 'error');
+    } finally {
+      setSavingAnnotation(false);
+    }
+  };
+
+  const handleCreateGoldenNotebook = async () => {
+    if (!userId || !newGoldenNotebookName.trim()) return;
+
+    setCreatingGoldenNotebook(true);
+    try {
+      const newNotebook = await createGoldenNotebook(userId, {
+        nome: newGoldenNotebookName.trim(),
+        descricao: newGoldenNotebookDescription.trim() || undefined,
+        cor: newGoldenNotebookColor,
+      });
+
+      setGoldenNotebooks(prev => [newNotebook, ...prev]);
+      setSelectedGoldenNotebook(newNotebook.id);
+      setShowNewGoldenNotebookModal(false);
+      setNewGoldenNotebookName('');
+      setNewGoldenNotebookDescription('');
+      setNewGoldenNotebookColor('#F59E0B');
+      onShowToast?.('Minhas Anotações criado!', 'success');
+    } catch (error: any) {
+      if (error.code === '23505') {
+        onShowToast?.('Já existe um caderno com esse nome', 'error');
+      } else {
+        onShowToast?.('Erro ao criar caderno', 'error');
+      }
+    } finally {
+      setCreatingGoldenNotebook(false);
+    }
+  };
 
   const loadNotebooks = async () => {
     if (!userId) return;
     setLoadingNotebooks(true);
     try {
-      const data = await getUserNotebooks(userId);
-      setNotebooks(data);
+      // Fetch notebooks and saved status in parallel
+      const [notebooksData, savedNotebookIds] = await Promise.all([
+        getUserNotebooks(userId),
+        getNotebooksContainingQuestion(userId, question.id),
+      ]);
+      setNotebooks(notebooksData);
+      setSavedToNotebooks(new Set(savedNotebookIds));
     } catch (error) {
       console.error('Erro ao carregar cadernos:', error);
     } finally {
@@ -114,26 +571,74 @@ export function QuestionFeedbackTabs({
   };
 
   const handleSaveToNotebook = async (notebookId: string) => {
-    // TODO: Implementar lógica de salvar questão no caderno
-    // Por enquanto, apenas simula o salvamento
-    setSavedToNotebooks(prev => new Set(prev).add(notebookId));
-    onShowToast?.('Questão salva no caderno!', 'success');
-  };
+    const isSaved = savedToNotebooks.has(notebookId);
+    setSavingToNotebook(notebookId);
 
-  const handleSaveAnnotation = async () => {
-    if (!annotation.trim()) return;
-    setSavingAnnotation(true);
     try {
-      // TODO: Implementar salvamento real no banco
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simula delay
-      setSavedAnnotation(annotation);
-      onShowToast?.('Anotação salva com sucesso!', 'success');
+      const nowSaved = await toggleQuestionInNotebook(notebookId, question.id, isSaved);
+
+      setSavedToNotebooks(prev => {
+        const newSet = new Set(prev);
+        if (nowSaved) {
+          newSet.add(notebookId);
+        } else {
+          newSet.delete(notebookId);
+        }
+        return newSet;
+      });
+
+      // Update notebook saved_questions_count locally
+      setNotebooks(prev => prev.map(nb => {
+        if (nb.id === notebookId) {
+          const currentCount = nb.saved_questions_count || 0;
+          return {
+            ...nb,
+            saved_questions_count: nowSaved ? currentCount + 1 : Math.max(0, currentCount - 1),
+          };
+        }
+        return nb;
+      }));
+
+      onShowToast?.(
+        nowSaved ? 'Questão salva no caderno!' : 'Questão removida do caderno!',
+        'success'
+      );
     } catch (error) {
-      onShowToast?.('Erro ao salvar anotação', 'error');
+      console.error('Erro ao salvar/remover questão:', error);
+      onShowToast?.('Erro ao atualizar caderno', 'error');
     } finally {
-      setSavingAnnotation(false);
+      setSavingToNotebook(null);
     }
   };
+
+  const handleCreateNotebook = async () => {
+    if (!userId || !newNotebookTitle.trim()) return;
+
+    setCreatingNotebook(true);
+    try {
+      const newNotebook = await createNotebook(
+        userId,
+        newNotebookTitle.trim(),
+        {} as FilterOptions, // Empty filters for manual notebook
+        {}, // Empty settings
+        newNotebookDescription.trim() || undefined,
+        0
+      );
+
+      setNotebooks(prev => [newNotebook, ...prev]);
+      setShowNewNotebookModal(false);
+      setNewNotebookTitle('');
+      setNewNotebookDescription('');
+      onShowToast?.('Caderno criado com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao criar caderno:', error);
+      onShowToast?.('Erro ao criar caderno', 'error');
+    } finally {
+      setCreatingNotebook(false);
+    }
+  };
+
+  // NOTE: Legacy handleSaveAnnotation removed - use handleSaveGoldenAnnotation for Golden Notebook saving
 
   // Build stats data
   const buildStatsData = () => {
@@ -181,50 +686,82 @@ export function QuestionFeedbackTabs({
                 <div className="h-4 bg-[var(--color-bg-elevated)] rounded animate-pulse w-5/6"></div>
               </div>
             ) : (
-              <div className="text-sm text-[var(--color-text-main)] leading-relaxed prose prose-sm max-w-none">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    h2: ({ children }) => (
-                      <h2 className="text-lg font-bold text-[var(--color-brand)] mt-4 mb-2">{children}</h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3 className="text-base font-bold text-[var(--color-text-main)] mt-3 mb-1">{children}</h3>
-                    ),
-                    p: ({ children }) => (
-                      <p className="mb-3 leading-relaxed text-[var(--color-text-main)]">{children}</p>
-                    ),
-                    strong: ({ children }) => (
-                      <strong className="font-bold text-[var(--color-text-main)]">{children}</strong>
-                    ),
-                    ul: ({ children }) => (
-                      <ul className="list-disc list-inside mb-3 space-y-1 text-[var(--color-text-main)]">{children}</ul>
-                    ),
-                    ol: ({ children }) => (
-                      <ol className="list-decimal list-inside mb-3 space-y-1 text-[var(--color-text-main)]">{children}</ol>
-                    ),
-                    blockquote: ({ children }) => (
-                      <blockquote className="border-l-4 border-[var(--color-brand)] pl-4 my-3 italic text-[var(--color-text-muted)]">{children}</blockquote>
-                    ),
-                    code: ({ children }) => (
-                      <code className="bg-[var(--color-bg-elevated)] px-1.5 py-0.5 rounded text-[var(--color-brand)] text-sm">{children}</code>
-                    ),
-                    img: ({ src, alt }) => (
-                      <img
-                        src={getOptimizedImageUrl(src, 800, 85)}
-                        alt={alt || 'Imagem'}
-                        className="max-w-full h-auto rounded-lg my-3 border border-[var(--color-border)]"
-                        loading="lazy"
-                      />
-                    ),
-                    a: ({ href, children }) => (
-                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand)] underline hover:text-[var(--color-brand-light)]">{children}</a>
-                    ),
-                  }}
-                >
-                  {preprocessImageUrls(explanation || 'Nenhuma explicação disponível para esta questão.')}
-                </ReactMarkdown>
-              </div>
+              <>
+                <div className="text-sm text-[var(--color-text-main)] leading-relaxed prose prose-sm max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h2: ({ children }) => (
+                        <h2 className="text-lg font-bold text-[var(--color-brand)] mt-4 mb-2">{children}</h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-base font-bold text-[var(--color-text-main)] mt-3 mb-1">{children}</h3>
+                      ),
+                      p: ({ children }) => (
+                        <p className="mb-3 leading-relaxed text-[var(--color-text-main)]">{children}</p>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-bold text-[var(--color-text-main)]">{children}</strong>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="list-disc list-inside mb-3 space-y-1 text-[var(--color-text-main)]">{children}</ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="list-decimal list-inside mb-3 space-y-1 text-[var(--color-text-main)]">{children}</ol>
+                      ),
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-4 border-[var(--color-brand)] pl-4 my-3 italic text-[var(--color-text-muted)]">{children}</blockquote>
+                      ),
+                      code: ({ children }) => (
+                        <code className="bg-[var(--color-bg-elevated)] px-1.5 py-0.5 rounded text-[var(--color-brand)] text-sm">{children}</code>
+                      ),
+                      img: ({ src, alt }) => (
+                        <img
+                          src={getOptimizedImageUrl(src, 800, 85)}
+                          alt={alt || 'Imagem'}
+                          className="max-w-full h-auto rounded-lg my-3 border border-[var(--color-border)]"
+                          loading="lazy"
+                        />
+                      ),
+                      a: ({ href, children }) => (
+                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand)] underline hover:text-[var(--color-brand-light)]">{children}</a>
+                      ),
+                    }}
+                  >
+                    {preprocessImageUrls(explanation || 'Nenhuma explicação disponível para esta questão.')}
+                  </ReactMarkdown>
+                </div>
+
+                {/* Solicitar explicação button - only shown when no explanation */}
+                {!explanation && userId && (
+                  <div className="mt-4 pt-4 border-t border-[var(--color-border)]">
+                    {explanationRequested ? (
+                      <div className="flex items-center gap-2 text-green-500 text-sm">
+                        <Check size={18} />
+                        <span>Solicitação enviada com sucesso!</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleRequestExplanation}
+                        disabled={requestingExplanation}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-main)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {requestingExplanation ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            <span>Enviando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <BookOpen size={16} />
+                            <span>Solicitar explicação</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
         );
@@ -326,7 +863,8 @@ export function QuestionFeedbackTabs({
               </h4>
               {userId && (
                 <button
-                  className="px-3 py-1.5 bg-[var(--color-brand)] text-black rounded-lg font-medium text-xs hover:bg-[var(--color-brand-light)] transition-colors flex items-center"
+                  onClick={() => setShowNewNotebookModal(true)}
+                  className="px-3 py-1.5 bg-[#ffac00] text-black rounded-lg font-medium text-xs hover:bg-[#ffbc33] transition-colors flex items-center"
                 >
                   <Plus size={14} className="mr-1" />
                   Novo Caderno
@@ -352,25 +890,33 @@ export function QuestionFeedbackTabs({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {notebooks.map((notebook) => {
                   const isSaved = savedToNotebooks.has(notebook.id);
+                  const isSaving = savingToNotebook === notebook.id;
+                  const savedCount = notebook.saved_questions_count || 0;
                   return (
                     <button
                       key={notebook.id}
-                      onClick={() => !isSaved && handleSaveToNotebook(notebook.id)}
-                      disabled={isSaved}
+                      onClick={() => handleSaveToNotebook(notebook.id)}
+                      disabled={isSaving}
                       className={`w-full p-3 rounded-lg border text-left transition-all flex items-center justify-between ${
                         isSaved
-                          ? 'border-green-500/50 bg-green-500/10'
+                          ? 'border-green-500/50 bg-green-500/10 hover:bg-green-500/20'
                           : 'border-[var(--color-border)] bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-elevated)]'
-                      }`}
+                      } ${isSaving ? 'opacity-60' : ''}`}
                     >
                       <div className="min-w-0 flex-1 mr-2">
                         <p className="font-medium text-[var(--color-text-main)] text-sm truncate">{notebook.title}</p>
-                        {notebook.description && (
-                          <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">{notebook.description}</p>
-                        )}
+                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                          {savedCount > 0 ? `${savedCount} questões salvas` : 'Nenhuma questão salva'}
+                          {notebook.description && ` • ${notebook.description}`}
+                        </p>
                       </div>
-                      {isSaved ? (
-                        <Check size={18} className="text-green-500 flex-shrink-0" />
+                      {isSaving ? (
+                        <Loader2 size={18} className="animate-spin text-[var(--color-brand)] flex-shrink-0" />
+                      ) : isSaved ? (
+                        <div className="flex items-center gap-1 text-green-500">
+                          <Check size={16} />
+                          <Minus size={14} className="opacity-60" />
+                        </div>
                       ) : (
                         <Plus size={18} className="text-[var(--color-text-muted)] flex-shrink-0" />
                       )}
@@ -385,58 +931,251 @@ export function QuestionFeedbackTabs({
       case 'anotacoes':
         return (
           <div className="animate-fade-in">
-            <h4 className="text-sm font-bold text-[var(--color-text-sec)] mb-4 flex items-center">
-              <StickyNote size={16} className="mr-2 text-[var(--color-brand)]" />
-              Criar Anotação
-            </h4>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-bold text-[var(--color-text-sec)] flex items-center">
+                <BookMarked size={16} className="mr-2 text-amber-500" />
+                Minhas Anotações
+              </h4>
+              {userId && (
+                <button
+                  onClick={() => setShowNewGoldenNotebookModal(true)}
+                  className="px-3 py-1.5 bg-[#FFB800] text-black rounded-lg font-medium text-xs hover:bg-[#FFC933] transition-colors flex items-center"
+                >
+                  <Plus size={14} className="mr-1" />
+                  Novo Caderno
+                </button>
+              )}
+            </div>
 
             {!userId ? (
               <p className="text-sm text-[var(--color-text-muted)] text-center py-4">
                 Faça login para criar anotações.
               </p>
-            ) : savedAnnotation ? (
-              <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-green-500 font-bold flex items-center">
-                    <Check size={14} className="mr-1" /> Anotação salva
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSavedAnnotation(null);
-                      setAnnotation(savedAnnotation);
-                    }}
-                    className="text-xs text-[var(--color-brand)] hover:underline"
-                  >
-                    Editar
-                  </button>
-                </div>
-                <p className="text-sm text-[var(--color-text-main)] whitespace-pre-wrap">{savedAnnotation}</p>
+            ) : loadingGoldenNotebooks ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="animate-spin text-amber-500" size={24} />
               </div>
             ) : (
               <>
-                <textarea
-                  value={annotation}
-                  onChange={(e) => setAnnotation(e.target.value)}
-                  placeholder="Escreva sua anotação sobre esta questão..."
-                  rows={4}
-                  className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-3 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors resize-none"
-                />
-                <button
-                  onClick={handleSaveAnnotation}
-                  disabled={!annotation.trim() || savingAnnotation}
-                  className="mt-3 w-full py-2.5 bg-[var(--color-brand)] text-black rounded-lg font-medium text-sm hover:bg-[var(--color-brand-light)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {savingAnnotation ? (
-                    <Loader2 className="animate-spin" size={18} />
-                  ) : (
-                    <>
-                      <StickyNote size={16} className="mr-2" />
-                      Salvar Anotação
-                    </>
-                  )}
-                </button>
+                {/* Existing Annotations */}
+                {existingAnnotations.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs text-[var(--color-text-muted)] mb-2">
+                      {existingAnnotations.length} anotaç{existingAnnotations.length === 1 ? 'ão' : 'ões'} nesta questão:
+                    </p>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {existingAnnotations.map((ann) => (
+                        <div
+                          key={ann.id}
+                          className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg p-3"
+                        >
+                          <div className="flex items-center gap-2 text-xs text-amber-500 mb-1">
+                            <BookMarked size={12} />
+                            {ann.caderno_nome}
+                          </div>
+                          <p className="text-sm text-[var(--color-text-sec)] line-clamp-2">{ann.conteudo}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* New Annotation Form */}
+                <div className="space-y-3">
+                  {/* Notebook selector */}
+                  <div>
+                    <label className="block text-xs text-[var(--color-text-muted)] mb-1.5">
+                      Salvar em:
+                    </label>
+                    {goldenNotebooks.length === 0 ? (
+                      <button
+                        onClick={() => setShowNewGoldenNotebookModal(true)}
+                        className="w-full text-left px-4 py-3 rounded-lg border border-dashed border-[#FFB800]/50 bg-[#FFB800]/5 text-[#FFB800] hover:bg-[#FFB800]/10 transition-all text-sm flex items-center"
+                      >
+                        <Plus size={16} className="mr-2" />
+                        Criar meu primeiro Minhas Anotações
+                      </button>
+                    ) : (
+                      <div className="relative">
+                        <select
+                          value={selectedGoldenNotebook}
+                          onChange={(e) => setSelectedGoldenNotebook(e.target.value)}
+                          className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-amber-500 transition-colors appearance-none cursor-pointer"
+                        >
+                          {goldenNotebooks.map((nb) => (
+                            <option key={nb.id} value={nb.id}>
+                              {nb.nome} ({nb.anotacoes_count} anotações)
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div>
+                    <label className="block text-xs text-[var(--color-text-muted)] mb-1.5">
+                      Anotação:
+                    </label>
+                    <textarea
+                      value={annotation}
+                      onChange={(e) => setAnnotation(e.target.value)}
+                      placeholder="Escreva sua anotação sobre esta questão..."
+                      rows={4}
+                      className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-3 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-amber-500 transition-colors resize-none"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleSaveGoldenAnnotation}
+                    disabled={!annotation.trim() || !selectedGoldenNotebook || savingAnnotation}
+                    className="w-full py-2.5 bg-[#FFB800] text-black rounded-lg font-medium text-sm hover:bg-[#FFC933] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {savingAnnotation ? (
+                      <Loader2 className="animate-spin" size={18} />
+                    ) : (
+                      <>
+                        <BookMarked size={16} className="mr-2" />
+                        Salvar no Minhas Anotações
+                      </>
+                    )}
+                  </button>
+                </div>
               </>
             )}
+          </div>
+        );
+
+      case 'duvidas':
+        return (
+          <div className="animate-fade-in flex flex-col h-[400px]">
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2">
+              {chatMessages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm ${
+                      msg.role === 'user'
+                        ? 'bg-[#ffac00] text-black rounded-br-md'
+                        : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] rounded-bl-md border border-[var(--color-border)]'
+                    }`}
+                  >
+                    {msg.text && (msg.role === 'model' ? (
+                      <div className="text-[var(--color-text-main)] leading-relaxed">
+                        {renderMarkdown(msg.text)}
+                      </div>
+                    ) : (
+                      <span>{msg.text}</span>
+                    ))}
+                    {msg.audioLoading && (
+                      <AudioPlayerSkeleton />
+                    )}
+                    {msg.audio && !msg.audioLoading && (
+                      <div className={msg.text ? 'mt-3' : ''}>
+                        <AudioPlayer src={msg.audio.audioUrl} type={msg.audio.type as 'explanation' | 'podcast'} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-[var(--color-bg-elevated)] border border-[var(--color-border)] px-4 py-3 rounded-2xl rounded-bl-md">
+                    <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
+                      <Loader2 size={16} className="animate-spin" />
+                      <span className="text-sm">Pensando...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatMessagesEndRef} />
+            </div>
+
+            {/* Chat Input */}
+            <div className="border-t border-[var(--color-border)] pt-4">
+              <div className="flex items-center gap-2">
+                {/* Shortcuts Button */}
+                <div className="relative" ref={shortcutsRef}>
+                  <button
+                    onClick={() => setShowChatShortcuts(!showChatShortcuts)}
+                    disabled={chatLoading || isGeneratingAudio}
+                    className="p-2.5 rounded-lg bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:border-[var(--color-brand)] transition-colors disabled:opacity-50"
+                    title="Atalhos"
+                  >
+                    <Sparkles size={18} />
+                  </button>
+
+                  {showChatShortcuts && (
+                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-lg shadow-xl overflow-hidden z-10">
+                      <button
+                        onClick={handleGenerateAudio}
+                        disabled={isGeneratingAudio}
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <Headphones size={16} className="text-[var(--color-brand)]" />
+                        Gerar Áudio
+                      </button>
+                      <button
+                        onClick={handleGeneratePodcast}
+                        disabled={isGeneratingAudio}
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <Radio size={16} className="text-purple-400" />
+                        Gerar Podcast
+                      </button>
+                      <button
+                        onClick={handleGenerateSummary}
+                        disabled={chatLoading}
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <FileText size={16} className="text-green-400" />
+                        Resumo Rápido
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input Field */}
+                <input
+                  ref={chatInputRef}
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleChatSend()}
+                  placeholder="Digite sua dúvida..."
+                  disabled={chatLoading}
+                  className="flex-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors disabled:opacity-50"
+                />
+
+                {/* Mic Button */}
+                <button
+                  onClick={handleMicClick}
+                  disabled={chatLoading}
+                  className={`p-2.5 rounded-lg border transition-colors ${
+                    isRecording
+                      ? 'bg-red-500 border-red-500 text-white'
+                      : 'bg-[var(--color-bg-elevated)] border-[var(--color-border)] text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:border-[var(--color-brand)]'
+                  } disabled:opacity-50`}
+                  title={isRecording ? 'Parar' : 'Falar'}
+                >
+                  {isRecording ? <Square size={18} /> : <Mic size={18} />}
+                </button>
+
+                {/* Send Button */}
+                <button
+                  onClick={handleChatSend}
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="p-2.5 rounded-lg bg-[#ffac00] text-black hover:bg-[#ffbc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Enviar"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
           </div>
         );
 
@@ -477,16 +1216,24 @@ export function QuestionFeedbackTabs({
   };
 
   return (
-    <div className="mt-6">
-      {/* Tabs Navigation */}
-      <div className="flex overflow-x-auto pb-2 mb-4 gap-1 scrollbar-hide -mx-3 px-3">
+    <>
+      {/* Tabs Navigation - rendered as sibling, outside content wrapper */}
+      {/* Uses -mx-7 to extend edge-to-edge past QuestionCard px-3 (12px) + main p-4 (16px) = 28px */}
+      <div
+        className="mt-6 -mx-7 flex overflow-x-auto pb-2 mb-4 gap-1 scrollbar-hide"
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+      >
+        {/* Left spacer - scrolls with content, maintains initial alignment (28px = w-7) */}
+        <div className="flex-shrink-0 w-7" aria-hidden="true" />
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
               activeTab === tab.id
-                ? 'bg-[var(--color-brand)] text-black'
+                ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
                 : 'bg-[var(--color-bg-card)] text-[var(--color-text-sec)] border border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)]'
             }`}
           >
@@ -494,9 +1241,11 @@ export function QuestionFeedbackTabs({
             {tab.label}
           </button>
         ))}
+        {/* Right spacer - ensures last tab can be fully visible (28px = w-7) */}
+        <div className="flex-shrink-0 w-7" aria-hidden="true" />
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content - separate element */}
       <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4">
         {renderTabContent()}
       </div>
@@ -528,7 +1277,168 @@ export function QuestionFeedbackTabs({
         }}
         initialMotivo={selectedReportMotivo}
       />
-    </div>
+
+      {/* Modal Novo Caderno */}
+      {showNewNotebookModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in">
+          <div className="bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl w-full max-w-md p-6 animate-slide-up">
+            <h3 className="text-lg font-bold text-[var(--color-text-main)] mb-4 flex items-center">
+              <FolderPlus size={20} className="mr-2 text-[var(--color-brand)]" />
+              Novo Caderno
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-sec)] mb-1.5">
+                  Nome do Caderno *
+                </label>
+                <input
+                  type="text"
+                  value={newNotebookTitle}
+                  onChange={(e) => setNewNotebookTitle(e.target.value)}
+                  placeholder="Ex: Questões de Direito Constitucional"
+                  className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-sec)] mb-1.5">
+                  Descrição (opcional)
+                </label>
+                <textarea
+                  value={newNotebookDescription}
+                  onChange={(e) => setNewNotebookDescription(e.target.value)}
+                  placeholder="Adicione uma descrição para o caderno..."
+                  rows={3}
+                  className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-[var(--color-brand)] transition-colors resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowNewNotebookModal(false);
+                  setNewNotebookTitle('');
+                  setNewNotebookDescription('');
+                }}
+                className="flex-1 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[var(--color-text-main)] rounded-lg font-medium text-sm hover:bg-[var(--color-bg-elevated)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateNotebook}
+                disabled={!newNotebookTitle.trim() || creatingNotebook}
+                className="flex-1 py-2.5 bg-[#ffac00] text-black rounded-lg font-medium text-sm hover:bg-[#ffbc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {creatingNotebook ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <>
+                    <Plus size={16} className="mr-1.5" />
+                    Criar Caderno
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Novo Minhas Anotações */}
+      {showNewGoldenNotebookModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-fade-in">
+          <div className="bg-[var(--color-bg-main)] border border-[var(--color-border)] rounded-xl w-full max-w-md p-6 animate-slide-up">
+            <h3 className="text-lg font-bold text-[var(--color-text-main)] mb-4 flex items-center">
+              <BookMarked size={20} className="mr-2 text-amber-500" />
+              Novo Minhas Anotações
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-sec)] mb-1.5">
+                  Nome do Caderno *
+                </label>
+                <input
+                  type="text"
+                  value={newGoldenNotebookName}
+                  onChange={(e) => setNewGoldenNotebookName(e.target.value)}
+                  placeholder="Ex: Português - Crase"
+                  className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-amber-500 transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-sec)] mb-1.5">
+                  Descrição (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={newGoldenNotebookDescription}
+                  onChange={(e) => setNewGoldenNotebookDescription(e.target.value)}
+                  placeholder="Descrição do caderno"
+                  className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-main)] focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-sec)] mb-1.5">
+                  Cor
+                </label>
+                <div className="flex gap-2">
+                  {['#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#F97316'].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setNewGoldenNotebookColor(color)}
+                      className={`w-8 h-8 rounded-full transition-all ${
+                        newGoldenNotebookColor === color
+                          ? 'ring-2 ring-offset-2 ring-offset-[var(--color-bg-main)]'
+                          : ''
+                      }`}
+                      style={{
+                        backgroundColor: color,
+                        // Ring color is applied via CSS variable
+                        '--tw-ring-color': color,
+                      } as React.CSSProperties}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowNewGoldenNotebookModal(false);
+                  setNewGoldenNotebookName('');
+                  setNewGoldenNotebookDescription('');
+                  setNewGoldenNotebookColor('#F59E0B');
+                }}
+                className="flex-1 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[var(--color-text-main)] rounded-lg font-medium text-sm hover:bg-[var(--color-bg-elevated)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateGoldenNotebook}
+                disabled={!newGoldenNotebookName.trim() || creatingGoldenNotebook}
+                className="flex-1 py-2.5 bg-[#FFB800] text-black rounded-lg font-medium text-sm hover:bg-[#FFC933] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {creatingGoldenNotebook ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <>
+                    <Plus size={16} className="mr-1.5" />
+                    Criar Caderno
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

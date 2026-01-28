@@ -33,21 +33,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     headers: {
       'x-client-info': 'ouse-questoes-app',
     },
-    fetch: (url, options: RequestInit = {}) => {
-      // Se já existe um signal, usar ele; senão criar timeout de 15s
-      if (options.signal) {
-        return fetch(url, options);
-      }
-
-      // Timeout de 15 segundos para evitar conexões pendentes
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-      return fetch(url, {
-        ...options,
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timeoutId));
-    },
   },
 });
 

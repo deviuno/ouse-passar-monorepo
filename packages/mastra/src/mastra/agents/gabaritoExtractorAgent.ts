@@ -11,6 +11,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const gabaritoExtractorAgent = new Agent({
+    id: "gabaritoExtractorAgent",
     name: "GabaritoExtractorAgent",
     instructions: `Você é um especialista em análise de comentários de questões de concursos públicos brasileiros.
 
@@ -81,7 +82,7 @@ Retorne APENAS um JSON válido (sem markdown, sem explicações extras):
 4. **Valide a letra**: Para múltipla escolha, gabarito deve ser A, B, C, D ou E. Para certo/errado, deve ser C ou E.
 
 5. **motivo** deve ser uma frase curta explicando como você identificou (ou por que não conseguiu)`,
-    model: vertex("gemini-2.5-flash"),
+    model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default gabaritoExtractorAgent;

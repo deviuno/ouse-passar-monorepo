@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell,
   BellOff,
-  ArrowLeft,
   CheckCircle,
   Gift,
   Trophy,
@@ -16,7 +15,7 @@ import {
   CheckCheck,
 } from 'lucide-react';
 import { Card, Button } from '../components/ui';
-import { useAuthStore } from '../stores';
+import { useAuthStore, useUIStore } from '../stores';
 import { supabase } from '../services/supabase';
 
 interface Notification {
@@ -145,6 +144,7 @@ function NotificationItem({
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const { profile } = useAuthStore();
+  const { setHeaderOverride, clearHeaderOverride } = useUIStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
@@ -223,31 +223,25 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  return (
-    <div className="min-h-screen bg-[#121212] pb-24 md:pb-8">
-      {/* Header */}
-      <div className="bg-gradient-to-b from-[#1A1A1A] to-[#121212] px-4 py-6 md:px-6">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-3 mb-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 rounded-xl hover:bg-[#3A3A3A] transition-colors"
-            >
-              <ArrowLeft size={20} className="text-white" />
-            </button>
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-12 h-12 rounded-2xl bg-[#3498DB]/10 flex items-center justify-center">
-                <Bell size={24} className="text-[#3498DB]" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Notificações</h1>
-                <p className="text-[#A0A0A0] text-sm">
-                  {unreadCount > 0 ? `${unreadCount} não lida${unreadCount > 1 ? 's' : ''}` : 'Tudo em dia!'}
-                </p>
-              </div>
-            </div>
-          </div>
+  // Set up header
+  useEffect(() => {
+    setHeaderOverride({
+      title: 'Notificações',
+      showBackButton: true,
+      backPath: '/',
+      hideIcon: true,
+    });
 
+    return () => {
+      clearHeaderOverride();
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[var(--color-bg-main)] pb-24 md:pb-8 theme-transition">
+      {/* Actions Bar */}
+      <div className="px-4 py-4 md:px-6">
+        <div className="max-w-2xl mx-auto">
           {/* Actions Bar */}
           <div className="flex items-center justify-between">
             {/* Filter Tabs */}

@@ -111,7 +111,7 @@ export function MobileNav() {
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute -top-1 w-12 h-1 bg-[var(--color-brand)] rounded-full"
+                    className="absolute -top-1 w-12 h-1 bg-[#ffac00] rounded-full"
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
                 )}

@@ -12,6 +12,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const enunciadoFormatterAgent = new Agent({
+    id: "enunciadoFormatterAgent",
     name: "EnunciadoFormatterAgent",
     instructions: `Você é um especialista em formatação de enunciados de questões de concursos públicos brasileiros.
 
@@ -229,7 +230,7 @@ Retorne APENAS um JSON válido (sem markdown extra, sem explicações):
    - "Assinale a alternativa" → comando múltipla escolha
    - "Analise a figura" → imagem deve vir logo após
    - "Com base no texto" / "De acordo com o texto" → parte do comando`,
-    model: vertex("gemini-2.5-flash"),
+    model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default enunciadoFormatterAgent;

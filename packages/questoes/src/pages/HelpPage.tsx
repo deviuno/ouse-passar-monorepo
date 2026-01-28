@@ -108,22 +108,22 @@ function TutorialAccordion({ tutorial }: { tutorial: TutorialSection }) {
   const Icon = tutorial.icon;
 
   return (
-    <div className="bg-[#1A1A1A] border border-[#3A3A3A] rounded-xl overflow-hidden">
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-4 flex items-center justify-between hover:bg-[#242424] transition-colors"
+        className="w-full p-4 flex items-center justify-between hover:bg-[var(--color-bg-elevated)] transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#FFB800]/10 flex items-center justify-center">
-            <Icon size={20} className="text-[#FFB800]" />
+          <div className="w-10 h-10 rounded-xl bg-[var(--color-brand)]/10 flex items-center justify-center">
+            <Icon size={20} className="text-[var(--color-brand)]" />
           </div>
-          <span className="text-white font-medium text-left">{tutorial.title}</span>
+          <span className="text-[var(--color-text-main)] font-medium text-left">{tutorial.title}</span>
         </div>
         <motion.div
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronDown size={20} className="text-[#6E6E6E]" />
+          <ChevronDown size={20} className="text-[var(--color-text-muted)]" />
         </motion.div>
       </button>
 
@@ -138,7 +138,7 @@ function TutorialAccordion({ tutorial }: { tutorial: TutorialSection }) {
             <div className="px-4 pb-4 pt-0">
               <div className="pl-[52px] space-y-2">
                 {tutorial.content.map((paragraph, index) => (
-                  <p key={index} className="text-[#A0A0A0] text-sm leading-relaxed">
+                  <p key={index} className="text-[var(--color-text-sec)] text-sm leading-relaxed">
                     {paragraph}
                   </p>
                 ))}
@@ -159,27 +159,27 @@ export default function HelpPage() {
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
   return (
-    <div className="min-h-screen bg-[#121212] pb-24 md:pb-8">
+    <div className="min-h-screen bg-[var(--color-bg-main)] pb-24 md:pb-8">
       {/* Header */}
-      <div className="bg-gradient-to-b from-[#1A1A1A] to-[#121212] px-4 py-6 md:px-6">
+      <div className="bg-[var(--color-bg-card)] border-b border-[var(--color-border)] px-4 py-6 md:px-6">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-[#FFB800]/10 flex items-center justify-center">
-              <HelpCircle size={24} className="text-[#FFB800]" />
+            <div className="w-12 h-12 rounded-2xl bg-[var(--color-brand)]/10 flex items-center justify-center">
+              <HelpCircle size={24} className="text-[var(--color-brand)]" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Central de Ajuda</h1>
-              <p className="text-[#A0A0A0] text-sm">Tire suas dúvidas sobre a plataforma</p>
+              <h1 className="text-2xl font-bold text-[var(--color-text-main)]">Central de Ajuda</h1>
+              <p className="text-[var(--color-text-sec)] text-sm">Tire suas dúvidas sobre a plataforma</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-4 md:px-6 max-w-2xl mx-auto">
+      <div className="px-4 md:px-6 max-w-2xl mx-auto pt-6">
         {/* Tutorials Section */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-white mb-4">Tutoriais</h2>
+          <h2 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">Tutoriais</h2>
           <div className="space-y-3">
             {tutorials.map((tutorial) => (
               <TutorialAccordion key={tutorial.id} tutorial={tutorial} />
@@ -190,28 +190,28 @@ export default function HelpPage() {
         {/* Ticket Section */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-[#FFB800]/10 flex items-center justify-center">
-              <Ticket size={20} className="text-[#FFB800]" />
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-brand)]/10 flex items-center justify-center">
+              <Ticket size={20} className="text-[var(--color-brand)]" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-white">Abrir um Ticket</h2>
-              <p className="text-[#6A6A6A] text-sm">Envie sua dúvida ou problema para nossa equipe</p>
+              <h2 className="text-lg font-semibold text-[var(--color-text-main)]">Abrir um Ticket</h2>
+              <p className="text-[var(--color-text-muted)] text-sm">Envie sua dúvida ou problema para nossa equipe</p>
             </div>
           </div>
           <CreateTicketForm />
         </div>
 
         {/* WhatsApp Contact */}
-        <div className="bg-gradient-to-br from-[#25D366]/10 to-[#128C7E]/10 border border-[#25D366]/30 rounded-2xl p-6">
+        <div className="bg-[#25D366]/10 border border-[#25D366]/30 rounded-2xl p-6">
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl bg-[#25D366] flex items-center justify-center flex-shrink-0">
               <MessageCircle size={28} className="text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="text-white font-semibold text-lg mb-1">
+              <h3 className="text-[var(--color-text-main)] font-semibold text-lg mb-1">
                 Precisa de mais ajuda?
               </h3>
-              <p className="text-[#A0A0A0] text-sm mb-4">
+              <p className="text-[var(--color-text-sec)] text-sm mb-4">
                 Nossa equipe de suporte está pronta para te ajudar.
                 Fale conosco pelo WhatsApp!
               </p>
@@ -232,7 +232,7 @@ export default function HelpPage() {
 
         {/* Contact Info */}
         <div className="mt-6 text-center">
-          <p className="text-[#6E6E6E] text-sm">
+          <p className="text-[var(--color-text-muted)] text-sm">
             Horário de atendimento: Segunda a Sexta, 9h às 18h
           </p>
         </div>

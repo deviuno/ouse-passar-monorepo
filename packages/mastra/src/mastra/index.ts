@@ -44,6 +44,7 @@ export const mastra = new Mastra({
         materiaClassifierAgent,
     },
     storage: new LibSQLStore({
+        id: "mastra-storage",
         url: ":memory:",
     }),
     mcpServers: {

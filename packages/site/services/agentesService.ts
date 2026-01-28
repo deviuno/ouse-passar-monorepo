@@ -5,6 +5,8 @@
  * não no banco principal. Por isso usamos a API do Mastra para acessar esses dados.
  */
 
+import { supabase } from '../lib/supabase';
+
 // ============================================================================
 // INTERFACES
 // ============================================================================
@@ -101,6 +103,22 @@ export interface CronStatus {
   comentarioFormatter: CronProcessorStatus;
   enunciadoFormatter: CronProcessorStatus;
   materiaClassifier: CronProcessorStatus & { stats?: { classified: number; failed: number; skipped: number } };
+}
+
+export interface QuestoesStats {
+  total: number;
+  novasDesde: number;
+  dataReferencia: string;
+}
+
+export interface QuestaoListItem {
+  id: number;
+  materia: string | null;
+  assunto: string | null;
+  banca: string | null;
+  ano: number | null;
+  orgao: string | null;
+  created_at: string | null;
 }
 
 // ============================================================================
@@ -332,6 +350,47 @@ export const agentesService = {
     });
 
     return response.json();
+  },
+
+  // ============================================================================
+  // MONITORAMENTO DE QUESTÕES (via Supabase direto)
+  // ============================================================================
+
+  // --------------------------------------------------------------------------
+  // Estatísticas de questões (total e novas desde uma data)
+  // Usa função RPC otimizada para evitar timeout em tabelas grandes
+  // --------------------------------------------------------------------------
+  async getQuestoesStats(dataReferencia: string = '2026-01-20'): Promise<QuestoesStats> {
+    const { data, error } = await (supabase as any)
+      .rpc('get_questoes_stats', { data_referencia: dataReferencia });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const stats = (data as any)?.[0];
+    return {
+      total: stats?.total || 0,
+      novasDesde: stats?.novas_desde || 0,
+      dataReferencia,
+    };
+  },
+
+  // --------------------------------------------------------------------------
+  // Lista das últimas questões adicionadas
+  // --------------------------------------------------------------------------
+  async getUltimasQuestoes(limite: number = 20): Promise<QuestaoListItem[]> {
+    const { data, error } = await supabase
+      .from('questoes_concurso')
+      .select('id, materia, assunto, banca, ano, orgao, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limite);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data || [];
   },
 };
 

@@ -93,7 +93,7 @@ export async function getUserStats(userId: string): Promise<UserStats | null> {
   try {
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('xp, coins, streak, level, correct_answers, total_answered, avatar_id')
+      .select('xp, coins, streak, level, correct_answers, total_answered, avatar_id, last_practice_date')
       .eq('id', userId)
       .single();
 
@@ -110,6 +110,7 @@ export async function getUserStats(userId: string): Promise<UserStats | null> {
       correctAnswers: data.correct_answers || 0,
       totalAnswered: data.total_answered || 0,
       avatarId: data.avatar_id,
+      lastPracticeDate: data.last_practice_date || null,
     };
   } catch (err) {
     console.error('[userStatsService] Exception fetching stats:', err);

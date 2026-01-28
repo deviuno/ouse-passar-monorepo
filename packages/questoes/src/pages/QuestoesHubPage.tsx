@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Play, BookOpen, Map, ChevronRight } from 'lucide-react';
+import { Play, BookOpen, Map, ChevronRight, BookMarked, XCircle, Sparkles } from 'lucide-react';
 
 interface HubCard {
   id: string;
@@ -16,12 +16,12 @@ interface HubCard {
 const hubCards: HubCard[] = [
   {
     id: 'praticar',
-    title: 'Ouse Questões',
+    title: 'Praticar Questões',
     description: 'Resolva questões com filtros personalizados por banca, matéria, assunto e mais.',
     icon: <Play size={32} fill="currentColor" />,
-    path: '/praticar?autostart=true',
-    color: '#FFB800',
-    bgGradient: 'from-[#FFB800]/20 to-[#FFB800]/5',
+    path: '/praticar?showFilters=true',
+    color: '#8B5CF6',
+    bgGradient: 'from-violet-500/20 to-violet-500/5',
   },
   {
     id: 'cadernos',
@@ -41,6 +41,33 @@ const hubCards: HubCard[] = [
     color: '#10B981',
     bgGradient: 'from-emerald-500/20 to-emerald-500/5',
   },
+  {
+    id: 'minhas-anotacoes',
+    title: 'Minhas Anotações',
+    description: 'Organize suas anotações por temas e revise o que é mais importante.',
+    icon: <BookMarked size={32} />,
+    path: '/minhas-anotacoes',
+    color: '#F59E0B',
+    bgGradient: 'from-amber-500/20 to-amber-500/5',
+  },
+  {
+    id: 'meus-erros',
+    title: 'Meus Erros',
+    description: 'Revise as questões que você errou, agrupadas por matéria e assunto.',
+    icon: <XCircle size={32} />,
+    path: '/meus-erros',
+    color: '#EF4444',
+    bgGradient: 'from-red-500/20 to-red-500/5',
+  },
+  {
+    id: 'meus-conteudos',
+    title: 'Meus Conteúdos',
+    description: 'Acesse resumos, podcasts e áudios gerados pela IA para você.',
+    icon: <Sparkles size={32} />,
+    path: '/meus-conteudos',
+    color: '#06B6D4',
+    bgGradient: 'from-cyan-500/20 to-cyan-500/5',
+  },
 ];
 
 export const QuestoesHubPage: React.FC = () => {
@@ -52,7 +79,7 @@ export const QuestoesHubPage: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl md:text-4xl font-bold text-[var(--color-text-main)] mb-3">
-            Ouse <span className="text-[var(--color-brand)]">Questões</span>
+            Ouse Questões
           </h1>
           <p className="text-[var(--color-text-sec)] text-lg">
             Escolha como deseja praticar hoje
@@ -92,7 +119,10 @@ export const QuestoesHubPage: React.FC = () => {
                 </div>
 
                 {/* Title */}
-                <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-2 group-hover:text-[var(--color-brand)] transition-colors">
+                <h2
+                  className="text-xl font-bold text-[var(--color-text-main)] mb-2 transition-colors group-hover:[color:var(--hover-color)]"
+                  style={{ '--hover-color': card.color } as React.CSSProperties}
+                >
                   {card.title}
                 </h2>
 

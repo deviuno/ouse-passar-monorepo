@@ -10,6 +10,7 @@ import { vertex } from "../../lib/modelProvider.js";
  * Modelo: gemini-2.5-flash (multimodal - suporta PDF nativamente)
  */
 export const editalFullAnalyzerAgent = new Agent({
+  id: "editalFullAnalyzerAgent",
   name: "editalFullAnalyzerAgent",
   description: "Agente especializado em analisar PDFs de editais de concursos e extrair todas as informações necessárias para criar um preparatório completo.",
   instructions: `Você é um especialista em análise de editais de concursos públicos brasileiros.
@@ -115,7 +116,7 @@ Retorne APENAS um JSON válido neste formato exato:
 - O conteúdo programático geralmente está em um anexo específico
 - Datas de inscrição e prova estão no cronograma
 `,
-  model: vertex("gemini-2.5-flash"),
+  model: vertex("gemini-2.5-flash-lite"),
 });
 
 /**

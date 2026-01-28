@@ -51,7 +51,7 @@ export async function checkAudioCache(
       .select('*')
       .eq('content_hash', contentHash)
       .eq('audio_type', audioType)
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       return null;
@@ -245,10 +245,46 @@ const AUDIO_API_URL = import.meta.env.VITE_MASTRA_URL
   ? `${import.meta.env.VITE_MASTRA_URL}/api/audio`
   : 'http://localhost:4000/api/audio';
 
+// Timeouts para geração de áudio (em ms)
+const EXPLANATION_TIMEOUT = 5 * 60 * 1000; // 5 minutos para explicação
+const PODCAST_TIMEOUT = 10 * 60 * 1000; // 10 minutos para podcast (mais longo devido a multi-speaker)
+
+/**
+ * Fetch com timeout usando AbortController
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export interface GeneratedAudioWithCache {
   audioUrl: string;
   type: AudioCacheType;
   fromCache: boolean;
+  durationSeconds?: number;
+}
+
+export interface GenerateAudioParams {
+  title: string;
+  content: string;
+  userId?: string;
+  materia?: string;
+  assunto?: string;
+  questionId?: number;
 }
 
 /**
@@ -256,9 +292,10 @@ export interface GeneratedAudioWithCache {
  * Verifica cache primeiro, se não existir, gera e salva
  */
 export async function generateAudioWithCache(
-  title: string,
-  content: string
+  params: GenerateAudioParams
 ): Promise<GeneratedAudioWithCache | null> {
+  const { title, content, userId, materia, assunto, questionId } = params;
+
   try {
     // 1. Verificar cache
     const cached = await checkAudioCache(title, content, 'explanation');
@@ -273,45 +310,52 @@ export async function generateAudioWithCache(
 
     console.log('[AudioCache] Cache miss for explanation, generating...');
 
-    // 2. Gerar novo áudio via API
-    const response = await fetch(`${AUDIO_API_URL}/explanation`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    // 2. Gerar novo áudio via API (com timeout de 5 minutos)
+    const response = await fetchWithTimeout(
+      `${AUDIO_API_URL}/explanation`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          content,
+          userId,
+          materia,
+          assunto,
+          questionId
+        }),
       },
-      body: JSON.stringify({ title, content }),
-    });
+      EXPLANATION_TIMEOUT
+    );
+
+    if (!response.ok) {
+      console.error('[AudioCache] API returned error status:', response.status);
+      return null;
+    }
 
     const data = await response.json();
 
-    if (!data.success || !data.audioData) {
+    // Server now returns audioUrl directly (uploaded to Storage on server side)
+    if (!data.success || !data.audioUrl) {
       console.error('[AudioCache] API error:', data);
       return null;
     }
 
-    // 3. Converter base64 para blob
-    const audioBlob = base64ToAudioBlob(data.audioData);
-
-    // 4. Salvar no cache (Storage + DB)
-    const cacheEntry = await saveAudioToCache(title, content, 'explanation', audioBlob);
-
-    if (cacheEntry) {
-      return {
-        audioUrl: cacheEntry.audio_url,
-        type: 'explanation',
-        fromCache: false,
-      };
-    }
-
-    // Fallback: criar URL temporária se o cache falhar
-    const tempUrl = URL.createObjectURL(audioBlob);
+    console.log('[AudioCache] Received explanation audio URL from server');
     return {
-      audioUrl: tempUrl,
+      audioUrl: data.audioUrl,
       type: 'explanation',
-      fromCache: false,
+      fromCache: data.fromCache || false,
+      durationSeconds: data.durationSeconds,
     };
-  } catch (error) {
-    console.error('[AudioCache] Error generating audio:', error);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error('[AudioCache] Timeout generating explanation audio (exceeded 5 minutes)');
+    } else {
+      console.error('[AudioCache] Error generating audio:', error);
+    }
     return null;
   }
 }
@@ -321,9 +365,10 @@ export async function generateAudioWithCache(
  * Verifica cache primeiro, se não existir, gera e salva
  */
 export async function generatePodcastWithCache(
-  title: string,
-  content: string
+  params: GenerateAudioParams
 ): Promise<GeneratedAudioWithCache | null> {
+  const { title, content, userId, materia, assunto, questionId } = params;
+
   try {
     // 1. Verificar cache
     const cached = await checkAudioCache(title, content, 'podcast');
@@ -338,45 +383,52 @@ export async function generatePodcastWithCache(
 
     console.log('[AudioCache] Cache miss for podcast, generating...');
 
-    // 2. Gerar novo podcast via API
-    const response = await fetch(`${AUDIO_API_URL}/podcast`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    // 2. Gerar novo podcast via API (com timeout de 10 minutos - mais longo para multi-speaker)
+    const response = await fetchWithTimeout(
+      `${AUDIO_API_URL}/podcast`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          content,
+          userId,
+          materia,
+          assunto,
+          questionId
+        }),
       },
-      body: JSON.stringify({ title, content }),
-    });
+      PODCAST_TIMEOUT
+    );
+
+    if (!response.ok) {
+      console.error('[AudioCache] API returned error status:', response.status);
+      return null;
+    }
 
     const data = await response.json();
 
-    if (!data.success || !data.audioData) {
+    // Server now returns audioUrl directly (uploaded to Storage on server side)
+    if (!data.success || !data.audioUrl) {
       console.error('[AudioCache] API error:', data);
       return null;
     }
 
-    // 3. Converter base64 para blob
-    const audioBlob = base64ToAudioBlob(data.audioData);
-
-    // 4. Salvar no cache (Storage + DB)
-    const cacheEntry = await saveAudioToCache(title, content, 'podcast', audioBlob);
-
-    if (cacheEntry) {
-      return {
-        audioUrl: cacheEntry.audio_url,
-        type: 'podcast',
-        fromCache: false,
-      };
-    }
-
-    // Fallback: criar URL temporária se o cache falhar
-    const tempUrl = URL.createObjectURL(audioBlob);
+    console.log('[AudioCache] Received podcast audio URL from server');
     return {
-      audioUrl: tempUrl,
+      audioUrl: data.audioUrl,
       type: 'podcast',
-      fromCache: false,
+      fromCache: data.fromCache || false,
+      durationSeconds: data.durationSeconds,
     };
-  } catch (error) {
-    console.error('[AudioCache] Error generating podcast:', error);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error('[AudioCache] Timeout generating podcast (exceeded 10 minutes)');
+    } else {
+      console.error('[AudioCache] Error generating podcast:', error);
+    }
     return null;
   }
 }

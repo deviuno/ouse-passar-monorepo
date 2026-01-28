@@ -1,6 +1,5 @@
 // Service for fetching user statistics from Supabase
 import { supabase } from './supabaseClient';
-import { questionsDb } from './questionsDbClient';
 
 export interface MateriaStats {
   materia: string;
@@ -29,14 +28,14 @@ export async function getUserMateriaStats(userId: string): Promise<MateriaStats[
   try {
     console.log('[statsService] Fetching materia stats for user:', userId);
 
-    // Get all mission answers for this user
+    // Get all answers for this user from question_user_answers (practice mode)
     const { data: answers, error } = await supabase
-      .from('mission_answers')
+      .from('question_user_answers')
       .select('question_id, is_correct')
       .eq('user_id', userId);
 
     if (error) {
-      console.error('[statsService] Error fetching mission answers:', error);
+      console.error('[statsService] Error fetching user answers:', error);
       return [];
     }
 
@@ -49,9 +48,9 @@ export async function getUserMateriaStats(userId: string): Promise<MateriaStats[
     const questionIds = [...new Set(answers.map(a => a.question_id))];
     console.log(`[statsService] Found ${questionIds.length} unique questions`);
 
-    // Fetch questions from questions DB to get matéria
-    const { data: questions, error: questionsError } = await questionsDb
-      .from('questoes')
+    // Fetch questions from questoes_concurso to get matéria
+    const { data: questions, error: questionsError } = await supabase
+      .from('questoes_concurso')
       .select('id, materia')
       .in('id', questionIds);
 
@@ -123,12 +122,12 @@ export async function getUserWeeklyEvolution(userId: string): Promise<WeeklyStat
   try {
     console.log('[statsService] Fetching weekly evolution for user:', userId);
 
-    // Get answers from last 4 weeks
+    // Get answers from last 4 weeks from question_user_answers (practice mode)
     const fourWeeksAgo = new Date();
     fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
 
     const { data: answers, error } = await supabase
-      .from('mission_answers')
+      .from('question_user_answers')
       .select('is_correct, created_at')
       .eq('user_id', userId)
       .gte('created_at', fourWeeksAgo.toISOString())
@@ -191,13 +190,13 @@ export async function getUserDailyEvolution(userId: string): Promise<DailyStats[
   try {
     console.log('[statsService] Fetching daily evolution for user:', userId);
 
-    // Get answers from last 7 days
+    // Get answers from last 7 days from question_user_answers (practice mode)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // Include today + 6 days back
     sevenDaysAgo.setHours(0, 0, 0, 0);
 
     const { data: answers, error } = await supabase
-      .from('mission_answers')
+      .from('question_user_answers')
       .select('is_correct, created_at')
       .eq('user_id', userId)
       .gte('created_at', sevenDaysAgo.toISOString())
@@ -316,16 +315,16 @@ export async function getUserPercentile(userId: string): Promise<number> {
 export async function getUserAverageTime(userId: string): Promise<number> {
   try {
     const { data, error } = await supabase
-      .from('mission_answers')
-      .select('time_spent')
+      .from('question_user_answers')
+      .select('time_spent_seconds')
       .eq('user_id', userId)
-      .not('time_spent', 'is', null);
+      .not('time_spent_seconds', 'is', null);
 
     if (error || !data || data.length === 0) {
       return 0;
     }
 
-    const totalTime = data.reduce((sum, a) => sum + (a.time_spent || 0), 0);
+    const totalTime = data.reduce((sum, a) => sum + (a.time_spent_seconds || 0), 0);
     const avgTime = Math.round(totalTime / data.length);
     return avgTime;
   } catch (err) {
@@ -401,9 +400,9 @@ export async function getUserSubjectEvolution(userId: string): Promise<SubjectEv
     const fourteenDaysAgo = new Date(now);
     fourteenDaysAgo.setDate(now.getDate() - 14);
 
-    // Get answers from last 14 days
+    // Get answers from last 14 days from question_user_answers (practice mode)
     const { data: answers, error } = await supabase
-      .from('mission_answers')
+      .from('question_user_answers')
       .select('question_id, is_correct, created_at')
       .eq('user_id', userId)
       .gte('created_at', fourteenDaysAgo.toISOString());
@@ -415,9 +414,9 @@ export async function getUserSubjectEvolution(userId: string): Promise<SubjectEv
     // Get question IDs
     const questionIds = [...new Set(answers.map(a => a.question_id))];
 
-    // Fetch matérias from questions DB
-    const { data: questions, error: qError } = await questionsDb
-      .from('questoes')
+    // Fetch matérias from questoes_concurso
+    const { data: questions, error: qError } = await supabase
+      .from('questoes_concurso')
       .select('id, materia')
       .in('id', questionIds);
 
@@ -520,7 +519,7 @@ export async function getUserRecommendations(userId: string): Promise<Recommenda
 
     // Count questions that could be reviewed (answered incorrectly)
     const { count: wrongAnswers } = await supabase
-      .from('mission_answers')
+      .from('question_user_answers')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('is_correct', false);

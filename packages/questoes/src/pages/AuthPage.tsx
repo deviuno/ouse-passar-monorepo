@@ -3,8 +3,7 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../stores';
-import { Button } from '../components/ui';
-import { LOGO_URL } from '../constants';
+import { Button, Logo } from '../components/ui';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
@@ -109,9 +108,9 @@ export default function AuthPage({ mode: initialMode }: AuthPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--color-bg-main)] flex flex-col items-center justify-center p-4">
       {/* Background Pattern */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml,...')] opacity-5" />
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml,...')] opacity-5 pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -120,18 +119,20 @@ export default function AuthPage({ mode: initialMode }: AuthPageProps) {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src={LOGO_URL} alt="Ouse Passar" className="h-12 mx-auto mb-6" />
-          <h1 className="text-2xl font-bold text-white mb-2">{titles[mode]}</h1>
-          <p className="text-[#A0A0A0]">{subtitles[mode]}</p>
+          <div className="flex justify-center mb-6">
+            <Logo className="h-10" variant="auto" />
+          </div>
+          <h1 className="text-2xl font-bold text-[var(--color-text-main)] mb-2">{titles[mode]}</h1>
+          <p className="text-[var(--color-text-sec)]">{subtitles[mode]}</p>
         </div>
 
         {/* Card */}
-        <div className="bg-[#252525] rounded-2xl p-6 shadow-xl">
+        <div className="bg-[var(--color-bg-card)] rounded-2xl p-6 shadow-xl border border-[var(--color-border)]">
           {/* Back Button */}
           {mode !== 'login' && (
             <button
               onClick={() => setMode('login')}
-              className="flex items-center gap-2 text-[#A0A0A0] hover:text-white mb-4 transition-colors"
+              className="flex items-center gap-2 text-[var(--color-text-sec)] hover:text-[var(--color-text-main)] mb-4 transition-colors"
             >
               <ArrowLeft size={18} />
               <span>Voltar</span>
@@ -167,17 +168,17 @@ export default function AuthPage({ mode: initialMode }: AuthPageProps) {
             {/* Name Field (Register only) */}
             {mode === 'register' && (
               <div>
-                <label className="block text-sm text-[#A0A0A0] mb-1.5">Nome</label>
+                <label className="block text-sm text-[var(--color-text-sec)] mb-1.5">Nome</label>
                 <div className="relative">
-                  <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+                  <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Seu nome"
-                    className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded-xl py-3 pl-10 pr-4
-                      text-white placeholder-[#6E6E6E]
-                      focus:outline-none focus:border-[#FFB800] transition-colors"
+                    className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-10 pr-4
+                      text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
+                      focus:outline-none focus:border-[var(--color-brand)] transition-colors"
                   />
                 </div>
               </div>
@@ -186,18 +187,18 @@ export default function AuthPage({ mode: initialMode }: AuthPageProps) {
             {/* Email Field */}
             {mode !== 'reset' && (
               <div>
-                <label className="block text-sm text-[#A0A0A0] mb-1.5">Email</label>
+                <label className="block text-sm text-[var(--color-text-sec)] mb-1.5">Email</label>
                 <div className="relative">
-                  <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+                  <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="seu@email.com"
                     required
-                    className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded-xl py-3 pl-10 pr-4
-                      text-white placeholder-[#6E6E6E]
-                      focus:outline-none focus:border-[#FFB800] transition-colors"
+                    className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-10 pr-4
+                      text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
+                      focus:outline-none focus:border-[var(--color-brand)] transition-colors"
                   />
                 </div>
               </div>
@@ -206,11 +207,11 @@ export default function AuthPage({ mode: initialMode }: AuthPageProps) {
             {/* Password Field */}
             {mode !== 'forgot' && (
               <div>
-                <label className="block text-sm text-[#A0A0A0] mb-1.5">
+                <label className="block text-sm text-[var(--color-text-sec)] mb-1.5">
                   {mode === 'reset' ? 'Nova Senha' : 'Senha'}
                 </label>
                 <div className="relative">
-                  <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6E6E]" />
+                  <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
@@ -218,14 +219,14 @@ export default function AuthPage({ mode: initialMode }: AuthPageProps) {
                     placeholder="••••••••"
                     required
                     minLength={6}
-                    className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded-xl py-3 pl-10 pr-12
-                      text-white placeholder-[#6E6E6E]
-                      focus:outline-none focus:border-[#FFB800] transition-colors"
+                    className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-10 pr-12
+                      text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
+                      focus:outline-none focus:border-[var(--color-brand)] transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6E6E6E] hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -239,7 +240,7 @@ export default function AuthPage({ mode: initialMode }: AuthPageProps) {
                 <button
                   type="button"
                   onClick={() => setMode('forgot')}
-                  className="text-sm text-[#FFB800] hover:underline"
+                  className="text-sm text-[var(--color-brand)] hover:underline"
                 >
                   Esqueceu a senha?
                 </button>
@@ -263,9 +264,9 @@ export default function AuthPage({ mode: initialMode }: AuthPageProps) {
           {mode === 'login' && (
             <>
               <div className="flex items-center gap-4 my-6">
-                <div className="flex-1 h-px bg-[#3A3A3A]" />
-                <span className="text-[#6E6E6E] text-sm">ou</span>
-                <div className="flex-1 h-px bg-[#3A3A3A]" />
+                <div className="flex-1 h-px bg-[var(--color-border)]" />
+                <span className="text-[var(--color-text-muted)] text-sm">ou</span>
+                <div className="flex-1 h-px bg-[var(--color-border)]" />
               </div>
 
               {/* Google Login */}
@@ -303,12 +304,12 @@ export default function AuthPage({ mode: initialMode }: AuthPageProps) {
 
           {/* Link para criar conta (vai para onboarding) */}
           {mode === 'login' && (
-            <p className="text-center text-[#A0A0A0] mt-6 text-sm">
+            <p className="text-center text-[var(--color-text-sec)] mt-6 text-sm">
               Não tem uma conta?{' '}
               <button
                 type="button"
                 onClick={() => navigate('/onboarding')}
-                className="text-[#FFB800] hover:underline font-medium"
+                className="text-[var(--color-brand)] hover:underline font-medium"
               >
                 Criar conta
               </button>

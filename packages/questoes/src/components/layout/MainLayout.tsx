@@ -8,6 +8,7 @@ import { ScrollToTop } from '../ui';
 import { ProductTour } from '../tour';
 import { BatteryConsumeToast } from '../battery/BatteryConsumeToast';
 import { AudioEngine, TopMusicPlayer } from '../music';
+import { FloatingStudyTimer } from '../study-timer';
 import { useUIStore, useBatteryStore } from '../../stores';
 import { useMusicPlayerStore } from '../../stores/useMusicPlayerStore';
 
@@ -63,6 +64,7 @@ export function MainLayout() {
             ? 'lg:ml-64 lg:w-[calc(100%-16rem)]'
             : 'lg:ml-[72px] lg:w-[calc(100%-72px)]'}
           w-full
+          lg:h-screen lg:overflow-y-auto
         `}
       >
         {/* Header - Hidden on music pages */}
@@ -81,6 +83,9 @@ export function MainLayout() {
 
         {/* Mobile Bottom Navigation - Sempre visível no mobile */}
         <MobileNav />
+
+        {/* Floating Study Timer - Pomodoro (inside main content area) */}
+        <FloatingStudyTimer sidebarWidth={isSidebarOpen ? 256 : 72} />
       </div>
 
       {/* Toast Container */}

@@ -10,6 +10,7 @@ import { Agent } from "@mastra/core/agent";
 import { vertex } from "../../lib/modelProvider.js";
 
 export const questionReviewAgent = new Agent({
+    id: "questionReviewAgent",
     name: "QuestionReviewAgent",
     instructions: `Você é um revisor de qualidade de questões de concurso público.
 
@@ -68,7 +69,7 @@ Enunciado: "ng-if vm.questao A seguir"
 ### Questão incompleta (reprovar):
 Enunciado: "Considerando o texto acima, julgue"
 → REPROVAR: Texto truncado, falta o contexto referenciado`,
-    model: vertex("gemini-2.5-flash"),
+    model: vertex("gemini-2.5-flash-lite"),
 });
 
 export default questionReviewAgent;

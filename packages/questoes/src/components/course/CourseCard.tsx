@@ -51,7 +51,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, onOpen }) => {
             </div>
             <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
               <div
-                className="h-full bg-[var(--color-brand)]"
+                className="h-full bg-[#ffac00]"
                 style={{ width: `${progress}%` }}
               />
             </div>

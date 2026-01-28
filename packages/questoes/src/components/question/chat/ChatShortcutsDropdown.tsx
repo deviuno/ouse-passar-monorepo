@@ -110,7 +110,7 @@ export function ChatShortcutsDropdown({
                 }}
                 disabled={isGenerating || isCollapsed}
                 className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${isOpen
-                        ? 'bg-[var(--color-brand)] text-black'
+                        ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
                         : 'text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-bg-elevated)]'
                     } ${(isGenerating || isCollapsed) ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Atalhos de IA"

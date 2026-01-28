@@ -117,7 +117,7 @@ const EditalItemNode: React.FC<{
         {item.tipo === 'topico' && hasFilters && (
           <button
             onClick={handlePraticar}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex-shrink-0 ml-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex-shrink-0 ml-2 bg-[#ffac00] hover:bg-[#ffbc33] text-black hover:scale-[1.02] active:scale-[0.98]"
           >
             <Play size={12} fill="currentColor" />
             <span className="hidden sm:inline">Praticar</span>
@@ -312,7 +312,7 @@ export const TrailsTab: React.FC<TrailsTabProps> = ({
         <p className="text-[var(--color-text-sec)] text-sm text-center mb-4">{error}</p>
         <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black font-bold rounded-lg transition-colors text-sm"
+          className="px-4 py-2 bg-[#ffac00] hover:bg-[#ffbc33] text-black font-bold rounded-lg transition-colors text-sm"
         >
           Tentar novamente
         </button>

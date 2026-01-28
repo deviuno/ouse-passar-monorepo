@@ -9,7 +9,8 @@ import {
   Building2,
   Search,
 } from 'lucide-react';
-import { getFilterOptions } from '../../services/externalQuestionsService';
+import { getFilterOptions, getBancasWithDetails, BancaWithDetails } from '../../services/externalQuestionsService';
+import { getBancaSigla } from '../../utils/bancaFormatter';
 import { PreparatorioImageUpload, PreparatorioImageUploadRef } from './PreparatorioImageUpload';
 import {
   PreparatorioWizardData,
@@ -17,9 +18,12 @@ import {
   STEPS,
   NIVEIS,
   MODALIDADES,
+  TIPOS_QUESTAO,
+  ESCOLARIDADES,
   REGIOES,
   ProductPriceCard,
   SearchableSelect,
+  MultiSearchableSelect,
 } from './preparatorio-wizard';
 
 // Re-export types for external use
@@ -59,12 +63,15 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
     orgaos: [],
     cargos: [],
   });
+  const [bancasWithDetails, setBancasWithDetails] = useState<BancaWithDetails[]>([]);
 
   const [formData, setFormData] = useState<PreparatorioWizardData>({
     nome: initialData?.nome || '',
     descricao: initialData?.descricao || '',
     imagemCapa: initialData?.imagemCapa || '',
     banca: initialData?.banca || '',
+    bancasAdicionais: initialData?.bancasAdicionais || [],
+    tipoQuestao: initialData?.tipoQuestao || 'multipla_escolha',
     orgao: initialData?.orgao || '',
     logoUrl: initialData?.logoUrl || '',
     cargo: initialData?.cargo || '',
@@ -118,12 +125,16 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
     async function loadOptions() {
       setLoadingOptions(true);
       try {
-        const options = await getFilterOptions();
+        const [options, bancasDetails] = await Promise.all([
+          getFilterOptions(),
+          getBancasWithDetails()
+        ]);
         setFilterOptions({
           bancas: options.bancas || [],
           orgaos: options.orgaos || [],
           cargos: options.cargos || [],
         });
+        setBancasWithDetails(bancasDetails.bancas || []);
       } catch (error) {
         console.error('Error loading filter options:', error);
       } finally {
@@ -132,6 +143,26 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
     }
     loadOptions();
   }, []);
+
+  // Format banca display as "SIGLA - Nome" or just "Nome" if no sigla
+  // Uses database sigla first, then falls back to hardcoded siglas
+  const formatBancaDisplay = (bancaNome: string): string => {
+    if (!bancaNome) return '';
+
+    // First try to get sigla from database
+    const bancaDetails = bancasWithDetails.find(b => b.nome === bancaNome);
+    if (bancaDetails?.sigla) {
+      return `${bancaDetails.sigla} - ${bancaNome}`;
+    }
+
+    // Fallback to hardcoded siglas
+    const hardcodedSigla = getBancaSigla(bancaNome);
+    if (hardcodedSigla) {
+      return `${hardcodedSigla} - ${bancaNome}`;
+    }
+
+    return bancaNome;
+  };
 
   const updateField = <K extends keyof PreparatorioWizardData>(
     field: K,
@@ -303,27 +334,7 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
 
   const renderStep2 = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <SearchableSelect
-          options={filterOptions.bancas}
-          value={formData.banca}
-          onChange={(v) => updateField('banca', v)}
-          placeholder="Selecione ou digite a banca..."
-          label="Banca Organizadora"
-          loading={loadingOptions}
-        />
-
-        <SearchableSelect
-          options={filterOptions.orgaos}
-          value={formData.orgao}
-          onChange={(v) => updateField('orgao', v)}
-          placeholder="Selecione ou digite o órgão..."
-          label="Órgão"
-          loading={loadingOptions}
-        />
-      </div>
-
-      {/* Logo do Órgão */}
+      {/* Logo do Órgão - no topo */}
       <div className="bg-brand-dark/50 border border-white/10 rounded-lg p-4">
         <div className="flex items-start gap-4">
           {/* Preview da Logo */}
@@ -384,6 +395,79 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
         </div>
       </div>
 
+      {/* Tipo de Questão + Escolaridade */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+            Tipo de Questão
+          </label>
+          <select
+            value={formData.tipoQuestao}
+            onChange={(e) => updateField('tipoQuestao', e.target.value as 'certo_errado' | 'multipla_escolha')}
+            className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow"
+          >
+            {TIPOS_QUESTAO.map(t => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+            Escolaridade
+          </label>
+          <select
+            value={formData.escolaridade}
+            onChange={(e) => updateField('escolaridade', e.target.value)}
+            className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow"
+          >
+            {ESCOLARIDADES.map(e => (
+              <option key={e.value} value={e.value}>{e.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Banca Principal + Órgão */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <SearchableSelect
+          options={filterOptions.bancas}
+          value={formData.banca}
+          onChange={(v) => updateField('banca', v)}
+          placeholder="Selecione ou digite a banca..."
+          label="Banca Principal"
+          loading={loadingOptions}
+          displayFormatter={formatBancaDisplay}
+        />
+
+        <SearchableSelect
+          options={filterOptions.orgaos}
+          value={formData.orgao}
+          onChange={(v) => updateField('orgao', v)}
+          placeholder="Selecione ou digite o órgão..."
+          label="Órgão"
+          loading={loadingOptions}
+        />
+      </div>
+
+      {/* Bancas Adicionais */}
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+        <MultiSearchableSelect
+          options={filterOptions.bancas}
+          value={formData.bancasAdicionais}
+          onChange={(v) => updateField('bancasAdicionais', v)}
+          placeholder="Selecione bancas alternativas..."
+          label="Bancas Adicionais (Fallback)"
+          loading={loadingOptions}
+          excludeOptions={formData.banca ? [formData.banca] : []}
+          displayFormatter={formatBancaDisplay}
+        />
+        <p className="text-blue-400/70 text-sm mt-2">
+          Quando as questões da banca principal acabarem, serão utilizadas questões dessas bancas alternativas.
+        </p>
+      </div>
+
+      {/* Cargo + Nível */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <SearchableSelect
           options={filterOptions.cargos}
@@ -436,18 +520,6 @@ export const PreparatorioWizard: React.FC<PreparatorioWizardProps> = ({
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-          Escolaridade/Requisitos
-        </label>
-        <input
-          type="text"
-          value={formData.escolaridade}
-          onChange={(e) => updateField('escolaridade', e.target.value)}
-          placeholder="Ex: Graduação em Direito, CNH categoria B..."
-          className="w-full bg-brand-dark border border-white/10 rounded-sm py-3 px-4 text-white focus:outline-none focus:border-brand-yellow placeholder-gray-600"
-        />
-      </div>
     </div>
   );
 

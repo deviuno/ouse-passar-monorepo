@@ -10,6 +10,10 @@ import {
     RefreshCw,
     Loader2,
     ChevronDown,
+    CloudCog,
+    CheckCircle2,
+    XCircle,
+    ExternalLink,
 } from 'lucide-react';
 import {
     LineChart,
@@ -32,6 +36,8 @@ interface AIStats {
     inputTokens: number;
     outputTokens: number;
     totalCost: number;
+    totalCostUSD?: number;
+    totalCostBRL?: number;
     totalRequests: number;
     avgLatencyMs: number;
     errorRate: number;
@@ -42,7 +48,9 @@ interface ModelBreakdown {
     model: string;
     count: number;
     tokens: number;
-    cost: number;
+    cost?: number;
+    costUSD?: number;
+    costBRL?: number;
 }
 
 interface UsageData {
@@ -59,14 +67,39 @@ interface Trace {
     latencyMs: number;
     inputTokens: number;
     outputTokens: number;
+    totalTokens: number;
     totalCost: number;
     status: string;
+    model?: string;
+}
+
+interface BillingData {
+    configured: boolean;
+    totals?: {
+        costUSD: number;
+        costBRL: number;
+    };
+    dateRange?: {
+        from: string;
+        to: string;
+    };
+    skuBreakdown?: Array<{
+        sku: string;
+        costUSD: number;
+        costBRL: number;
+    }>;
+    instructions?: {
+        message: string;
+        steps: string[];
+        envExample: string;
+    };
+    error?: string;
 }
 
 const COLORS = ['#FFB800', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 export const AIMetricsDashboard: React.FC = () => {
-    const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
+    const [period, setPeriod] = useState<'day' | 'week' | 'month'>('month');
     const [stats, setStats] = useState<AIStats | null>(null);
     const [modelBreakdown, setModelBreakdown] = useState<ModelBreakdown[]>([]);
     const [usageData, setUsageData] = useState<UsageData[]>([]);
@@ -75,6 +108,8 @@ export const AIMetricsDashboard: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [healthStatus, setHealthStatus] = useState<{ configured: boolean; message: string } | null>(null);
     const [usdToBrl, setUsdToBrl] = useState<number | null>(null);
+    const [billingData, setBillingData] = useState<BillingData | null>(null);
+    const [loadingBilling, setLoadingBilling] = useState(true);
 
     // Fetch USD to BRL exchange rate
     const fetchExchangeRate = async () => {
@@ -92,6 +127,24 @@ export const AIMetricsDashboard: React.FC = () => {
     useEffect(() => {
         fetchExchangeRate();
     }, []);
+
+    // Fetch real billing data from Google Cloud
+    const fetchBillingData = async () => {
+        setLoadingBilling(true);
+        try {
+            const res = await fetch(`${MASTRA_URL}/api/admin/billing/vertex-costs?period=${period}`);
+            const data = await res.json();
+            setBillingData(data);
+        } catch (err) {
+            console.error('Error fetching billing data:', err);
+            setBillingData({
+                configured: false,
+                error: 'Erro ao conectar com o servidor de billing'
+            });
+        } finally {
+            setLoadingBilling(false);
+        }
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -141,6 +194,7 @@ export const AIMetricsDashboard: React.FC = () => {
 
     useEffect(() => {
         fetchData();
+        fetchBillingData();
     }, [period]);
 
     const formatNumber = (num: number): string => {
@@ -153,10 +207,12 @@ export const AIMetricsDashboard: React.FC = () => {
         return `$${value.toFixed(4)}`;
     };
 
-    const formatBrl = (usdValue: number): string => {
-        if (!usdToBrl) return '';
+    const formatBrl = (usdValue: number, decimals: number = 2): string => {
+        if (!usdToBrl) return '-';
         const brlValue = usdValue * usdToBrl;
-        return `R$ ${brlValue.toFixed(2).replace('.', ',')}`;
+        // Use more decimals for very small values
+        const actualDecimals = brlValue < 0.01 ? Math.max(decimals, 4) : decimals;
+        return `R$ ${brlValue.toFixed(actualDecimals).replace('.', ',')}`;
     };
 
     const formatDate = (dateStr: string): string => {
@@ -229,9 +285,107 @@ export const AIMetricsDashboard: React.FC = () => {
                 </div>
             )}
 
-            {/* Stats Cards */}
+            {/* Real Billing Card - Google Cloud */}
+            <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-xl p-6">
+                <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-green-500/20 rounded-xl">
+                            <CloudCog className="w-6 h-6 text-green-400" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-white">Custo Real - Google Cloud</h2>
+                            <p className="text-sm text-gray-400">Dados do BigQuery Billing Export</p>
+                        </div>
+                    </div>
+                    {billingData?.configured && (
+                        <div className="flex items-center gap-1 text-green-400 text-xs">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Configurado</span>
+                        </div>
+                    )}
+                </div>
+
+                {loadingBilling ? (
+                    <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-6 h-6 text-green-400 animate-spin" />
+                    </div>
+                ) : billingData?.configured && billingData.totals ? (
+                    <div className="space-y-4">
+                        <div className="flex items-baseline gap-4">
+                            <div>
+                                <p className="text-4xl font-bold text-green-400">
+                                    R$ {billingData.totals.costBRL.toFixed(2).replace('.', ',')}
+                                </p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    ${billingData.totals.costUSD.toFixed(4)} USD
+                                </p>
+                            </div>
+                            {billingData.dateRange && (
+                                <div className="text-xs text-gray-500">
+                                    <p>Período: {billingData.dateRange.from} até {billingData.dateRange.to}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {billingData.skuBreakdown && billingData.skuBreakdown.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-white/10">
+                                <p className="text-xs text-gray-400 uppercase font-medium mb-2">Detalhamento por SKU</p>
+                                <div className="space-y-1 max-h-32 overflow-y-auto">
+                                    {billingData.skuBreakdown.slice(0, 5).map((sku, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm">
+                                            <span className="text-gray-400 truncate max-w-[70%]">{sku.sku}</span>
+                                            <span className="text-green-400">R$ {sku.costBRL.toFixed(2)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-yellow-400">
+                            <XCircle className="w-5 h-5" />
+                            <span className="font-medium">BigQuery Billing não configurado</span>
+                        </div>
+
+                        {billingData?.instructions ? (
+                            <div className="bg-black/20 rounded-lg p-4 space-y-3">
+                                <p className="text-sm text-gray-300">{billingData.instructions.message}</p>
+                                <ol className="text-sm text-gray-400 space-y-1 list-decimal list-inside">
+                                    {billingData.instructions.steps.map((step, idx) => (
+                                        <li key={idx}>{step}</li>
+                                    ))}
+                                </ol>
+                                <div className="mt-3 p-2 bg-black/30 rounded font-mono text-xs text-gray-500 break-all">
+                                    {billingData.instructions.envExample}
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500">
+                                Configure o BigQuery billing export para ver os custos reais da Vertex AI.
+                            </p>
+                        )}
+
+                        <a
+                            href="https://console.cloud.google.com/billing"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                            Abrir Google Cloud Billing Console
+                        </a>
+                    </div>
+                )}
+            </div>
+
+            {/* Estimated Stats Cards (from Langfuse) */}
             {stats && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                    <p className="text-xs text-gray-500 uppercase font-medium px-1">
+                        Estimativas baseadas em traces (Langfuse)
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Total Tokens */}
                     <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-5">
                         <div className="flex items-center gap-3 mb-3">
@@ -254,12 +408,19 @@ export const AIMetricsDashboard: React.FC = () => {
                             </div>
                             <span className="text-gray-400 text-sm font-medium">Custo Total</span>
                         </div>
-                        <p className="text-2xl font-bold text-white">{formatCurrency(stats.totalCost)}</p>
+                        <p className="text-2xl font-bold text-white">
+                            {stats.totalCostBRL !== undefined
+                                ? `R$ ${stats.totalCostBRL.toFixed(2).replace('.', ',')}`
+                                : formatCurrency(stats.totalCost || 0)
+                            }
+                        </p>
                         <p className="text-xs text-gray-500 mt-1">
-                            {usdToBrl ? (
+                            {stats.totalCostUSD !== undefined ? (
+                                <span className="text-gray-400">${stats.totalCostUSD.toFixed(4)} USD</span>
+                            ) : usdToBrl && stats.totalCost ? (
                                 <span className="text-green-400">{formatBrl(stats.totalCost)}</span>
                             ) : (
-                                'USD estimado'
+                                'Preços Vertex AI'
                             )}
                         </p>
                     </div>
@@ -288,6 +449,7 @@ export const AIMetricsDashboard: React.FC = () => {
                         <p className="text-xs text-gray-500 mt-1">
                             {stats.errorCount} erros ({stats.errorRate.toFixed(1)}%)
                         </p>
+                    </div>
                     </div>
                 </div>
             )}
@@ -449,9 +611,24 @@ export const AIMetricsDashboard: React.FC = () => {
                                             {formatNumber(item.tokens)}
                                         </td>
                                         <td className="text-right text-sm px-4 py-3">
-                                            <span className="text-gray-300">{formatCurrency(item.cost)}</span>
-                                            {usdToBrl && (
-                                                <span className="text-green-400 ml-2">({formatBrl(item.cost)})</span>
+                                            {item.costBRL !== undefined ? (
+                                                <span className="text-green-400">R$ {item.costBRL.toFixed(2).replace('.', ',')}</span>
+                                            ) : item.costUSD !== undefined ? (
+                                                <>
+                                                    <span className="text-gray-300">${item.costUSD.toFixed(4)}</span>
+                                                    {usdToBrl && (
+                                                        <span className="text-green-400 ml-2">({formatBrl(item.costUSD)})</span>
+                                                    )}
+                                                </>
+                                            ) : item.cost !== undefined ? (
+                                                <>
+                                                    <span className="text-gray-300">{formatCurrency(item.cost)}</span>
+                                                    {usdToBrl && (
+                                                        <span className="text-green-400 ml-2">({formatBrl(item.cost)})</span>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <span className="text-gray-500">-</span>
                                             )}
                                         </td>
                                     </tr>
@@ -476,6 +653,9 @@ export const AIMetricsDashboard: React.FC = () => {
                                         Nome
                                     </th>
                                     <th className="text-left text-gray-400 text-xs font-medium uppercase px-4 py-3">
+                                        Modelo
+                                    </th>
+                                    <th className="text-left text-gray-400 text-xs font-medium uppercase px-4 py-3">
                                         Data
                                     </th>
                                     <th className="text-right text-gray-400 text-xs font-medium uppercase px-4 py-3">
@@ -485,40 +665,47 @@ export const AIMetricsDashboard: React.FC = () => {
                                         Tokens
                                     </th>
                                     <th className="text-right text-gray-400 text-xs font-medium uppercase px-4 py-3">
-                                        Custo
+                                        Custo (R$)
                                     </th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {traces.slice(0, 10).map((trace) => (
-                                    <tr
-                                        key={trace.id}
-                                        className="border-t border-white/5 hover:bg-white/5"
-                                    >
-                                        <td className="px-4 py-3">
-                                            <span className="text-white text-sm">
-                                                {trace.name || 'Unnamed'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className="text-gray-400 text-sm">
-                                                {formatTimestamp(trace.timestamp)}
-                                            </span>
-                                        </td>
-                                        <td className="text-right text-gray-300 text-sm px-4 py-3">
-                                            {trace.latencyMs ? `${trace.latencyMs}ms` : '-'}
-                                        </td>
-                                        <td className="text-right text-gray-300 text-sm px-4 py-3">
-                                            {formatNumber(trace.inputTokens + trace.outputTokens)}
-                                        </td>
-                                        <td className="text-right text-sm px-4 py-3">
-                                            <span className="text-gray-300">{formatCurrency(trace.totalCost)}</span>
-                                            {usdToBrl && (
-                                                <span className="text-green-400 ml-1 text-xs">({formatBrl(trace.totalCost)})</span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {traces.slice(0, 10).map((trace) => {
+                                    const tokens = trace.totalTokens || (trace.inputTokens + trace.outputTokens);
+                                    return (
+                                        <tr
+                                            key={trace.id}
+                                            className="border-t border-white/5 hover:bg-white/5"
+                                        >
+                                            <td className="px-4 py-3">
+                                                <span className="text-white text-sm">
+                                                    {trace.name || 'Unnamed'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-gray-400 text-xs font-mono">
+                                                    {trace.model ? trace.model.split('/').pop() : '-'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-gray-400 text-sm">
+                                                    {formatTimestamp(trace.timestamp)}
+                                                </span>
+                                            </td>
+                                            <td className="text-right text-gray-300 text-sm px-4 py-3">
+                                                {trace.latencyMs ? `${trace.latencyMs}ms` : '-'}
+                                            </td>
+                                            <td className="text-right text-gray-300 text-sm px-4 py-3">
+                                                {tokens > 0 ? formatNumber(tokens) : '-'}
+                                            </td>
+                                            <td className="text-right text-sm px-4 py-3">
+                                                <span className="text-green-400">
+                                                    {trace.totalCost > 0 ? formatBrl(trace.totalCost, 4) : '-'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

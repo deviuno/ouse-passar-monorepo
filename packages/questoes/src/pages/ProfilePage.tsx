@@ -227,9 +227,13 @@ export default function ProfilePage() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className={`absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[var(--color-brand)] flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`absolute -bottom-0.5 -right-0.5 z-10 w-9 h-9 rounded-full bg-[var(--color-brand)] flex items-center justify-center shadow-lg border-2 border-[var(--color-bg-card)] hover:scale-110 active:scale-95 transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <Camera size={14} className="text-black" />
+              <img
+                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z'/%3E%3Ccircle cx='12' cy='13' r='4'/%3E%3C/svg%3E"
+                alt="Alterar foto"
+                style={{ width: '16px', height: '16px', display: 'block', minWidth: '16px', minHeight: '16px' }}
+              />
             </button>
           </div>
 
@@ -311,7 +315,7 @@ export default function ProfilePage() {
                     onClick={handleCopyLink}
                     className={`p-2 rounded-lg transition-all ${copied
                         ? 'bg-[var(--color-success)] text-white'
-                        : 'bg-[var(--color-brand)] text-black hover:bg-[var(--color-brand-dark)]'
+                        : 'bg-[#ffac00] text-black hover:bg-[#ffbc33]'
                       }`}
                   >
                     {copied ? <Check size={18} /> : <Copy size={18} />}

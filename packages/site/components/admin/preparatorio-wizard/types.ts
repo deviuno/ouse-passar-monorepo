@@ -13,6 +13,8 @@ export interface PreparatorioWizardData {
 
   // Step 2: Informações Técnicas
   banca: string;
+  bancasAdicionais: string[];
+  tipoQuestao: 'certo_errado' | 'multipla_escolha';
   orgao: string;
   logoUrl: string;
   cargo: string;

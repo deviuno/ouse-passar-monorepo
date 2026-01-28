@@ -20,6 +20,8 @@ import {
   XCircle,
   Clock,
   Info,
+  List,
+  TrendingUp,
 } from 'lucide-react';
 import {
   agentesService,
@@ -27,6 +29,8 @@ import {
   QuestaoDetalhes,
   EnunciadoFormatStats,
   CronStatus,
+  QuestoesStats,
+  QuestaoListItem,
 } from '../../services/agentesService';
 import { ScrapingSection } from '../../components/admin/settings';
 import { ElapsedTime, StatusBadge } from '../../components/admin/agentes';
@@ -41,7 +45,7 @@ interface AgentesProps {
 
 const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   // Estado
-  const [activeTab, setActiveTab] = useState<'comentarios' | 'enunciados' | 'scraper'>('comentarios');
+  const [activeTab, setActiveTab] = useState<'comentarios' | 'enunciados' | 'scraper' | 'questoes'>('comentarios');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -111,6 +115,11 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
   const [questaoModalOpen, setQuestaoModalOpen] = useState(false);
   const [questaoLoading, setQuestaoLoading] = useState(false);
 
+  // Dados da aba Questões
+  const [questoesStats, setQuestoesStats] = useState<QuestoesStats | null>(null);
+  const [ultimasQuestoes, setUltimasQuestoes] = useState<QuestaoListItem[]>([]);
+  const [questoesLoading, setQuestoesLoading] = useState(false);
+
   // --------------------------------------------------------------------------
   // Carregar dados
   // --------------------------------------------------------------------------
@@ -154,10 +163,34 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
     setRefreshing(false);
   };
 
+  // Carregar dados da aba Questões
+  const loadQuestoesData = async () => {
+    setQuestoesLoading(true);
+    try {
+      const [statsResult, ultimasResult] = await Promise.all([
+        agentesService.getQuestoesStats('2026-01-20'),
+        agentesService.getUltimasQuestoes(20),
+      ]);
+
+      setQuestoesStats(statsResult);
+      setUltimasQuestoes(ultimasResult);
+    } catch (error) {
+      console.warn('Erro ao carregar dados de questões:', error);
+    }
+    setQuestoesLoading(false);
+  };
+
   useEffect(() => {
     setCurrentPage(1); // Reset para página 1 ao mudar filtro
     loadData(1);
   }, [statusFilter]);
+
+  // Carregar dados de questões quando a aba for selecionada
+  useEffect(() => {
+    if (activeTab === 'questoes') {
+      loadQuestoesData();
+    }
+  }, [activeTab]);
 
   // Auto-refresh do status dos crons a cada 10 segundos
   useEffect(() => {
@@ -488,6 +521,17 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
           >
             <Database className="w-4 h-4 inline mr-2" />
             Scraper de Questões
+          </button>
+          <button
+            onClick={() => setActiveTab('questoes')}
+            className={`pb-4 px-1 font-bold uppercase text-sm tracking-wider transition-colors ${
+              activeTab === 'questoes'
+                ? 'text-brand-yellow border-b-2 border-brand-yellow'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <List className="w-4 h-4 inline mr-2" />
+            Questões
           </button>
         </nav>
       </div>
@@ -1328,6 +1372,133 @@ const Agentes: React.FC<AgentesProps> = ({ showHeader = true }) => {
 
       {activeTab === 'scraper' && (
         <ScrapingSection />
+      )}
+
+      {activeTab === 'questoes' && (
+        <div className="space-y-6">
+          {/* Loading State */}
+          {questoesLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-brand-yellow animate-spin" />
+            </div>
+          )}
+
+          {/* Dashboard Cards */}
+          {!questoesLoading && questoesStats && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Total de Questões */}
+                <div className="bg-brand-card border border-white/5 rounded-sm p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-brand-yellow/20 rounded-lg flex items-center justify-center">
+                      <Database className="w-7 h-7 text-brand-yellow" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm uppercase tracking-wider">Total de Questões</p>
+                      <p className="text-4xl font-bold text-white tabular-nums">
+                        {questoesStats.total.toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Novas Questões */}
+                <div className="bg-brand-card border border-white/5 rounded-sm p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-green-500/20 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="w-7 h-7 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm uppercase tracking-wider">
+                        Novas desde 20/01/2026
+                      </p>
+                      <p className="text-4xl font-bold text-green-400 tabular-nums">
+                        +{questoesStats.novasDesde.toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista de Últimas Questões */}
+              <div className="bg-brand-card border border-white/5 rounded-sm">
+                <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                  <h3 className="text-white font-bold flex items-center gap-2">
+                    <List className="w-5 h-5 text-brand-yellow" />
+                    Últimas 20 Questões Adicionadas
+                  </h3>
+                  <button
+                    onClick={loadQuestoesData}
+                    disabled={questoesLoading}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-brand-dark border border-white/10 rounded text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${questoesLoading ? 'animate-spin' : ''}`} />
+                    Atualizar
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-gray-400 text-xs uppercase tracking-wider">
+                        <th className="px-4 py-3">ID</th>
+                        <th className="px-4 py-3">Matéria</th>
+                        <th className="px-4 py-3">Assunto</th>
+                        <th className="px-4 py-3">Banca</th>
+                        <th className="px-4 py-3">Ano</th>
+                        <th className="px-4 py-3">Órgão</th>
+                        <th className="px-4 py-3">Adicionada em</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {ultimasQuestoes.map((questao) => (
+                        <tr
+                          key={questao.id}
+                          onClick={() => handleOpenQuestao(questao.id)}
+                          className="hover:bg-white/5 cursor-pointer transition-colors"
+                        >
+                          <td className="px-4 py-3 text-white font-mono flex items-center gap-2">
+                            {questao.id}
+                            <ExternalLink className="w-3 h-3 text-gray-500" />
+                          </td>
+                          <td className="px-4 py-3 text-gray-300 text-sm">
+                            {questao.materia || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-sm max-w-xs truncate">
+                            {questao.assunto || '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {questao.banca ? (
+                              <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">
+                                {questao.banca}
+                              </span>
+                            ) : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-sm">
+                            {questao.ano || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-sm max-w-xs truncate">
+                            {questao.orgao || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-400 text-sm">
+                            {questao.created_at ? new Date(questao.created_at).toLocaleString('pt-BR') : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                      {ultimasQuestoes.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                            Nenhuma questão encontrada
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* Modal de Questão */}

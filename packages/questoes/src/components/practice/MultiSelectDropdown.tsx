@@ -15,6 +15,16 @@ export interface MultiSelectDropdownProps {
   displayFormatter?: (item: string) => string;
 }
 
+// Normaliza texto para busca: remove acentos, espaços extras e converte para minúsculas
+const normalizeSearchText = (text: string): string => {
+  return text
+    .normalize('NFD') // Separa caracteres base dos diacríticos
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacríticos (acentos)
+    .toLowerCase()
+    .replace(/\s+/g, ' ') // Múltiplos espaços → um espaço
+    .trim();
+};
+
 export function MultiSelectDropdown({
   label,
   icon,
@@ -47,12 +57,14 @@ export function MultiSelectDropdown({
 
   const filteredItems = useMemo(() => {
     if (!search.trim()) return items;
-    const searchLower = search.toLowerCase();
-    // Buscar tanto no valor original quanto no formatado
-    return items.filter((item) =>
-      item.toLowerCase().includes(searchLower) ||
-      formatItem(item).toLowerCase().includes(searchLower)
-    );
+    const searchNormalized = normalizeSearchText(search);
+    // Buscar tanto no valor original quanto no formatado, com normalização
+    return items.filter((item) => {
+      const itemNormalized = normalizeSearchText(item);
+      const formattedNormalized = normalizeSearchText(formatItem(item));
+      return itemNormalized.includes(searchNormalized) ||
+        formattedNormalized.includes(searchNormalized);
+    });
   }, [items, search, displayFormatter]);
 
   return (
@@ -62,7 +74,7 @@ export function MultiSelectDropdown({
         <span className="text-[var(--color-brand)]">{icon}</span>
         <span className="text-[var(--color-text-main)] text-sm font-medium">{label}</span>
         {selected.length > 0 && (
-          <span className="px-1.5 py-0.5 bg-[var(--color-brand)] text-black text-xs font-bold rounded">
+          <span className="px-1.5 py-0.5 bg-[#ffac00] text-black text-xs font-bold rounded">
             {selected.length}
           </span>
         )}
@@ -142,7 +154,7 @@ export function MultiSelectDropdown({
                     >
                       <div className={`
                         w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5
-                        ${isSelected ? 'bg-[var(--color-brand)] border-[var(--color-brand)]' : 'border-[var(--color-text-muted)]'}
+                        ${isSelected ? 'bg-[#ffac00] border-[#ffac00]' : 'border-[var(--color-text-muted)]'}
                       `}>
                         {isSelected && <Check size={10} className="text-black" />}
                       </div>

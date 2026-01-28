@@ -121,6 +121,20 @@ export const useUserStore = create<UserState>()(
             if (result.success) {
               console.log('[useUserStore] Stats persisted to Supabase successfully!');
 
+              // Sync streak from database (RPC now calculates it correctly)
+              const { getUserStats } = await import('../services/userStatsService');
+              const dbStats = await getUserStats(userId);
+              if (dbStats) {
+                set((state) => ({
+                  stats: {
+                    ...state.stats,
+                    streak: dbStats.streak,
+                    lastPracticeDate: dbStats.lastPracticeDate || state.stats.lastPracticeDate,
+                  },
+                }));
+                console.log('[useUserStore] Streak synced from DB:', dbStats.streak);
+              }
+
               // Update level if XP changed
               if (increments.xp && increments.xp > 0) {
                 const currentStats = get().stats;

@@ -4,9 +4,21 @@ export class ImageScraperService {
   private db: SupabaseClient;
   private storageUrl: string;
 
+  // Hosts Supabase descontinuados que devem ser ignorados
+  private static readonly DEPRECATED_HOSTS = [
+    'swzosaapqtyhmwdiwdje.supabase.co',
+  ];
+
   constructor(supabaseUrl: string, supabaseKey: string) {
     this.db = createClient(supabaseUrl, supabaseKey);
     this.storageUrl = supabaseUrl;
+  }
+
+  /**
+   * Verifica se uma URL aponta para um host Supabase descontinuado
+   */
+  private isDeprecatedSupabaseUrl(url: string): boolean {
+    return ImageScraperService.DEPRECATED_HOSTS.some(host => url.includes(host));
   }
 
   /**
@@ -128,8 +140,9 @@ export class ImageScraperService {
 
   /**
    * Processa todas as imagens de uma questão
+   * Retorna { urls: string[], skippedDeprecated: boolean }
    */
-  async processQuestionImages(question: any): Promise<string[]> {
+  async processQuestionImages(question: any): Promise<{ urls: string[]; skippedDeprecated: boolean }> {
     const localUrls: string[] = [];
 
     // Parse das URLs de imagem usando método robusto
@@ -137,13 +150,27 @@ export class ImageScraperService {
 
     if (imageUrls.length === 0) {
       console.log(`[ImageScraperService] Questão ${question.id} não tem imagens válidas para processar`);
-      return [];
+      return { urls: [], skippedDeprecated: false };
     }
 
-    console.log(`[ImageScraperService] Processando ${imageUrls.length} imagens da questão ${question.id}`);
+    // Filtrar URLs de hosts descontinuados
+    const validUrls = imageUrls.filter(url => !this.isDeprecatedSupabaseUrl(url));
+    const deprecatedCount = imageUrls.length - validUrls.length;
 
-    for (let i = 0; i < imageUrls.length; i++) {
-      const imageUrl = imageUrls[i];
+    if (deprecatedCount > 0) {
+      console.log(`[ImageScraperService] Questão ${question.id}: ${deprecatedCount} URLs de Supabase descontinuado ignoradas`);
+    }
+
+    // Se todas as URLs eram de hosts descontinuados, marcar como processado
+    if (validUrls.length === 0) {
+      console.log(`[ImageScraperService] Questão ${question.id}: todas as URLs são de hosts descontinuados, marcando como processado`);
+      return { urls: [], skippedDeprecated: true };
+    }
+
+    console.log(`[ImageScraperService] Processando ${validUrls.length} imagens da questão ${question.id}`);
+
+    for (let i = 0; i < validUrls.length; i++) {
+      const imageUrl = validUrls[i];
       const filename = `questao_${question.id}_${i}.jpg`;
 
       try {
@@ -168,7 +195,7 @@ export class ImageScraperService {
       }
     }
 
-    return localUrls;
+    return { urls: localUrls, skippedDeprecated: false };
   }
 
   /**
@@ -217,6 +244,7 @@ export class ImageScraperService {
     processed: number;
     success: number;
     failed: number;
+    skipped: number;
   }> {
     const questions = await this.getQuestionsWithPendingImages(limit);
 
@@ -224,13 +252,22 @@ export class ImageScraperService {
       processed: questions.length,
       success: 0,
       failed: 0,
+      skipped: 0,
     };
 
     for (const question of questions) {
       try {
-        const localUrls = await this.processQuestionImages(question);
+        const { urls: localUrls, skippedDeprecated } = await this.processQuestionImages(question);
 
-        if (localUrls.length > 0) {
+        if (skippedDeprecated) {
+          // Marcar como processado com array vazio para não tentar novamente
+          const updated = await this.updateQuestionWithLocalUrls(question.id, []);
+          if (updated) {
+            result.skipped++;
+          } else {
+            result.failed++;
+          }
+        } else if (localUrls.length > 0) {
           const updated = await this.updateQuestionWithLocalUrls(question.id, localUrls);
           if (updated) {
             result.success++;
@@ -246,7 +283,7 @@ export class ImageScraperService {
       }
     }
 
-    console.log(`[ImageScraperService] Lote processado: ${result.success} sucesso, ${result.failed} falhas de ${result.processed} questões`);
+    console.log(`[ImageScraperService] Lote processado: ${result.success} sucesso, ${result.skipped} ignoradas (host descontinuado), ${result.failed} falhas de ${result.processed} questões`);
 
     return result;
   }

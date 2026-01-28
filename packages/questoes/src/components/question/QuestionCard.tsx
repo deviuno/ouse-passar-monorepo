@@ -4,7 +4,6 @@ import remarkGfm from "remark-gfm";
 import { ParsedQuestion, CommunityStats, PracticeMode } from "../../types";
 import { COLORS, MOCK_STATS } from "../../constants";
 import {
-  MessageCircle,
   AlertTriangle,
   BarChart2,
   Timer,
@@ -15,8 +14,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Flag,
+  Gem,
+  Pencil,
 } from "lucide-react";
-import { generateExplanation } from "../../services/geminiService";
 import {
   getQuestionStatistics,
   QuestionStatistics,
@@ -31,6 +31,7 @@ import RippleEffect from "../ui/RippleEffect";
 import { validateQuestion } from "../../utils/questionValidator";
 import CorruptedQuestionCard from "./CorruptedQuestionCard";
 import { getOptimizedImageUrl } from "../../utils/image";
+import { QuestionAnnotationBalloon } from "./QuestionAnnotationBalloon";
 
 interface QuestionCardProps {
   question: ParsedQuestion;
@@ -49,6 +50,7 @@ interface QuestionCardProps {
   userRole?: "admin" | "user";
   showCorrectAnswers?: boolean; // When true, shows star on correct answer (admin or user with permission)
   previousAnswer?: { letter: string; correct: boolean } | null; // Resposta anterior (modo read-only)
+  onEditTimer?: () => void; // Callback to edit timer duration in simulado mode
 }
 
 const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -68,55 +70,15 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   userRole,
   showCorrectAnswers = false,
   previousAnswer = null,
+  onEditTimer,
 }) => {
-  // Estado do modal de report (definido primeiro para usar no card de erro)
+  // ============================================
+  // ALL HOOKS MUST BE CALLED FIRST (before any conditional returns)
+  // This is required by React's Rules of Hooks
+  // ============================================
+
+  // Estado do modal de report
   const [showReportModal, setShowReportModal] = useState(false);
-
-  // Validar questão antes de renderizar
-  const questionValidation = useMemo(() => {
-    try {
-      return validateQuestion({
-        enunciado: question?.enunciado,
-        parsedAlternativas: question?.parsedAlternativas,
-        gabarito: question?.gabarito,
-      });
-    } catch (error) {
-      console.error("[QuestionCard] Erro ao validar questão:", error);
-      return {
-        isValid: false,
-        isCorrupted: true,
-        errors: ["Erro ao validar questão"],
-        warnings: [],
-      };
-    }
-  }, [question?.id, question?.enunciado]);
-
-  // Se a questão está corrompida ou inválida, mostrar card de erro
-  if (!questionValidation.isValid || questionValidation.isCorrupted) {
-    return (
-      <>
-        <CorruptedQuestionCard
-          questionId={question?.id || 0}
-          onSkip={onNext}
-          onReport={() => setShowReportModal(true)}
-          errors={questionValidation.errors}
-        />
-        {showReportModal && (
-          <ReportQuestionModal
-            isOpen={showReportModal}
-            onClose={() => setShowReportModal(false)}
-            questionId={question?.id || 0}
-            questionInfo={{
-              materia: question?.materia,
-              assunto: question?.assunto,
-              banca: question?.banca,
-              ano: question?.ano,
-            }}
-          />
-        )}
-      </>
-    );
-  }
 
   // Se tem resposta anterior, inicia com ela selecionada e submetida (modo read-only)
   const [selectedAlt, setSelectedAlt] = useState<string | null>(
@@ -133,7 +95,6 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   >(savedDifficultyRating || null);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showPegadinhaModal, setShowPegadinhaModal] = useState(false);
-  // showReportModal já foi definido acima para uso no card de erro
 
   // Statistics state
   const [questionStats, setQuestionStats] = useState<QuestionStatistics | null>(
@@ -143,6 +104,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
 
   // Timer State
   const [timeLeft, setTimeLeft] = useState(initialTime * 60); // in seconds
+  const timeoutCalledRef = useRef(false); // Prevent multiple timeout calls
 
   // Ref para os botões de navegação principais
   const navigationButtonsRef = useRef<HTMLDivElement>(null);
@@ -169,6 +131,25 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   // Extract only DOM-valid event handlers (remove isSwiping and swipeDirection to avoid React warnings)
   const { onTouchStart, onTouchMove, onTouchEnd } = swipeHandlersRaw;
   const swipeHandlers = { onTouchStart, onTouchMove, onTouchEnd };
+
+  // Validar questão
+  const questionValidation = useMemo(() => {
+    try {
+      return validateQuestion({
+        enunciado: question?.enunciado,
+        parsedAlternativas: question?.parsedAlternativas,
+        gabarito: question?.gabarito,
+      });
+    } catch (error) {
+      console.error("[QuestionCard] Erro ao validar questão:", error);
+      return {
+        isValid: false,
+        isCorrupted: true,
+        errors: ["Erro ao validar questão"],
+        warnings: [],
+      };
+    }
+  }, [question?.id, question?.enunciado, question?.parsedAlternativas, question?.gabarito]);
 
   // Reset state when question changes
   useEffect(() => {
@@ -203,28 +184,48 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
     }
   }, [isSubmitted, question.id, questionStats, loadingStats]);
 
+  // Reset timer when initialTime changes (e.g., user changes timer preference)
+  useEffect(() => {
+    if (studyMode === "hard") {
+      setTimeLeft(initialTime * 60);
+      timeoutCalledRef.current = false; // Reset the timeout flag when timer resets
+    }
+  }, [initialTime, studyMode]);
+
   // Timer Effect
   useEffect(() => {
     if (studyMode === "hard") {
       const timer = setInterval(() => {
         setTimeLeft((prev) => {
-          if (prev <= 1 && onTimeout) {
+          if (prev <= 1) {
             clearInterval(timer);
-            onTimeout();
             return 0;
           }
-          return prev > 0 ? prev - 1 : 0;
+          return prev - 1;
         });
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [studyMode, onTimeout]);
+  }, [studyMode]);
+
+  // Handle timeout when timer reaches 0
+  useEffect(() => {
+    if (studyMode === "hard" && timeLeft === 0 && onTimeout && !timeoutCalledRef.current) {
+      timeoutCalledRef.current = true;
+      // Use setTimeout to ensure this runs outside of React's render cycle
+      setTimeout(() => {
+        onTimeout();
+      }, 0);
+    }
+  }, [studyMode, timeLeft, onTimeout]);
 
   // Scroll para os botões de navegação após submissão (apenas se não estiverem visíveis)
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+
     if (isSubmitted && navigationButtonsRef.current) {
       // Pequeno delay para garantir que o DOM foi atualizado com o feedback
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         if (navigationButtonsRef.current) {
           const element = navigationButtonsRef.current;
           const rect = element.getBoundingClientRect();
@@ -254,7 +255,45 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
         }
       }, 100);
     }
-  }, [isSubmitted]);
+
+    // Cleanup timeout when question changes or component unmounts
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isSubmitted, question.id]);
+
+  // ============================================
+  // CONDITIONAL RETURN - After all hooks
+  // ============================================
+
+  // Se a questão está corrompida ou inválida, mostrar card de erro
+  if (!questionValidation.isValid || questionValidation.isCorrupted) {
+    return (
+      <>
+        <CorruptedQuestionCard
+          questionId={question?.id || 0}
+          onSkip={onNext}
+          onReport={() => setShowReportModal(true)}
+          errors={questionValidation.errors}
+        />
+        {showReportModal && (
+          <ReportQuestionModal
+            isOpen={showReportModal}
+            onClose={() => setShowReportModal(false)}
+            questionId={question?.id || 0}
+            questionInfo={{
+              materia: question?.materia,
+              assunto: question?.assunto,
+              banca: question?.banca,
+              ano: question?.ano,
+            }}
+          />
+        )}
+      </>
+    );
+  }
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -311,15 +350,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
     // For Zen/Reta Final, show feedback
     setIsSubmitted(true);
 
-    // Load explanation logic
+    // Load explanation from database comentario field
     if (question.comentario) {
       setExplanation(question.comentario);
     } else {
-      // Fetch AI explanation if human comment is missing
-      setLoadingExplanation(true);
-      const aiExpl = await generateExplanation(question);
-      setExplanation(`🤖 **Explicação IA:**\n\n${aiExpl}`);
-      setLoadingExplanation(false);
+      setExplanation(null);
     }
   };
 
@@ -401,22 +436,66 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const currentStats = buildStatsData();
 
   // Função para converter URLs de imagem em markdown antes de renderizar
-  const preprocessImageUrls = (text: string): string => {
+  const preprocessImageUrls = (text: string, imagensEnunciado?: string | null): string => {
     if (!text) return "";
 
-    // Padrão 1: "Disponível em: URL. Acesso em: ..."
-    let processed = text.replace(
+    let processed = text;
+
+    // Primeiro: substituir placeholders por URLs reais do campo imagens_enunciado
+    if (imagensEnunciado) {
+      // Extrair URLs do campo imagens_enunciado (formato: {url1,url2} ou {url})
+      const urlMatches = imagensEnunciado.match(/https?:\/\/[^\s,}]+/g);
+      if (urlMatches && urlMatches.length > 0) {
+        // Substituir placeholder "URL_DA_IMAGEM_AQUI" pela primeira URL real
+        processed = processed.replace(
+          /!\[([^\]]*)\]\(URL_DA_IMAGEM_AQUI\)/gi,
+          `![Imagem](${urlMatches[0]})`
+        );
+
+        // Se houver múltiplas imagens e múltiplos placeholders, substituir sequencialmente
+        let urlIndex = 0;
+        processed = processed.replace(
+          /!\[([^\]]*)\]\(URL_DA_IMAGEM_AQUI\)/gi,
+          () => {
+            const url = urlMatches[urlIndex] || urlMatches[0];
+            urlIndex++;
+            return `![Imagem](${url})`;
+          }
+        );
+      }
+    }
+
+    // Padrão 0: Corrigir markdown de link que deveria ser imagem [Imagem](url) -> ![Imagem](url)
+    processed = processed.replace(
+      /(?<!!)\[Imagem[^\]]*\]\((https?:\/\/[^)]+)\)/gi,
+      "\n\n![Imagem]($1)\n\n"
+    );
+
+    // Padrão 1: "Disponível em: URL. Acesso em: ..." com extensão de imagem
+    processed = processed.replace(
       /Disponível em:\s*(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))[^\n]*/gi,
       "\n\n![Imagem da questão]($1)\n\n"
     );
 
-    // Padrão 2: URLs diretas de imagem (não já em formato markdown)
+    // Padrão 2: "Disponível em: URL" para CDNs conhecidos (tecconcursos, etc)
+    processed = processed.replace(
+      /Disponível em:\s*(https?:\/\/cdn\.tecconcursos\.com\.br\/[^\s\)]+)[^\n]*/gi,
+      "\n\n![Imagem da questão]($1)\n\n"
+    );
+
+    // Padrão 3: URLs diretas de imagem com extensão (não já em formato markdown)
     processed = processed.replace(
       /(?<!\]\()(?<!\!)\b(https?:\/\/[^\s<>"]+\.(jpg|jpeg|png|gif|webp))\b(?!\))/gi,
       "\n\n![Imagem]($1)\n\n"
     );
 
-    // Padrão 3: Tags HTML <img src="...">
+    // Padrão 4: URLs do CDN TecConcursos (figuras sem extensão)
+    processed = processed.replace(
+      /(?<!\]\()(?<!\!)\b(https?:\/\/cdn\.tecconcursos\.com\.br\/figuras\/[^\s<>")\]]+)\b(?!\))/gi,
+      "\n\n![Imagem]($1)\n\n"
+    );
+
+    // Padrão 5: Tags HTML <img src="...">
     processed = processed.replace(
       /<img[^>]+src=["']([^"']+)["'][^>]*>/gi,
       "\n\n![Imagem]($1)\n\n"
@@ -506,18 +585,101 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                   <BrainCircuit size={10} className="mr-1" /> REVISÃO
                 </div>
               )}
+              {question.isAiGenerated && (
+                <div className="flex items-center text-[10px] px-2 py-0.5 rounded-full border text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700/50">
+                  <Gem size={10} className="mr-1" /> INÉDITA
+                </div>
+              )}
             </div>
+            {question.assunto && (
+              <p className="text-xs text-[var(--color-text-sec)] mb-1">
+                {question.assunto}
+              </p>
+            )}
             {renderQuestionInfos()}
           </div>
 
           {/* Countdown Timer (Only for Simulado Mode) */}
           {studyMode === "hard" && (
-            <div className="flex items-center bg-[var(--color-bg-card)] border border-red-900/50 rounded-lg px-2 py-1 ml-2 shadow-[0_0_10px_rgba(220,38,38,0.2)]">
-              <Timer size={14} className="text-red-500 mr-1 animate-pulse" />
-              <span className="font-mono font-bold text-red-500 text-sm">
-                {formatTime(timeLeft)}
-              </span>
-            </div>
+            <>
+              <div
+                className={`group relative flex items-center ml-2 rounded-lg transition-all duration-200 ${
+                  timeLeft <= 30
+                    ? 'bg-red-500/10'
+                    : 'bg-[var(--color-bg-elevated)]'
+                }`}
+                style={timeLeft <= 30 ? {
+                  animation: 'urgentPulse 0.6s ease-in-out infinite',
+                } : undefined}
+              >
+                {/* Timer display */}
+                <div
+                  className={`flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 transition-all duration-200 ${
+                    onEditTimer ? 'group-hover:pr-1' : ''
+                  }`}
+                >
+                  <div
+                    className={`flex items-center justify-center w-5 h-5 rounded-md transition-colors duration-200 ${
+                      timeLeft <= 30
+                        ? 'bg-red-500/20'
+                        : 'bg-red-500/10'
+                    }`}
+                  >
+                    <Timer
+                      size={12}
+                      className={`transition-colors duration-200 ${
+                        timeLeft <= 30 ? 'text-red-400' : 'text-red-500'
+                      }`}
+                    />
+                  </div>
+                  <span
+                    className={`font-mono font-semibold text-sm tabular-nums tracking-tight transition-colors duration-200 ${
+                      timeLeft <= 30 ? 'text-red-400' : 'text-red-500'
+                    }`}
+                  >
+                    {formatTime(timeLeft)}
+                  </span>
+                </div>
+
+                {/* Edit button - integrated, reveals on hover */}
+                {onEditTimer && (
+                  <button
+                    onClick={onEditTimer}
+                    className="flex items-center justify-center w-0 overflow-hidden opacity-0 group-hover:w-7 group-hover:opacity-100 h-full pr-1.5 transition-all duration-200 ease-out"
+                    title="Configurar tempo"
+                  >
+                    <div className="flex items-center justify-center w-5 h-5 rounded-md bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-brand)] hover:border-[var(--color-brand)] transition-colors duration-150">
+                      <Pencil size={10} />
+                    </div>
+                  </button>
+                )}
+
+                {/* Subtle border */}
+                <div
+                  className={`absolute inset-0 rounded-lg border pointer-events-none transition-colors duration-200 ${
+                    timeLeft <= 30
+                      ? 'border-red-500/40'
+                      : 'border-[var(--color-border)]'
+                  }`}
+                />
+              </div>
+
+              {/* Urgent timer animation keyframes */}
+              {timeLeft <= 30 && (
+                <style>{`
+                  @keyframes urgentPulse {
+                    0%, 100% {
+                      opacity: 1;
+                      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+                    }
+                    50% {
+                      opacity: 0.85;
+                      box-shadow: 0 0 12px 2px rgba(239, 68, 68, 0.3);
+                    }
+                  }
+                `}</style>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -557,9 +719,17 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
             ),
           }}
         >
-          {preprocessImageUrls(question.enunciado || "")}
+          {preprocessImageUrls(question.enunciado || "", question.imagens_enunciado)}
         </ReactMarkdown>
       </div>
+
+      {/* User Annotation Balloon - only shows after answering in zen mode */}
+      {userId && isSubmitted && studyMode === "zen" && (
+        <QuestionAnnotationBalloon
+          questionId={question.id}
+          userId={userId}
+        />
+      )}
 
       {/* Alternatives */}
       <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
@@ -615,7 +785,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               disabled={!selectedAlt}
               className={`w-full py-4 rounded-full font-bold uppercase tracking-wide transition-all touch-feedback ${
                 selectedAlt
-                  ? "bg-[#FFB800] text-black shadow-[0_0_15px_rgba(255,184,0,0.4)]"
+                  ? "bg-[#ffac00] hover:bg-[#ffbc33] text-black shadow-[0_0_15px_rgba(255,172,0,0.4)]"
                   : "bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed opacity-70"
               }`}
             >
@@ -691,10 +861,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                       "[QuestionCard] Botão Próxima/Finalizar clicado (nav)",
                       { isLastQuestion }
                     );
+                    // Scroll both window and any scrollable container
                     window.scrollTo({ top: 0, behavior: "smooth" });
+                    document.querySelector(".lg\\:overflow-y-auto")?.scrollTo({ top: 0, behavior: "smooth" });
                     onNext();
                   }}
-                  className="w-full flex items-center justify-center py-3 bg-[var(--color-brand)] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(199,120,0,0.3)] hover:shadow-[0_0_25px_rgba(199,120,0,0.5)] transition-all border-2 border-[var(--color-brand)] touch-feedback"
+                  className="w-full flex items-center justify-center py-3 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,172,0,0.3)] hover:shadow-[0_0_25px_rgba(255,172,0,0.5)] transition-all border-2 border-[#ffac00] hover:border-[#ffbc33] touch-feedback"
                 >
                   {isLastQuestion ? "Finalizar" : "Próxima"}{" "}
                   <ChevronRight size={20} className="ml-1" />
@@ -714,18 +886,36 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               isCorrect={selectedAlt === question.gabarito}
             />
 
-            {/* Botão Tirar Dúvida */}
-            <div className="mt-4 flex gap-3">
-              <button
-                onClick={onOpenTutor}
-                className="flex-1 flex items-center justify-center py-3 bg-[var(--color-bg-card)] text-[var(--color-text-main)] border border-[var(--color-border-strong)] rounded-full font-medium hover:bg-[var(--color-bg-elevated)] transition-colors"
-              >
-                <MessageCircle
-                  size={18}
-                  className="mr-2 text-[var(--color-text-sec)]"
-                />
-                Tirar Dúvida
-              </button>
+            {/* 4. Bottom Navigation Row: Previous / Next (duplicate for convenience) */}
+            <div className="flex gap-3 mt-4">
+              <RippleEffect className="flex-1 rounded-xl">
+                <button
+                  onClick={onPrevious}
+                  disabled={!onPrevious}
+                  className={`w-full flex items-center justify-center py-3 rounded-xl border-2 font-bold transition-all touch-feedback ${
+                    onPrevious
+                      ? "border-[var(--color-border-strong)] text-[var(--color-text-main)] hover:bg-[var(--color-bg-elevated)] bg-[var(--color-bg-card)]"
+                      : "border-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed bg-[var(--color-bg-elevated)]"
+                  }`}
+                >
+                  <ChevronLeft size={20} className="mr-1" /> Anterior
+                </button>
+              </RippleEffect>
+
+              <RippleEffect className="flex-1 rounded-xl">
+                <button
+                  onClick={() => {
+                    // Scroll both window and any scrollable container
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    document.querySelector(".lg\\:overflow-y-auto")?.scrollTo({ top: 0, behavior: "smooth" });
+                    onNext();
+                  }}
+                  className="w-full flex items-center justify-center py-3 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,172,0,0.3)] hover:shadow-[0_0_25px_rgba(255,172,0,0.5)] transition-all border-2 border-[#ffac00] hover:border-[#ffbc33] touch-feedback"
+                >
+                  {isLastQuestion ? "Finalizar" : "Próxima"}{" "}
+                  <ChevronRight size={20} className="ml-1" />
+                </button>
+              </RippleEffect>
             </div>
           </div>
         )}

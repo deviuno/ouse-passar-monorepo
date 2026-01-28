@@ -73,6 +73,7 @@ export interface UserProfile {
   league_tier: LeagueTier;
   show_answers?: boolean; // When true, shows correct answers during practice (admin feature)
   last_practice_date?: string; // YYYY-MM-DD format for streak calculation
+  simulado_timer_minutes?: number; // User preference for simulado mode timer duration in minutes
   created_at: string;
   updated_at: string;
 }
@@ -85,7 +86,7 @@ export interface UserStats {
   totalAnswered: number;
   coins: number;
   avatarId?: string;
-  lastPracticeDate?: string; // YYYY-MM-DD format for streak calculation
+  lastPracticeDate?: string | null; // YYYY-MM-DD format for streak calculation
 }
 
 export interface WeeklyRankingUser {

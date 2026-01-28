@@ -173,7 +173,7 @@ export const TrailEditalPage: React.FC = () => {
           {preparatorio.checkout_trilhas && (
             <button
               onClick={handleComprar}
-              className="w-full bg-[var(--color-brand)] hover:bg-[var(--color-brand-light)] text-black font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+              className="w-full bg-[#ffac00] hover:bg-[#ffbc33] text-black font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
             >
               <ExternalLink size={18} />
               Comprar Acesso
