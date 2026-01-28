@@ -302,6 +302,12 @@ export default function PracticePage() {
         backPath = "/cadernos";
       }
 
+      // If coming from errors page, set back path to errors
+      if (practiceSource === 'errors' || practiceSource === 'reviewed') {
+        title = practiceSource === 'errors' ? 'Meus Erros' : 'Questões Revisadas';
+        backPath = "/erros";
+      }
+
       setPracticeMode({
         isActive: true,
         correctCount: sessionStats.correct,
@@ -321,7 +327,7 @@ export default function PracticePage() {
     } else {
       clearPracticeMode();
     }
-  }, [mode, sessionStats, showPracticingFilters, trailPreparatorioId, editalItemTitle, preparatorioSlug, activeNotebookName]);
+  }, [mode, sessionStats, showPracticingFilters, trailPreparatorioId, editalItemTitle, preparatorioSlug, activeNotebookName, practiceSource]);
 
   // Cleanup on unmount
   useEffect(() => {
