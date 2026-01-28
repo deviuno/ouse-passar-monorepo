@@ -17,6 +17,12 @@ const normalizeText = (text: string): string => {
     .trim();
 };
 
+// Normaliza números de leis/decretos removendo pontos separadores (7.116 → 7116)
+const normalizeNumbersForSearch = (text: string): string => {
+  // Remove pontos entre dígitos (ex: 7.116 → 7116, 10.977 → 10977)
+  return text.replace(/(\d)\.(\d)/g, '$1$2');
+};
+
 // Mapa de sinônimos e termos relacionados
 // Cada chave pode corresponder a múltiplos valores
 const SYNONYMS: Record<string, string[]> = {
@@ -62,7 +68,7 @@ const SYNONYMS: Record<string, string[]> = {
 };
 
 // Verifica se o termo de busca corresponde ao texto
-// Considera: sem acento, case insensitive, sinônimos
+// Considera: sem acento, case insensitive, sinônimos, números de leis
 const fuzzyMatch = (searchTerm: string, text: string): boolean => {
   if (!searchTerm || !text) return !searchTerm;
 
@@ -71,6 +77,13 @@ const fuzzyMatch = (searchTerm: string, text: string): boolean => {
 
   // Match direto (sem acento, case insensitive)
   if (normalizedText.includes(normalizedSearch)) {
+    return true;
+  }
+
+  // Match para números de leis/decretos (7116 encontra 7.116)
+  const searchWithoutDots = normalizeNumbersForSearch(normalizedSearch);
+  const textWithoutDots = normalizeNumbersForSearch(normalizedText);
+  if (textWithoutDots.includes(searchWithoutDots)) {
     return true;
   }
 
@@ -242,6 +255,39 @@ const TaxonomyNodeItem: React.FC<{
           {node.nome}
         </span>
       </div>
+
+      {/* Mostrar assuntos originais que correspondem à busca (quando há busca ativa) */}
+      {searchTerm && assuntosOriginais.length > 0 && (
+        <div className="ml-8 border-l-2 border-[var(--color-border)]">
+          {assuntosOriginais
+            .filter(a => fuzzyMatch(searchTerm, a))
+            .map((assunto) => {
+              const isAssuntoSelected = selectedAssuntos.includes(assunto);
+              return (
+                <button
+                  key={assunto}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleAssunto(assunto);
+                  }}
+                  className={`w-full flex items-center gap-1.5 py-1 px-2 text-left text-xs transition-colors hover:bg-[var(--color-bg-elevated)] ${
+                    isAssuntoSelected ? 'bg-[var(--color-brand)]/10' : ''
+                  }`}
+                  style={{ paddingLeft: paddingLeft + 12 }}
+                >
+                  <div className={`w-3 h-3 rounded border flex items-center justify-center flex-shrink-0 ${
+                    isAssuntoSelected ? 'bg-[#ffac00] border-[#ffac00]' : 'border-[var(--color-border-strong)]'
+                  }`}>
+                    {isAssuntoSelected && <Check size={8} className="text-black" />}
+                  </div>
+                  <span className={`${isAssuntoSelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-sec)]'}`}>
+                    {assunto}
+                  </span>
+                </button>
+              );
+            })}
+        </div>
+      )}
 
       {/* Filhos */}
       <AnimatePresence>
