@@ -8096,6 +8096,328 @@ app.get('/api/taxonomia/all', async (req, res) => {
     }
 });
 
+// Rota para obter toda a taxonomia organizada
+app.get('/api/taxonomia/v2/all', async (req, res) => {
+    try {
+        console.log('[Taxonomia V2] Buscando dados hierárquicos...');
+
+        // 1. Buscar todas as disciplinas ativas com contagem de tópicos
+        const { data: disciplines, error: disciplinesError } = await supabase
+            .rpc('get_all_disciplines_with_topic_count');
+
+        if (disciplinesError) {
+            console.error('[Taxonomia V2] Erro ao buscar disciplinas:', disciplinesError);
+            throw disciplinesError;
+        }
+
+        console.log(`[Taxonomia V2] ${disciplines?.length || 0} disciplinas encontradas`);
+
+        // 2. Buscar todos os tópicos organizados hierarquicamente
+        const { data: allTopics, error: topicsError } = await supabase
+            .rpc('get_all_topics_hierarchical');
+
+        if (topicsError) {
+            console.error('[Taxonomia V2] Erro ao buscar tópicos:', topicsError);
+            throw topicsError;
+        }
+
+        console.log(`[Taxonomia V2] ${allTopics?.length || 0} tópicos encontrados`);
+
+        // 3. Organizar tópicos em árvore por disciplina
+        const taxonomiaByDiscipline: Record<string, any> = {};
+        
+        // Agrupar tópicos por disciplina (usando id_legado como chave)
+        const topicsByDiscipline = new Map<string, any[]>();
+        
+        allTopics?.forEach((topic:any) => {
+            const key = topic.discipline_id_legado || topic.subject_id.toString();
+            if (!topicsByDiscipline.has(key)) {
+                topicsByDiscipline.set(key, []);
+            }
+            topicsByDiscipline.get(key)!.push(topic);
+        });
+
+        // 4. Construir árvore hierárquica para cada disciplina
+        const buildTree = (items: any[], disciplineId: string): any[] => {
+            // Primeiro, mapear todos os itens por ID para acesso rápido
+            const itemsMap = new Map<number, any>();
+            items.forEach(item => {
+                itemsMap.set(item.id, { ...item, filhos: [] });
+            });
+
+            // Construir a árvore
+            const tree: any[] = [];
+            
+            items.forEach(item => {
+                const node = itemsMap.get(item.id)!;
+                
+                if (item.parent_topic_id) {
+                    // É um nó filho
+                    const parent = itemsMap.get(item.parent_topic_id);
+                    if (parent) {
+                        parent.filhos.push(node);
+                    }
+                } else {
+                    // É um nó raiz
+                    tree.push(node);
+                }
+            });
+
+            // Ordenar por hierarquia/index_order
+            const sortTree = (nodes: any[]): any[] => {
+                return nodes.sort((a, b) => {
+                    // Primeiro tenta ordenar por index_order
+                    if (a.index_order !== b.index_order) {
+                        return (a.index_order || 0) - (b.index_order || 0);
+                    }
+                    // Depois por hierarquia
+                    return a.hierarchy.localeCompare(b.hierarchy);
+                }).map(node => ({
+                    ...node,
+                    filhos: sortTree(node.filhos || [])
+                }));
+            };
+
+            return sortTree(tree);
+        };
+
+        // 5. Construir resposta final
+        disciplines?.forEach((discipline:any) => {
+            const disciplineIdLegado = discipline.id_legado || discipline.id.toString();
+            const disciplineTopics = topicsByDiscipline.get(disciplineIdLegado) || [];
+            
+            if (disciplineTopics.length > 0) {
+                const tree = buildTree(disciplineTopics, disciplineIdLegado);
+                
+                taxonomiaByDiscipline[discipline.name] = {
+                    discipline_id: discipline.id,
+                    discipline_slug: discipline.slug,
+                    discipline_id_legado: discipline.id_legado,
+                    topics_count: discipline.topics_count,
+                    tree: tree
+                };
+            }
+        });
+
+        return res.json({
+            success: true,
+            data: {
+                disciplines: disciplines?.map((d:any) => ({
+                    id: d.id,
+                    name: d.name,
+                    slug: d.slug,
+                    id_legado: d.id_legado,
+                    topics_count: d.topics_count
+                })) || [],
+                taxonomiaByDiscipline,
+                totalDisciplines: disciplines?.length || 0,
+                totalTopics: allTopics?.length || 0,
+                timestamp: new Date().toISOString()
+            }
+        });
+
+    } catch (error: any) {
+        console.error("[Taxonomia V2] Erro ao buscar taxonomia:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno no servidor",
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+app.get('/api/taxonomia/v2/discipline/:disciplineId', async (req, res) => {
+    try {
+        const { disciplineId } = req.params;
+        console.log(`[Taxonomia V2] Buscando taxonomia para disciplina: ${disciplineId}`);
+
+        // Verificar se é ID ou slug
+        const isNumericId = !isNaN(Number(disciplineId));
+        
+        // Buscar disciplina
+        let disciplineQuery = supabase
+            .from('disciplines')
+            .select('*')
+            .eq('is_active', true);
+
+        if (isNumericId) {
+            // Se for numérico, pode ser id ou id_legado
+            disciplineQuery = disciplineQuery
+                .or(`id.eq.${disciplineId},id_legado.eq.${disciplineId}`);
+        } else {
+            // Se for string, é slug
+            disciplineQuery = disciplineQuery.eq('slug', disciplineId);
+        }
+
+        const { data: disciplines, error: disciplineError } = await disciplineQuery;
+
+        if (disciplineError || !disciplines || disciplines.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Disciplina não encontrada'
+            });
+        }
+
+        const discipline = disciplines[0];
+
+        // Buscar tópicos da disciplina
+        const { data: topics, error: topicsError } = await supabase
+            .rpc('get_topics_by_discipline', {
+                discipline_id_param: discipline.id
+            });
+
+        if (topicsError) {
+            throw topicsError;
+        }
+
+        // Construir árvore
+        const buildTree = (items: any[]): any[] => {
+            const itemsMap = new Map<number, any>();
+            items.forEach(item => {
+                itemsMap.set(item.id, { ...item, children: [] });
+            });
+
+            const tree: any[] = [];
+            
+            items.forEach(item => {
+                const node = itemsMap.get(item.id)!;
+                
+                if (item.parent_topic_id) {
+                    const parent = itemsMap.get(item.parent_topic_id);
+                    if (parent) {
+                        parent.children.push(node);
+                    }
+                } else {
+                    tree.push(node);
+                }
+            });
+
+            // Ordenar
+            const sortTree = (nodes: any[]): any[] => {
+                return nodes.sort((a, b) => {
+                    if (a.index_order !== b.index_order) {
+                        return (a.index_order || 0) - (b.index_order || 0);
+                    }
+                    return a.hierarchy.localeCompare(b.hierarchy);
+                }).map(node => ({
+                    ...node,
+                    children: sortTree(node.children || [])
+                }));
+            };
+
+            return sortTree(tree);
+        };
+
+        const tree = buildTree(topics || []);
+
+        return res.json({
+            success: true,
+            data: {
+                discipline: {
+                    id: discipline.id,
+                    name: discipline.name,
+                    slug: discipline.slug,
+                    id_legado: discipline.id_legado
+                },
+                tree: tree,
+                totalTopics: topics?.length || 0
+            }
+        });
+
+    } catch (error: any) {
+        console.error(`[Taxonomia V2] Erro ao buscar disciplina ${req.params.disciplineId}:`, error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
+// Rota para buscar disciplina por ID legado (compatibilidade com sistema antigo)
+app.get('/api/taxonomia/v2/by-legacy-id/:idLegado', async (req, res) => {
+    try {
+        const { idLegado } = req.params;
+
+        const { data: discipline, error } = await supabase
+            .from('disciplines')
+            .select('*')
+            .eq('id_legado', idLegado)
+            .eq('is_active', true)
+            .single();
+
+        if (error || !discipline) {
+            return res.status(404).json({
+                success: false,
+                error: 'Disciplina não encontrada'
+            });
+        }
+
+        // Buscar tópicos
+        const { data: topics } = await supabase
+            .rpc('get_topics_by_discipline', {
+                discipline_id_param: discipline.id
+            });
+
+        // Construir árvore (usando mesma função do endpoint anterior)
+        const buildTree = (items: any[]): any[] => {
+            const itemsMap = new Map<number, any>();
+            items.forEach(item => {
+                itemsMap.set(item.id, { ...item, children: [] });
+            });
+
+            const tree: any[] = [];
+            
+            items.forEach(item => {
+                const node = itemsMap.get(item.id)!;
+                
+                if (item.parent_topic_id) {
+                    const parent = itemsMap.get(item.parent_topic_id);
+                    if (parent) {
+                        parent.children.push(node);
+                    }
+                } else {
+                    tree.push(node);
+                }
+            });
+
+            const sortTree = (nodes: any[]): any[] => {
+                return nodes.sort((a, b) => {
+                    if (a.index_order !== b.index_order) {
+                        return (a.index_order || 0) - (b.index_order || 0);
+                    }
+                    return a.hierarchy.localeCompare(b.hierarchy);
+                }).map(node => ({
+                    ...node,
+                    children: sortTree(node.children || [])
+                }));
+            };
+
+            return sortTree(tree);
+        };
+
+        return res.json({
+            success: true,
+            data: {
+                discipline: {
+                    id: discipline.id,
+                    name: discipline.name,
+                    slug: discipline.slug,
+                    id_legado: discipline.id_legado
+                },
+                tree: buildTree(topics || []),
+                totalTopics: topics?.length || 0
+            }
+        });
+
+    } catch (error: any) {
+        console.error(`[Taxonomia V2] Erro ao buscar por ID legado ${req.params.idLegado}:`, error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || "Erro interno"
+        });
+    }
+});
+
 // Obter taxonomia existente de uma matéria
 app.get('/api/taxonomia/:materia', async (req, res) => {
     try {
