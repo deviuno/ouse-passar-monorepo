@@ -8,6 +8,7 @@ interface CadastroStepProps {
   onEmailChange: (email: string) => void;
   onPhoneChange: (phone: string) => void;
   onPasswordChange: (password: string) => void;
+  onSubmit?: () => void;
 }
 
 export function CadastroStep({
@@ -16,6 +17,7 @@ export function CadastroStep({
   onEmailChange,
   onPhoneChange,
   onPasswordChange,
+  onSubmit,
 }: CadastroStepProps) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -30,6 +32,14 @@ export function CadastroStep({
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value);
     onPhoneChange(formatted);
+  };
+
+  // Handler para tecla Enter - submete o formulário
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && onSubmit) {
+      e.preventDefault();
+      onSubmit();
+    }
   };
 
   return (
@@ -53,6 +63,7 @@ export function CadastroStep({
               type="text"
               value={data.name || ''}
               onChange={(e) => onNameChange(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Seu nome completo"
               className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-12 pr-4
                 text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
@@ -70,6 +81,7 @@ export function CadastroStep({
               type="email"
               value={data.email || ''}
               onChange={(e) => onEmailChange(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="seu@email.com"
               className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-12 pr-4
                 text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]
@@ -87,6 +99,7 @@ export function CadastroStep({
               type="tel"
               value={data.phone || ''}
               onChange={handlePhoneChange}
+              onKeyDown={handleKeyDown}
               placeholder="(11) 99999-9999"
               maxLength={15}
               className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-12 pr-4
@@ -105,6 +118,7 @@ export function CadastroStep({
               type={showPassword ? 'text' : 'password'}
               value={data.password || ''}
               onChange={(e) => onPasswordChange(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Mínimo 6 caracteres"
               className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl py-3 pl-12 pr-12
                 text-[var(--color-text-main)] placeholder-[var(--color-text-muted)]

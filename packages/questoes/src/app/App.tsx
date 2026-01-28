@@ -134,10 +134,22 @@ function AppLoadingSkeleton() {
 function AppContent() {
   const { initialize, isLoading, promotionalTrial, clearPromotionalTrial } = useAuthStore();
   const [showTrialModal, setShowTrialModal] = React.useState(false);
+  const [onboardingJustCompleted, setOnboardingJustCompleted] = React.useState(false);
 
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // Ouvir evento de onboarding completo para mostrar o modal imediatamente
+  useEffect(() => {
+    const handleOnboardingComplete = () => {
+      console.log('[App] Evento onboarding-completed recebido');
+      setOnboardingJustCompleted(true);
+    };
+
+    window.addEventListener('onboarding-completed', handleOnboardingComplete);
+    return () => window.removeEventListener('onboarding-completed', handleOnboardingComplete);
+  }, []);
 
   // Verificar se deve mostrar o modal do trial
   // Só mostrar após o onboarding estar completo
@@ -148,6 +160,7 @@ function AppContent() {
     console.log('[App] Verificando trial modal:', {
       hasPromotionalTrial: promotionalTrial?.has_trial,
       onboardingCompleted,
+      onboardingJustCompleted,
       trialModalShown,
       promotionalTrial,
     });
@@ -155,9 +168,9 @@ function AppContent() {
     if (promotionalTrial?.has_trial) {
       // Mostrar o modal apenas se:
       // 1. Tem trial disponível
-      // 2. Onboarding foi completado
+      // 2. Onboarding foi completado (flag localStorage ou evento)
       // 3. Modal ainda não foi mostrado nesta sessão
-      if (onboardingCompleted && !trialModalShown) {
+      if ((onboardingCompleted || onboardingJustCompleted) && !trialModalShown) {
         console.log('[App] Condições atendidas, mostrando modal em 500ms');
         // Pequeno delay para garantir que a home carregou
         const timer = setTimeout(() => {
@@ -166,7 +179,7 @@ function AppContent() {
         return () => clearTimeout(timer);
       }
     }
-  }, [promotionalTrial]);
+  }, [promotionalTrial, onboardingJustCompleted]);
 
   // Handler para fechar o modal do trial
   const handleCloseTrialModal = () => {

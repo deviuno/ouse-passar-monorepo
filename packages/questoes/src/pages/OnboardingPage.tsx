@@ -181,6 +181,10 @@ export default function OnboardingPage() {
         localStorage.setItem('ousepassar_start_tour', 'true');
       }
 
+      // Disparar evento para notificar App.tsx que onboarding completou
+      // Isso garante que o modal de trial apareça imediatamente
+      window.dispatchEvent(new Event('onboarding-completed'));
+
       navigate('/', { replace: true });
     } catch (err) {
       console.error('Erro ao finalizar onboarding:', err);
@@ -189,6 +193,7 @@ export default function OnboardingPage() {
       if (!promotionalTrial?.has_trial) {
         localStorage.setItem('ousepassar_start_tour', 'true');
       }
+      window.dispatchEvent(new Event('onboarding-completed'));
       navigate('/', { replace: true });
     }
   };
@@ -229,6 +234,7 @@ export default function OnboardingPage() {
               onEmailChange={setEmail}
               onPhoneChange={setPhone}
               onPasswordChange={setPassword}
+              onSubmit={canGoNext() && !isSubmitting ? handleCadastroSubmit : undefined}
             />
           </>
         );

@@ -27,9 +27,12 @@ export function MainLayout() {
   // Check if we should start the tour (only on home page and if not completed)
   useEffect(() => {
     const shouldStartTour = localStorage.getItem('ousepassar_start_tour') === 'true';
+    console.log('[MainLayout] Checking tour flag:', { shouldStartTour, isTourCompleted, pathname: location.pathname });
+
     if (shouldStartTour && !isTourCompleted && location.pathname === '/') {
       // Small delay to ensure page is fully rendered
       const timer = setTimeout(() => {
+        console.log('[MainLayout] Starting tour from localStorage flag');
         localStorage.removeItem('ousepassar_start_tour');
         startTour();
       }, 500);
@@ -40,15 +43,23 @@ export function MainLayout() {
   // Listen for the start-product-tour event (triggered by PromotionalTrialModal)
   useEffect(() => {
     const handleStartTour = () => {
-      if (!isTourCompleted && location.pathname === '/') {
-        localStorage.removeItem('ousepassar_start_tour');
-        startTour();
-      }
+      console.log('[MainLayout] Received start-product-tour event', { isTourCompleted, pathname: location.pathname });
+      // Aguardar um pouco para garantir que estamos na home
+      setTimeout(() => {
+        const currentPath = window.location.pathname;
+        const tourCompleted = localStorage.getItem('ousepassar_tour_completed') === 'true';
+        console.log('[MainLayout] Starting tour from event', { currentPath, tourCompleted });
+
+        if (!tourCompleted && currentPath === '/') {
+          localStorage.removeItem('ousepassar_start_tour');
+          startTour();
+        }
+      }, 100);
     };
 
     window.addEventListener('start-product-tour', handleStartTour);
     return () => window.removeEventListener('start-product-tour', handleStartTour);
-  }, [isTourCompleted, location.pathname, startTour]);
+  }, [startTour]);
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[var(--color-bg-main)] text-[var(--color-text-main)] theme-transition scrollbar-hide">
