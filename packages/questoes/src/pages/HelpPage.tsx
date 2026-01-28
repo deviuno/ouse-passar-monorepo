@@ -311,8 +311,8 @@ export default function HelpPage() {
   const toggleSection = (sectionId: string) => {
     setOpenSections(prev =>
       prev.includes(sectionId)
-        ? prev.filter(id => id !== sectionId)
-        : [...prev, sectionId]
+        ? []
+        : [sectionId]
     );
   };
 
