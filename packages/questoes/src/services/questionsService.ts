@@ -108,19 +108,67 @@ export interface DbQuestion {
   updated_at?: string;
 }
 
+// Normaliza alternativa do banco para o formato esperado pelo app
+const normalizeAlternative = (alt: any): Alternative => {
+  return {
+    letter: alt.letter || alt.letra || '',
+    text: alt.text || alt.texto || '',
+  };
+};
+
+// Normaliza gabarito para questões Certo/Errado
+// No banco: gabarito "C" = Certo, "E" = Errado
+// Nas alternativas: "A" = Certo, "B" = Errado
+const normalizeGabarito = (gabarito: string, alternativas: Alternative[]): string => {
+  // Se o gabarito já corresponde a uma alternativa, retornar como está
+  const letters = alternativas.map(a => a.letter.toUpperCase());
+  if (letters.includes(gabarito.toUpperCase())) {
+    return gabarito;
+  }
+
+  // Verificar se é questão Certo/Errado (2 alternativas com textos específicos)
+  if (alternativas.length === 2) {
+    const textos = alternativas.map(a => a.text.toLowerCase().trim());
+    const isCertoErrado = textos.includes('certo') && textos.includes('errado');
+
+    if (isCertoErrado) {
+      const gabaritoUpper = gabarito.toUpperCase();
+      // "C" = Certo, "E" = Errado
+      if (gabaritoUpper === 'C') {
+        // Encontrar a alternativa "Certo"
+        const certoAlt = alternativas.find(a => a.text.toLowerCase().trim() === 'certo');
+        if (certoAlt) return certoAlt.letter;
+      } else if (gabaritoUpper === 'E') {
+        // Encontrar a alternativa "Errado"
+        const erradoAlt = alternativas.find(a => a.text.toLowerCase().trim() === 'errado');
+        if (erradoAlt) return erradoAlt.letter;
+      }
+    }
+  }
+
+  // Retornar gabarito original se não conseguiu normalizar
+  return gabarito;
+};
+
 // Transforma questão do banco para o formato usado pelo app
 const transformQuestion = (dbQuestion: DbQuestion): ParsedQuestion => {
   let parsedAlternativas: Alternative[] = [];
 
   try {
+    let rawAlternativas: any[] = [];
     if (Array.isArray(dbQuestion.alternativas)) {
-      parsedAlternativas = dbQuestion.alternativas;
+      rawAlternativas = dbQuestion.alternativas;
     } else if (typeof dbQuestion.alternativas === 'string') {
-      parsedAlternativas = JSON.parse(dbQuestion.alternativas);
+      rawAlternativas = JSON.parse(dbQuestion.alternativas);
     }
+    // Normalizar cada alternativa para o formato esperado
+    parsedAlternativas = rawAlternativas.map(normalizeAlternative);
   } catch (e) {
     console.error(`Erro ao parsear alternativas da questão ${dbQuestion.id}`, e);
   }
+
+  // Normalizar gabarito para questões Certo/Errado
+  const normalizedGabarito = normalizeGabarito(dbQuestion.gabarito, parsedAlternativas);
 
   return {
     id: dbQuestion.id,
@@ -132,7 +180,7 @@ const transformQuestion = (dbQuestion: DbQuestion): ParsedQuestion => {
       ? dbQuestion.alternativas
       : JSON.stringify(dbQuestion.alternativas),
     parsedAlternativas,
-    gabarito: dbQuestion.gabarito,
+    gabarito: normalizedGabarito,
     comentario: dbQuestion.comentario,
     orgao: dbQuestion.orgao || '',
     banca: dbQuestion.banca || '',
