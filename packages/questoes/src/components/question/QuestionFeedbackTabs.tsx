@@ -1220,6 +1220,7 @@ export function QuestionFeedbackTabs({
       {/* Tabs Navigation - rendered as sibling, outside content wrapper */}
       {/* Uses -mx-7 to extend edge-to-edge past QuestionCard px-3 (12px) + main p-4 (16px) = 28px */}
       <div
+        data-tour="tour-feedback-tabs"
         className="mt-6 -mx-7 flex overflow-x-auto pb-2 mb-4 gap-1 scrollbar-hide"
         onTouchStart={(e) => e.stopPropagation()}
         onTouchMove={(e) => e.stopPropagation()}
@@ -1227,20 +1228,30 @@ export function QuestionFeedbackTabs({
       >
         {/* Left spacer - scrolls with content, maintains initial alignment (28px = w-7) */}
         <div className="flex-shrink-0 w-7" aria-hidden="true" />
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-              activeTab === tab.id
-                ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
-                : 'bg-[var(--color-bg-card)] text-[var(--color-text-sec)] border border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)]'
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+        {TABS.map((tab) => {
+          // Map tab id to data-tour attribute
+          const tourAttr = tab.id === 'explicacao' ? 'tour-tab-explicacao'
+            : tab.id === 'cadernos' ? 'tour-tab-cadernos'
+            : tab.id === 'anotacoes' ? 'tour-tab-anotacoes'
+            : tab.id === 'duvidas' ? 'tour-tab-duvidas'
+            : undefined;
+
+          return (
+            <button
+              key={tab.id}
+              data-tour={tourAttr}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                activeTab === tab.id
+                  ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
+                  : 'bg-[var(--color-bg-card)] text-[var(--color-text-sec)] border border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)]'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          );
+        })}
         {/* Right spacer - ensures last tab can be fully visible (28px = w-7) */}
         <div className="flex-shrink-0 w-7" aria-hidden="true" />
       </div>

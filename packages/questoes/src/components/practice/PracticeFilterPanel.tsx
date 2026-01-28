@@ -140,53 +140,59 @@ export function PracticeFilterPanel({
   showQuestionIdFilter = false,
 }: PracticeFilterPanelProps) {
   return (
-    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-4 md:p-5 theme-transition">
+    <div data-tour="tour-filters-panel" className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-4 md:p-5 theme-transition">
       {/* Main Filters Grid - 3 columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-        <MultiSelectDropdown
-          label="Matérias"
-          icon={<BookOpen size={16} />}
-          items={availableMaterias}
-          selected={filters.materia}
-          onToggle={(item) => onToggleFilter('materia', item)}
-          onClear={() => onSetFilters((prev) => ({ ...prev, materia: [] }))}
-          placeholder="Selecione matérias..."
-        />
-        <HierarchicalAssuntosDropdown
-          label="Assuntos"
-          icon={<FileText size={16} />}
-          taxonomyByMateria={taxonomyByMateria}
-          flatAssuntos={availableAssuntos}
-          selectedAssuntos={filters.assunto}
-          onToggleAssunto={(item) => onToggleFilter('assunto', item)}
-          onToggleMultiple={(assuntos, select) => {
-            onSetFilters((prev) => {
-              const current = new Set(prev.assunto);
-              assuntos.forEach((a) => {
-                if (select) {
-                  current.add(a);
-                } else {
-                  current.delete(a);
-                }
+        <div data-tour="tour-materias">
+          <MultiSelectDropdown
+            label="Matérias"
+            icon={<BookOpen size={16} />}
+            items={availableMaterias}
+            selected={filters.materia}
+            onToggle={(item) => onToggleFilter('materia', item)}
+            onClear={() => onSetFilters((prev) => ({ ...prev, materia: [] }))}
+            placeholder="Selecione matérias..."
+          />
+        </div>
+        <div data-tour="tour-assuntos">
+          <HierarchicalAssuntosDropdown
+            label="Assuntos"
+            icon={<FileText size={16} />}
+            taxonomyByMateria={taxonomyByMateria}
+            flatAssuntos={availableAssuntos}
+            selectedAssuntos={filters.assunto}
+            onToggleAssunto={(item) => onToggleFilter('assunto', item)}
+            onToggleMultiple={(assuntos, select) => {
+              onSetFilters((prev) => {
+                const current = new Set(prev.assunto);
+                assuntos.forEach((a) => {
+                  if (select) {
+                    current.add(a);
+                  } else {
+                    current.delete(a);
+                  }
+                });
+                return { ...prev, assunto: Array.from(current) };
               });
-              return { ...prev, assunto: Array.from(current) };
-            });
-          }}
-          onClear={() => onSetFilters((prev) => ({ ...prev, assunto: [] }))}
-          placeholder="Selecionar assuntos..."
-          isLoading={isLoadingAssuntos}
-          isLoadingTaxonomy={isLoadingTaxonomy}
-        />
-        <MultiSelectDropdown
-          label="Bancas"
-          icon={<Building2 size={16} />}
-          items={sortBancas(availableBancas)}
-          selected={filters.banca}
-          onToggle={(item) => onToggleFilter('banca', item)}
-          onClear={() => onSetFilters((prev) => ({ ...prev, banca: [] }))}
-          placeholder="Selecione bancas..."
-          displayFormatter={formatBancaDisplay}
-        />
+            }}
+            onClear={() => onSetFilters((prev) => ({ ...prev, assunto: [] }))}
+            placeholder="Selecionar assuntos..."
+            isLoading={isLoadingAssuntos}
+            isLoadingTaxonomy={isLoadingTaxonomy}
+          />
+        </div>
+        <div data-tour="tour-bancas">
+          <MultiSelectDropdown
+            label="Bancas"
+            icon={<Building2 size={16} />}
+            items={sortBancas(availableBancas)}
+            selected={filters.banca}
+            onToggle={(item) => onToggleFilter('banca', item)}
+            onClear={() => onSetFilters((prev) => ({ ...prev, banca: [] }))}
+            placeholder="Selecione bancas..."
+            displayFormatter={formatBancaDisplay}
+          />
+        </div>
         <MultiSelectDropdown
           label="Órgãos"
           icon={<Building2 size={16} />}
@@ -250,7 +256,7 @@ export function PracticeFilterPanel({
       </div>
 
       {/* Toggle Filters */}
-      <div className="flex flex-wrap gap-6 pt-4 border-t border-[var(--color-border)]">
+      <div data-tour="tour-toggle-filters" className="flex flex-wrap gap-6 pt-4 border-t border-[var(--color-border)]">
         <ToggleSwitch
           checked={toggleFilters.apenasRevisadas}
           onChange={() => onToggleToggleFilter('apenasRevisadas')}

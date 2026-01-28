@@ -43,6 +43,11 @@ import {
   NotebookEditForm,
   EditTimerModal,
 } from "../components/practice";
+import {
+  PageHelpButton,
+  practiceFiltersTourConfig,
+  practiceFiltersSteps,
+} from "../components/tour";
 import { Caderno } from "../types";
 import {
   saveUserAnswer,
@@ -1635,6 +1640,19 @@ export default function PracticePage() {
           banca={filters.banca[0]}
           currentAssuntos={filters.assunto}
           preparatorioSlug={preparatorioSlug || undefined}
+        />
+      )}
+
+      {/* Contextual Tour - only show in selection mode with filters open */}
+      {mode === "selection" && showFilters && (
+        <PageHelpButton
+          tourId={practiceFiltersTourConfig.tourId}
+          title={practiceFiltersTourConfig.title}
+          description={practiceFiltersTourConfig.description}
+          features={practiceFiltersTourConfig.features}
+          steps={practiceFiltersSteps}
+          autoStartOnFirstVisit={true}
+          pageIsReady={!isLoadingFilters}
         />
       )}
     </div>

@@ -26,6 +26,11 @@ import { ReportQuestionModal } from "./ReportQuestionModal";
 import { QuestionStatsModal } from "./QuestionStatsModal";
 import { PegadinhaModal } from "./PegadinhaModal";
 import { QuestionFeedbackTabs } from "./QuestionFeedbackTabs";
+import {
+  PageHelpButton,
+  questionFeedbackTourConfig,
+  questionFeedbackSteps,
+} from "../tour";
 import { useHorizontalSwipe } from "../../hooks/useSwipe";
 import RippleEffect from "../ui/RippleEffect";
 import { validateQuestion } from "../../utils/questionValidator";
@@ -953,6 +958,19 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
           onShowToast?.("Report enviado com sucesso!", "success");
         }}
       />
+
+      {/* Contextual Tour for Feedback - shown after user answers */}
+      {isSubmitted && !isReadOnly && (
+        <PageHelpButton
+          tourId={questionFeedbackTourConfig.tourId}
+          title={questionFeedbackTourConfig.title}
+          description={questionFeedbackTourConfig.description}
+          features={questionFeedbackTourConfig.features}
+          steps={questionFeedbackSteps}
+          autoStartOnFirstVisit={true}
+          pageIsReady={isSubmitted}
+        />
+      )}
     </div>
   );
 };

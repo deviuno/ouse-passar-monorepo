@@ -15,6 +15,11 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { Button, Card, ConfirmModal } from '../components/ui';
+import {
+  PageHelpButton,
+  notebooksTourConfig,
+  notebooksSteps,
+} from '../components/tour';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useUIStore } from '../stores';
 import { getUserNotebooks, deleteNotebook, getNotebookSavedQuestionIds } from '../services/notebooksService';
@@ -256,6 +261,7 @@ export const NotebooksPage: React.FC = () => {
         {/* Top Action Button */}
         <div className="flex justify-end mb-4">
           <Button
+            data-tour="tour-create-notebook"
             onClick={() => navigate('/praticar?showFilters=true')}
             leftIcon={<Plus size={18} />}
           >
@@ -306,6 +312,7 @@ export const NotebooksPage: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
+                  data-tour={index === 0 ? "tour-notebook-card" : undefined}
                   className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5 hover:border-[var(--color-text-muted)] transition-colors theme-transition flex flex-col min-h-[320px]"
                 >
                   {/* Header */}
@@ -479,6 +486,7 @@ export const NotebooksPage: React.FC = () => {
                   <Button
                     className="mt-auto"
                     fullWidth
+                    data-tour={index === 0 ? "tour-notebook-start" : undefined}
                     onClick={() => handleStartFromNotebook(notebook)}
                     disabled={isStarting === notebook.id}
                     rightIcon={
@@ -642,6 +650,17 @@ export const NotebooksPage: React.FC = () => {
           confirmText="Excluir"
           variant="danger"
           isLoading={isDeleting}
+        />
+
+        {/* Contextual Tour */}
+        <PageHelpButton
+          tourId={notebooksTourConfig.tourId}
+          title={notebooksTourConfig.title}
+          description={notebooksTourConfig.description}
+          features={notebooksTourConfig.features}
+          steps={notebooksSteps}
+          autoStartOnFirstVisit={true}
+          pageIsReady={!isLoading && notebooks.length > 0}
         />
       </div>
     </div>

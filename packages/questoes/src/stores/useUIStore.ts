@@ -49,6 +49,13 @@ interface UIState {
   skipTour: () => void;
   checkTourStatus: () => void;
 
+  // Contextual Tours (per-page)
+  activeContextualTour: string | null;
+  startContextualTour: (tourId: string) => void;
+  completeContextualTour: (tourId: string) => void;
+  isContextualTourCompleted: (tourId: string) => boolean;
+  resetContextualTour: (tourId: string) => void;
+
   // Practice Mode (for Header integration)
   practiceMode: {
     isActive: boolean;
@@ -161,6 +168,26 @@ export const useUIStore = create<UIState>()((set, get) => ({
   checkTourStatus: () => {
     const completed = localStorage.getItem('ousepassar_tour_completed') === 'true';
     set({ isTourCompleted: completed });
+  },
+
+  // Contextual Tours
+  activeContextualTour: null,
+
+  startContextualTour: (tourId: string) => {
+    set({ activeContextualTour: tourId });
+  },
+
+  completeContextualTour: (tourId: string) => {
+    localStorage.setItem(`ousepassar_ctour_${tourId}_completed`, 'true');
+    set({ activeContextualTour: null });
+  },
+
+  isContextualTourCompleted: (tourId: string) => {
+    return localStorage.getItem(`ousepassar_ctour_${tourId}_completed`) === 'true';
+  },
+
+  resetContextualTour: (tourId: string) => {
+    localStorage.removeItem(`ousepassar_ctour_${tourId}_completed`);
   },
 
   // Practice Mode

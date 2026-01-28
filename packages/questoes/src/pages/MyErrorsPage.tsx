@@ -11,6 +11,11 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { Button } from '../components/ui';
+import {
+  PageHelpButton,
+  myErrorsTourConfig,
+  myErrorsSteps,
+} from '../components/tour';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useUIStore } from '../stores';
 import { getUserErrors, UserErrorsStats, MateriaErrorStats } from '../services/userErrorsService';
@@ -168,6 +173,7 @@ export const MyErrorsPage: React.FC = () => {
             className="mb-8"
           >
             <button
+              data-tour="tour-errors-practice"
               onClick={handlePracticeAll}
               className="w-full p-4 bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-500/30 rounded-xl flex items-center justify-between hover:border-red-500/50 transition-all group"
             >
@@ -228,6 +234,7 @@ export const MyErrorsPage: React.FC = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
+                    data-tour={index === 0 ? "tour-errors-materia" : undefined}
                     className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl overflow-hidden theme-transition"
                   >
                     {/* Materia Header */}
@@ -464,6 +471,19 @@ export const MyErrorsPage: React.FC = () => {
               })}
             </div>
           </>
+        )}
+
+        {/* Contextual Tour */}
+        {errorsData && errorsData.totalErrors > 0 && (
+          <PageHelpButton
+            tourId={myErrorsTourConfig.tourId}
+            title={myErrorsTourConfig.title}
+            description={myErrorsTourConfig.description}
+            features={myErrorsTourConfig.features}
+            steps={myErrorsSteps}
+            autoStartOnFirstVisit={true}
+            pageIsReady={!isLoading}
+          />
         )}
       </div>
     </div>

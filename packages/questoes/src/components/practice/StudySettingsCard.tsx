@@ -34,6 +34,7 @@ export function StudySettingsCard({
 }: StudySettingsCardProps) {
   return (
     <section
+      data-tour="tour-study-settings"
       className={`bg-[var(--color-bg-card)] border border-[var(--color-brand)]/20 rounded-2xl p-4 md:p-5 relative overflow-hidden theme-transition ${className}`}
     >
       {/* Background Glow */}

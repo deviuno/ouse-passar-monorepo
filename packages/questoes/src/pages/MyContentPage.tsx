@@ -21,6 +21,11 @@ import {
   Calendar,
 } from 'lucide-react';
 import { AudioPlayer } from '../components/ui/AudioPlayer';
+import {
+  PageHelpButton,
+  myContentTourConfig,
+  myContentSteps,
+} from '../components/tour';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useUIStore } from '../stores';
 import { userContentService, UserGeneratedContent, ContentType } from '../services/userContentService';
@@ -546,6 +551,7 @@ export const MyContentPage: React.FC = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: index * 0.03 }}
+        data-tour={index === 0 ? "tour-content-item" : undefined}
         onClick={() => setSelectedContent(item)}
         className="group flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--color-bg-elevated)] cursor-pointer transition-colors"
       >
@@ -683,7 +689,7 @@ export const MyContentPage: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 p-1 mb-4 bg-[var(--color-bg-elevated)] rounded-lg">
+        <div data-tour="tour-content-tabs" className="flex gap-1 p-1 mb-4 bg-[var(--color-bg-elevated)] rounded-lg">
           {TABS.map((tab) => {
             const count = getTabCount(tab.id);
             const isActive = activeTab === tab.id;
@@ -774,6 +780,19 @@ export const MyContentPage: React.FC = () => {
           content={selectedContent}
           onClose={() => setSelectedContent(null)}
           onNavigateToQuestion={handleNavigateToQuestion}
+        />
+      )}
+
+      {/* Contextual Tour */}
+      {totalCount > 0 && (
+        <PageHelpButton
+          tourId={myContentTourConfig.tourId}
+          title={myContentTourConfig.title}
+          description={myContentTourConfig.description}
+          features={myContentTourConfig.features}
+          steps={myContentSteps}
+          autoStartOnFirstVisit={true}
+          pageIsReady={!isLoading}
         />
       )}
     </div>
