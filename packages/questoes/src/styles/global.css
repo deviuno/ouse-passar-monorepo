@@ -1143,3 +1143,76 @@ button,
   background-image: none !important;
   background-color: var(--color-bg-main);
 }
+
+/* ============================================
+   QUESTION CONTENT - FORCE CONTRAST IN DARK MODE
+   Override inline styles from database HTML content
+   ============================================ */
+
+/* Force all text in question enunciado to use proper theme color */
+.prose * {
+  color: var(--color-text-main) !important;
+}
+
+.prose strong,
+.prose b {
+  color: var(--color-text-main) !important;
+  font-weight: 700 !important;
+}
+
+.prose em,
+.prose i {
+  color: var(--color-text-main) !important;
+}
+
+/* Force any span with inline styles to inherit proper color */
+.prose span,
+.prose span[style],
+.prose font,
+.prose font[color] {
+  color: var(--color-text-main) !important;
+}
+
+/* Reset any inline background colors that might cause issues */
+.prose span[style*="background"],
+.prose font[style*="background"] {
+  background-color: transparent !important;
+}
+
+/* Ensure links still have proper color */
+.prose a {
+  color: var(--color-brand) !important;
+}
+
+.prose a:hover {
+  color: var(--color-brand-light) !important;
+}
+
+/* Question feedback content (comentarios) */
+.question-feedback-content * {
+  color: var(--color-text-main) !important;
+}
+
+.question-feedback-content strong,
+.question-feedback-content b {
+  color: var(--color-text-main) !important;
+  font-weight: 700 !important;
+}
+
+.question-feedback-content span,
+.question-feedback-content span[style],
+.question-feedback-content font,
+.question-feedback-content font[color] {
+  color: var(--color-text-main) !important;
+}
+
+/* Light mode - also ensure proper text colors */
+[data-theme="light"] .prose *,
+[data-theme="light"] .question-feedback-content * {
+  color: var(--color-text-main) !important;
+}
+
+[data-theme="light"] .prose a,
+[data-theme="light"] .question-feedback-content a {
+  color: var(--color-brand) !important;
+}
