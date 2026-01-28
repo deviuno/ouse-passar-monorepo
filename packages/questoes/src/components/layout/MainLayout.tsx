@@ -25,41 +25,51 @@ export function MainLayout() {
   const showMusicPlayer = !!currentTrack;
 
   // Check if we should start the tour (only on home page and if not completed)
+  // This runs on mount, location change, and when tour completion status changes
   useEffect(() => {
-    const shouldStartTour = localStorage.getItem('ousepassar_start_tour') === 'true';
-    console.log('[MainLayout] Checking tour flag:', { shouldStartTour, isTourCompleted, pathname: location.pathname });
+    const checkAndStartTour = () => {
+      const shouldStartTour = localStorage.getItem('ousepassar_start_tour') === 'true';
+      const tourCompleted = localStorage.getItem('ousepassar_tour_completed') === 'true';
+      const currentPath = window.location.pathname;
 
-    if (shouldStartTour && !isTourCompleted && location.pathname === '/') {
-      // Small delay to ensure page is fully rendered
-      const timer = setTimeout(() => {
+      console.log('[MainLayout] Checking tour flag:', { shouldStartTour, tourCompleted, currentPath });
+
+      if (shouldStartTour && !tourCompleted && currentPath === '/') {
         console.log('[MainLayout] Starting tour from localStorage flag');
         localStorage.removeItem('ousepassar_start_tour');
-        startTour();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isTourCompleted, location.pathname, startTour]);
+        useUIStore.getState().startTour();
+      }
+    };
+
+    // Check immediately
+    const timer = setTimeout(checkAndStartTour, 500);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
 
   // Listen for the start-product-tour event (triggered by PromotionalTrialModal)
   useEffect(() => {
-    const handleStartTour = () => {
-      console.log('[MainLayout] Received start-product-tour event', { isTourCompleted, pathname: location.pathname });
+    const handleStartTourEvent = () => {
+      console.log('[MainLayout] Received start-product-tour event');
       // Aguardar um pouco para garantir que estamos na home
       setTimeout(() => {
         const currentPath = window.location.pathname;
         const tourCompleted = localStorage.getItem('ousepassar_tour_completed') === 'true';
-        console.log('[MainLayout] Starting tour from event', { currentPath, tourCompleted });
+        console.log('[MainLayout] Checking conditions for tour:', { currentPath, tourCompleted });
 
         if (!tourCompleted && currentPath === '/') {
+          console.log('[MainLayout] Starting tour from event!');
           localStorage.removeItem('ousepassar_start_tour');
-          startTour();
+          // Usar o store diretamente para evitar problemas de closure
+          useUIStore.getState().startTour();
+        } else {
+          console.log('[MainLayout] Tour not started - conditions not met');
         }
       }, 100);
     };
 
-    window.addEventListener('start-product-tour', handleStartTour);
-    return () => window.removeEventListener('start-product-tour', handleStartTour);
-  }, [startTour]);
+    window.addEventListener('start-product-tour', handleStartTourEvent);
+    return () => window.removeEventListener('start-product-tour', handleStartTourEvent);
+  }, []);
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[var(--color-bg-main)] text-[var(--color-text-main)] theme-transition scrollbar-hide">
