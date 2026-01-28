@@ -361,20 +361,16 @@ export function ProductTour({ isActive, onComplete, onSkip }: ProductTourProps) 
     <AnimatePresence>
       {isVisible && (
         <div className="fixed inset-0 z-[9999]">
-          {/* Overlay */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/80"
-            onClick={(e) => e.stopPropagation()}
-          />
-
-          {/* Highlight cutout - only if we have a target */}
-          {targetRect && !isWelcomeStep && (
+          {/* Overlay com cutout para highlight */}
+          {targetRect && !isWelcomeStep ? (
             <>
-              {/* SVG mask for cutout */}
-              <svg className="absolute inset-0 w-full h-full pointer-events-none">
+              {/* SVG mask for cutout - único overlay com 40% de opacidade */}
+              <motion.svg
+                className="absolute inset-0 w-full h-full"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
                 <defs>
                   <mask id="tour-highlight-mask">
                     <rect width="100%" height="100%" fill="white" />
@@ -391,10 +387,10 @@ export function ProductTour({ isActive, onComplete, onSkip }: ProductTourProps) 
                 <rect
                   width="100%"
                   height="100%"
-                  fill="rgba(0, 0, 0, 0.8)"
+                  fill="rgba(0, 0, 0, 0.4)"
                   mask="url(#tour-highlight-mask)"
                 />
-              </svg>
+              </motion.svg>
 
               {/* Highlight border */}
               <motion.div
@@ -411,6 +407,15 @@ export function ProductTour({ isActive, onComplete, onSkip }: ProductTourProps) 
                 }}
               />
             </>
+          ) : (
+            /* Overlay simples para steps sem target (welcome/final) */
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40"
+              onClick={(e) => e.stopPropagation()}
+            />
           )}
 
           {/* Tooltip */}

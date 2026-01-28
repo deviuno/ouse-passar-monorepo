@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
-import { useAuthStore } from '../stores';
+import { useAuthStore, useUIStore } from '../stores';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { PromotionalTrialModal } from '../components/promotional/PromotionalTrialModal';
@@ -192,13 +192,17 @@ function AppContent() {
   const handleStartTour = () => {
     setShowTrialModal(false);
     localStorage.setItem('ousepassar_trial_modal_shown', 'true');
+    // Remove flag de tour completo para permitir iniciar
+    localStorage.removeItem('ousepassar_tour_completed');
     // Define flag para o MainLayout iniciar o tour
     localStorage.setItem('ousepassar_start_tour', 'true');
     clearPromotionalTrial();
+    // Atualiza o estado do store
+    useUIStore.setState({ isTourCompleted: false });
     // Pequeno delay para fechar o modal antes de iniciar o tour
     setTimeout(() => {
-      window.dispatchEvent(new Event('start-product-tour'));
-    }, 300);
+      useUIStore.getState().startTour();
+    }, 500);
   };
 
   if (isLoading) {
