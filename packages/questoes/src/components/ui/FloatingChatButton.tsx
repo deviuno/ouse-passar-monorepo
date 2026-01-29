@@ -2,6 +2,8 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
 
+const MOBILE_NAV_HEIGHT = 64; // MobileNav h-16 = 64px
+
 interface FloatingChatButtonProps {
   isOpen: boolean;
   onClick: () => void;
@@ -26,14 +28,16 @@ export function FloatingChatButton({ isOpen, onClick, sidebarWidth = 0, isChatVi
   // Only hide on mobile when chat is visible
   const shouldHide = isMobile && isChatVisible;
 
+  // Calculate bottom position: on mobile, position above MobileNav
+  const bottomPosition = isMobile ? MOBILE_NAV_HEIGHT + 12 : 16;
+
   return (
     <motion.button
       data-floating-chat-button
       onClick={onClick}
-      className="fixed z-50"
+      className="fixed z-50 right-4"
       style={{
-        bottom: '65px',
-        right: '0px',
+        bottom: `${bottomPosition}px`,
         pointerEvents: shouldHide ? 'none' : 'auto'
       }}
       initial={{ y: 100, opacity: 0 }}

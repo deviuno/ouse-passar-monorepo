@@ -63,6 +63,7 @@ const MIN_HEIGHT = 300;
 const MAX_HEIGHT = 700;
 const DEFAULT_HEIGHT = 462; // 420px + 10%
 const COLLAPSED_HEIGHT = 72; // Just input field
+const MOBILE_NAV_HEIGHT = 64; // MobileNav h-16 = 64px
 
 export function MentorChat({ contentContext, userContext, isVisible = true, onClose, userId, preparatorioId, checkoutUrl }: MentorChatProps) {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -73,6 +74,53 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
     const resizeStartY = useRef(0);
     const resizeStartHeight = useRef(0);
     const chatContainerRef = useRef<HTMLDivElement>(null);
+
+    // Responsive: detect mobile and calculate max height
+    const [isMobile, setIsMobile] = useState(false);
+    const [maxMobileHeight, setMaxMobileHeight] = useState(0);
+    const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+    useEffect(() => {
+        const updateDimensions = () => {
+            const mobile = window.innerWidth < 1024; // lg breakpoint
+            setIsMobile(mobile);
+
+            if (mobile) {
+                // Calculate available height: viewport - MobileNav - safe area - some padding
+                const vh = window.innerHeight;
+                const safeArea = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0', 10);
+                const availableHeight = vh - MOBILE_NAV_HEIGHT - safeArea - 20; // 20px extra padding
+                setMaxMobileHeight(Math.min(availableHeight, MAX_HEIGHT));
+
+                // Adjust current height if needed
+                setChatHeight(prev => Math.min(prev, availableHeight));
+            } else {
+                setMaxMobileHeight(MAX_HEIGHT);
+            }
+        };
+
+        updateDimensions();
+        window.addEventListener('resize', updateDimensions);
+        return () => window.removeEventListener('resize', updateDimensions);
+    }, []);
+
+    // Detect virtual keyboard on mobile using visualViewport API
+    useEffect(() => {
+        if (!isMobile || typeof window === 'undefined') return;
+
+        const handleViewportResize = () => {
+            if (window.visualViewport) {
+                // If viewport height is significantly smaller than window height, keyboard is likely open
+                const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.75;
+                setIsKeyboardOpen(keyboardOpen);
+            }
+        };
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleViewportResize);
+            return () => window.visualViewport?.removeEventListener('resize', handleViewportResize);
+        }
+    }, [isMobile]);
 
     // Battery store
     const { consumeBattery, batteryStatus } = useBatteryStore();
@@ -286,9 +334,10 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
         if (!isResizing) return;
         const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
         const deltaY = resizeStartY.current - clientY;
-        const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, resizeStartHeight.current + deltaY));
+        const effectiveMaxHeight = isMobile ? maxMobileHeight : MAX_HEIGHT;
+        const newHeight = Math.min(effectiveMaxHeight, Math.max(MIN_HEIGHT, resizeStartHeight.current + deltaY));
         setChatHeight(newHeight);
-    }, [isResizing]);
+    }, [isResizing, isMobile, maxMobileHeight]);
 
     const handleResizeEnd = useCallback(() => {
         setIsResizing(false);
@@ -729,9 +778,20 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
     // Determine if we should show expanded view
     const showExpanded = isControlled ? isVisible : isExpanded;
 
+    // Calculate effective height for mobile
+    const effectiveChatHeight = isMobile
+        ? Math.min(chatHeight, maxMobileHeight || DEFAULT_HEIGHT)
+        : chatHeight;
+
+    // Bottom position: on mobile, above MobileNav unless keyboard is open
+    const bottomOffset = isMobile && !isKeyboardOpen ? MOBILE_NAV_HEIGHT : 0;
+
     return (
         <motion.div
-            className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
+            className="fixed left-0 right-0 z-50 flex justify-center px-2 sm:px-4 pointer-events-none"
+            style={{
+                bottom: `${bottomOffset}px`,
+            }}
             initial={false}
             animate={{}}
             transition={{ type: "spring", stiffness: 200, damping: 25 }}
@@ -764,7 +824,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                         initial={{ y: 100, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 100, opacity: 0 }}
-                        style={{ height: isCollapsed ? COLLAPSED_HEIGHT : chatHeight }}
+                        style={{ height: isCollapsed ? COLLAPSED_HEIGHT : effectiveChatHeight }}
                         className="w-full max-w-[900px] bg-[var(--color-bg-card)] border border-[var(--color-border)] border-b-0 rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-200"
                     >
                         {/* Header with Close Button (Mobile) / Resize Handle (Desktop) */}
