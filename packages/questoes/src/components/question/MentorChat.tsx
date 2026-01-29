@@ -764,7 +764,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                     </div>
                     <button
                         onClick={handleClose}
-                        className="p-2 rounded-lg bg-[var(--color-bg-elevated)] hover:bg-[var(--color-border)] text-[var(--color-text-sec)] transition-colors"
+                        className="p-2 rounded-lg bg-[#ffac00] hover:bg-[#ffbc33] text-black transition-colors"
                     >
                         <ChevronDown size={20} />
                     </button>
