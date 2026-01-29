@@ -63,7 +63,6 @@ const MIN_HEIGHT = 300;
 const MAX_HEIGHT = 700;
 const DEFAULT_HEIGHT = 462; // 420px + 10%
 const COLLAPSED_HEIGHT = 72; // Just input field
-const MOBILE_NAV_HEIGHT = 64; // MobileNav h-16 = 64px
 
 export function MentorChat({ contentContext, userContext, isVisible = true, onClose, userId, preparatorioId, checkoutUrl }: MentorChatProps) {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -75,52 +74,19 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
     const resizeStartHeight = useRef(0);
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
-    // Responsive: detect mobile and calculate max height
+    // Responsive: detect mobile
     const [isMobile, setIsMobile] = useState(false);
-    const [maxMobileHeight, setMaxMobileHeight] = useState(0);
-    const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
     useEffect(() => {
         const updateDimensions = () => {
             const mobile = window.innerWidth < 1024; // lg breakpoint
             setIsMobile(mobile);
-
-            if (mobile) {
-                // Calculate available height: viewport - MobileNav - safe area - some padding
-                const vh = window.innerHeight;
-                const safeArea = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0', 10);
-                const availableHeight = vh - MOBILE_NAV_HEIGHT - safeArea - 20; // 20px extra padding
-                setMaxMobileHeight(Math.min(availableHeight, MAX_HEIGHT));
-
-                // Adjust current height if needed
-                setChatHeight(prev => Math.min(prev, availableHeight));
-            } else {
-                setMaxMobileHeight(MAX_HEIGHT);
-            }
         };
 
         updateDimensions();
         window.addEventListener('resize', updateDimensions);
         return () => window.removeEventListener('resize', updateDimensions);
     }, []);
-
-    // Detect virtual keyboard on mobile using visualViewport API
-    useEffect(() => {
-        if (!isMobile || typeof window === 'undefined') return;
-
-        const handleViewportResize = () => {
-            if (window.visualViewport) {
-                // If viewport height is significantly smaller than window height, keyboard is likely open
-                const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.75;
-                setIsKeyboardOpen(keyboardOpen);
-            }
-        };
-
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', handleViewportResize);
-            return () => window.visualViewport?.removeEventListener('resize', handleViewportResize);
-        }
-    }, [isMobile]);
 
     // Battery store
     const { consumeBattery, batteryStatus } = useBatteryStore();
@@ -331,13 +297,12 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
     }, [chatHeight]);
 
     const handleResizeMove = useCallback((e: MouseEvent | TouchEvent) => {
-        if (!isResizing) return;
+        if (!isResizing || isMobile) return; // Disable resize on mobile (fullscreen mode)
         const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
         const deltaY = resizeStartY.current - clientY;
-        const effectiveMaxHeight = isMobile ? maxMobileHeight : MAX_HEIGHT;
-        const newHeight = Math.min(effectiveMaxHeight, Math.max(MIN_HEIGHT, resizeStartHeight.current + deltaY));
+        const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, resizeStartHeight.current + deltaY));
         setChatHeight(newHeight);
-    }, [isResizing, isMobile, maxMobileHeight]);
+    }, [isResizing, isMobile]);
 
     const handleResizeEnd = useCallback(() => {
         setIsResizing(false);
@@ -778,20 +743,148 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
     // Determine if we should show expanded view
     const showExpanded = isControlled ? isVisible : isExpanded;
 
-    // Calculate effective height for mobile
-    const effectiveChatHeight = isMobile
-        ? Math.min(chatHeight, maxMobileHeight || DEFAULT_HEIGHT)
-        : chatHeight;
+    // Mobile: fullscreen chat overlay
+    if (isMobile && showExpanded) {
+        return (
+            <motion.div
+                ref={chatContainerRef}
+                className="fixed inset-0 z-[60] bg-[var(--color-bg-card)] flex flex-col pointer-events-auto"
+                initial={{ y: '100%', opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: '100%', opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+                {/* Mobile Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg-card)]">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-[#ffac00] p-1.5 rounded-lg">
+                            <Zap size={18} className="text-black fill-black" />
+                        </div>
+                        <span className="font-semibold text-[var(--color-text-main)]">Mentor IA</span>
+                    </div>
+                    <button
+                        onClick={handleClose}
+                        className="p-2 rounded-lg bg-[var(--color-bg-elevated)] hover:bg-[var(--color-border)] text-[var(--color-text-sec)] transition-colors"
+                    >
+                        <ChevronDown size={20} />
+                    </button>
+                </div>
 
-    // Bottom position: on mobile, above MobileNav unless keyboard is open
-    const bottomOffset = isMobile && !isKeyboardOpen ? MOBILE_NAV_HEIGHT : 0;
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-[var(--color-bg-main)]">
+                    {messages.map((msg, idx) => (
+                        <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div
+                                className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
+                                    ? 'bg-[#ffac00] text-black font-medium rounded-tr-none'
+                                    : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-main)] rounded-tl-none border border-[var(--color-border)]'
+                                    }`}
+                            >
+                                {msg.text && (msg.role === 'model' ? renderMarkdown(msg.text) : msg.text)}
+                                {msg.audioLoading && <AudioPlayerSkeleton />}
+                                {msg.audio && !msg.audioLoading && (
+                                    <div className={msg.text ? 'mt-3' : ''}>
+                                        <AudioPlayer src={msg.audio.audioUrl} type={msg.audio.type} />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    {isLoading && (
+                        <div className="flex justify-start">
+                            <div className="bg-[var(--color-bg-elevated)] p-3 rounded-2xl rounded-tl-none border border-[var(--color-border)]">
+                                <div className="flex space-x-1">
+                                    <div className="w-1.5 h-1.5 bg-[var(--color-text-muted)] rounded-full animate-bounce"></div>
+                                    <div className="w-1.5 h-1.5 bg-[var(--color-text-muted)] rounded-full animate-bounce delay-75"></div>
+                                    <div className="w-1.5 h-1.5 bg-[var(--color-text-muted)] rounded-full animate-bounce delay-150"></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
 
+                {/* Mobile Footer Input */}
+                <div className="p-3 bg-[var(--color-bg-card)] border-t border-[var(--color-border)] safe-area-bottom">
+                    <div className="relative" ref={shortcutsRef}>
+                        {/* Shortcuts Dropdown */}
+                        <AnimatePresence>
+                            {showShortcuts && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="absolute bottom-full left-0 mb-2 w-72 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl shadow-2xl overflow-hidden z-50"
+                                >
+                                    <div className="p-2">
+                                        <p className="text-[#6E6E6E] text-xs font-medium px-2 py-1.5">Atalhos de IA</p>
+                                        {shortcutOptions.map((option) => (
+                                            <button
+                                                key={option.id}
+                                                onClick={(e) => option.action(e)}
+                                                disabled={option.disabled || isGeneratingAudio}
+                                                className={`w-full flex items-start gap-3 p-2.5 rounded-lg transition-colors text-left ${option.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--color-bg-elevated)]'}`}
+                                            >
+                                                <div className={`p-1.5 rounded-lg ${option.disabled ? 'bg-[var(--color-bg-elevated)]' : 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]'}`}>
+                                                    {option.icon}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[var(--color-text-main)] text-sm font-medium">{option.label}</p>
+                                                    <p className="text-[var(--color-text-muted)] text-xs truncate">{option.description}</p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Shortcuts Button */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowShortcuts(!showShortcuts); }}
+                            disabled={isGeneratingAudio}
+                            className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${showShortcuts ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black' : 'text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-bg-elevated)]'} ${isGeneratingAudio ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            title="Atalhos de IA"
+                        >
+                            {isGeneratingAudio ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                        </button>
+
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSend(e)}
+                            placeholder="Digite sua dúvida..."
+                            className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl pl-12 pr-24 py-3 text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand)] transition-colors"
+                        />
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleMicClick(e); }}
+                                className={`p-2 rounded-lg transition-colors ${isRecording ? 'text-[#FF4444] bg-[#FF4444]/10 animate-pulse' : 'text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-bg-elevated)]'}`}
+                                title="Gravar audio"
+                            >
+                                {isRecording ? <Square size={18} fill="currentColor" /> : <Mic size={18} />}
+                            </button>
+                            <button
+                                onClick={(e) => handleSend(e)}
+                                disabled={!inputValue.trim() || isLoading}
+                                className="p-2 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <Send size={18} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
+
+    // Desktop: original bottom sheet behavior
     return (
         <motion.div
-            className="fixed left-0 right-0 z-50 flex justify-center px-2 sm:px-4 pointer-events-none"
-            style={{
-                bottom: `${bottomOffset}px`,
-            }}
+            className="fixed left-0 right-0 bottom-0 z-50 flex justify-center px-4 pointer-events-none"
             initial={false}
             animate={{}}
             transition={{ type: "spring", stiffness: 200, damping: 25 }}
@@ -824,7 +917,7 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                         initial={{ y: 100, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 100, opacity: 0 }}
-                        style={{ height: isCollapsed ? COLLAPSED_HEIGHT : effectiveChatHeight }}
+                        style={{ height: isCollapsed ? COLLAPSED_HEIGHT : chatHeight }}
                         className="w-full max-w-[900px] bg-[var(--color-bg-card)] border border-[var(--color-border)] border-b-0 rounded-t-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-200"
                     >
                         {/* Header with Close Button (Mobile) / Resize Handle (Desktop) */}
