@@ -857,24 +857,35 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSend(e)}
                             placeholder="Digite sua dúvida..."
-                            className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl pl-12 pr-24 py-3 text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand)] transition-colors"
+                            className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl pl-12 pr-14 py-3 text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand)] transition-colors"
                         />
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleMicClick(e); }}
-                                className={`p-2 rounded-lg transition-colors ${isRecording ? 'text-[#FF4444] bg-[#FF4444]/10 animate-pulse' : 'text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-bg-elevated)]'}`}
-                                title="Gravar audio"
-                            >
-                                {isRecording ? <Square size={18} fill="currentColor" /> : <Mic size={18} />}
-                            </button>
-                            <button
-                                onClick={(e) => handleSend(e)}
-                                disabled={!inputValue.trim() || isLoading}
-                                className="p-2 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <Send size={18} />
-                            </button>
-                        </div>
+                        {/* Single action button - WhatsApp style */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (inputValue.trim()) {
+                                    handleSend(e);
+                                } else {
+                                    handleMicClick(e);
+                                }
+                            }}
+                            disabled={isLoading}
+                            className={`absolute right-2 top-1/2 -translate-y-1/2 p-2.5 rounded-full transition-all duration-200 ${
+                                isRecording
+                                    ? 'bg-[#FF4444] text-white animate-pulse'
+                                    : inputValue.trim()
+                                        ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
+                                        : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-border)]'
+                            } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isRecording ? (
+                                <Square size={20} fill="currentColor" />
+                            ) : inputValue.trim() ? (
+                                <Send size={20} />
+                            ) : (
+                                <Mic size={20} />
+                            )}
+                        </button>
                     </div>
                 </div>
             </motion.div>
@@ -1064,32 +1075,37 @@ export function MentorChat({ contentContext, userContext, isVisible = true, onCl
                                     onChange={(e) => setInputValue(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSend(e)}
                                     onFocus={() => isCollapsed && setIsCollapsed(false)}
-                                    placeholder={isCollapsed ? "Clique para expandir o chat..." : "Digite sua duvida..."}
-                                    className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl pl-12 pr-24 py-3 text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand)] transition-colors"
+                                    placeholder={isCollapsed ? "Clique para expandir o chat..." : "Digite sua dúvida..."}
+                                    className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-xl pl-12 pr-14 py-3 text-[var(--color-text-main)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-brand)] transition-colors"
                                 />
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
+                                {/* Single action button - WhatsApp style */}
+                                <button
+                                    data-send-button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (inputValue.trim()) {
+                                            handleSend(e);
+                                        } else {
                                             handleMicClick(e);
-                                        }}
-                                        className={`p-2 rounded-lg transition-colors ${isRecording
-                                            ? 'text-[#FF4444] bg-[#FF4444]/10 animate-pulse'
-                                            : 'text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-bg-elevated)]'
-                                            }`}
-                                        title="Gravar audio"
-                                    >
-                                        {isRecording ? <Square size={18} fill="currentColor" /> : <Mic size={18} />}
-                                    </button>
-                                    <button
-                                        data-send-button
-                                        onClick={(e) => handleSend(e)}
-                                        disabled={!inputValue.trim() || isLoading}
-                                        className="p-2 bg-[#ffac00] hover:bg-[#ffbc33] text-black rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                    >
+                                        }
+                                    }}
+                                    disabled={isLoading}
+                                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-2.5 rounded-full transition-all duration-200 ${
+                                        isRecording
+                                            ? 'bg-[#FF4444] text-white animate-pulse'
+                                            : inputValue.trim()
+                                                ? 'bg-[#ffac00] hover:bg-[#ffbc33] text-black'
+                                                : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-sec)] hover:text-[var(--color-brand)] hover:bg-[var(--color-border)]'
+                                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    {isRecording ? (
+                                        <Square size={18} fill="currentColor" />
+                                    ) : inputValue.trim() ? (
                                         <Send size={18} />
-                                    </button>
-                                </div>
+                                    ) : (
+                                        <Mic size={18} />
+                                    )}
+                                </button>
                             </div>
                         </div>
                     </motion.div>
