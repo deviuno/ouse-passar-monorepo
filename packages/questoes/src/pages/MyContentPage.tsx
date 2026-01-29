@@ -21,11 +21,6 @@ import {
   Calendar,
 } from 'lucide-react';
 import { AudioPlayer } from '../components/ui/AudioPlayer';
-import {
-  PageHelpButton,
-  myContentTourConfig,
-  myContentSteps,
-} from '../components/tour';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useUIStore } from '../stores';
 import { userContentService, UserGeneratedContent, ContentType } from '../services/userContentService';
@@ -783,18 +778,6 @@ export const MyContentPage: React.FC = () => {
         />
       )}
 
-      {/* Contextual Tour */}
-      {totalCount > 0 && (
-        <PageHelpButton
-          tourId={myContentTourConfig.tourId}
-          title={myContentTourConfig.title}
-          description={myContentTourConfig.description}
-          features={myContentTourConfig.features}
-          steps={myContentSteps}
-          autoStartOnFirstVisit={true}
-          pageIsReady={!isLoading}
-        />
-      )}
     </div>
   );
 };

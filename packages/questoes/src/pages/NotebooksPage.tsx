@@ -15,11 +15,6 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { Button, Card, ConfirmModal } from '../components/ui';
-import {
-  PageHelpButton,
-  notebooksTourConfig,
-  notebooksSteps,
-} from '../components/tour';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useUIStore } from '../stores';
 import { getUserNotebooks, deleteNotebook, getNotebookSavedQuestionIds } from '../services/notebooksService';
@@ -652,16 +647,6 @@ export const NotebooksPage: React.FC = () => {
           isLoading={isDeleting}
         />
 
-        {/* Contextual Tour */}
-        <PageHelpButton
-          tourId={notebooksTourConfig.tourId}
-          title={notebooksTourConfig.title}
-          description={notebooksTourConfig.description}
-          features={notebooksTourConfig.features}
-          steps={notebooksSteps}
-          autoStartOnFirstVisit={true}
-          pageIsReady={!isLoading && notebooks.length > 0}
-        />
       </div>
     </div>
   );

@@ -26,11 +26,6 @@ import { ReportQuestionModal } from "./ReportQuestionModal";
 import { QuestionStatsModal } from "./QuestionStatsModal";
 import { PegadinhaModal } from "./PegadinhaModal";
 import { QuestionFeedbackTabs } from "./QuestionFeedbackTabs";
-import {
-  PageHelpButton,
-  questionFeedbackTourConfig,
-  questionFeedbackSteps,
-} from "../tour";
 import RippleEffect from "../ui/RippleEffect";
 import { validateQuestion } from "../../utils/questionValidator";
 import CorruptedQuestionCard from "./CorruptedQuestionCard";
@@ -937,18 +932,6 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
         }}
       />
 
-      {/* Contextual Tour for Feedback - shown after user answers */}
-      {isSubmitted && !isReadOnly && (
-        <PageHelpButton
-          tourId={questionFeedbackTourConfig.tourId}
-          title={questionFeedbackTourConfig.title}
-          description={questionFeedbackTourConfig.description}
-          features={questionFeedbackTourConfig.features}
-          steps={questionFeedbackSteps}
-          autoStartOnFirstVisit={true}
-          pageIsReady={isSubmitted}
-        />
-      )}
     </div>
   );
 };
