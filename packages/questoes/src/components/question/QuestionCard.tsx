@@ -31,7 +31,6 @@ import {
   questionFeedbackTourConfig,
   questionFeedbackSteps,
 } from "../tour";
-import { useHorizontalSwipe } from "../../hooks/useSwipe";
 import RippleEffect from "../ui/RippleEffect";
 import { validateQuestion } from "../../utils/questionValidator";
 import CorruptedQuestionCard from "./CorruptedQuestionCard";
@@ -116,26 +115,6 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
 
   // Ref para o botão de responder
   const submitButtonRef = useRef<HTMLDivElement>(null);
-
-  // Swipe gestures para navegação mobile (apenas se já respondeu)
-  const swipeHandlersRaw = useHorizontalSwipe(
-    () => {
-      // Swipe left = próxima questão
-      if (isSubmitted) {
-        onNext();
-      }
-    },
-    () => {
-      // Swipe right = questão anterior
-      if (isSubmitted && onPrevious) {
-        onPrevious();
-      }
-    }
-  );
-
-  // Extract only DOM-valid event handlers (remove isSwiping and swipeDirection to avoid React warnings)
-  const { onTouchStart, onTouchMove, onTouchEnd } = swipeHandlersRaw;
-  const swipeHandlers = { onTouchStart, onTouchMove, onTouchEnd };
 
   // Validar questão
   const questionValidation = useMemo(() => {
@@ -559,7 +538,6 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   return (
     <div
       className="flex flex-col pb-24 px-3 md:px-4 pt-4 md:pt-6"
-      {...(isSubmitted ? swipeHandlers : {})}
     >
       {/* Header Info */}
       <div className="mb-5">

@@ -86,7 +86,7 @@ export default function PracticePage() {
   const navigate = useNavigate();
   const { user, profile, fetchProfile, updateProfile } = useAuthStore();
   const { incrementStats } = useUserStore();
-  const { addToast, setPracticeMode, clearPracticeMode } = useUIStore();
+  const { addToast, setPracticeMode, clearPracticeMode, setTutorOpen } = useUIStore();
   const { selectedPreparatorioId, getSelectedPreparatorio, userPreparatorios } =
     useTrailStore();
   const {
@@ -333,8 +333,14 @@ export default function PracticePage() {
   useEffect(() => {
     return () => {
       clearPracticeMode();
+      setTutorOpen(false);
     };
-  }, [clearPracticeMode]);
+  }, [clearPracticeMode, setTutorOpen]);
+
+  // Sync showMentorChat with global tutor state (for MobileNav visibility)
+  useEffect(() => {
+    setTutorOpen(showMentorChat);
+  }, [showMentorChat, setTutorOpen]);
 
   // Start question timer
   useEffect(() => {

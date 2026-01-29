@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Map, Target, FileText, BarChart2, Headphones, User, Lock } from 'lucide-react';
 import { ModuleBlockedModal } from '../ui/ModuleBlockedModal';
 import { useModuleAccess, getModuleFromPath } from '../../hooks/useModuleAccess';
 import { ModuleName } from '../../stores/useModuleSettingsStore';
+import { useUIStore } from '../../stores/useUIStore';
 
 const navItems = [
   { path: '/', icon: Map, label: 'Trilha', tourId: 'nav-trilha' },
@@ -22,6 +23,7 @@ const MODULE_LABELS: Record<ModuleName, string> = {
   estatisticas: 'Estatísticas',
   loja: 'Loja',
   music: 'Ouse Music',
+  cursos: 'Cursos',
 };
 
 export function MobileNav() {
@@ -29,12 +31,24 @@ export function MobileNav() {
   const moduleAccess = useModuleAccess();
   const [blockedModalOpen, setBlockedModalOpen] = useState(false);
   const [blockedModuleName, setBlockedModuleName] = useState<string>('');
+  const isTutorOpen = useUIStore((state) => state.isTutorOpen);
+
+  // Hide MobileNav when tutor chat is open (fullscreen on mobile)
+  const shouldHide = isTutorOpen;
 
   return (
     <>
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[var(--color-bg-card)] border-t border-[var(--color-border)] z-50 theme-transition">
-        <div className="flex items-center justify-around h-16 px-2">
-          {navItems.map((item) => {
+      <AnimatePresence>
+        {!shouldHide && (
+          <motion.nav
+            className="lg:hidden fixed bottom-0 left-0 right-0 bg-[var(--color-bg-card)] border-t border-[var(--color-border)] z-50 theme-transition"
+            initial={{ y: 0 }}
+            animate={{ y: 0 }}
+            exit={{ y: 100 }}
+            transition={{ type: 'tween', duration: 0.2 }}
+          >
+            <div className="flex items-center justify-around h-16 px-2">
+              {navItems.map((item) => {
             const isActive = location.pathname === item.path ||
               (item.path === '/' && location.pathname === '/trilha') ||
               (item.path === '/questoes' && ['/questoes', '/praticar', '/cadernos'].includes(location.pathname));
@@ -127,8 +141,10 @@ export function MobileNav() {
               </NavLink>
             );
           })}
-        </div>
-      </nav>
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
 
       {/* Module Blocked Modal */}
       <ModuleBlockedModal

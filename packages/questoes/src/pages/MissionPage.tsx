@@ -755,7 +755,7 @@ export default function MissionPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile: userProfile } = useAuthStore();
-  const { addToast } = useUIStore();
+  const { addToast, setTutorOpen } = useUIStore();
   const { incrementStats, stats } = useUserStore();
   const {
     completeMission,
@@ -1302,8 +1302,15 @@ export default function MissionPage() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // Também flush ao desmontar o componente
       flushPendingSave();
+      // Reset tutor state on unmount
+      setTutorOpen(false);
     };
-  }, []);
+  }, [setTutorOpen]);
+
+  // Sync showMentorChat with global tutor state (for MobileNav visibility)
+  useEffect(() => {
+    setTutorOpen(showMentorChat);
+  }, [showMentorChat, setTutorOpen]);
 
   // Handler quando o usuário responde
   const handleAnswer = async (letter: string, clickX?: number, clickY?: number) => {
